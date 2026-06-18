@@ -1,8 +1,8 @@
-<p align="center">
+<div align="center">
   <img src="./public/images/linko.png" alt="LINKO" />
-</p><hr>
+</div><hr>
 
-# LINKO
+<h1 align="center">LINKO</h1>
 
 LINKO is a logistics, warehouse inventory tracking, and supplier-matching platform for MSMEs and wholesale providers.
 
@@ -27,5 +27,19 @@ Backend development:
 - [@nateponds](https://github.com/nateponds)
 - @Swashua, GitHub profile to be added
 
-See [ROADMAP.md](./ROADMAP.md) for the current strategic plan.
-See [FRONTEND_GUIDE.md](./docs/FRONTEND_GUIDE.md) for frontend structure and UI development notes.
+## Active Development References
+
+LINKO is actively undergoing its early development and design phase. Developers should review the planning documents before creating new screens, components, backend models, or workflow changes.
+
+- See [ROADMAP.md](./ROADMAP.md) for the current strategic plan and phased product direction.
+- See [FRONTEND_GUIDE.md](./docs/FRONTEND_GUIDE.md) for frontend structure, UI responsibilities, and implementation notes.
+- See [BACKEND_GUIDE.md](./docs/BACKEND_GUIDE.md) for backend planning, domain models, API direction, and service responsibilities.
+
+## Development Workflow
+
+> **Developer action point:** Use [BACKLOG.md](./docs/BACKLOG.md) and [SPRINTS.md](./docs/SPRINTS.md) to keep development organized as the project moves forward.
+
+- [BACKLOG.md](./docs/BACKLOG.md) is for things we might or should do later.
+- [SPRINTS.md](./docs/SPRINTS.md) is for things we are committing to work on now.
+
+Before starting work, developers should check whether the task belongs in the backlog, the current sprint, or one of the active guide documents.
