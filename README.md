@@ -25,7 +25,7 @@ Frontend development:
 Backend development:
 
 - [@nateponds](https://github.com/nateponds)
-- @Swashua, GitHub profile to be added
+- [@Swashua](https://github.com/Swashua)
 
 ## Active Development References
 
