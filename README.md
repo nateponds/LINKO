@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="linko.png" alt="LINKO" />
+</p>
+
 # LINKO
 
 LINKO is a logistics, warehouse inventory tracking, and supplier-matching platform for MSMEs and wholesale providers.
