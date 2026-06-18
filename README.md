@@ -15,4 +15,17 @@ The project is currently initiating its development phase, with the immediate fo
 - Identify core workflows for inventory, suppliers, orders, and logistics.
 - Prepare the project for step-by-step implementation.
 
+## Team
+
+Frontend development:
+
+- [@BaelJM](https://github.com/BaelJM)
+- [@fR3yA-ctrl](https://github.com/fR3yA-ctrl)
+
+Backend development:
+
+- [@nateponds](https://github.com/nateponds)
+- @Swashua, GitHub profile to be added
+
 See [ROADMAP.md](./ROADMAP.md) for the current strategic plan.
+See [FRONTEND_GUIDE.md](./docs/FRONTEND_GUIDE.md) for frontend structure and UI development notes.
