@@ -1,6 +1,6 @@
 <p align="center">
-  <img src="linko.png" alt="LINKO" />
-</p>
+  <img src="public/images/linko.png" alt="LINKO" />
+</p><hr>
 
 # LINKO
 
