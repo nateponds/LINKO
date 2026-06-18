@@ -41,5 +41,7 @@ LINKO is actively undergoing its early development and design phase. Developers 
 
 - [BACKLOG.md](./docs/BACKLOG.md) is for things we might or should do later.
 - [SPRINTS.md](./docs/SPRINTS.md) is for things we are committing to work on now.
+- Use [EXAMPLE_BACKLOG.md](./docs/examples/EXAMPLE_BACKLOG.md) when proposing new work for the team to review.
+- Use [EXAMPLE_SPRINTS.md](./docs/examples/EXAMPLE_SPRINTS.md) when approved work is being organized into an active sprint.
 
 Before starting work, developers should check whether the task belongs in the backlog, the current sprint, or one of the active guide documents.
