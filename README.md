@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/images/linko.png" alt="LINKO" />
+  <img src="./public/images/linko.png" alt="LINKO" />
 </p><hr>
 
 # LINKO

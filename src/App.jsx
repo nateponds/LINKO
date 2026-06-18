@@ -1,7 +1,7 @@
-import './App.css'
+import "./assets/css/App.css";
 
 function App() {
-  return null
+  return null;
 }
 
-export default App
+export default App;
