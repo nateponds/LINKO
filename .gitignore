@@ -23,5 +23,5 @@ dist-ssr
 *.sln
 *.sw?
 
-# Hand-off md for AI Agent Handoff
 linko-agent-handoff.md
+.agents/
