@@ -94,7 +94,7 @@ Responsible for connecting buyer requirements with supplier capabilities.
 This domain should eventually support:
 
 - Buyer requirement submission
-- Matching criteria
+- Location and proximity criteria
 - Match scoring
 - Match reasons
 - Supplier shortlists
@@ -272,22 +272,17 @@ Recommended order:
 
 ## Matching Logic Notes
 
-The first matching system should be simple and explainable.
+The first matching system should be simple, explainable, and limited to location and proximity.
 
-Possible matching criteria:
+Required MVP matching criteria:
 
-- Product category
-- Required quantity
 - Buyer location
-- Supplier service area
-- Minimum order quantity
-- Lead time
-- Price range
-- Supplier verification status
-- Fulfillment capability
-- Past performance
+- Supplier location or service area
+- Proximity or distance between the buyer and supplier
 
-The system should show why a supplier was recommended. Early matching can be rule-based before any advanced scoring or machine learning is considered.
+The system should show the location or proximity reason why a supplier was recommended. The initial implementation may use a simple radius, service-area check, or distance-based ranking.
+
+Merchandise type, product category, required quantity, minimum order quantity, lead time, price, verification, fulfillment capability, and past performance are deferred. They should not be required by the MVP matching API or scoring logic; the team may introduce them later if validated user needs justify their ongoing data and maintenance cost.
 
 ## Integration Notes
 

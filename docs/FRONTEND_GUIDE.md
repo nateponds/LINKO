@@ -45,7 +45,7 @@ Detailed supplier profile with product categories, service areas, terms, trust i
 
 ### Matching.jsx
 
-Supplier-matching workflow where users submit requirements and view recommended suppliers.
+Supplier-matching workflow where users provide their location and view suppliers recommended by proximity. Merchandise type and category filters are not part of the MVP matching workflow.
 
 ### Orders.jsx
 

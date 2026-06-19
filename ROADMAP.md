@@ -53,7 +53,7 @@ Allow suppliers to create profiles, list products or services, define coverage a
 
 ### Supplier Matching
 
-Match MSMEs or buyers with suitable suppliers based on product needs, location, capacity, price range, reliability, business category, and delivery requirements.
+For the minimum viable product (MVP), match MSMEs or buyers with suppliers using only location and proximity. Merchandise type, product category, capacity, price, reliability, and other advanced criteria are deferred until the basic matching workflow has been validated.
 
 ### Orders and Fulfillment
 
@@ -131,7 +131,7 @@ Core features:
 - Supplier model.
 - Business profile model.
 - Order or purchase request model.
-- Matching criteria model.
+- Location and proximity matching model.
 
 Milestones:
 
@@ -203,30 +203,32 @@ Success criteria:
 
 ## Phase 5: Supplier Matching
 
-Goal: Introduce matching logic that connects business needs with supplier capabilities.
+Goal: Introduce a minimum matching workflow that connects buyers with nearby suppliers.
 
 Core features:
 
 - Buyer requirement form.
-- Matching score or recommendation ranking.
-- Match reasons.
+- Location and proximity-based recommendation ranking.
+- Distance or proximity match reasons.
 - Supplier shortlist.
 - Request quote flow.
 - Match status tracking.
 
 Milestones:
 
-- Define matching criteria.
-- Implement simple rule-based matching.
+- Define the buyer and supplier location data required for proximity matching.
+- Implement simple location and proximity-based matching.
 - Show why a supplier was recommended.
 - Allow users to save or shortlist suppliers.
 - Add basic quote request workflow.
 
 Success criteria:
 
-- The platform can recommend suppliers based on clear criteria.
+- The platform can recommend suppliers based on location and proximity.
 - Users can understand why each match appears.
 - Matching logic is simple enough to improve over time.
+
+MVP scope decision: Merchandise type, product category, capacity, pricing, reliability, and other advanced matching criteria are out of scope for the initial implementation. These may be added later only when user needs justify the additional data collection and maintenance workload.
 
 ## Phase 6: Orders, Quotes, and Client Acquisition
 
@@ -386,7 +388,7 @@ Success criteria:
 - Build reusable table, card, badge, and form components.
 - Add empty states and loading states.
 - Add mobile navigation.
-- Add supplier matching criteria.
+- Define location and proximity data for MVP supplier matching.
 - Add README setup instructions.
 
 ## Future Technical Direction
@@ -410,7 +412,7 @@ This should happen only when the product needs justify the additional structure.
 - What country, region, or market should the first supplier matching rules target?
 - Will logistics tracking be manual at first or integrated with delivery providers?
 - What supplier verification process is required?
-- What data is required to calculate useful supplier match scores?
+- What location format, distance unit, and proximity radius should the first matching rules use?
 
 ## Current Status
 
