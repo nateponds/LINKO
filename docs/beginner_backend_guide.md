@@ -172,7 +172,7 @@ We need a **database** to write records to a storage disk.
 
 Each table requires a **Schema** (a layout definition describing what column name holds what type of data).
 
-Refer to the LINKO database specification file [docs/linko_database_specification_aligned&updated.md](./linko_database_specification_aligned_updated.md) to see how we define SQL tables.
+Refer to the LINKO database specification file [docs/linko_database_specification.md](./linko_database_specification.md) to see how we define SQL tables.
 
 Here is the standard SQL script to create a simplified Customer table for our database:
 

@@ -4,6 +4,12 @@
 
 This document guides the backend planning and implementation for LINKO. The project is currently in active early development, with backend work focused on defining the core data models, API responsibilities, authentication needs, and service boundaries that will support the platform as it grows.
 
+# Backend Guide
+
+## Purpose
+
+This document guides the backend planning and implementation for LINKO. The project is currently in active early development, with backend work focused on defining the core data models, API responsibilities, authentication needs, and service boundaries that will support the platform as it grows.
+
 LINKO is intended to support logistics coordination, warehouse inventory tracking, supplier discovery, supplier matching, client acquisition, and supply-chain operations for MSMEs and wholesale providers.
 
 ## Current Development Stage
@@ -12,12 +18,11 @@ The backend is not expected to be fully implemented immediately. At this stage, 
 
 The first backend work should focus on:
 
-- Understanding the core business domains.
-- Defining stable data models.
-- Planning API endpoints.
-- Identifying authentication and authorization requirements.
-- Preparing for future database integration.
-- Keeping backend decisions aligned with `ROADMAP.md`.
+- Finalizing the technology stack (Node.js/Express with PostgreSQL).
+- Aligning data models around the core Inventory and Supplier domains.
+- Implementing the database schema defined in [linko_database_specification.md](./linko_database_specification.md).
+- Adhering to the endpoint payloads defined in [API_CONTRACTS.md](./API_CONTRACTS.md).
+- Preparing authentication structures for role-based system access.
 
 ## Core Backend Domains
 
@@ -156,22 +161,13 @@ This domain may eventually support:
 
 ## Suggested Initial Data Models
 
-The first backend planning should define rough models for:
+See the finalized database design specification in [linko_database_specification.md](./linko_database_specification.md) for detailed PostgreSQL table layouts.
 
-- User
-- Business
-- InventoryItem
-- Warehouse
-- SupplierProfile
-- SupplierProduct
-- MatchRequest
-- MatchResult
-- QuoteRequest
-- Order
-- Shipment
-- Notification
-
-These models do not need to be final yet. They should be clear enough to guide frontend mock data, API planning, and database design.
+These core models include:
+- `Users` & `Businesses` (authentication, profiles, roles)
+- `Products`, `Categories`, `Warehouses`, & `Inventory_Items` (inventory catalog and stock mapping)
+- `Inventory_Transactions` (movement logs/audit trail)
+- `Supplier_Profiles` (wholesale MOQ and shipping terms)
 
 ## Suggested API Areas
 
@@ -257,18 +253,14 @@ Important relationships to consider:
 
 Recommended order:
 
-1. Define initial data models.
-2. Choose backend stack.
-3. Choose database.
-4. Create basic API structure.
-5. Add authentication.
-6. Add business profiles.
-7. Add inventory endpoints.
-8. Add supplier endpoints.
-9. Add quote or order endpoints.
-10. Add supplier matching logic.
-11. Add logistics tracking.
-12. Add notifications and analytics.
+1. Select Node.js/Express + PostgreSQL stack (Done).
+2. Define API request/response JSON contracts in [API_CONTRACTS.md](./API_CONTRACTS.md) (Done).
+3. Document core database tables in [linko_database_specification.md](./linko_database_specification.md) (Done).
+4. Create database migrations and PostgreSQL connection logic.
+5. Scaffold backend structure and auth middleware.
+6. Build `/api/inventory` endpoints.
+7. Build `/api/suppliers` endpoints.
+8. Connect logging triggers.
 
 ## Matching Logic Notes
 

@@ -201,7 +201,7 @@ Success criteria:
 - Buyers can browse and compare suppliers.
 - Suppliers can be represented in a way that supports future matching.
 
-## Phase 5: Supplier Matching
+## Phase 5: Supplier Matching [Status: Deferred (Post-MVP)]
 
 Goal: Introduce a minimum matching workflow that connects buyers with nearby suppliers.
 
@@ -230,7 +230,7 @@ Success criteria:
 
 MVP scope decision: Merchandise type, product category, capacity, pricing, reliability, and other advanced matching criteria are out of scope for the initial implementation. These may be added later only when user needs justify the additional data collection and maintenance workload.
 
-## Phase 6: Orders, Quotes, and Client Acquisition
+## Phase 6: Orders, Quotes, and Client Acquisition [Status: Deferred (Post-MVP)]
 
 Goal: Connect discovery and matching to real business workflows.
 
@@ -257,7 +257,7 @@ Success criteria:
 - Suppliers can track incoming opportunities.
 - Platform value becomes clearer for both sides of the marketplace.
 
-## Phase 7: Logistics Coordination
+## Phase 7: Logistics Coordination [Status: Deferred (Post-MVP)]
 
 Goal: Add fulfillment and delivery visibility.
 
@@ -283,7 +283,7 @@ Success criteria:
 - Users can see where an order is in the fulfillment process.
 - Warehouse and logistics data are connected to inventory and orders.
 
-## Phase 8: Backend and Authentication
+## Phase 8: Backend and Authentication [Status: Deferred (Post-MVP)]
 
 Goal: Move from local demo data to real persistent user data.
 
@@ -311,7 +311,7 @@ Success criteria:
 - Different user roles can access appropriate workflows.
 - The app is ready for controlled testing with real users.
 
-## Phase 9: Mobile-Friendly Expansion
+## Phase 9: Mobile-Friendly Expansion [Status: Deferred (Post-MVP)]
 
 Goal: Prepare the platform for mobile app development without forcing a premature rewrite.
 
@@ -335,7 +335,7 @@ Success criteria:
 - The web app is comfortable to use on mobile browsers.
 - Future React Native or Expo work has a clear path.
 
-## Phase 10: Platform Hardening and Growth
+## Phase 10: Platform Hardening and Growth [Status: Deferred (Post-MVP)]
 
 Goal: Improve reliability, trust, performance, and marketplace quality.
 
