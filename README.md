@@ -19,13 +19,16 @@ The project is currently initiating its development phase, with the immediate fo
 
 Frontend development:
 
-- [@BaelJM](https://github.com/BaelJM)
-- [@fR3yA-ctrl](https://github.com/fR3yA-ctrl)
+- [@BaelJM](https://github.com/BaelJM) (Bael)
+- [@fR3yA-ctrl](https://github.com/fR3yA-ctrl) (Hermosilla)
+
+Full-Stack development:
+
+- [@nateponds](https://github.com/nateponds) (Ponce)
 
 Backend development:
 
-- [@nateponds](https://github.com/nateponds)
-- [@Swashua](https://github.com/Swashua)
+- [@Swashua](https://github.com/Swashua) (Faber)
 
 ## Active Development References
 
