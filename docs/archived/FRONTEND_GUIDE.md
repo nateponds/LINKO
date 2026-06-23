@@ -1,5 +1,9 @@
 # Frontend Guide
 
+## Archive Note
+
+This guide has been archived in favor of [PROPOSED_LAYOUT.md](../PROPOSED_LAYOUT.md), which represents the more current and comprehensive layout strategy developed by the frontend team.
+
 ## Purpose
 
 This document explains the current React file structure and what each page/component is intended to become.

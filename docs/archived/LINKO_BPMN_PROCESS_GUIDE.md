@@ -1,4 +1,11 @@
 # LINKO Horizontal BPMN Process Chart Design Blueprint
+
+## Archive Note
+
+This document has been archived as the BPMN process design has been formalized and is now maintained in [LINKO_BPMN_PROCESS_GUIDE.md](../LINKO_BPMN_PROCESS_GUIDE.md) in the main docs folder.
+
+---
+
 *Modified on: June 23, 2026 at 9:06 PM (Local Time)*
 
 This reference blueprint organizes the LINKO business process to match the horizontal swimlane layout, color coding, and element mapping shown in [BPMN aqualine.png](file:///mnt/c/Users/Nathaniel/Desktop/DevOps and SysAdmin DIY/LINKO/local-notes/BPMN aqualine.png) (when viewed in its proper horizontal orientation).
