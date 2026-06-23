@@ -1,4 +1,11 @@
 # LINKO Logistics Subsystem: Database Design & Implementation Specification
+
+## Archive Note
+
+This detailed logistics database specification has been archived as Logistics Coordination is currently a deferred feature (Phase 7 in the ROADMAP). This document serves as a reference for future implementation when the logistics domain becomes a priority. Current focus remains on Phase 0–3 (Foundation, MVP UI, and Data Modeling for core domains: Inventory, Suppliers, and Orders).
+
+---
+
 ## Course: Information Management II
 ### Context: Phase 2 (Data Modeling) & Phase 7 (Logistics Coordination) Alignment
 

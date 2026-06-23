@@ -1,5 +1,11 @@
 # LINKO Beginner React Guide
 
+## Archive Note
+
+This guide has been archived in favor of [PROPOSED_LAYOUT.md](../PROPOSED_LAYOUT.md), which provides the updated frontend structure and component architecture for LINKO development.
+
+---
+
 Welcome to the React guide for **LINKO**! If you are a frontend developer transitioning from vanilla web development (HTML, CSS, and JavaScript) to ReactJS, this guide is designed specifically for you.
 
 We will hold your hand through the basic concepts of React and show you how to build the user interface (UI) and user experience (UX) for LINKO from the ground up, following our project [ROADMAP.md](../ROADMAP.md).
