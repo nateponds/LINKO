@@ -1,5 +1,11 @@
 <div align="center">
   <img src="./public/images/linko.png" alt="LINKO" />
+</div>
+
+<div align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="MIT License"></a>
+  <a href="https://github.com/nateponds/LINKO/commits/main"><img src="https://img.shields.io/github/last-commit/nateponds/LINKO/main" alt="Last Commit"></a>
+  <img src="https://img.shields.io/badge/Status-In%20Development-yellow.svg" alt="Status: In Development">
 </div><hr>
 
 <h1 align="center">LINKO</h1>
@@ -29,6 +35,7 @@ Full-Stack development:
 Backend development:
 
 - [@Swashua](https://github.com/Swashua) (Faber)
+- (to be added) (Tantay)
 
 ## Active Development References
 
