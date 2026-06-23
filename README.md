@@ -1,6 +1,7 @@
 <div align="center">
   <img src="./public/images/linko.png" alt="LINKO" />
 </div>
+<br>
 
 <div align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="MIT License"></a>
