@@ -48,7 +48,7 @@ LINKO is actively undergoing its early development and design phase. Developers 
 
 ## Development Workflow
 
-> **Developer action point:** Use [BACKLOG.md](./docs/BACKLOG.md) and [SPRINTS.md](./docs/SPRINTS.md) to keep development organized as the project moves forward.
+> **Developer action point:** Use [BACKLOG.md](./docs/BACKLOG.md) and [SPRINTS.md](./docs/SPRINTS.md) to keep development organized as the project moves forward. Follow [CONVENTIONAL_COMMITS.md](./docs/CONVENTIONAL_COMMITS.md) for commit message standards.
 
 - [BACKLOG.md](./docs/BACKLOG.md) is for things we might or should do later.
 - [SPRINTS.md](./docs/SPRINTS.md) is for things we are committing to work on now.
