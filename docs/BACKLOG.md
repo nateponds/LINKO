@@ -99,3 +99,39 @@ Set up a PostgreSQL database instance and configure schema migrations for Busine
 
 Expected outcome:  
 Working relational database with tracked schema evolution.
+
+---
+
+## Technical Discussion: Finance and Contract 
+
+Status: Proposed  
+Suggested by: @BaelJM  
+Date added: 2026-06-24  
+Area: Product  
+Priority: Medium  
+Related docs: None
+
+Description:
+Make decisions regarding how, when, and by what method a client must pay for goods or services.
+
+Reason:
+No money, no business
+
+Expected outcome:
+Reach a conclusion that is most beneficial for all parties involved.
+
+Notes:
+Core areas to discuss include:
+
+`Invoicing & Accounts Receivable (A/R)` 
+Terms are explicitly stated on every invoice to establish due dates and acceptable payment methods. Standard structures include __Net 30 (payment due in 30 days), Net 60, or Due on Receipt.__
+
+`Sales & Procurement Contracts`
+Payment terms serve as a foundational, legally binding clause within vendor agreements and sales contracts. They dictate __payment milestones__ (such as progress or stage payments), __early payment discounts__ (e.g., 2% 10 Net 30), and __penalties for late payments.__
+
+`Supply Chain & Inventory`
+Businesses set payment terms with suppliers (Accounts Payable) to optimize cash flow. Options here include __COD (Cash on Delivery) or PIA (Payment in Advance)__ to mitigate risk.
+
+`Credit & Risk Management`
+For B2B (Business-to-Business)transactions, terms are directly tied to evaluating a buyer’s creditworthiness to ensure the seller minimizes bad debt.
+__(will discuss more once approved)__
