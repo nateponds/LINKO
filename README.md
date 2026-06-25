@@ -27,7 +27,7 @@ The project is currently initiating its development phase, with the immediate fo
 Frontend development:
 
 - [@BaelJM](https://github.com/BaelJM) (Bael)
-- [@fR3yA-ctrl](https://github.com/fR3yA-ctrl) (Hermosilla)
+- (to be added) (Tantay)
 
 Full-Stack development:
 
@@ -36,7 +36,7 @@ Full-Stack development:
 Backend development:
 
 - [@Swashua](https://github.com/Swashua) (Faber)
-- (to be added) (Tantay)
+- [@fR3yA-ctrl](https://github.com/fR3yA-ctrl) (Hermosilla)
 
 ## Active Development References
 
