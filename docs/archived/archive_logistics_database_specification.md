@@ -13,11 +13,11 @@ This detailed logistics database specification has been archived as Logistics Co
 
 ## 1. System Overview & Roadmap Alignment
 
-This document outlines the database schema for the **Logistics Coordination** domain of **LINKO**—a platform designed for MSMEs and wholesale providers. While the complete LINKO ecosystem eventually tracks Inventory, Suppliers, and Matching workflows, this specific relational schema fulfills the core requirements for managing a parcel's lifecycle from pickup to drop-off.
+This document outlines the database schema for the **Logistics Coordination** domain of **LINKO**—a supply chain management platform for MSMEs with a wholesaler-facing marketplace. While the complete LINKO ecosystem eventually tracks Inventory, Suppliers, and Matching workflows, this specific relational schema fulfills the core requirements for managing a parcel's lifecycle from pickup to drop-off.
 
 ### Domain Integration Hooks:
-* **`Customers` Table:** Acts as the base directory for MSME Buyers, Retailers, and Wholesale Suppliers when they act as shippers or consignees in the logistics loop.
-* **`Branches` Table:** Represents the physical fulfillment infrastructure, physical hubs, and warehouses highlighted in the *Warehouse Operations* domain.
+* **`Customers` Table:** Acts as the base directory for MSME buyers, retailers, and wholesalers when they act as shippers or consignees in the logistics loop.
+* **`Branches` Table:** Represents physical fulfillment infrastructure related to the canonical warehouse concept in the *Warehouse Operations* domain.
 * **`Parcels` Table:** Serves as the physical fulfillment manifest tied directly to final *Orders and Fulfillment* pipelines.
 
 ---
@@ -35,7 +35,7 @@ Defines operational service-level agreements (SLAs), delivery speeds, and pricin
 | `estimated_days` | INT | NOT NULL | Promised SLA delivery timeline window in days. |
 
 ### 2.2 Table: `Customers`
-A unified directory capturing platform actors (MSMEs, Suppliers, Buyers) in their logistical capacities as senders or receivers.
+A unified directory capturing platform actors (MSMEs, wholesalers, buyers) in their logistical capacities as senders or receivers.
 
 | Column Name | Data Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
@@ -47,7 +47,7 @@ A unified directory capturing platform actors (MSMEs, Suppliers, Buyers) in thei
 | `city` | VARCHAR(50) | NOT NULL | Municipal area used for initial routing and regional filters. |
 
 ### 2.3 Table: `Branches`
-Physical warehouse infrastructure and distribution hubs where inventory is stored and parcels are sorted.
+Physical warehouse infrastructure and related distribution hubs where inventory is stored and parcels are sorted.
 
 | Column Name | Data Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
@@ -63,7 +63,7 @@ The master operational tracking transaction record reflecting real-time package 
 | :--- | :--- | :--- | :--- |
 | `parcel_id` | VARCHAR(20) | PRIMARY KEY | Unique alphanumeric tracking number (e.g., 'LNK-10023456'). |
 | `sender_id` | INT | FOREIGN KEY (`Customers`) | References the initiating customer account (e.g., Supplier). |
-| `receiver_id` | INT | FOREIGN KEY (`Customers`) | References the destination customer account (e.g., MSME Buyer). |
+| `receiver_id` | INT | FOREIGN KEY (`Customers`) | References the destination customer account (e.g., MSME buyer). |
 | `tier_id` | INT | FOREIGN KEY (`Service_Tiers`) | Dictates SLA priority level and structural pricing variables. |
 | `weight_kg` | DECIMAL(6,2) | NOT NULL | Total physical mass weight value. |
 | `dimensions` | VARCHAR(50) | | Physical package space dimensions (e.g., '30x30x30 cm'). |
@@ -212,10 +212,10 @@ To support the wider LINKO roadmap using this database design as a foundation, s
 1.  **To Support Phase 3 (Inventory & Warehouse Tracking):**
     * Create a `Products` table (SKUs, description, category).
     * Create a `Warehouse_Stock` table linking `Products` to `Branches` (acting as storage locations) with a `quantity` column.
-2.  **To Support Phase 4 & 5 (Suppliers & Matching):**
+2.  **To Support Phase 4 & 5 (Supplier Discovery, Supplier Matching, and Wholesaler Profiles):**
     * Extend `Customers` or create a `Supplier_Profiles` table detailing Minimum Order Quantities (MOQ), lead times, and verification state metrics.
 3.  **To Support Phase 6 (Orders and Fulfillment):**
-    * Create an `Orders` table recording purchase transactions between buyers and suppliers.
+    * Create an `Orders` table recording purchase transactions between buyers and wholesalers.
     * Add an optional `order_id` column to the `Parcels` table to link a logistics tracking lifecycle back to its originating wholesale transaction.
 
 ---

@@ -2,22 +2,22 @@
 
 ## Purpose
 
-LINKO is a logistics, warehouse inventory tracking, and supplier-matching platform for MSMEs and wholesale providers. The goal is to help growing businesses manage stock, coordinate fulfillment, discover reliable suppliers, acquire clients, and make supply-chain decisions with better visibility.
+LINKO is a supply chain management platform for MSMEs that centralizes supplier discovery, logistics coordination, shipment visibility, and inventory-related workflows. The goal is to help growing businesses manage stock, coordinate fulfillment, discover reliable wholesalers, build ongoing buyer-wholesaler relationships, and make supply-chain decisions with better visibility.
 
 This roadmap is the central planning document for the project. It defines the product direction, major development phases, milestones, and feature goals while keeping the early build simple enough to grow step by step.
 
 ## Product Vision
 
-LINKO should become a practical operating platform for small and medium businesses that need clearer inventory control, easier supplier discovery, and smoother coordination between clients, warehouses, suppliers, and logistics partners.
+LINKO should become a practical operating platform for small and medium businesses that need clearer inventory control, easier supplier discovery, and smoother coordination between buyers, warehouses, wholesalers, and logistics partners.
 
 The platform should eventually support:
 
 - Real-time inventory visibility across warehouses and stock locations.
-- Supplier and wholesale provider profiles for discovery and comparison.
-- Matching workflows between MSMEs, suppliers, buyers, and service providers.
+- Wholesaler profiles for discovery and comparison.
+- Matching workflows between MSMEs, buyers, wholesalers, and service providers.
 - Order, shipment, and fulfillment coordination.
 - Business dashboards for operational decisions.
-- Mobile-friendly workflows for warehouse staff, owners, field teams, and suppliers.
+- Mobile-friendly workflows for warehouse staff, owners, field teams, and wholesalers.
 
 ## Guiding Principles
 
@@ -25,15 +25,15 @@ The platform should eventually support:
 - Keep the early codebase simple and understandable.
 - Design features so they can later support mobile apps and shared backend services.
 - Prefer clear business workflows over excessive technical abstraction.
-- Treat inventory, suppliers, orders, logistics, and matching as core product domains.
+- Treat inventory, supplier discovery, orders, logistics coordination, and matching as core product domains.
 - Keep documentation close to product decisions so future contributors understand why choices were made.
 
 ## Target Users
 
 - MSME owners managing purchasing, stock, and supplier relationships.
 - Warehouse staff tracking incoming and outgoing inventory.
-- Wholesale suppliers looking for qualified buyers and repeat clients.
-- Retailers or business buyers searching for suppliers.
+- Wholesalers looking for qualified buyers and repeat buyer relationships.
+- Retailers or business buyers searching for wholesalers.
 - Logistics coordinators handling deliveries, shipment status, and fulfillment.
 - Platform administrators managing users, listings, verification, and marketplace quality.
 
@@ -49,19 +49,19 @@ Support receiving, storage, picking, packing, stock adjustments, transfers, and 
 
 ### Supplier Discovery
 
-Allow suppliers to create profiles, list products or services, define coverage areas, pricing terms, minimum order quantities, and fulfillment capabilities.
+Allow wholesalers to create profiles, list products or services, define service areas, pricing terms, minimum order quantities, and fulfillment capabilities.
 
 ### Supplier Matching
 
-For the minimum viable product (MVP), match MSMEs or buyers with suppliers using only location and proximity. Merchandise type, product category, capacity, price, reliability, and other advanced criteria are deferred until the basic matching workflow has been validated.
+For the minimum viable product (MVP), match MSMEs or buyers with wholesalers using only location and proximity. Merchandise type, product category, capacity, price, reliability, and other advanced criteria are deferred until the basic matching workflow has been validated.
 
 ### Orders and Fulfillment
 
-Manage purchase requests, supplier quotes, confirmed orders, shipment status, delivery confirmation, and issue tracking.
+Manage quote requests, wholesaler quotes, confirmed orders, shipment status, delivery confirmation, and issue tracking.
 
 ### Client Acquisition
 
-Help suppliers receive leads, manage inquiries, respond to buyer needs, and convert qualified matches into ongoing business relationships.
+Help wholesalers receive leads, manage inquiries, respond to buyer needs, and convert qualified matches into ongoing business relationships.
 
 ### Logistics Coordination
 
@@ -69,7 +69,7 @@ Track shipment details, delivery status, warehouse dispatches, carrier informati
 
 ### Analytics
 
-Provide simple insights such as low-stock alerts, supplier performance, order volume, lead conversion, fulfillment delays, and inventory movement trends.
+Provide simple insights such as low-stock alerts, wholesaler performance, order volume, lead conversion, fulfillment delays, and inventory movement trends.
 
 ## Development Phases
 
@@ -101,23 +101,23 @@ Core features:
 - Landing or dashboard page.
 - Basic navigation.
 - Inventory list page.
-- Supplier directory page.
-- Supplier detail page.
+- Wholesaler directory page.
+- Wholesaler detail page.
 - Basic order or request page.
-- Static sample data for inventory, suppliers, and orders.
+- Static sample data for inventory, wholesaler profiles, and orders.
 
 Milestones:
 
 - Create reusable layout components.
 - Display inventory records from local sample data.
-- Display supplier profiles from local sample data.
-- Add basic filtering or searching for suppliers.
+- Display wholesaler profiles from local sample data.
+- Add basic filtering or searching for wholesalers.
 - Add basic inventory status labels such as In Stock, Low Stock, and Out of Stock.
 
 Success criteria:
 
 - A user can understand what LINKO does by clicking through the app.
-- Inventory and supplier data are represented clearly.
+- Inventory and wholesaler data are represented clearly.
 - The UI works on desktop and mobile screen sizes.
 
 ## Phase 2: Data Modeling and Local State
@@ -128,7 +128,7 @@ Core features:
 
 - Product model.
 - Warehouse model.
-- Supplier model.
+- Wholesaler-facing supplier model.
 - Business profile model.
 - Order or purchase request model.
 - Location and proximity matching model.
@@ -136,7 +136,7 @@ Core features:
 Milestones:
 
 - Move sample data into organized files.
-- Define clear fields for inventory items and supplier profiles.
+- Define clear fields for inventory items and wholesaler-facing supplier profiles.
 - Add local create, edit, and delete flows where useful.
 - Add form validation for important fields.
 - Document the initial data model.
@@ -179,8 +179,8 @@ Goal: Build the supplier marketplace foundation.
 
 Core features:
 
-- Supplier profile management.
-- Supplier categories.
+- Wholesaler profile management.
+- Wholesaler categories.
 - Product or service listings.
 - Location and service area fields.
 - Minimum order quantity.
@@ -190,41 +190,41 @@ Core features:
 
 Milestones:
 
-- Build supplier directory with filters.
-- Add supplier detail pages.
-- Add supplier comparison fields.
+- Build wholesaler directory with filters.
+- Add wholesaler detail pages.
+- Add wholesaler comparison fields.
 - Add basic inquiry or contact action.
-- Add supplier trust indicators such as verified, response rate, or fulfillment rating.
+- Add wholesaler trust indicators such as verified, response rate, or fulfillment rating.
 
 Success criteria:
 
-- Buyers can browse and compare suppliers.
-- Suppliers can be represented in a way that supports future matching.
+- Buyers can browse and compare wholesalers.
+- Wholesalers can be represented in a way that supports future matching.
 
 ## Phase 5: Supplier Matching [Status: Deferred (Post-MVP)]
 
-Goal: Introduce a minimum matching workflow that connects buyers with nearby suppliers.
+Goal: Introduce a minimum matching workflow that connects buyers with nearby wholesalers.
 
 Core features:
 
 - Buyer requirement form.
 - Location and proximity-based recommendation ranking.
 - Distance or proximity match reasons.
-- Supplier shortlist.
+- Wholesaler shortlist.
 - Request quote flow.
 - Match status tracking.
 
 Milestones:
 
-- Define the buyer and supplier location data required for proximity matching.
+- Define the buyer and wholesaler location data required for proximity matching.
 - Implement simple location and proximity-based matching.
-- Show why a supplier was recommended.
-- Allow users to save or shortlist suppliers.
+- Show why a wholesaler was recommended.
+- Allow users to save or shortlist wholesalers.
 - Add basic quote request workflow.
 
 Success criteria:
 
-- The platform can recommend suppliers based on location and proximity.
+- The platform can recommend wholesalers based on location and proximity.
 - Users can understand why each match appears.
 - Matching logic is simple enough to improve over time.
 
@@ -237,24 +237,24 @@ Goal: Connect discovery and matching to real business workflows.
 Core features:
 
 - Quote requests.
-- Supplier responses.
+- Wholesaler responses.
 - Order creation.
 - Order status tracking.
-- Buyer and supplier communication history.
-- Lead pipeline for suppliers.
+- Buyer and wholesaler communication history.
+- Lead pipeline for wholesalers.
 
 Milestones:
 
 - Add quote request form.
 - Add quote status states.
 - Add order detail page.
-- Add supplier lead dashboard.
+- Add wholesaler lead dashboard.
 - Add buyer request history.
 
 Success criteria:
 
 - Buyers can move from supplier discovery to request and order.
-- Suppliers can track incoming opportunities.
+- Wholesalers can track incoming opportunities.
 - Platform value becomes clearer for both sides of the marketplace.
 
 ## Phase 7: Logistics Coordination [Status: Deferred (Post-MVP)]
@@ -319,7 +319,7 @@ Core features:
 
 - Responsive web workflows.
 - Mobile-first inventory actions.
-- Mobile-friendly supplier browsing.
+- Mobile-friendly wholesaler browsing.
 - Field-friendly order and shipment updates.
 - Shared business logic where practical.
 
@@ -342,7 +342,7 @@ Goal: Improve reliability, trust, performance, and marketplace quality.
 Core features:
 
 - Admin dashboard.
-- Supplier verification workflow.
+- Wholesaler verification workflow.
 - Notifications.
 - Audit logs.
 - Analytics.
@@ -371,9 +371,9 @@ Success criteria:
 2. Build a basic layout and navigation.
 3. Add dashboard page.
 4. Add inventory page using sample data.
-5. Add supplier directory using sample data.
-6. Add supplier detail page.
-7. Add simple supplier search and filtering.
+5. Add wholesaler directory using sample data.
+6. Add wholesaler detail page.
+7. Add simple wholesaler search and filtering.
 8. Add order or quote request mock flow.
 9. Add responsive mobile styling.
 10. Document the first data model.
@@ -383,12 +383,12 @@ Success criteria:
 - Define initial app pages.
 - Create visual identity and UI style direction.
 - Add mock inventory records.
-- Add mock supplier records.
+- Add mock wholesaler records.
 - Add mock order or quote records.
 - Build reusable table, card, badge, and form components.
 - Add empty states and loading states.
 - Add mobile navigation.
-- Define location and proximity data for MVP supplier matching.
+- Define location and proximity data for MVP wholesaler matching.
 - Add README setup instructions.
 
 ## Future Technical Direction
@@ -407,15 +407,15 @@ This should happen only when the product needs justify the additional structure.
 
 ## Open Questions
 
-- Which user group should be served first: MSME buyers, suppliers, warehouse staff, or platform admins?
-- Should the first version focus more on inventory tracking or supplier discovery?
+- Which user group should be served first: MSME buyers, wholesalers, warehouse staff, or platform admins?
+- Should the first version focus more on inventory tracking or wholesaler discovery?
 - What country, region, or market should the first supplier matching rules target?
 - Will logistics tracking be manual at first or integrated with delivery providers?
-- What supplier verification process is required?
+- What wholesaler verification process is required?
 - What location format, distance unit, and proximity radius should the first matching rules use?
 
 ## Current Status
 
 Status: Planning and foundation.
 
-Next recommended milestone: Create the initial React application and build a small demo experience with inventory, supplier, and order sample data.
+Next recommended milestone: Create the initial React application and build a small demo experience with inventory, wholesaler, and order sample data.

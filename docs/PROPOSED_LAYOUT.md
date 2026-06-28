@@ -6,14 +6,14 @@ title: Linko UI Layout Proposal
 
 ## Overview
 
-Linko is an inventory and supplier management web app. All four pages share a common shell, or top navbar, and differ mainly in the content panel below it. This document breaks each page into regions and suggests a React component structure so engineering can start scaffolding directly from it.
+Linko is a supply chain management web app for MSMEs, with an early UI focused on inventory workflows, wholesaler discovery, and related operational views. All four pages share a common shell, or top navbar, and differ mainly in the content panel below it. This document breaks each page into regions and suggests a React component structure so engineering can start scaffolding directly from it.
 
 ## Shared Visual Language
 
 - App name/logo `Linko` in the top-left on a dark gray header bar.
 - A horizontal nav group with placeholder labels to be replaced with real labels, for example `Dashboard / Inventory / Suppliers`.
 - A row of circular avatar or icon buttons on the right for profile, notifications, and similar actions.
-- Light gray panels for cards and placeholders, plus mid-gray blocks for image placeholders that should map to actual product or supplier imagery later.
+- Light gray panels for cards and placeholders, plus mid-gray blocks for image placeholders that should map to actual product or wholesaler imagery later.
 
 ## Shared Components
 
@@ -25,10 +25,10 @@ Build these first.
 | `<IconButton />` | Circular gray button used for avatars, bell, hamburger, and message or comment icons. |
 | `<SearchBar />` | Rounded input with search icon, used in the header and table toolbars. |
 | `<FilterDropdown />` | Pill-shaped `select`-style control with chevron icon for category, status, and similar filters. |
-| `<PrimaryButton icon="+" />` | Square or rounded add action button for adding products or suppliers. |
+| `<PrimaryButton icon="+" />` | Square or rounded add action button for adding products or wholesalers. |
 | `<Card />` | Generic light-gray rounded container used for stat tiles, Recent Orders, and analytics panels. |
 | `<DataTable />` | Table with checkbox column, image thumbnail column, sortable header row, and a status badge column. Used identically on Dashboard and Inventory pages. |
-| `<ImagePlaceholderCard />` | Tall gray rectangle for product or supplier imagery, used in grid layouts on Suppliers and Supplier Details. |
+| `<ImagePlaceholderCard />` | Tall gray rectangle for product or wholesaler imagery, used in grid layouts on Suppliers and Supplier Details. |
 | `<AvatarScroller />` | Horizontal row of circular avatars representing categories or locations, with a leading or trailing chevron for scroll or expand behavior. Used on the Suppliers page and inspired by the Alibaba category strip. |
 
 ## Page Layouts
@@ -100,13 +100,13 @@ Purpose: Full product list and management view, using the same table as Dashboar
 
 ### Suppliers
 
-Purpose: Browse and discover suppliers, filterable by category or location, modeled loosely on the Alibaba seller-search layout.
+Purpose: Browse and discover wholesalers, filterable by category or location, modeled loosely on the Alibaba seller-search layout.
 
 **Regions:**
 
 1. `<AppHeader />` with toolbar variant: search, single filter icon, hamburger, and avatar. No add button on this page.
-2. `<AvatarScroller />` band - a horizontally scrollable row of circular icons labeled categories or locations, with a trailing chevron-down for the expand or filter menu. This is the supplier-category quick filter, inspired by the Alibaba category strip in the reference mood board.
-3. **Supplier grid** - responsive 3-column grid of `<ImagePlaceholderCard />`, each representing a supplier. Image, logo, name, and rating can be added once data is available.
+2. `<AvatarScroller />` band - a horizontally scrollable row of circular icons labeled categories or locations, with a trailing chevron-down for the expand or filter menu. This is the wholesaler-category quick filter, inspired by the Alibaba category strip in the reference mood board.
+3. **Supplier grid** - responsive 3-column grid of `<ImagePlaceholderCard />`, each representing a wholesaler. Image, logo, name, and rating can be added once data is available.
 
 **React sketch**
 
@@ -124,16 +124,16 @@ Purpose: Browse and discover suppliers, filterable by category or location, mode
 
 ### Supplier Details
 
-Purpose: Drill-down view for a single supplier, with profile info, categories or products they offer, and contact or communication actions.
+Purpose: Drill-down view for a single wholesaler, with profile info, categories or products they offer, and contact or communication actions.
 
 **Regions:**
 
 1. `<AppHeader />` with toolbar variant: search, hamburger, and avatar.
 2. **Profile + actions row:**
-   - `profile` pill button on the left, acting as the supplier name or avatar entry point and likely expanding to full profile info.
+   - `profile` pill button on the left, acting as the wholesaler name or avatar entry point and likely expanding to full profile info.
    - Right-aligned stacked action buttons: Add (`+`) and Message or Comment (speech bubble icon).
 3. **Categories band** - centered `categories` label, flanked by two pill placeholders on the left and right. These likely represent previous and next category navigation or tag chips.
-4. **Product/offering grid** - responsive 3-column grid of `<ImagePlaceholderCard />` showing the products or items associated with this supplier, reusing the same card component as the Suppliers grid.
+4. **Product/offering grid** - responsive 3-column grid of `<ImagePlaceholderCard />` showing the products or items associated with this wholesaler, reusing the same card component as the Suppliers grid.
 
 **React sketch**
 
@@ -194,7 +194,7 @@ src/
 
 - Replace placeholder nav labels (`something / menu / stuff`) with final IA, for example `Dashboard / Inventory / Suppliers / Reports`.
 - Confirm whether Inventory's `Product Statistic` header should always show an analytics chart when expanded, or just act as a collapsible title bar.
-- Decide whether the Suppliers page needs a left sidebar, per the Alibaba reference, once the supplier list grows large enough to need filtering by more than category or location.
+- Decide whether the Suppliers page needs a left sidebar, per the Alibaba reference, once the wholesaler list grows large enough to need filtering by more than category or location.
 - Clarify what the two pill placeholders in the Supplier Details `categories` band represent, such as tag chips versus previous and next navigation.
 - Define the real data shape for `DataTable` rows, including SKU, name, price, stock, and status enum, so the same component can serve both Dashboard and Inventory.
 

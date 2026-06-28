@@ -10,7 +10,7 @@ Priority: Low
 Related docs: `ROADMAP.md`, `BACKEND_GUIDE.md`, `FRONTEND_GUIDE.md`
 
 Description:  
-The MVP will match buyers and suppliers using only location and proximity. Consider adding merchandise type, product category, quantity, pricing, reliability, fulfillment capability, and similar criteria only after the basic workflow is validated and the team confirms that their value justifies the additional data and maintenance workload.
+The MVP will match buyers and wholesalers using only location and proximity. Consider adding merchandise type, product category, quantity, pricing, reliability, fulfillment capability, and similar criteria only after the basic workflow is validated and the team confirms that their value justifies the additional data and maintenance workload.
 
 ---
 
@@ -24,13 +24,13 @@ Priority: Medium
 Related docs: `FRONTEND_GUIDE.md`, `ROADMAP.md`
 
 Description:  
-Build the UI for supplier browsing, search filters, and detail views to allow buyers to find and view supplier capacities.
+Build the UI for wholesaler browsing, search filters, and detail views to allow buyers to find and view wholesaler capacities.
 
 Reason:  
-Supplier discovery is a core part of LINKO's value proposition.
+Supplier discovery is a core part of LINKO's value proposition for helping buyers find wholesalers.
 
 Expected outcome:  
-Users can search, filter, and view detailed supplier profiles with static mock data.
+Users can search, filter, and view detailed wholesaler profiles with static mock data.
 
 ---
 
@@ -61,7 +61,7 @@ Priority: High
 Related docs: `BACKEND_GUIDE.md`
 
 Description:  
-Design and implement user registration, login, and JWT-based session management, separating buyer, supplier, warehouse, and logistics roles.
+Design and implement user registration, login, and JWT-based session management, separating buyer, wholesaler, warehouse, and logistics roles.
 
 Expected outcome:  
 Users can securely log in and access domain pages tailored to their specific roles.

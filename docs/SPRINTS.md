@@ -84,20 +84,20 @@ Tasks:
   - Source: BACKEND_GUIDE.md
   - Notes: Finalize the backend language/framework (e.g., Express.js) and database (e.g., PostgreSQL). Document the decision rationale, local setup instructions, and project structure expectations in `BACKEND_GUIDE.md`.
 
-- [ ] Define and document API Contracts
+- [x] Define and document API Contracts
   - Owner: @nateponds (Full-Stack)
   - Area: Backend / API
   - Source: API_CONTRACTS.md
   - Notes: Define exact JSON schemas and payloads for the core Inventory and Supplier API endpoints to guide front-end mock development and backend implementation.
 
-- [ ] Design core data models and schemas (TSK-03)
-  - Owner: @nateponds (Full-Stack)
+- [x] Design core data models and schemas (TSK-03)
+  - Owner: @nateponds (Full-Stack) and @Swashua (Back-end Developer)
   - Area: Full-Stack / Data Modeling
   - Source: linko_database_specification.md
   - Notes: Define field-level schemas for User, Business, Warehouse, Category, Product, Inventory_Item, and Supplier_Profile. Output should guide PostgreSQL database migrations.
 
 - [ ] Scaffold initial backend project structure (TSK-09)
-  - Owner: @nateponds (Full-Stack) / @Swashua
+  - Owner: @nateponds (Full-Stack) / @Swashua (Back-end Developer)
   - Area: Full-Stack / Backend
   - Status: In Progress
   - Source: BACKEND_GUIDE.md
@@ -112,4 +112,3 @@ The backend team is designing schemas independently while the frontend team crea
 
 Review notes:  
 To be completed after sprint review.
-
