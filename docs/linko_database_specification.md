@@ -6,13 +6,13 @@
 
 ## 1. System Overview & Roadmap Alignment
 
-This document outlines the database schema for the **Core Inventory Tracking** and **Supplier Profiles** domains of **LINKO**—a platform designed for MSMEs and wholesale providers. This relational schema replaces the deferred Logistics design to align with the revised Sprint 1-BE scope.
+This document outlines the database schema for the **Core Inventory Tracking** and **Supplier Profiles** domains of **LINKO**—a supply chain management platform for MSMEs with a wholesaler-facing marketplace. This relational schema replaces the deferred Logistics design to align with the revised Sprint 1-BE scope.
 
 ### Domain Schema Mappings:
-* **`Users` / `Businesses` / `User_Businesses` Tables:** Capture authentication and role-based membership for MSME owners, staff, and wholesale suppliers.
+* **`Users` / `Businesses` / `User_Businesses` Tables:** Capture authentication and role-based membership for MSME owners, staff, and wholesalers.
 * **`Products` / `Inventory_Items` / `Warehouses` Tables:** Track products, stock levels, categories, SKUs, and warehouse assignments.
 * **`Inventory_Transactions` Table:** Appends movement history (in, out, adjustment, transfer) for compliance and auditing.
-* **`Supplier_Profiles` Table:** Stores MoQ (Minimum Order Quantity), lead times, and terms for businesses that act as wholesale providers.
+* **`Supplier_Profiles` Table:** Stores MoQ (Minimum Order Quantity), lead times, and terms for businesses that act as wholesalers.
 
 ---
 
@@ -27,17 +27,17 @@ Authentication credentials, system roles, and account records.
 | `username` | VARCHAR(50) | NOT NULL, UNIQUE | User login identifier. |
 | `password_hash` | TEXT | NOT NULL | Secure salted hash of user credentials. |
 | `email` | VARCHAR(100) | NOT NULL, UNIQUE | Account contact email. |
-| `role` | VARCHAR(20) | NOT NULL | User authorization role (owner, staff, supplier, admin). |
+| `role` | VARCHAR(20) | NOT NULL | User authorization role (owner, staff, wholesaler, admin). |
 | `created_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Record generation date. |
 
 ### 2.2 Table: `Businesses`
-Companies, suppliers, and MSME buyers registered on the platform.
+Companies, wholesalers, and MSME buyers registered on the platform.
 
 | Column Name | Data Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
 | `business_id` | SERIAL | PRIMARY KEY | Unique ID for business entities. |
 | `business_name` | VARCHAR(100) | NOT NULL | Registered name of business. |
-| `business_type` | VARCHAR(20) | NOT NULL | Role of business (buyer, supplier, both). |
+| `business_type` | VARCHAR(20) | NOT NULL | Role of business (buyer, wholesaler, both). |
 | `contact_number`| VARCHAR(20) | | Telephone contact info. |
 | `address_line` | TEXT | NOT NULL | Physical company office address. |
 | `city` | VARCHAR(50) | NOT NULL | Initial routing city. |
@@ -53,7 +53,7 @@ Associates platform users with business entities.
 | `business_id` | INT | FK (`Businesses`), PK | Business linked to user. |
 
 ### 2.4 Table: `Warehouses`
-Storage infrastructure and hubs owned by businesses.
+Storage infrastructure owned by businesses, with `warehouse` as the canonical operational term.
 
 | Column Name | Data Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
@@ -111,7 +111,7 @@ Audit trail recording stock alterations (inbound, outbound, transfers).
 | `created_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Atomic log timestamp. |
 
 ### 2.9 Table: `Supplier_Profiles`
-Extends `Businesses` profile properties for wholesale providers.
+Extends `Businesses` profile properties for wholesalers.
 
 | Column Name | Data Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |

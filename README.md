@@ -11,7 +11,7 @@
 
 <h1 align="center">LINKO</h1>
 
-LINKO is a logistics, warehouse inventory tracking, and supplier-matching platform for MSMEs and wholesale providers.
+LINKO is a supply chain management platform for MSMEs that centralizes supplier discovery, logistics coordination, shipment visibility, and inventory-related workflows.
 
 The project is currently initiating its development phase, with the immediate focus on product design, planning, and defining the core user experience. This stage will shape the platform's workflows, data needs, and feature priorities before deeper implementation begins.
 
@@ -19,7 +19,7 @@ The project is currently initiating its development phase, with the immediate fo
 
 - Define the product direction and development roadmap.
 - Design the first web experience.
-- Identify core workflows for inventory, suppliers, orders, and logistics.
+- Identify core workflows for inventory, supplier discovery, orders, and logistics coordination.
 - Prepare the project for step-by-step implementation.
 
 ## Team
