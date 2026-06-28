@@ -96,12 +96,12 @@ Tasks:
   - Source: linko_database_specification.md
   - Notes: Define field-level schemas for User, Business, Warehouse, Category, Product, Inventory_Item, and Supplier_Profile. Output should guide PostgreSQL database migrations.
 
-- [ ] Scaffold initial backend project structure (TSK-09)
+- [x] Scaffold initial backend project structure (TSK-09)
   - Owner: @nateponds (Full-Stack) / @Swashua (Back-end Developer)
   - Area: Full-Stack / Backend
-  - Status: In Progress
+  - Status: Done
   - Source: BACKEND_GUIDE.md
-  - Notes: Initialize the backend project directory with the chosen stack, create placeholder route modules (`/api/inventory`, `/api/suppliers`), and add basic error-handling middleware. This task is currently In Progress.
+  - Notes: Initialized the backend project directory with the chosen stack, created placeholder route modules (`/api/inventory`, `/api/suppliers`), added basic error-handling middleware, and added the initial PostgreSQL migration.
 
 Blockers:
 
