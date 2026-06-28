@@ -1,4 +1,5 @@
 # API Contracts Spec
+
 ## Context: Sprint 1 Frontend/Backend Sync Contract
 
 ---
@@ -6,15 +7,18 @@
 ## 1. Inventory Domain (`/api/inventory`)
 
 ### 1.1 `GET /api/inventory`
+
 Fetch all inventory items with basic product and warehouse details.
 
 **Query Parameters (Optional):**
+
 - `warehouse_id`: filter by warehouse
 - `category_id`: filter by category
 
 **Response Header:** `Content-Type: application/json`
 
 **Response Body (`200 OK`):**
+
 ```json
 [
   {
@@ -44,11 +48,13 @@ Fetch all inventory items with basic product and warehouse details.
 ```
 
 ### 1.2 `POST /api/inventory`
+
 Add product stock at a specific warehouse location.
 
 **Request Header:** `Content-Type: application/json`
 
 **Request Body:**
+
 ```json
 {
   "product_id": 101,
@@ -60,6 +66,7 @@ Add product stock at a specific warehouse location.
 ```
 
 **Response Body (`201 Created`):**
+
 ```json
 {
   "item_id": 2,
@@ -73,9 +80,11 @@ Add product stock at a specific warehouse location.
 ```
 
 ### 1.3 `PATCH /api/inventory/:id`
+
 Modify stock count, reorder limits, or units.
 
 **Request Body:**
+
 ```json
 {
   "quantity": 120,
@@ -84,6 +93,7 @@ Modify stock count, reorder limits, or units.
 ```
 
 **Response Body (`200 OK`):**
+
 ```json
 {
   "item_id": 2,
@@ -103,13 +113,16 @@ Modify stock count, reorder limits, or units.
 Note: the route name remains `suppliers` for implementation continuity, but in product language this domain primarily represents wholesaler-facing marketplace profiles.
 
 ### 2.1 `GET /api/suppliers`
+
 List wholesalers matching search keywords or category filters.
 
 **Query Parameters (Optional):**
+
 - `city`: filter by location
 - `category_id`: filter by product categories
 
 **Response Body (`200 OK`):**
+
 ```json
 [
   {
@@ -131,9 +144,11 @@ List wholesalers matching search keywords or category filters.
 ```
 
 ### 2.2 `POST /api/suppliers`
+
 Register a business as a wholesaler.
 
 **Request Body:**
+
 ```json
 {
   "business_name": "Global Metalworks Ltd",
@@ -147,6 +162,7 @@ Register a business as a wholesaler.
 ```
 
 **Response Body (`201 Created`):**
+
 ```json
 {
   "supplier_id": 202,
@@ -166,9 +182,11 @@ Register a business as a wholesaler.
 ```
 
 ### 2.3 `PATCH /api/suppliers/:id`
+
 Modify wholesale limits, lead time expectations, or shipping rules.
 
 **Request Body:**
+
 ```json
 {
   "minimum_order_quantity": 80.00,
@@ -177,6 +195,7 @@ Modify wholesale limits, lead time expectations, or shipping rules.
 ```
 
 **Response Body (`200 OK`):**
+
 ```json
 {
   "supplier_id": 202,
