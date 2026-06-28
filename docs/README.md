@@ -1,8 +1,8 @@
 # LINKO Documentation Review — Full Report
 
 > **Reviewed:** June 28, 2026
-> **Files Analyzed:** 24 documents across 5 directories
-> **Total Documentation Size:** ~266 KB
+> **Files Analyzed:** 22 documents across 5 directories
+> **Total Documentation Size:** ~257 KB
 
 ---
 
@@ -37,28 +37,26 @@
 |---|------|----------|------|--------|
 | 1 | [README.md](../README.md) | Root | 2.9 KB | Active |
 | 2 | [ROADMAP.md](../ROADMAP.md) | Root | 14.2 KB | Active |
-| 3 | [CLAUDE.md](../CLAUDE.md) | Root | 4.3 KB | Active |
-| 4 | [LICENSE](../LICENSE) | Root | 1.1 KB | Active |
-| 5 | [package.json](../package.json) | Root | 629 B | Active |
-| 6 | [API_CONTRACTS.md](./API_CONTRACTS.md) | docs/ | 4.1 KB | Active |
-| 7 | [BACKEND_GUIDE.md](./BACKEND_GUIDE.md) | docs/ | 9.5 KB | Active |
-| 8 | [BACKLOG.md](./BACKLOG.md) | docs/ | 3.0 KB | Active |
-| 9 | [CONVENTIONAL_COMMITS.md](./CONVENTIONAL_COMMITS.md) | docs/ | 1.1 KB | Active |
-| 10 | [LAYOUT_QUESTIONNAIRE.md](./LAYOUT_QUESTIONNAIRE.md) | docs/ | 6.4 KB | Active |
-| 11 | [PROPOSED_LAYOUT.md](./PROPOSED_LAYOUT.md) | docs/ | 9.2 KB | Active |
-| 12 | [SPRINTS.md](./SPRINTS.md) | docs/ | 4.7 KB | Active |
-| 13 | [LINKO business plan.md](./LINKO%20business%20plan.md) | docs/ | 95.4 KB | Active |
-| 14 | [beginner_backend_guide.md](./beginner_backend_guide.md) | docs/ | 15.0 KB | Active |
-| 15 | [glossary.md](./glossary.md) | docs/ | 12.4 KB | Active |
-| 16 | [linko_database_specification.md](./linko_database_specification.md) | docs/ | 12.3 KB | Active |
-| 17 | [linko-agent-handoff.md](../local-notes/linko-agent-handoff.md) | local-notes/ | 4.2 KB | Active |
-| 18 | [CODEBASE_OVERVIEW.md](./codebase-notes/CODEBASE_OVERVIEW.md) | docs/codebase-notes/ | 5.9 KB | Active |
-| 19 | [FRONTEND_GUIDE.md](./archived/FRONTEND_GUIDE.md) | archived/ | 3.3 KB | Archived |
-| 20 | [LINKO_BPMN_PROCESS_GUIDE.md](./archived/LINKO_BPMN_PROCESS_GUIDE.md) | archived/ | 7.2 KB | Archived |
-| 21 | [archive_logistics_database_specification.md](./archived/archive_logistics_database_specification.md) | archived/ | 10.9 KB | Archived |
-| 22 | [beginner_react_guide.md](./archived/beginner_react_guide.md) | archived/ | 39.8 KB | Archived |
-| 23 | [EXAMPLE_BACKLOG.md](./examples/EXAMPLE_BACKLOG.md) | examples/ | 1.4 KB | Template |
-| 24 | [EXAMPLE_SPRINTS.md](./examples/EXAMPLE_SPRINTS.md) | examples/ | 1.6 KB | Template |
+| 3 | [LICENSE](../LICENSE) | Root | 1.1 KB | Active |
+| 4 | [package.json](../package.json) | Root | 629 B | Active |
+| 5 | [API_CONTRACTS.md](./API_CONTRACTS.md) | docs/ | 4.1 KB | Active |
+| 6 | [BACKEND_GUIDE.md](./BACKEND_GUIDE.md) | docs/ | 9.5 KB | Active |
+| 7 | [BACKLOG.md](./BACKLOG.md) | docs/ | 3.0 KB | Active |
+| 8 | [CONVENTIONAL_COMMITS.md](./CONVENTIONAL_COMMITS.md) | docs/ | 1.1 KB | Active |
+| 9 | [LAYOUT_QUESTIONNAIRE.md](./LAYOUT_QUESTIONNAIRE.md) | docs/ | 6.4 KB | Active |
+| 10 | [PROPOSED_LAYOUT.md](./PROPOSED_LAYOUT.md) | docs/ | 9.2 KB | Active |
+| 11 | [SPRINTS.md](./SPRINTS.md) | docs/ | 4.7 KB | Active |
+| 12 | [LINKO business plan.md](./LINKO%20business%20plan.md) | docs/ | 95.4 KB | Active |
+| 13 | [beginner_backend_guide.md](./beginner_backend_guide.md) | docs/ | 15.0 KB | Active |
+| 14 | [glossary.md](./glossary.md) | docs/ | 12.4 KB | Active |
+| 15 | [linko_database_specification.md](./linko_database_specification.md) | docs/ | 12.3 KB | Active |
+| 16 | [CODEBASE_OVERVIEW.md](./codebase-notes/CODEBASE_OVERVIEW.md) | docs/codebase-notes/ | 5.9 KB | Active |
+| 17 | [FRONTEND_GUIDE.md](./archived/FRONTEND_GUIDE.md) | archived/ | 3.3 KB | Archived |
+| 18 | [LINKO_BPMN_PROCESS_GUIDE.md](./archived/LINKO_BPMN_PROCESS_GUIDE.md) | archived/ | 7.2 KB | Archived |
+| 19 | [archive_logistics_database_specification.md](./archived/archive_logistics_database_specification.md) | archived/ | 10.9 KB | Archived |
+| 20 | [beginner_react_guide.md](./archived/beginner_react_guide.md) | archived/ | 39.8 KB | Archived |
+| 21 | [EXAMPLE_BACKLOG.md](./examples/EXAMPLE_BACKLOG.md) | examples/ | 1.4 KB | Template |
+| 22 | [EXAMPLE_SPRINTS.md](./examples/EXAMPLE_SPRINTS.md) | examples/ | 1.6 KB | Template |
 
 ---
 
@@ -95,20 +93,6 @@
 > 6. Location format?
 >
 > These would normally need resolution before Phase 1 UI decisions are finalized.
-
----
-
-### CLAUDE.md
-**Role:** AI-agent instruction file providing context and rules for AI assistants.
-
-- Documents the real `src/` folder structure (components/ui, features/inventory|suppliers|matching, layouts, pages)
-- Identifies 5 sources of truth: API_CONTRACTS.md, linko_database_specification.md, BACKEND_GUIDE.md, CODEBASE_OVERVIEW.md, ROADMAP.md
-- Notes that `PROPOSED_LAYOUT.md` is out of date — the real layout is documented inline in CLAUDE.md
-- Enforces Conventional Commits and matching MVP constraints
-- Documents the backend scaffold (`backend/`) and all commands for both frontend and backend
-
-> [!NOTE]
-> **Updated June 28** to reflect the backend scaffold commit. Backend commands and `CODEBASE_OVERVIEW.md` reference added.
 
 ---
 
@@ -259,15 +243,6 @@ Topics: Product Statistic header behavior, Supplier sidebar filtering, Category 
 
 ---
 
-### linko-agent-handoff.md (local-notes/)
-**Role:** Context briefing for new AI coding agents — the first file any agent should read.
-
-- **Updated June 28** to reflect backend scaffold completion and add a running note
-- Confirms: Sprint 1 active, TSK-03 and TSK-09 Done, no known blockers
-- Next recommended task: build real DB logic for `GET /api/inventory` and `GET /api/suppliers`
-
----
-
 ### CODEBASE_OVERVIEW.md (docs/codebase-notes/)
 **Role:** Living document explaining the codebase as it exists right now — intended for student developers.
 
@@ -310,9 +285,8 @@ All archived docs include clear "Archive Notes" at the top explaining why they w
 2. **Clear archival discipline** — superseded docs are properly archived with notes pointing to replacements
 3. **Strong glossary** — resolves terminology ambiguity proactively with explicit canonical rules
 4. **Well-defined MVP constraints** — matching limited to location/proximity only, consistently enforced across all docs
-5. **AI-agent onboarding** — CLAUDE.md and linko-agent-handoff.md ensure AI assistants understand the project quickly
-6. **Sources of truth clearly identified** — API_CONTRACTS.md, linko_database_specification.md, BACKEND_GUIDE.md, CODEBASE_OVERVIEW.md, ROADMAP.md
-7. **Backend scaffold committed** — Express 5 + PostgreSQL with migration runner and Node test harness now live in `backend/`
+5. **Sources of truth clearly identified** — API_CONTRACTS.md, linko_database_specification.md, BACKEND_GUIDE.md, CODEBASE_OVERVIEW.md, ROADMAP.md
+6. **Backend scaffold committed** — Express 5 + PostgreSQL with migration runner and Node test harness now live in `backend/`
 
 ### ⚠️ Terminology Inconsistency
 
