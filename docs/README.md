@@ -1,8 +1,8 @@
 # LINKO Documentation Review — Full Report
 
 > **Reviewed:** June 28, 2026
-> **Files Analyzed:** 22 documents across 5 directories
-> **Total Documentation Size:** ~257 KB
+> **Files Analyzed:** 21 documents across 5 directories
+> **Total Documentation Size:** ~162 KB
 
 ---
 
@@ -46,17 +46,16 @@
 | 9 | [LAYOUT_QUESTIONNAIRE.md](./LAYOUT_QUESTIONNAIRE.md) | docs/ | 6.4 KB | Active |
 | 10 | [PROPOSED_LAYOUT.md](./PROPOSED_LAYOUT.md) | docs/ | 9.2 KB | Active |
 | 11 | [SPRINTS.md](./SPRINTS.md) | docs/ | 4.7 KB | Active |
-| 12 | [LINKO business plan.md](./LINKO%20business%20plan.md) | docs/ | 95.4 KB | Active |
-| 13 | [beginner_backend_guide.md](./beginner_backend_guide.md) | docs/ | 15.0 KB | Active |
-| 14 | [glossary.md](./glossary.md) | docs/ | 12.4 KB | Active |
-| 15 | [linko_database_specification.md](./linko_database_specification.md) | docs/ | 12.3 KB | Active |
-| 16 | [CODEBASE_OVERVIEW.md](./codebase-notes/CODEBASE_OVERVIEW.md) | docs/codebase-notes/ | 5.9 KB | Active |
-| 17 | [FRONTEND_GUIDE.md](./archived/FRONTEND_GUIDE.md) | archived/ | 3.3 KB | Archived |
-| 18 | [LINKO_BPMN_PROCESS_GUIDE.md](./archived/LINKO_BPMN_PROCESS_GUIDE.md) | archived/ | 7.2 KB | Archived |
-| 19 | [archive_logistics_database_specification.md](./archived/archive_logistics_database_specification.md) | archived/ | 10.9 KB | Archived |
-| 20 | [beginner_react_guide.md](./archived/beginner_react_guide.md) | archived/ | 39.8 KB | Archived |
-| 21 | [EXAMPLE_BACKLOG.md](./examples/EXAMPLE_BACKLOG.md) | examples/ | 1.4 KB | Template |
-| 22 | [EXAMPLE_SPRINTS.md](./examples/EXAMPLE_SPRINTS.md) | examples/ | 1.6 KB | Template |
+| 12 | [beginner_backend_guide.md](./beginner_backend_guide.md) | docs/ | 15.0 KB | Active |
+| 13 | [glossary.md](./glossary.md) | docs/ | 12.4 KB | Active |
+| 14 | [linko_database_specification.md](./linko_database_specification.md) | docs/ | 12.3 KB | Active |
+| 15 | [CODEBASE_OVERVIEW.md](./codebase-notes/CODEBASE_OVERVIEW.md) | docs/codebase-notes/ | 5.9 KB | Active |
+| 16 | [FRONTEND_GUIDE.md](./archived/FRONTEND_GUIDE.md) | archived/ | 3.3 KB | Archived |
+| 17 | [LINKO_BPMN_PROCESS_GUIDE.md](./archived/LINKO_BPMN_PROCESS_GUIDE.md) | archived/ | 7.2 KB | Archived |
+| 18 | [archive_logistics_database_specification.md](./archived/archive_logistics_database_specification.md) | archived/ | 10.9 KB | Archived |
+| 19 | [beginner_react_guide.md](./archived/beginner_react_guide.md) | archived/ | 39.8 KB | Archived |
+| 20 | [EXAMPLE_BACKLOG.md](./examples/EXAMPLE_BACKLOG.md) | examples/ | 1.4 KB | Template |
+| 21 | [EXAMPLE_SPRINTS.md](./examples/EXAMPLE_SPRINTS.md) | examples/ | 1.6 KB | Template |
 
 ---
 
@@ -183,25 +182,6 @@ Topics: Product Statistic header behavior, Supplier sidebar filtering, Category 
 
 ## Extended Documentation
 
-### LINKO business plan.md (95 KB — largest document)
-**Role:** Formal investor-facing business plan and academic deliverable.
-
-- **5 Co-founders:** Joshua Warren Faber (CEO), Nathaniel Ryan Ponce (COO), [REDACTED] (CTO), Joannah Marie Bael (CFO), Jianna Arcilla (CMO)
-- **5 Core Features:** Communication Hub, Delivery Tracking, Supplier Finder Marketplace, Automated Inventory Logging, Procurement Insights
-- **Revenue Model:** Commission-based (supplier transaction commissions, featured listings, fintech referral fees)
-- **3-Year Projections:** Revenue ₱1.2M → ₱3.8M → ₱7.6M; Break-even ~Month 10-12 of Year 1
-- **Capital:** ₱10M authorized, ₱2.5M subscribed, ₱625K initial paid-up
-- Includes: Articles of Incorporation, By-Laws, User Agreement, Resumes
-
-> [!WARNING]
-> **Financial inconsistencies found:**
-> - Year 3 closing cash: ₱2,200,000 (table) vs. ₱2,350,400 (narrative) — mismatch
-> - Year 3 balance sheet doesn't balance: Assets ₱4,320,000 ≠ Liabilities & Equity ₱4,996,980
-> - Accrued Liabilities Year 2: "₱100,00" — likely typo for ₱100,000
-> - CTO referred to as "banned-member" in one spot — suggests a team change
-
----
-
 ### beginner_backend_guide.md
 **Role:** Hands-on Node.js/Express/PostgreSQL tutorial for beginner backend devs.
 
@@ -293,7 +273,6 @@ All archived docs include clear "Archive Notes" at the top explaining why they w
 The terms **"supplier"** and **"wholesaler"** were used interchangeably across all documents. The June 28 terminology alignment commit (`30a6f3b`) resolved the most critical gap:
 - **Glossary** prefers `wholesaler` as the canonical term ✅
 - **Database migration SQL** now uses `'wholesaler'` in CHECK constraints ✅ *(resolved)*
-- **Business plan** still uses "supplier" throughout — acceptable for a legal/investor document
 - **API routes** use `/api/suppliers` — intentionally kept for implementation continuity per API_CONTRACTS.md note
 
 ### 📊 Status Tracking Drift
@@ -316,37 +295,34 @@ The terms **"supplier"** and **"wholesaler"** were used interchangeably across a
 
 | # | Issue | Location |
 |---|-------|----------|
-| 1 | **Balance sheet doesn't balance** — Year 3 Assets ≠ Liabilities & Equity | Business plan |
-| 2 | **All layout questionnaire answers blank** — blocking UI finalization | LAYOUT_QUESTIONNAIRE.md |
-| 3 | **Stack selection sprint checkbox still unchecked** despite being Done in BACKEND_GUIDE | SPRINTS.md |
+| 1 | **All layout questionnaire answers blank** — blocking UI finalization | LAYOUT_QUESTIONNAIRE.md |
+| 2 | **Stack selection sprint checkbox still unchecked** despite being Done in BACKEND_GUIDE | SPRINTS.md |
 
 ### 🟡 Moderate Issues
 
 | # | Issue | Location |
 |---|-------|----------|
-| 4 | Financial figure mismatches (cash position, accrued liabilities typo) | Business plan |
-| 5 | Beginner backend guide teaches archived Logistics schema | beginner_backend_guide.md |
-| 6 | Broken file reference (`linko_database_specification_aligned_updated.md`) | beginner_backend_guide.md |
-| 7 | Duplicate header/purpose (copy-paste error) | BACKEND_GUIDE.md |
-| 8 | CTO referred to as "banned-member" (accidental disclosure) | Business plan |
-| 9 | No `updated_at` columns in database schema | linko_database_specification.md |
-| 10 | `trust_rating` defaults to 5.00 (max) for new suppliers | linko_database_specification.md |
+| 3 | Beginner backend guide teaches archived Logistics schema | beginner_backend_guide.md |
+| 4 | Broken file reference (`linko_database_specification_aligned_updated.md`) | beginner_backend_guide.md |
+| 5 | Duplicate header/purpose (copy-paste error) | BACKEND_GUIDE.md |
+| 6 | No `updated_at` columns in database schema | linko_database_specification.md |
+| 7 | `trust_rating` defaults to 5.00 (max) for new suppliers | linko_database_specification.md |
 
 ### 🟢 Minor Issues
 
 | # | Issue | Location |
 |---|-------|----------|
-| 11 | No setup instructions in README | README.md |
-| 12 | No router library installed (`react-router-dom`) | package.json |
-| 13 | No frontend test framework configured | package.json |
-| 14 | Vestigial `@types/react` packages (no TypeScript used) | package.json |
-| 15 | Example templates reference archived FRONTEND_GUIDE.md | examples/ |
-| 16 | WSL-style paths in archived docs (inconsistent with Windows env) | archived/ |
-| 17 | No error response shapes in API contracts | API_CONTRACTS.md |
-| 18 | No pagination strategy for GET endpoints | API_CONTRACTS.md |
-| 19 | Missing commit types (`test`, `ci`, `perf`) and scopes (`auth`, `warehouses`) | CONVENTIONAL_COMMITS.md |
-| 20 | Logistics & Reports pages in nav but have no designs or contracts | PROPOSED_LAYOUT.md |
-| 21 | Only `city` VARCHAR for location — no coordinates for real proximity matching | linko_database_specification.md |
+| 8 | No setup instructions in README | README.md |
+| 9 | No router library installed (`react-router-dom`) | package.json |
+| 10 | No frontend test framework configured | package.json |
+| 11 | Vestigial `@types/react` packages (no TypeScript used) | package.json |
+| 12 | Example templates reference archived FRONTEND_GUIDE.md | examples/ |
+| 13 | WSL-style paths in archived docs (inconsistent with Windows env) | archived/ |
+| 14 | No error response shapes in API contracts | API_CONTRACTS.md |
+| 15 | No pagination strategy for GET endpoints | API_CONTRACTS.md |
+| 16 | Missing commit types (`test`, `ci`, `perf`) and scopes (`auth`, `warehouses`) | CONVENTIONAL_COMMITS.md |
+| 17 | Logistics & Reports pages in nav but have no designs or contracts | PROPOSED_LAYOUT.md |
+| 18 | Only `city` VARCHAR for location — no coordinates for real proximity matching | linko_database_specification.md |
 
 ---
 
@@ -369,9 +345,8 @@ The terms **"supplier"** and **"wholesaler"** were used interchangeably across a
 
 ### Medium-Term
 
-10. **Fix business plan financials** — balance sheet discrepancy, cash flow narrative mismatch, accrued liabilities typo
-11. **Define error response shapes** in API_CONTRACTS.md
-12. **Add pagination strategy** for GET endpoints
-13. **Plan geographic coordinates** — add lat/lon to Businesses/Warehouses for real proximity matching
-14. **Install react-router-dom** when multi-page navigation begins
-15. **Harmonize "supplier" vs. "wholesaler"** terminology in code (CHECK constraints, route names)
+10. **Define error response shapes** in API_CONTRACTS.md
+11. **Add pagination strategy** for GET endpoints
+12. **Plan geographic coordinates** — add lat/lon to Businesses/Warehouses for real proximity matching
+13. **Install react-router-dom** when multi-page navigation begins
+14. **Harmonize "supplier" vs. "wholesaler"** terminology in code (CHECK constraints, route names)
