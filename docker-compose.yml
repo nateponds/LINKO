@@ -5,7 +5,7 @@ services:
   # STAGING ENVIRONMENT (staging.linko.nateponds.com)
   # =========================================================================
   linko-db-staging:
-    image: postgres:16-alpine
+    image: postgres:16
     container_name: linko-db-staging
     restart: always
     environment:
@@ -13,7 +13,7 @@ services:
       POSTGRES_PASSWORD: ${STAGING_DB_PASSWORD:-postgres_staging_pass}
       POSTGRES_DB: linko_staging
     volumes:
-      - linko-db-staging-data:/var/lib/postgresql/data
+      - /home/nateponds/linko-data/db-staging:/var/lib/postgresql/data
     ports:
       - "127.0.0.1:5433:5432"
 
@@ -44,7 +44,7 @@ services:
   # PRODUCTION ENVIRONMENT (linko.nateponds.com)
   # =========================================================================
   linko-db-production:
-    image: postgres:16-alpine
+    image: postgres:16
     container_name: linko-db-production
     restart: always
     environment:
@@ -52,7 +52,7 @@ services:
       POSTGRES_PASSWORD: ${PROD_DB_PASSWORD:-postgres_prod_pass}
       POSTGRES_DB: linko_production
     volumes:
-      - linko-db-production-data:/var/lib/postgresql/data
+      - /home/nateponds/linko-data/db-production:/var/lib/postgresql/data
     ports:
       - "127.0.0.1:5432:5432"
 
@@ -78,7 +78,3 @@ services:
     restart: always
     ports:
       - "127.0.0.1:8085:80"
-
-volumes:
-  linko-db-staging-data:
-  linko-db-production-data:
