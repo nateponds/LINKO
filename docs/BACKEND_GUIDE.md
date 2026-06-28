@@ -24,6 +24,35 @@ The first backend work should focus on:
 - Adhering to the endpoint payloads defined in [API_CONTRACTS.md](./API_CONTRACTS.md).
 - Preparing authentication structures for role-based system access.
 
+## Implemented Backend Scaffold
+
+The backend scaffold lives in [`../backend`](../backend). It is a separate Node.js package using Express and PostgreSQL.
+
+Current structure:
+
+```text
+backend/
+  migrations/001_initial_schema.sql
+  src/app.js
+  src/db.js
+  src/migrate.js
+  src/server.js
+  src/middleware/errorHandler.js
+  src/routes/inventory.js
+  src/routes/suppliers.js
+```
+
+Local setup:
+
+```sh
+cd backend
+npm install
+npm run migrate
+npm start
+```
+
+Set `DATABASE_URL` before running migrations. The scaffold exposes `/health`, `/api/inventory`, and `/api/suppliers`. Database-backed CRUD, validation, and authentication are separate follow-up tasks.
+
 ## Core Backend Domains
 
 ### Authentication and Users
@@ -256,8 +285,8 @@ Recommended order:
 1. Select Node.js/Express + PostgreSQL stack (Done).
 2. Define API request/response JSON contracts in [API_CONTRACTS.md](./API_CONTRACTS.md) (Done).
 3. Document core database tables in [linko_database_specification.md](./linko_database_specification.md) (Done).
-4. Create database migrations and PostgreSQL connection logic.
-5. Scaffold backend structure and auth middleware.
+4. Create database migrations and PostgreSQL connection logic (Done).
+5. Scaffold backend structure and basic error middleware (Done).
 6. Build `/api/inventory` endpoints.
 7. Build `/api/suppliers` endpoints.
 8. Connect logging triggers.
