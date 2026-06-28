@@ -27,13 +27,13 @@ src/pages
 Top-level route pages.
 
 src/features
-Domain-specific components for inventory, suppliers, matching, orders, and logistics.
+Domain-specific components for inventory, supplier discovery, matching, orders, and logistics coordination.
 
 ## Page Responsibilities
 
 ### Dashboard.jsx
 
-Overview of inventory status, supplier activity, pending orders, and logistics alerts.
+Overview of inventory status, wholesaler activity, pending orders, and logistics alerts.
 
 ### Inventory.jsx
 
@@ -41,19 +41,19 @@ Main inventory tracking page with stock table, filters, item cards, and low-stoc
 
 ### Suppliers.jsx
 
-Supplier discovery page with search, filters, supplier cards, and comparison-friendly information.
+Supplier discovery page with search, filters, wholesaler cards, and comparison-friendly information.
 
 ### SupplierDetails.jsx
 
-Detailed supplier profile with product categories, service areas, terms, trust indicators, and contact actions.
+Detailed wholesaler profile with product categories, service areas, terms, trust indicators, and contact actions.
 
 ### Matching.jsx
 
-Supplier-matching workflow where users provide their location and view suppliers recommended by proximity. Merchandise type and category filters are not part of the MVP matching workflow.
+Supplier-matching workflow where users provide their location and view wholesalers recommended by proximity. Merchandise type and category filters are not part of the MVP matching workflow.
 
 ### Orders.jsx
 
-Quote requests, order tracking, and buyer/supplier transaction states.
+Quote requests, order tracking, and buyer/wholesaler transaction states.
 
 ### Logistics.jsx
 
@@ -95,7 +95,7 @@ Reusable form input.
 
 ### DataTable.jsx
 
-Reusable table for inventory, orders, suppliers, and logistics records.
+Reusable table for inventory, orders, supplier-domain records, and logistics records.
 
 ### EmptyState.jsx
 
@@ -106,14 +106,14 @@ Reusable placeholder for pages or sections with no data.
 - Mobile-friendly layouts.
 - Clear dashboard structure.
 - Practical business interface, not a marketing page.
-- Easy scanning of inventory, supplier, and order data.
+- Easy scanning of inventory, wholesaler, and order data.
 - Reusable components before detailed styling.
 - Keep mock data simple and realistic.
 
 ## Initial Mock Data Needed
 
 - Inventory items.
-- Supplier profiles.
+- Wholesaler profiles.
 - Orders or quote requests.
 - Shipment records.
 - Match results.
