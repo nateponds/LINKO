@@ -100,8 +100,10 @@ Modify stock count, reorder limits, or units.
 
 ## 2. Supplier Domain (`/api/suppliers`)
 
+Note: the route name remains `suppliers` for implementation continuity, but in product language this domain primarily represents wholesaler-facing marketplace profiles.
+
 ### 2.1 `GET /api/suppliers`
-List suppliers matching search keywords or category filters.
+List wholesalers matching search keywords or category filters.
 
 **Query Parameters (Optional):**
 - `city`: filter by location
@@ -129,7 +131,7 @@ List suppliers matching search keywords or category filters.
 ```
 
 ### 2.2 `POST /api/suppliers`
-Register business as wholesale provider.
+Register a business as a wholesaler.
 
 **Request Body:**
 ```json

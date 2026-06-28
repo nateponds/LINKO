@@ -10,7 +10,7 @@ This document guides the backend planning and implementation for LINKO. The proj
 
 This document guides the backend planning and implementation for LINKO. The project is currently in active early development, with backend work focused on defining the core data models, API responsibilities, authentication needs, and service boundaries that will support the platform as it grows.
 
-LINKO is intended to support logistics coordination, warehouse inventory tracking, supplier discovery, supplier matching, client acquisition, and supply-chain operations for MSMEs and wholesale providers.
+LINKO is intended to support supplier discovery, supplier matching, logistics coordination, shipment visibility, and inventory-related supply-chain operations for MSMEs and wholesalers.
 
 ## Current Development Stage
 
@@ -19,7 +19,7 @@ The backend is not expected to be fully implemented immediately. At this stage, 
 The first backend work should focus on:
 
 - Finalizing the technology stack (Node.js/Express with PostgreSQL).
-- Aligning data models around the core Inventory and Supplier domains.
+- Aligning data models around the core Inventory and wholesaler-facing Supplier domains.
 - Implementing the database schema defined in [linko_database_specification.md](./linko_database_specification.md).
 - Adhering to the endpoint payloads defined in [API_CONTRACTS.md](./API_CONTRACTS.md).
 - Preparing authentication structures for role-based system access.
@@ -33,7 +33,7 @@ Responsible for user registration, login, sessions, account management, and role
 Expected user roles may include:
 
 - MSME owner
-- Supplier
+- Wholesaler
 - Warehouse staff
 - Logistics coordinator
 - Platform administrator
@@ -79,22 +79,22 @@ This domain should eventually support:
 
 ### Suppliers
 
-Responsible for supplier profiles and wholesale provider information.
+Responsible for supplier profiles and wholesaler information.
 
 This domain should eventually support:
 
-- Supplier business profiles
+- Wholesaler business profiles
 - Product or service categories
 - Minimum order quantity
 - Lead time
 - Coverage area
 - Fulfillment capability
 - Verification status
-- Supplier ratings or performance indicators
+- Wholesaler ratings or performance indicators
 
 ### Supplier Matching
 
-Responsible for connecting buyer requirements with supplier capabilities.
+Responsible for connecting buyer requirements with wholesaler capabilities.
 
 This domain should eventually support:
 
@@ -102,20 +102,20 @@ This domain should eventually support:
 - Location and proximity criteria
 - Match scoring
 - Match reasons
-- Supplier shortlists
+- Wholesaler shortlists
 - Quote request creation
 
 ### Orders and Quotes
 
-Responsible for quote requests, supplier responses, confirmed orders, and order status tracking.
+Responsible for quote requests, wholesaler responses, confirmed orders, and order status tracking.
 
 This domain should eventually support:
 
 - Quote request creation
-- Supplier quote responses
+- Wholesaler quote responses
 - Order confirmation
 - Order status changes
-- Buyer and supplier order history
+- Buyer and wholesaler order history
 - Issue tracking
 
 ### Logistics
@@ -143,7 +143,7 @@ This domain may eventually support:
 - In-app alerts
 - Low-stock alerts
 - Order status updates
-- Supplier inquiry updates
+- Wholesaler inquiry updates
 
 ### Analytics
 
@@ -153,11 +153,11 @@ This domain may eventually support:
 
 - Inventory movement trends
 - Low-stock reports
-- Supplier performance
+- Wholesaler performance
 - Quote conversion
 - Order volume
 - Fulfillment delays
-- Client acquisition metrics
+- Buyer acquisition and wholesaler lead metrics
 
 ## Suggested Initial Data Models
 
@@ -167,7 +167,7 @@ These core models include:
 - `Users` & `Businesses` (authentication, profiles, roles)
 - `Products`, `Categories`, `Warehouses`, & `Inventory_Items` (inventory catalog and stock mapping)
 - `Inventory_Transactions` (movement logs/audit trail)
-- `Supplier_Profiles` (wholesale MOQ and shipping terms)
+- `Supplier_Profiles` (wholesaler MOQ and shipping terms)
 
 ## Suggested API Areas
 
@@ -225,10 +225,10 @@ The backend should eventually support role-based access control.
 Example permissions:
 
 - MSME users can manage their own inventory, quote requests, and orders.
-- Suppliers can manage their own supplier profile, quote responses, and leads.
+- Wholesalers can manage their own supplier profile, quote responses, and leads.
 - Warehouse staff can update stock movements and dispatch information.
 - Logistics users can update shipment status.
-- Admins can manage users, verify suppliers, and review platform activity.
+- Admins can manage users, verify wholesalers, and review platform activity.
 
 Authorization should be enforced on the backend, not only in the frontend UI.
 
@@ -240,12 +240,12 @@ Important relationships to consider:
 
 - A user belongs to one or more businesses.
 - A business may own inventory.
-- A business may also be a supplier.
-- A supplier may list many products or services.
+- A business may also act as a wholesaler.
+- A wholesaler may list many products or services.
 - A warehouse contains many inventory items.
 - Inventory items may have movement history.
 - A buyer may create many quote requests.
-- A quote request may produce several supplier matches.
+- A quote request may produce several wholesaler matches.
 - A quote may become an order.
 - An order may have one or more shipments.
 
@@ -269,10 +269,10 @@ The first matching system should be simple, explainable, and limited to location
 Required MVP matching criteria:
 
 - Buyer location
-- Supplier location or service area
-- Proximity or distance between the buyer and supplier
+- Wholesaler location or service area
+- Proximity or distance between the buyer and wholesaler
 
-The system should show the location or proximity reason why a supplier was recommended. The initial implementation may use a simple radius, service-area check, or distance-based ranking.
+The system should show the location or proximity match reason for why a wholesaler was recommended. The initial implementation may use a simple radius, service-area check, or distance-based ranking.
 
 Merchandise type, product category, required quantity, minimum order quantity, lead time, price, verification, fulfillment capability, and past performance are deferred. They should not be required by the MVP matching API or scoring logic; the team may introduce them later if validated user needs justify their ongoing data and maintenance cost.
 
@@ -297,7 +297,7 @@ Backend testing should eventually cover:
 - Authentication
 - Authorization rules
 - Inventory updates
-- Supplier profile updates
+- Wholesaler profile updates
 - Match request creation
 - Quote and order status changes
 - Shipment status updates
