@@ -68,34 +68,6 @@ Users can securely log in and access domain pages tailored to their specific rol
 
 ---
 
-## REST API Scaffolding & Express Router Setup
-
-Status: Done
-Suggested by: @nateponds | Date added: 2026-06-21
-Area: Backend | Priority: High
-Related docs: BACKEND_GUIDE.md
-
-Description:
-Initialize Express.js backend project structure, routing modules for each domain (/api/inventory, /api/suppliers, /api/orders), and error-handling middleware.
-
-Expected outcome: A clean backend repository scaffolded and ready for endpoint implementation.
-
----
-
-## Database Schema Migration & PostgreSQL setup
-
-Status: Done
-Suggested by: @Swashua | Date added: 2026-06-21
-Area: Backend | Priority: High
-Related docs: BACKEND_GUIDE.md
-
-Description:
-Set up a PostgreSQL database instance and configure schema migrations for Business, InventoryItem, SupplierProfile, and Order tables.
-
-Expected outcome: Working relational database with tracked schema evolution.
-
----
-
 ## Technical Discussion: Finance and Contract 
 
 Status: Proposed  
