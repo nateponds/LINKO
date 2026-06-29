@@ -78,7 +78,7 @@ Approved by:
 
 Tasks:
 
-- [ ] Select and document Backend Stack & Database choice
+- [x] Select and document Backend Stack & Database choice
   - Owner: @nateponds (Full-Stack)
   - Area: Backend
   - Source: BACKEND_GUIDE.md
