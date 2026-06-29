@@ -1,8 +1,8 @@
 # LINKO Logistics Subsystem: Database Design & Implementation Specification
 
-## Archive Note
+## Archive Note (OUTDATED)
 
-This detailed logistics database specification has been archived as Logistics Coordination is currently a deferred feature (Phase 7 in the ROADMAP). This document serves as a reference for future implementation when the logistics domain becomes a priority. Current focus remains on Phase 0–3 (Foundation, MVP UI, and Data Modeling for core domains: Inventory, Suppliers, and Orders).
+This detailed logistics database specification has been marked as OUTDATED and remains archived. It was the original MySQL-based design that duplicated core tables. It is superseded by the active, PostgreSQL-aligned specification adopting Model C (Seller Own Fleet) at [linko_logistics_specification.md](../linko_logistics_specification.md) in the main docs folder.
 
 ---
 
