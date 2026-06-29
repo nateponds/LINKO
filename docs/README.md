@@ -49,13 +49,14 @@
 | 12 | [beginner_backend_guide.md](./beginner_backend_guide.md) | docs/ | 15.0 KB | Active |
 | 13 | [glossary.md](./glossary.md) | docs/ | 12.4 KB | Active |
 | 14 | [linko_database_specification.md](./linko_database_specification.md) | docs/ | 12.3 KB | Active |
-| 15 | [CODEBASE_OVERVIEW.md](./codebase-notes/CODEBASE_OVERVIEW.md) | docs/codebase-notes/ | 5.9 KB | Active |
-| 16 | [FRONTEND_GUIDE.md](./archived/FRONTEND_GUIDE.md) | archived/ | 3.3 KB | Archived |
-| 17 | [LINKO_BPMN_PROCESS_GUIDE.md](./archived/LINKO_BPMN_PROCESS_GUIDE.md) | archived/ | 7.2 KB | Archived |
-| 18 | [archive_logistics_database_specification.md](./archived/archive_logistics_database_specification.md) | archived/ | 10.9 KB | Archived |
-| 19 | [beginner_react_guide.md](./archived/beginner_react_guide.md) | archived/ | 39.8 KB | Archived |
-| 20 | [EXAMPLE_BACKLOG.md](./examples/EXAMPLE_BACKLOG.md) | examples/ | 1.4 KB | Template |
-| 21 | [EXAMPLE_SPRINTS.md](./examples/EXAMPLE_SPRINTS.md) | examples/ | 1.6 KB | Template |
+| 15 | [LINKO_BPMN_PROCESS_GUIDE.md](./LINKO_BPMN_PROCESS_GUIDE.md) | docs/ | 7.2 KB | Active |
+| 16 | [linko_logistics_specification.md](./linko_logistics_specification.md) | docs/ | 4.8 KB | Active |
+| 17 | [CODEBASE_OVERVIEW.md](./codebase-notes/CODEBASE_OVERVIEW.md) | docs/codebase-notes/ | 5.9 KB | Active |
+| 18 | [FRONTEND_GUIDE.md](./archived/FRONTEND_GUIDE.md) | archived/ | 3.3 KB | Archived |
+| 19 | [archive_logistics_database_specification_outdated.md](./archived/archive_logistics_database_specification_outdated.md) | archived/ | 10.9 KB | Archived |
+| 20 | [beginner_react_guide.md](./archived/beginner_react_guide.md) | archived/ | 39.8 KB | Archived |
+| 21 | [EXAMPLE_BACKLOG.md](./examples/EXAMPLE_BACKLOG.md) | examples/ | 1.4 KB | Template |
+| 22 | [EXAMPLE_SPRINTS.md](./examples/EXAMPLE_SPRINTS.md) | examples/ | 1.6 KB | Template |
 
 ---
 
@@ -236,7 +237,7 @@ Topics: Product Statistic header behavior, Supplier sidebar filtering, Category 
 
 ## Archived & Example Documents
 
-### Archived Documents (4 files)
+### Archived Documents (3 files)
 
 All archived docs include clear "Archive Notes" at the top explaining why they were archived and pointing to replacement documents. **This is excellent documentation hygiene.**
 
@@ -244,8 +245,7 @@ All archived docs include clear "Archive Notes" at the top explaining why they w
 |----------|----------------|-------------|
 | [FRONTEND_GUIDE.md](./archived/FRONTEND_GUIDE.md) | Superseded by more comprehensive layout strategy | PROPOSED_LAYOUT.md |
 | [beginner_react_guide.md](./archived/beginner_react_guide.md) | Superseded (40KB full React course!) | PROPOSED_LAYOUT.md |
-| [LINKO_BPMN_PROCESS_GUIDE.md](./archived/LINKO_BPMN_PROCESS_GUIDE.md) | Formalized to main docs folder | BPMN-process-flow.pdf |
-| [archive_logistics_database_specification.md](./archived/archive_logistics_database_specification.md) | Logistics deferred to Phase 7 | Reserved for future use |
+| [archive_logistics_database_specification_outdated.md](./archived/archive_logistics_database_specification_outdated.md) | Outdated MySQL-based logistics design | [linko_logistics_specification.md](../linko_logistics_specification.md) |
 
 ### Example Templates (2 files)
 
