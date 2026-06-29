@@ -11,16 +11,73 @@
 
 <h1 align="center">LINKO</h1>
 
-LINKO is a supply chain management platform for MSMEs that centralizes supplier discovery, logistics coordination, shipment visibility, and inventory-related workflows.
+LINKO is a buyer-wholesaler marketplace and operations platform for MSMEs and other businesses. It helps buyers discover reliable wholesalers, compare supply options, organize inventory work, and prepare for quote, order, and fulfillment workflows in one place.
 
-The project is currently initiating its development phase, with the immediate focus on product design, planning, and defining the core user experience. This stage will shape the platform's workflows, data needs, and feature priorities before deeper implementation begins.
+The product is designed for small and growing businesses that need practical tools for procurement and stock visibility without taking on the complexity of a full enterprise supply-chain system. LINKO focuses on the direct buyer-wholesaler relationship: who can supply, where they can serve, how buyers can connect with them, and how those connections can become operational workflows over time.
 
-## Current Focus
+## Product Direction
 
-- Define the product direction and development roadmap.
-- Design the first web experience.
-- Identify core workflows for inventory, supplier discovery, orders, and logistics coordination.
-- Prepare the project for step-by-step implementation.
+LINKO is being built around four near-term ideas:
+
+- Wholesaler discovery for buyers looking for supply partners.
+- Inventory visibility for businesses tracking products, stock levels, warehouses, and movement history.
+- Proximity-based matching that starts simple and explainable.
+- Deferred logistics coordination for shipment status, dispatch visibility, and fulfillment timelines.
+
+The current scope does not model the full upstream/downstream chain. Manufacturers, distributors, retailers, and wholesalers may appear as real-world business context, but LINKO's active product model centers on buyers and wholesalers interacting through the platform.
+
+## Codebase Snapshot
+
+This repository contains the web application, backend scaffold, and planning documents for LINKO.
+
+- Frontend: React 19, Vite 8, plain JSX.
+- Backend: Node.js, Express 5, PostgreSQL, and a custom migration runner.
+- API scaffold: `/health`, `/api/inventory`, and `/api/suppliers`.
+- Database foundation: users, businesses, warehouses, products, inventory items, inventory transactions, and supplier profiles.
+- Documentation: glossary, roadmap, API contracts, database specification, backend guide, layout proposal, backlog, and sprint tracking.
+
+The project is still in active development. Some UI files are scaffolds, and several backend routes are intentionally placeholder endpoints while the team settles the product flow and data contracts.
+
+## Local Development
+
+Install and run the frontend from the repo root:
+
+```bash
+npm install
+npm run dev
+```
+
+Run backend commands from `backend/`:
+
+```bash
+cd backend
+npm install
+npm test
+npm start
+```
+
+Set `DATABASE_URL` before running backend migrations or starting the backend against PostgreSQL.
+
+## Documentation
+
+Start here if you are evaluating, contributing to, or extending the project:
+
+- [ROADMAP.md](./ROADMAP.md) explains product direction and development phases.
+- [docs/glossary.md](./docs/glossary.md) defines canonical product language.
+- [docs/API_CONTRACTS.md](./docs/API_CONTRACTS.md) defines current frontend/backend payload expectations.
+- [docs/linko_database_specification.md](./docs/linko_database_specification.md) defines the current PostgreSQL schema.
+- [docs/BACKEND_GUIDE.md](./docs/BACKEND_GUIDE.md) explains backend domains and build order.
+- [docs/PROPOSED_LAYOUT.md](./docs/PROPOSED_LAYOUT.md) captures the current frontend layout direction.
+
+## Development Workflow
+
+The team uses `staging` as the active integration branch. Feature work should branch from `staging`, return through pull requests, and only reach `main` when it is ready to represent the public project.
+
+Use these project docs to keep work organized:
+
+- [docs/BACKLOG.md](./docs/BACKLOG.md) for proposed or deferred work.
+- [docs/SPRINTS.md](./docs/SPRINTS.md) for committed sprint work.
+- [docs/CONVENTIONAL_COMMITS.md](./docs/CONVENTIONAL_COMMITS.md) for commit message standards.
 
 ## Team
 
@@ -29,7 +86,7 @@ Frontend development:
 - [@BaelJM](https://github.com/BaelJM) (Bael)
 - (to be added) (Tantay)
 
-Full-Stack development:
+Full-stack development:
 
 - [@nateponds](https://github.com/nateponds) (Ponce)
 
@@ -38,21 +95,6 @@ Backend development:
 - [@Swashua](https://github.com/Swashua) (Faber)
 - [@fR3yA-ctrl](https://github.com/fR3yA-ctrl) (Hermosilla)
 
-## Active Development References
+## License
 
-LINKO is actively undergoing its early development and design phase. Developers should review the planning documents before creating new screens, components, backend models, or workflow changes.
-
-- See [ROADMAP.md](./ROADMAP.md) for the current strategic plan and phased product direction.
-- See [FRONTEND_GUIDE.md](./docs/FRONTEND_GUIDE.md) for frontend structure, UI responsibilities, and implementation notes.
-- See [BACKEND_GUIDE.md](./docs/BACKEND_GUIDE.md) for backend planning, domain models, API direction, and service responsibilities.
-
-## Development Workflow
-
-> **Developer action point:** Use [BACKLOG.md](./docs/BACKLOG.md) and [SPRINTS.md](./docs/SPRINTS.md) to keep development organized as the project moves forward. Follow [CONVENTIONAL_COMMITS.md](./docs/CONVENTIONAL_COMMITS.md) for commit message standards.
-
-- [BACKLOG.md](./docs/BACKLOG.md) is for things we might or should do later.
-- [SPRINTS.md](./docs/SPRINTS.md) is for things we are committing to work on now.
-- Use [EXAMPLE_BACKLOG.md](./docs/examples/EXAMPLE_BACKLOG.md) when proposing new work for the team to review.
-- Use [EXAMPLE_SPRINTS.md](./docs/examples/EXAMPLE_SPRINTS.md) when approved work is being organized into an active sprint.
-
-Before starting work, developers should check whether the task belongs in the backlog, the current sprint, or one of the active guide documents.
+LINKO is released under the [MIT License](./LICENSE).
