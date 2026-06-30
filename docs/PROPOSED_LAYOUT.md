@@ -1,16 +1,16 @@
 ---
-title: Linko UI Layout Proposal
+title: LINKO UI Layout Proposal
 ---
 
-# Linko UI Layout Proposal
+# LINKO UI Layout Proposal
 
 ## Overview
 
-Linko is a supply chain management web app for MSMEs, with an early UI focused on inventory workflows, wholesaler discovery, and related operational views. All four pages share a common shell, or top navbar, and differ mainly in the content panel below it. This document breaks each page into regions and suggests a React component structure so engineering can start scaffolding directly from it.
+LINKO is a supply chain management web app for MSMEs, with an early UI focused on inventory workflows, wholesaler discovery, and related operational views. All four pages share a common shell, or top navbar, and differ mainly in the content panel below it. This document breaks each page into regions and suggests a React component structure so engineering can start scaffolding directly from it.
 
 ## Shared Visual Language
 
-- App name/logo `Linko` in the top-left on a dark gray header bar.
+- App name/logo `LINKO` in the top-left on a dark gray header bar.
 - A horizontal nav group with placeholder labels to be replaced with real labels, for example `Dashboard / Inventory / Suppliers`.
 - A row of circular avatar or icon buttons on the right for profile, notifications, and similar actions.
 - Light gray panels for cards and placeholders, plus mid-gray blocks for image placeholders that should map to actual product or wholesaler imagery later.
@@ -19,17 +19,17 @@ Linko is a supply chain management web app for MSMEs, with an early UI focused o
 
 Build these first.
 
-| Component | Description |
-| --- | --- |
-| `<AppHeader />` | Top bar with logo, nav links, search where applicable, action buttons, avatar group, and notification bell. Persists across all pages. |
-| `<IconButton />` | Circular gray button used for avatars, bell, hamburger, and message or comment icons. |
-| `<SearchBar />` | Rounded input with search icon, used in the header and table toolbars. |
-| `<FilterDropdown />` | Pill-shaped `select`-style control with chevron icon for category, status, and similar filters. |
-| `<PrimaryButton icon="+" />` | Square or rounded add action button for adding products or wholesalers. |
-| `<Card />` | Generic light-gray rounded container used for stat tiles, Recent Orders, and analytics panels. |
-| `<DataTable />` | Table with checkbox column, image thumbnail column, sortable header row, and a status badge column. Used identically on Dashboard and Inventory pages. |
-| `<ImagePlaceholderCard />` | Tall gray rectangle for product or wholesaler imagery, used in grid layouts on Suppliers and Supplier Details. |
-| `<AvatarScroller />` | Horizontal row of circular avatars representing categories or locations, with a leading or trailing chevron for scroll or expand behavior. Used on the Suppliers page and inspired by the Alibaba category strip. |
+| Component                    | Description                                                                                                                                                                                                       |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<AppHeader />`              | Top bar with logo, nav links, search where applicable, action buttons, avatar group, and notification bell. Persists across all pages.                                                                            |
+| `<IconButton />`             | Circular gray button used for avatars, bell, hamburger, and message or comment icons.                                                                                                                             |
+| `<SearchBar />`              | Rounded input with search icon, used in the header and table toolbars.                                                                                                                                            |
+| `<FilterDropdown />`         | Pill-shaped `select`-style control with chevron icon for category, status, and similar filters.                                                                                                                   |
+| `<PrimaryButton icon="+" />` | Square or rounded add action button for adding products or wholesalers.                                                                                                                                           |
+| `<Card />`                   | Generic light-gray rounded container used for stat tiles, Recent Orders, and analytics panels.                                                                                                                    |
+| `<DataTable />`              | Table with checkbox column, image thumbnail column, sortable header row, and a status badge column. Used identically on Dashboard and Inventory pages.                                                            |
+| `<ImagePlaceholderCard />`   | Tall gray rectangle for product or wholesaler imagery, used in grid layouts on Suppliers and Supplier Details.                                                                                                    |
+| `<AvatarScroller />`         | Horizontal row of circular avatars representing categories or locations, with a leading or trailing chevron for scroll or expand behavior. Used on the Suppliers page and inspired by the Alibaba category strip. |
 
 ## Page Layouts
 
@@ -149,7 +149,8 @@ Purpose: Drill-down view for a single wholesaler, with profile info, categories 
   </ProfileActionsRow>
   <CategoriesBand label="categories" />
   <ProductGrid>
-    <ImagePlaceholderCard /> <ImagePlaceholderCard /> <ImagePlaceholderCard /> ...
+    <ImagePlaceholderCard /> <ImagePlaceholderCard /> <ImagePlaceholderCard />{" "}
+    ...
   </ProductGrid>
 </SupplierDetailsPage>
 ```
