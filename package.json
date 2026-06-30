@@ -1,5 +1,5 @@
 {
-  "name": "linko",
+  "name": "LINKO",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "lucide-react": "^1.22.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"
   },
