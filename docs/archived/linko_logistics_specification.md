@@ -1,14 +1,15 @@
 # LINKO Logistics Subsystem: Database Design & Implementation Specification (MVP)
 
-*Last Updated: June 29, 2026*
+_Last Updated: June 29, 2026_
 
 ## 1. System Overview & Scope Simplification (Model C Fallback)
 
-To align strictly with the MVP scope and avoid overengineering, the logistics subsystem has been simplified to focus exclusively on **Model C (Seller Own Fleet)**. 
+To align strictly with the MVP scope and avoid overengineering, the logistics subsystem has been simplified to focus exclusively on **Model C (Seller Own Fleet)**.
 
 All complex, multi-tiered shipping rate calculations, service level agreements (SLAs), and intermediate scanning hubs have been removed.
 
 ### De-Engineered Scope Principles:
+
 1. **No Service Tiers**: Dropped the `Service_Tiers` configuration table. Shipping is assumed to be direct seller delivery.
 2. **Simplified Pricing**: Shipping cost calculations are removed from database triggers. A simple `shipping_fee` column is stored directly on the parcel record.
 3. **No Intermediate Hubs**: Dropped any concept of scanning hubs or warehouses in transit logs. Delivery is a direct point-to-point flow.
@@ -27,31 +28,33 @@ erDiagram
 ```
 
 ### 2.1 Table: `Parcels`
+
 The master record reflecting real-time parcel specifications and current transit states.
 
-| Column Name | Data Type | Constraints | Description |
-| :--- | :--- | :--- | :--- |
-| `parcel_id` | VARCHAR(20) | PRIMARY KEY | Alphanumeric tracking number (e.g., 'LNK-10023456'). |
-| `sender_id` | INT | FK (`Businesses`), NOT NULL | The shipping entity (Wholesaler). |
-| `receiver_id` | INT | FK (`Businesses`), NOT NULL | The consignee entity (MSME Buyer). |
-| `weight_kg` | DECIMAL(6,2) | NOT NULL | Physical mass weight of cargo. |
-| `dimensions` | VARCHAR(50) | | Size details (e.g., '30x30x30 cm'). |
-| `shipping_fee` | DECIMAL(10,2)| NOT NULL, DEFAULT 0.00 | Shipping charge set manually by the seller. |
-| `current_status` | VARCHAR(50) | NOT NULL, CHECK constraint | Current status state in the shipment pipeline. |
-| `created_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Database ingestion timestamp. |
+| Column Name      | Data Type     | Constraints                 | Description                                          |
+| :--------------- | :------------ | :-------------------------- | :--------------------------------------------------- |
+| `parcel_id`      | VARCHAR(20)   | PRIMARY KEY                 | Alphanumeric tracking number (e.g., 'LNK-10023456'). |
+| `sender_id`      | INT           | FK (`Businesses`), NOT NULL | The shipping entity (Wholesaler).                    |
+| `receiver_id`    | INT           | FK (`Businesses`), NOT NULL | The consignee entity (MSME Buyer).                   |
+| `weight_kg`      | DECIMAL(6,2)  | NOT NULL                    | Physical mass weight of cargo.                       |
+| `dimensions`     | VARCHAR(50)   |                             | Size details (e.g., '30x30x30 cm').                  |
+| `shipping_fee`   | DECIMAL(10,2) | NOT NULL, DEFAULT 0.00      | Shipping charge set manually by the seller.          |
+| `current_status` | VARCHAR(50)   | NOT NULL, CHECK constraint  | Current status state in the shipment pipeline.       |
+| `created_at`     | TIMESTAMP     | DEFAULT CURRENT_TIMESTAMP   | Database ingestion timestamp.                        |
 
-*Allowed `current_status` values*: `'Order Created'`, `'Pending Pickup'`, `'In Transit'`, `'Out for Delivery'`, `'Delivered'`, `'Cancelled'`, `'Disputed'`
+_Allowed `current_status` values_: `'Order Created'`, `'Pending Pickup'`, `'In Transit'`, `'Out for Delivery'`, `'Delivered'`, `'Cancelled'`, `'Disputed'`
 
 ### 2.2 Table: `Tracking_Logs`
+
 An append-only log detailing transit checkpoints and state updates.
 
-| Column Name | Data Type | Constraints | Description |
-| :--- | :--- | :--- | :--- |
-| `log_id` | SERIAL | PRIMARY KEY | Unique ID for the tracking log. |
-| `parcel_id` | VARCHAR(20) | FK (`Parcels`), NOT NULL | Target parcel relation context. |
-| `status_update` | VARCHAR(50) | NOT NULL | Status label at checkpoint. |
-| `remarks` | TEXT | | Explanatory notes (e.g., 'Dispatched via Wholesaler own truck'). |
-| `scanned_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Time of tracking event entry. |
+| Column Name     | Data Type   | Constraints               | Description                                                      |
+| :-------------- | :---------- | :------------------------ | :--------------------------------------------------------------- |
+| `log_id`        | SERIAL      | PRIMARY KEY               | Unique ID for the tracking log.                                  |
+| `parcel_id`     | VARCHAR(20) | FK (`Parcels`), NOT NULL  | Target parcel relation context.                                  |
+| `status_update` | VARCHAR(50) | NOT NULL                  | Status label at checkpoint.                                      |
+| `remarks`       | TEXT        |                           | Explanatory notes (e.g., 'Dispatched via Wholesaler own truck'). |
+| `scanned_at`    | TIMESTAMP   | DEFAULT CURRENT_TIMESTAMP | Time of tracking event entry.                                    |
 
 ---
 
@@ -66,7 +69,7 @@ CREATE TABLE Parcels (
     weight_kg DECIMAL(6,2) NOT NULL CHECK (weight_kg > 0.00),
     dimensions VARCHAR(50),
     shipping_fee DECIMAL(10,2) NOT NULL DEFAULT 0.00 CHECK (shipping_fee >= 0.00),
-    current_status VARCHAR(50) NOT NULL DEFAULT 'Order Created' 
+    current_status VARCHAR(50) NOT NULL DEFAULT 'Order Created'
         CHECK (current_status IN ('Order Created', 'Pending Pickup', 'In Transit', 'Out for Delivery', 'Delivered', 'Cancelled', 'Disputed')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -86,6 +89,7 @@ CREATE TABLE Tracking_Logs (
 ## 4. Automation & Performance Optimization
 
 ### 4.1 Append-Only History Logging Triggers
+
 These triggers write tracking records automatically whenever a parcel is created or its status is updated.
 
 ```sql
@@ -123,6 +127,7 @@ EXECUTE FUNCTION fn_log_parcel_mutation();
 ```
 
 ### 4.2 Performance Indexes
+
 ```sql
 CREATE INDEX idx_tracking_composite ON Tracking_Logs (parcel_id, scanned_at DESC);
 CREATE INDEX idx_parcels_sender ON Parcels (sender_id);

@@ -1,7 +1,13 @@
-import "./assets/css/App.css";
+import "./assets/css/style.css";
+import AppLayout from "./layouts/AppLayout";
+import MainContentGrid from "./components/navigation/MainContentGrid";
 
 function App() {
-  return null;
+  return (
+    <AppLayout>
+      <MainContentGrid />
+    </AppLayout>
+  );
 }
 
 export default App;

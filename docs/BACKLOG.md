@@ -68,7 +68,7 @@ Users can securely log in and access domain pages tailored to their specific rol
 
 ---
 
-## Technical Discussion: Finance and Contract 
+## Technical Discussion: Finance and Contract
 
 Status: Proposed  
 Suggested by: @BaelJM  
@@ -89,15 +89,15 @@ Reach a conclusion that is most beneficial for all parties involved.
 Notes:
 Core areas to discuss include:
 
-`Invoicing & Accounts Receivable (A/R)` 
-Terms are explicitly stated on every invoice to establish due dates and acceptable payment methods. Standard structures include __Net 30 (payment due in 30 days), Net 60, or Due on Receipt.__
+`Invoicing & Accounts Receivable (A/R)`
+Terms are explicitly stated on every invoice to establish due dates and acceptable payment methods. Standard structures include **Net 30 (payment due in 30 days), Net 60, or Due on Receipt.**
 
 `Sales & Procurement Contracts`
-Payment terms serve as a foundational, legally binding clause within vendor agreements and sales contracts. They dictate __payment milestones__ (such as progress or stage payments), __early payment discounts__ (e.g., 2% 10 Net 30), and __penalties for late payments.__
+Payment terms serve as a foundational, legally binding clause within vendor agreements and sales contracts. They dictate **payment milestones** (such as progress or stage payments), **early payment discounts** (e.g., 2% 10 Net 30), and **penalties for late payments.**
 
 `Supply Chain & Inventory`
-Businesses set payment terms with suppliers (Accounts Payable) to optimize cash flow. Options here include __COD (Cash on Delivery) or PIA (Payment in Advance)__ to mitigate risk.
+Businesses set payment terms with suppliers (Accounts Payable) to optimize cash flow. Options here include **COD (Cash on Delivery) or PIA (Payment in Advance)** to mitigate risk.
 
 `Credit & Risk Management`
 For B2B (Business-to-Business)transactions, terms are directly tied to evaluating a buyer’s creditworthiness to ensure the seller minimizes bad debt.
-__(will discuss more once approved)__
+**(will discuss more once approved)**
