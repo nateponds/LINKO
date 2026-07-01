@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./public/images/LINKO.png" alt="LINKO" />
+  <img src="./public/images/linko.png" alt="LINKO" />
 </div>
 <br>
 
@@ -65,7 +65,7 @@ Start here if you are evaluating, contributing to, or extending the project:
 - [ROADMAP.md](./ROADMAP.md) explains product direction and development phases.
 - [docs/glossary.md](./docs/glossary.md) defines canonical product language.
 - [docs/API_CONTRACTS.md](./docs/API_CONTRACTS.md) defines current frontend/backend payload expectations.
-- [docs/LINKO_database_specification.md](./docs/LINKO_database_specification.md) defines the current PostgreSQL schema.
+- [docs/linko_database_specification.md](./docs/linko_database_specification.md) defines the current PostgreSQL schema.
 - [docs/BACKEND_GUIDE.md](./docs/BACKEND_GUIDE.md) explains backend domains and build order.
 - [docs/PROPOSED_LAYOUT.md](./docs/PROPOSED_LAYOUT.md) captures the current frontend layout direction.
 

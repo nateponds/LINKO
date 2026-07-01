@@ -4,10 +4,9 @@ Minimal Express and PostgreSQL scaffold for the Sprint 1 backend foundation.
 
 ## Codebase Overview
 
-The backend is organized into a modular Express app connected to a PostgreSQL database.
+The backend is organized into a modular Express app connected to a PostgreSQL database. 
 
 **Core Files:**
-
 - `src/server.js` - The production entry point. Only binds the HTTP port (default `5000`).
 - `src/app.js` - Creates and configures the Express application, attaching JSON body parsing, route handlers, and error middleware. Separated from `server.js` so tests can run without binding ports.
 - `src/db.js` - Manages the PostgreSQL connection pool singleton (`pg`).

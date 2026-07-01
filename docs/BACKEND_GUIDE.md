@@ -20,7 +20,7 @@ The first backend work should focus on:
 
 - Finalizing the technology stack (Node.js/Express with PostgreSQL).
 - Aligning data models around the core Inventory and wholesaler-facing Supplier domains.
-- Implementing the database schema defined in [LINKO_database_specification.md](./LINKO_database_specification.md).
+- Implementing the database schema defined in [linko_database_specification.md](./linko_database_specification.md).
 - Adhering to the endpoint payloads defined in [API_CONTRACTS.md](./API_CONTRACTS.md).
 - Preparing authentication structures for role-based system access.
 
@@ -190,10 +190,9 @@ This domain may eventually support:
 
 ## Suggested Initial Data Models
 
-See the finalized database design specification in [LINKO_database_specification.md](./LINKO_database_specification.md) for detailed PostgreSQL table layouts.
+See the finalized database design specification in [linko_database_specification.md](./linko_database_specification.md) for detailed PostgreSQL table layouts.
 
 These core models include:
-
 - `Users` & `Businesses` (authentication, profiles, roles)
 - `Products`, `Categories`, `Warehouses`, & `Inventory_Items` (inventory catalog and stock mapping)
 - `Inventory_Transactions` (movement logs/audit trail)
@@ -285,7 +284,7 @@ Recommended order:
 
 1. Select Node.js/Express + PostgreSQL stack (Done).
 2. Define API request/response JSON contracts in [API_CONTRACTS.md](./API_CONTRACTS.md) (Done).
-3. Document core database tables in [LINKO_database_specification.md](./LINKO_database_specification.md) (Done).
+3. Document core database tables in [linko_database_specification.md](./linko_database_specification.md) (Done).
 4. Create database migrations and PostgreSQL connection logic (Done).
 5. Scaffold backend structure and basic error middleware (Done).
 6. Build `/api/inventory` endpoints.

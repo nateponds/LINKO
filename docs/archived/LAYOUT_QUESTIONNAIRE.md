@@ -1,6 +1,6 @@
-# LINKO UI Layout — Open Questions Questionnaire
+# Linko UI Layout — Open Questions Questionnaire
 
-> **Context:** This questionnaire covers unresolved design decisions from the [LINKO UI Layout Proposal](./PROPOSED_LAYOUT.md). Please read through each question, pick the option that makes the most sense (or write in your own answer), and note your name beside your choice so we can discuss any disagreements.
+> **Context:** This questionnaire covers unresolved design decisions from the [Linko UI Layout Proposal](./PROPOSED_LAYOUT.md). Please read through each question, pick the option that makes the most sense (or write in your own answer), and note your name beside your choice so we can discuss any disagreements.
 >
 > **Navigation labels have been finalized as:** `Dashboard / Inventory / Suppliers / Logistics / Reports`
 
@@ -18,9 +18,9 @@ For reference, the Dashboard page already shows analytics via a donut chart and 
 - [ ] **B.** It's just a collapsible title bar that hides/shows the product table below it. No extra analytics.
 - [ ] **C.** Keep the header static (always visible, never collapses) — it's purely a section label with no interactive behavior.
 
-**Your pick:** ******\_\_\_******  
-**Your name:** ******\_\_\_******  
-**Notes (optional):** ******\_\_\_******
+**Your pick:** _______________  
+**Your name:** _______________  
+**Notes (optional):** _______________
 
 ---
 
@@ -36,9 +36,9 @@ Right now, the Suppliers page uses an `AvatarScroller` strip (horizontal row of 
 - [ ] **B.** No sidebar for now — the AvatarScroller strip is enough. We'll revisit when we actually have enough suppliers to need it.
 - [ ] **C.** Use a slide-out filter drawer instead — triggered by a hamburger or filter icon. Keeps the page clean but still allows deep filtering when needed.
 
-**Your pick:** ******\_\_\_******  
-**Your name:** ******\_\_\_******  
-**Notes (optional):** ******\_\_\_******
+**Your pick:** _______________  
+**Your name:** _______________  
+**Notes (optional):** _______________
 
 ---
 
@@ -54,9 +54,9 @@ On the Supplier Details page, there's a `categories` label in the center, flanke
 - [ ] **B.** Previous / Next navigation — arrow buttons to page through the supplier's product categories one at a time, updating the grid below.
 - [ ] **C.** Both — show scrollable tag chips for categories, with left/right arrow buttons on the edges to scroll through overflow when there are too many to fit.
 
-**Your pick:** ******\_\_\_******  
-**Your name:** ******\_\_\_******  
-**Notes (optional):** ******\_\_\_******
+**Your pick:** _______________  
+**Your name:** _______________  
+**Notes (optional):** _______________
 
 ---
 
@@ -65,7 +65,7 @@ On the Supplier Details page, there's a `categories` label in the center, flanke
 The `DataTable` component is reused on both the Dashboard and Inventory pages. The current proposal lists these columns:
 
 | Checkbox | Thumbnail | ID/SKU | Name | Price | Stock | Status |
-| -------- | --------- | ------ | ---- | ----- | ----- | ------ |
+|----------|-----------|--------|------|-------|-------|--------|
 
 **Should we add any extra columns?**
 
@@ -77,9 +77,9 @@ The `DataTable` component is reused on both the Dashboard and Inventory pages. T
 - [ ] **D.** Add both Category and Supplier columns.
 - [ ] **E.** Other (write in below).
 
-**Your pick:** ******\_\_\_******  
-**Your name:** ******\_\_\_******  
-**If you picked E, what columns?** ******\_\_\_******
+**Your pick:** _______________  
+**Your name:** _______________  
+**If you picked E, what columns?** _______________
 
 ---
 
@@ -95,9 +95,9 @@ The Status column renders as colored badges. **How many states do we need, and w
 - [ ] **D.** 5 states — `In Stock` / `Low Stock` / `Out of Stock` / `On Order` / `Discontinued`
 - [ ] **E.** Other (write in below).
 
-**Your pick:** ******\_\_\_******  
-**Your name:** ******\_\_\_******  
-**If you picked E, what statuses?** ******\_\_\_******
+**Your pick:** _______________  
+**Your name:** _______________  
+**If you picked E, what statuses?** _______________
 
 ---
 
@@ -111,9 +111,9 @@ The Logistics page was left out of the proposal because it's still under deliber
 - [ ] **B.** Reserve the nav slot and show a "Coming Soon" placeholder page so users know it exists.
 - [ ] **C.** I have ideas for what the Logistics page should contain (describe below).
 
-**Your pick:** ******\_\_\_******  
-**Your name:** ******\_\_\_******  
-**If you picked C, describe your vision:** ******\_\_\_******
+**Your pick:** _______________  
+**Your name:** _______________  
+**If you picked C, describe your vision:** _______________
 
 ---
 
@@ -121,15 +121,15 @@ The Logistics page was left out of the proposal because it's still under deliber
 
 Fill this in once everyone has answered, to record the group's final decisions.
 
-| #   | Question                                      | Final Decision | Decided By |
-| --- | --------------------------------------------- | -------------- | ---------- |
-| 1   | Inventory — Product Statistic header behavior |                |            |
-| 2   | Suppliers — Left sidebar filtering            |                |            |
-| 3   | Supplier Details — Category band pills        |                |            |
-| 4   | DataTable — Column set                        |                |            |
-| 5   | DataTable — Status values                     |                |            |
-| 6   | Logistics page — Scope                        |                |            |
+| # | Question | Final Decision | Decided By |
+|---|----------|---------------|------------|
+| 1 | Inventory — Product Statistic header behavior | | |
+| 2 | Suppliers — Left sidebar filtering | | |
+| 3 | Supplier Details — Category band pills | | |
+| 4 | DataTable — Column set | | |
+| 5 | DataTable — Status values | | |
+| 6 | Logistics page — Scope | | |
 
 ---
 
-_Generated from the open questions in [PROPOSED_LAYOUT.md](./PROPOSED_LAYOUT.md)._
+*Generated from the open questions in [PROPOSED_LAYOUT.md](./PROPOSED_LAYOUT.md).*

@@ -93,7 +93,7 @@ Tasks:
 - [x] Design core data models and schemas (TSK-03)
   - Owner: @nateponds (Full-Stack) and @Swashua (Back-end Developer)
   - Area: Full-Stack / Data Modeling
-  - Source: LINKO_database_specification.md
+  - Source: linko_database_specification.md
   - Notes: Define field-level schemas for User, Business, Warehouse, Category, Product, Inventory_Item, and Supplier_Profile. Output should guide PostgreSQL database migrations.
 
 - [x] Scaffold initial backend project structure (TSK-09)

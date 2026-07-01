@@ -13,18 +13,17 @@ We will hold your hand through the basic concepts of React and show you how to b
 ---
 
 ## Table of Contents
-
 1. [From Vanilla JS to React: The Mindset Shift](#1-from-vanilla-js-to-react-the-mindset-shift)
 2. [Concept 1: JSX (HTML inside JavaScript)](#concept-1-jsx-html-inside-javascript)
-   - _Exercise 1: Building a reusable Status Badge (`Badge.jsx`)_
+   - *Exercise 1: Building a reusable Status Badge (`Badge.jsx`)*
 3. [Concept 2: Components and Props (The Lego Bricks)](#concept-2-components-and-props-the-lego-bricks)
-   - _Exercise 2: Building a custom Button (`Button.jsx`) and Card (`Card.jsx`)_
+   - *Exercise 2: Building a custom Button (`Button.jsx`) and Card (`Card.jsx`)*
 4. [Concept 3: State & Event Handling (`useState`)](#concept-3-state--event-handling-usestate)
-   - _Exercise 3: Building a mock inventory item quick-editor_
+   - *Exercise 3: Building a mock inventory item quick-editor*
 5. [Concept 4: Lists and Keys (Displaying Data)](#concept-4-lists-and-keys-displaying-data)
-   - _Exercise 4: Creating the Inventory Grid (`Inventory.jsx`)_
+   - *Exercise 4: Creating the Inventory Grid (`Inventory.jsx`)*
 6. [Concept 5: Conditional Rendering & App Layout (State-based Navigation)](#concept-5-conditional-rendering--app-layout-state-based-navigation)
-   - _Exercise 5: Building `AppLayout.jsx` and connecting the pages in `App.jsx`_
+   - *Exercise 5: Building `AppLayout.jsx` and connecting the pages in `App.jsx`*
 7. [Design & Styling: Making it Premium (Vanilla CSS)](#design--styling-making-it-premium-vanilla-css)
 8. [What Next? Continuing the Roadmap](#what-next-continuing-the-roadmap)
 
@@ -33,7 +32,6 @@ We will hold your hand through the basic concepts of React and show you how to b
 ## 1. From Vanilla JS to React: The Mindset Shift
 
 In vanilla web dev, when data changes, you write instructions to manually find elements and change them:
-
 ```js
 // Vanilla JS: Imperative ("Do this, then do that")
 const button = document.getElementById("my-btn");
@@ -41,7 +39,7 @@ button.textContent = "Clicked!";
 button.classList.add("active");
 ```
 
-In React, you do not write manual updates. Instead, you write **declarative** code. You describe what the UI should look like based on the current _state_ (data), and React automatically updates the screen whenever the state changes.
+In React, you do not write manual updates. Instead, you write **declarative** code. You describe what the UI should look like based on the current *state* (data), and React automatically updates the screen whenever the state changes.
 
 ```jsx
 // React: Declarative ("This is how it should look when clicked")
@@ -55,29 +53,26 @@ return (
 ```
 
 ### Key Differences at a Glance
-
-| Vanilla Web Dev                                         | ReactJS                                                                         |
-| :------------------------------------------------------ | :------------------------------------------------------------------------------ |
-| Writing static `.html` files                            | Writing `.jsx` files containing Javascript functions that return HTML-like code |
-| Manual DOM operations (e.g., `document.getElementById`) | React updates the DOM automatically (State-driven UI)                           |
-| Global styles, easily overridden                        | Modular CSS (Vanilla CSS classes scoped or styled variables)                    |
-| Multiple pages via links (e.g. `href="about.html"`)     | Component rendering switching based on state (Single Page Application)          |
+| Vanilla Web Dev | ReactJS |
+| :--- | :--- |
+| Writing static `.html` files | Writing `.jsx` files containing Javascript functions that return HTML-like code |
+| Manual DOM operations (e.g., `document.getElementById`) | React updates the DOM automatically (State-driven UI) |
+| Global styles, easily overridden | Modular CSS (Vanilla CSS classes scoped or styled variables) |
+| Multiple pages via links (e.g. `href="about.html"`) | Component rendering switching based on state (Single Page Application) |
 
 ---
 
 ## Concept 1: JSX (HTML inside JavaScript)
 
-In React, we use **JSX** (JavaScript XML). It allows us to write HTML-like elements directly inside JavaScript code.
+In React, we use **JSX** (JavaScript XML). It allows us to write HTML-like elements directly inside JavaScript code. 
 
 ### Crucial JSX Rules for Vanilla Developers:
-
 1. **Use `className` instead of `class`**: Since `class` is a reserved keyword in JavaScript, we must write `className`.
 2. **Self-Close Tags**: All tags must close. E.g., `<input type="text">` in HTML must be written as `<input type="text" />` in JSX.
-3. **Return a Single Root Element**: A JSX block can only return _one_ parent element. If you don't want to wrap your code in a `<div>`, you can use an empty bracket tag, called a **Fragment**: `<> ... </>`.
+3. **Return a Single Root Element**: A JSX block can only return *one* parent element. If you don't want to wrap your code in a `<div>`, you can use an empty bracket tag, called a **Fragment**: `<> ... </>`.
 4. **Evaluate JavaScript with Curly Braces `{}`**: Anything inside `{}` is executed as JavaScript.
 
 #### Example:
-
 ```jsx
 const username = "Juan";
 // Evaluates to: <div className="welcome">Welcome, Juan!</div>
@@ -100,12 +95,15 @@ import "../../assets/css/index.css"; // We will add styles here!
 
 export default function Badge({ text, variant = "default" }) {
   // Variant can be: 'success', 'warning', 'danger', 'info', or 'default'
-  return <span className={`badge badge-${variant}`}>{text}</span>;
+  return (
+    <span className={`badge badge-${variant}`}>
+      {text}
+    </span>
+  );
 }
 ```
 
 #### Why we did this:
-
 - We exported a function named `Badge`.
 - Inside the function arguments, we used `{ text, variant }`. This is called **destructuring props** (more on this in Concept 2!).
 - We used backticks ` ` and `${variant}` inside `className` to dynamically assign CSS classes based on the status! E.g., `badge-success` or `badge-danger`.
@@ -185,13 +183,7 @@ Let's implement a reusable `Button` and `Card` inside LINKO.
 // src/components/ui/Button.jsx
 import React from "react";
 
-export default function Button({
-  children,
-  onClick,
-  type = "button",
-  variant = "primary",
-  disabled = false,
-}) {
+export default function Button({ children, onClick, type = "button", variant = "primary", disabled = false }) {
   // 'children' is a special prop that represents whatever text or HTML is nested inside <Button>...</Button>
   return (
     <button
@@ -221,15 +213,20 @@ export default function Card({ title, subtitle, children, footer }) {
           {subtitle && <p className="card-subtitle">{subtitle}</p>}
         </div>
       )}
-      <div className="card-body">{children}</div>
-      {footer && <div className="card-footer">{footer}</div>}
+      <div className="card-body">
+        {children}
+      </div>
+      {footer && (
+        <div className="card-footer">
+          {footer}
+        </div>
+      )}
     </div>
   );
 }
 ```
 
 #### Why we did this:
-
 - **`children` Prop**: In the `Button` and `Card` components, `children` allows the parent component to pass custom content (text, icons, or other HTML tags) inside the component tags like `<Card><span>Custom Content</span></Card>`.
 - **Short-circuiting (`&&`)**: In the `Card` component, `{(title || subtitle) && ...}` checks if either prop exists. If neither exists, it won't render the header div at all! This is a very common React pattern.
 
@@ -303,9 +300,7 @@ body {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 0.5rem;
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.05),
-    0 1px 2px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.02);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -345,15 +340,13 @@ body {
 
 ## Concept 3: State & Event Handling (`useState`)
 
-In vanilla JavaScript, to update a number on a counter, you modify the DOM element directly.
+In vanilla JavaScript, to update a number on a counter, you modify the DOM element directly. 
 In React, you change the **state**, and React updates the screen.
 
-### The React rule of thumb:
-
-> _If a value is supposed to change during user interaction, and it affects what is displayed on the screen, it must be stored in React State._
+### The React rule of thumb: 
+> *If a value is supposed to change during user interaction, and it affects what is displayed on the screen, it must be stored in React State.*
 
 To declare a state variable, we import `useState` from React:
-
 ```jsx
 import React, { useState } from "react";
 
@@ -362,7 +355,11 @@ function Counter() {
   // setCount: the function we must call to update the value
   const [count, setCount] = useState(0);
 
-  return <button onClick={() => setCount(count + 1)}>Count: {count}</button>;
+  return (
+    <button onClick={() => setCount(count + 1)}>
+      Count: {count}
+    </button>
+  );
 }
 ```
 
@@ -378,15 +375,7 @@ Let's make an interactive form component to edit stock levels. This will allow M
 // src/components/ui/Input.jsx
 import React from "react";
 
-export default function Input({
-  label,
-  type = "text",
-  value,
-  onChange,
-  placeholder,
-  name,
-  min,
-}) {
+export default function Input({ label, type = "text", value, onChange, placeholder, name, min }) {
   return (
     <div className="form-group">
       {label && <label className="form-label">{label}</label>}
@@ -438,7 +427,7 @@ Let's quickly append input styling to `src/assets/css/index.css`:
 ```
 
 2. Let's create an interactive widget inside our features directory. Let's create a scratch widget, or write a component inside `src/features/inventory/StockAdjuster.jsx`. (Wait, let's create a new component to demonstrate State logic to the developer!). We can create the directory and file `src/features/StockAdjuster.jsx` or just put it in a simple component. Let's keep it simple and put it in a temporary test view or inside `src/components/ui/` or `src/features/`.
-   Let's define a file at `src/components/ui/StockAdjuster.jsx`.
+Let's define a file at `src/components/ui/StockAdjuster.jsx`.
 
 ```jsx
 // src/components/ui/StockAdjuster.jsx
@@ -462,21 +451,17 @@ export default function StockAdjuster({ itemName, initialStock }) {
   };
 
   return (
-    <Card
+    <Card 
       title={`Adjust Stock: ${itemName}`}
       subtitle="Simulate quick warehouse receiving and dispatches"
     >
       <div style={{ marginBottom: "1rem" }}>
         <span>Current Status: </span>
-        <Badge
-          text={
-            stock <= 0 ? "Out of Stock" : stock < 10 ? "Low Stock" : "In Stock"
-          }
+        <Badge 
+          text={stock <= 0 ? "Out of Stock" : stock < 10 ? "Low Stock" : "In Stock"}
           variant={getStatusVariant(stock)}
         />
-        <h4 style={{ fontSize: "1.5rem", margin: "0.5rem 0" }}>
-          {stock} Units
-        </h4>
+        <h4 style={{ fontSize: "1.5rem", margin: "0.5rem 0" }}>{stock} Units</h4>
       </div>
 
       <Input
@@ -491,8 +476,8 @@ export default function StockAdjuster({ itemName, initialStock }) {
         <Button onClick={() => setStock(stock + amount)} variant="primary">
           Receive Stock (+{amount})
         </Button>
-        <Button
-          onClick={() => setStock(Math.max(0, stock - amount))}
+        <Button 
+          onClick={() => setStock(Math.max(0, stock - amount))} 
           variant="secondary"
           disabled={stock === 0}
         >
@@ -512,7 +497,6 @@ In vanilla webdev, to show a list of items, you write loops inside JavaScript th
 In React, we use the standard JavaScript `.map()` array method.
 
 ### The JSX map pattern:
-
 ```jsx
 const items = ["Apple", "Banana", "Cherry"];
 
@@ -526,7 +510,6 @@ return (
 ```
 
 ### The Crucial Rule: The `key` Prop
-
 React needs a unique identifier for every list item, called `key`. The key helps React track which items changed, were added, or were removed. **Never use array index if the list can be sorted, filtered, or edited.** Always use a unique identifier (like an `id` field).
 
 ---
@@ -547,46 +530,11 @@ import Input from "../components/ui/Input";
 
 // 1. Initial Mock Data representing LINKO Inventory
 const INITIAL_INVENTORY = [
-  {
-    id: "INV-001",
-    name: "Premium Solar Panels 400W",
-    sku: "SOL-400W-PREM",
-    stock: 45,
-    threshold: 10,
-    location: "Warehouse A",
-  },
-  {
-    id: "INV-002",
-    name: "Lithium-Ion Battery 100Ah",
-    sku: "BAT-100AH-LI",
-    stock: 8,
-    threshold: 15,
-    location: "Warehouse A",
-  },
-  {
-    id: "INV-003",
-    name: "Grid-Tied Inverter 5kW",
-    sku: "INV-5KW-GRID",
-    stock: 0,
-    threshold: 5,
-    location: "Warehouse B",
-  },
-  {
-    id: "INV-004",
-    name: "Solar Cable 4mm (100m)",
-    sku: "CAB-4MM-100M",
-    stock: 120,
-    threshold: 20,
-    location: "Warehouse A",
-  },
-  {
-    id: "INV-005",
-    name: "MC4 Connectors (100pcs)",
-    sku: "MC4-100PCS",
-    stock: 4,
-    threshold: 10,
-    location: "Warehouse B",
-  },
+  { id: "INV-001", name: "Premium Solar Panels 400W", sku: "SOL-400W-PREM", stock: 45, threshold: 10, location: "Warehouse A" },
+  { id: "INV-002", name: "Lithium-Ion Battery 100Ah", sku: "BAT-100AH-LI", stock: 8, threshold: 15, location: "Warehouse A" },
+  { id: "INV-003", name: "Grid-Tied Inverter 5kW", sku: "INV-5KW-GRID", stock: 0, threshold: 5, location: "Warehouse B" },
+  { id: "INV-004", name: "Solar Cable 4mm (100m)", sku: "CAB-4MM-100M", stock: 120, threshold: 20, location: "Warehouse A" },
+  { id: "INV-005", name: "MC4 Connectors (100pcs)", sku: "MC4-100PCS", stock: 4, threshold: 10, location: "Warehouse B" }
 ];
 
 export default function Inventory() {
@@ -602,22 +550,18 @@ export default function Inventory() {
   };
 
   // Filter logic
-  const filteredItems = items.filter((item) => {
-    const matchesSearch =
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.sku.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesWarehouse =
-      filterWarehouse === "All" || item.location === filterWarehouse;
+  const filteredItems = items.filter(item => {
+    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          item.sku.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesWarehouse = filterWarehouse === "All" || item.location === filterWarehouse;
     return matchesSearch && matchesWarehouse;
   });
 
   // Action: Add one unit
   const handleQuickAdd = (itemId) => {
-    setItems(
-      items.map((item) =>
-        item.id === itemId ? { ...item, stock: item.stock + 1 } : item,
-      ),
-    );
+    setItems(items.map(item => 
+      item.id === itemId ? { ...item, stock: item.stock + 1 } : item
+    ));
   };
 
   return (
@@ -625,25 +569,21 @@ export default function Inventory() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Warehouse Inventory</h1>
-          <p className="page-subtitle">
-            Track and adjust stock levels across local warehouses.
-          </p>
+          <p className="page-subtitle">Track and adjust stock levels across local warehouses.</p>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
       <div className="filters-bar">
-        <Input
-          placeholder="Search by Name or SKU..."
+        <Input 
+          placeholder="Search by Name or SKU..." 
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
         <div className="select-wrapper">
-          <label className="form-label" style={{ margin: 0 }}>
-            Location:{" "}
-          </label>
-          <select
-            value={filterWarehouse}
+          <label className="form-label" style={{ margin: 0 }}>Location: </label>
+          <select 
+            value={filterWarehouse} 
             onChange={(e) => setFilterWarehouse(e.target.value)}
             className="filter-select"
           >
@@ -656,28 +596,17 @@ export default function Inventory() {
 
       {/* Grid of items */}
       <div className="inventory-grid">
-        {filteredItems.map((item) => {
+        {filteredItems.map(item => {
           const status = getItemStatus(item.stock, item.threshold);
           return (
-            <Card
-              key={item.id}
-              title={item.name}
+            <Card 
+              key={item.id} 
+              title={item.name} 
               subtitle={`SKU: ${item.sku} | ${item.location}`}
               footer={
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <span>
-                    Reorder threshold: <strong>{item.threshold}</strong>
-                  </span>
-                  <Button
-                    onClick={() => handleQuickAdd(item.id)}
-                    variant="secondary"
-                  >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span>Reorder threshold: <strong>{item.threshold}</strong></span>
+                  <Button onClick={() => handleQuickAdd(item.id)} variant="secondary">
                     Quick Receive (+1)
                   </Button>
                 </div>
@@ -815,7 +744,6 @@ In Phase 1 of our roadmap, we want a minimum usable web app that showcases sever
 While a fully production-ready application will eventually use a dedicated routing library (like React Router), we can implement clean page switching inside React using simple **conditional rendering** with a single page-tracker state.
 
 ### The conditional rendering pattern:
-
 ```jsx
 const [page, setPage] = useState("dashboard");
 
@@ -881,12 +809,12 @@ export default function AppLayout({ children, currentPage, setCurrentPage }) {
     { id: "suppliers", label: "Suppliers", icon: "🤝" },
     { id: "matching", label: "Supplier Matching", icon: "🎯" },
     { id: "orders", label: "Orders & Quotes", icon: "📝" },
-    { id: "logistics", label: "Logistics", icon: "🚛" },
+    { id: "logistics", label: "Logistics", icon: "🚛" }
   ];
 
   // Helper to retrieve current page label
   const getCurrentPageTitle = () => {
-    const current = navItems.find((item) => item.id === currentPage);
+    const current = navItems.find(item => item.id === currentPage);
     return current ? current.label : "LINKO";
   };
 
@@ -899,7 +827,7 @@ export default function AppLayout({ children, currentPage, setCurrentPage }) {
           <h1 className="logo-text">LINKO</h1>
         </div>
         <nav className="sidebar-nav">
-          {navItems.map((item) => (
+          {navItems.map(item => (
             <button
               key={item.id}
               className={`nav-link ${currentPage === item.id ? "active" : ""}`}
@@ -915,7 +843,9 @@ export default function AppLayout({ children, currentPage, setCurrentPage }) {
       {/* Main Content Pane */}
       <div className="main-wrapper">
         <Topbar currentPageTitle={getCurrentPageTitle()} />
-        <main className="content-area">{children}</main>
+        <main className="content-area">
+          {children}
+        </main>
       </div>
     </div>
   );
@@ -937,9 +867,7 @@ export default function Dashboard({ setCurrentPage }) {
       <div className="page-header">
         <div>
           <h1 className="page-title">Operational Dashboard</h1>
-          <p className="page-subtitle">
-            Welcome back! Here's your supply chain at a glance.
-          </p>
+          <p className="page-subtitle">Welcome back! Here's your supply chain at a glance.</p>
         </div>
       </div>
 
@@ -954,10 +882,7 @@ export default function Dashboard({ setCurrentPage }) {
             <span>Critical Reorder Alert Items:</span>
             <Badge text="2 Items" variant="warning" />
           </div>
-          <button
-            className="dashboard-link"
-            onClick={() => setCurrentPage("inventory")}
-          >
+          <button className="dashboard-link" onClick={() => setCurrentPage("inventory")}>
             Manage Stock &rarr;
           </button>
         </Card>
@@ -971,10 +896,7 @@ export default function Dashboard({ setCurrentPage }) {
             <span>Pending Proximity Matches:</span>
             <Badge text="3 Alerts" variant="info" />
           </div>
-          <button
-            className="dashboard-link"
-            onClick={() => setCurrentPage("matching")}
-          >
+          <button className="dashboard-link" onClick={() => setCurrentPage("matching")}>
             Match Near Me &rarr;
           </button>
         </Card>
@@ -988,10 +910,7 @@ export default function Dashboard({ setCurrentPage }) {
             <span>Dispatched Shipments:</span>
             <strong>1 In-transit</strong>
           </div>
-          <button
-            className="dashboard-link"
-            onClick={() => setCurrentPage("orders")}
-          >
+          <button className="dashboard-link" onClick={() => setCurrentPage("orders")}>
             Track Shipments &rarr;
           </button>
         </Card>
@@ -1020,10 +939,7 @@ export default function Suppliers() {
       <h1 className="page-title">Supplier Directory</h1>
       <p className="page-subtitle">Discover and compare wholesale providers.</p>
       <div style={{ marginTop: "2rem" }}>
-        <EmptyState
-          title="Supplier Database Coming Soon"
-          message="We are currently building the provider profile repository. Stay tuned!"
-        />
+        <EmptyState title="Supplier Database Coming Soon" message="We are currently building the provider profile repository. Stay tuned!" />
       </div>
     </div>
   );
@@ -1041,14 +957,9 @@ export default function Matching() {
   return (
     <div className="page-container">
       <h1 className="page-title">Proximity Matching</h1>
-      <p className="page-subtitle">
-        Find local suppliers nearest to your coordinate location.
-      </p>
+      <p className="page-subtitle">Find local suppliers nearest to your coordinate location.</p>
       <div style={{ marginTop: "2rem" }}>
-        <EmptyState
-          title="Location Engine Paused"
-          message="Proximity coordinates matcher is awaiting active GPS configurations."
-        />
+        <EmptyState title="Location Engine Paused" message="Proximity coordinates matcher is awaiting active GPS configurations." />
       </div>
     </div>
   );
@@ -1066,14 +977,9 @@ export default function Orders() {
   return (
     <div className="page-container">
       <h1 className="page-title">Quote Requests & Purchase Orders</h1>
-      <p className="page-subtitle">
-        Manage procurement cycles and transaction states.
-      </p>
+      <p className="page-subtitle">Manage procurement cycles and transaction states.</p>
       <div style={{ marginTop: "2rem" }}>
-        <EmptyState
-          title="No active purchase cycles"
-          message="Create custom inquiries to request wholesale inventory supply quotations."
-        />
+        <EmptyState title="No active purchase cycles" message="Create custom inquiries to request wholesale inventory supply quotations." />
       </div>
     </div>
   );
@@ -1091,14 +997,9 @@ export default function Logistics() {
   return (
     <div className="page-container">
       <h1 className="page-title">Logistics & Shipments</h1>
-      <p className="page-subtitle">
-        Track delivery progress and warehouse transfers.
-      </p>
+      <p className="page-subtitle">Track delivery progress and warehouse transfers.</p>
       <div style={{ marginTop: "2rem" }}>
-        <EmptyState
-          title="Shipment Dispatcher Inactive"
-          message="Delivery route optimizations will display here."
-        />
+        <EmptyState title="Shipment Dispatcher Inactive" message="Delivery route optimizations will display here." />
       </div>
     </div>
   );
@@ -1111,10 +1012,7 @@ Let's also make sure `src/components/ui/EmptyState.jsx` is defined:
 // src/components/ui/EmptyState.jsx
 import React from "react";
 
-export default function EmptyState({
-  title = "No data available",
-  message = "Try adding records to view items here.",
-}) {
+export default function EmptyState({ title = "No data available", message = "Try adding records to view items here." }) {
   return (
     <div className="empty-state-card">
       <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>📂</div>
@@ -1373,17 +1271,15 @@ This gives us full flexibility. To keep your app looking premium and clean, foll
 
 ## What Next? Continuing the Roadmap
 
-By completing Exercises 1 to 5, you have finished **Phase 0** and **Phase 1** of LINKO's frontend!
+By completing Exercises 1 to 5, you have finished **Phase 0** and **Phase 1** of LINKO's frontend! 
 
 Your app has:
-
 - A responsive main shell (`AppLayout` & `Sidebar`)
 - Responsive routing logic without external router downloads
 - Fully interactive client-side item lists and search filters (`Inventory`)
 - A modular core UI toolkit (`Badge`, `Button`, `Card`, `Input`, `EmptyState`)
 
 To continue developing:
-
 1. Refer to [FRONTEND_GUIDE.md](./FRONTEND_GUIDE.md) to inspect the components and pages we need for the next phases.
 2. Dive into **Phase 2: Local State & Data Modeling**, adding forms to create/delete local inventory items and suppliers.
 3. Once we align the database, you'll replace the local mock arrays (`INITIAL_INVENTORY`) with backend HTTP `fetch` routes!

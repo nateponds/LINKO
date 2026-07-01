@@ -22,7 +22,7 @@
 
 ## Project Overview
 
-**LINKO** (LINKO Technologies, Inc.) is a supply chain management platform for MSMEs (Micro, Small, and Medium Enterprises) — primarily sari-sari stores, local franchises, and independent retailers in the Philippines. The platform centralizes supplier discovery, logistics coordination, shipment visibility, and inventory-related workflows.
+**LINKO** (Linko Technologies, Inc.) is a supply chain management platform for MSMEs (Micro, Small, and Medium Enterprises) — primarily sari-sari stores, local franchises, and independent retailers in the Philippines. The platform centralizes supplier discovery, logistics coordination, shipment visibility, and inventory-related workflows.
 
 - **Company:** Registered in Cebu, Philippines. 5 co-founders (academic origin — University of San Carlos, Information Management II course).
 - **Tech Stack:** React 19 + Vite 8 (frontend), Node.js/Express + PostgreSQL planned (backend — not yet implemented).
@@ -33,41 +33,40 @@
 
 ## Document Inventory
 
-| #   | File                                                                                                                    | Location             | Size    | Status   |
-| --- | ----------------------------------------------------------------------------------------------------------------------- | -------------------- | ------- | -------- |
-| 1   | [README.md](../README.md)                                                                                               | Root                 | 2.9 KB  | Active   |
-| 2   | [ROADMAP.md](../ROADMAP.md)                                                                                             | Root                 | 14.2 KB | Active   |
-| 3   | [LICENSE](../LICENSE)                                                                                                   | Root                 | 1.1 KB  | Active   |
-| 4   | [package.json](../package.json)                                                                                         | Root                 | 629 B   | Active   |
-| 5   | [API_CONTRACTS.md](./API_CONTRACTS.md)                                                                                  | docs/                | 4.1 KB  | Active   |
-| 6   | [BACKEND_GUIDE.md](./BACKEND_GUIDE.md)                                                                                  | docs/                | 9.5 KB  | Active   |
-| 7   | [BACKLOG.md](./BACKLOG.md)                                                                                              | docs/                | 3.0 KB  | Active   |
-| 8   | [CONVENTIONAL_COMMITS.md](./CONVENTIONAL_COMMITS.md)                                                                    | docs/                | 1.1 KB  | Active   |
-| 9   | [LAYOUT_QUESTIONNAIRE.md](./LAYOUT_QUESTIONNAIRE.md)                                                                    | docs/                | 6.4 KB  | Active   |
-| 10  | [PROPOSED_LAYOUT.md](./PROPOSED_LAYOUT.md)                                                                              | docs/                | 9.2 KB  | Active   |
-| 11  | [SPRINTS.md](./SPRINTS.md)                                                                                              | docs/                | 4.7 KB  | Active   |
-| 12  | [beginner_backend_guide.md](./beginner_backend_guide.md)                                                                | docs/                | 15.0 KB | Active   |
-| 13  | [glossary.md](./glossary.md)                                                                                            | docs/                | 12.4 KB | Active   |
-| 14  | [LINKO_database_specification.md](./LINKO_database_specification.md)                                                    | docs/                | 12.3 KB | Active   |
-| 15  | [LINKO_BPMN_PROCESS_GUIDE.md](./LINKO_BPMN_PROCESS_GUIDE.md)                                                            | docs/                | 7.2 KB  | Active   |
-| 16  | [LINKO_logistics_specification.md](./LINKO_logistics_specification.md)                                                  | docs/                | 4.8 KB  | Active   |
-| 17  | [CODEBASE_OVERVIEW.md](./codebase-notes/CODEBASE_OVERVIEW.md)                                                           | docs/codebase-notes/ | 5.9 KB  | Active   |
-| 18  | [FRONTEND_GUIDE.md](./archived/FRONTEND_GUIDE.md)                                                                       | archived/            | 3.3 KB  | Archived |
-| 19  | [archive_logistics_database_specification_outdated.md](./archived/archive_logistics_database_specification_outdated.md) | archived/            | 10.9 KB | Archived |
-| 20  | [beginner_react_guide.md](./archived/beginner_react_guide.md)                                                           | archived/            | 39.8 KB | Archived |
-| 21  | [EXAMPLE_BACKLOG.md](./examples/EXAMPLE_BACKLOG.md)                                                                     | examples/            | 1.4 KB  | Template |
-| 22  | [EXAMPLE_SPRINTS.md](./examples/EXAMPLE_SPRINTS.md)                                                                     | examples/            | 1.6 KB  | Template |
+| # | File | Location | Size | Status |
+|---|------|----------|------|--------|
+| 1 | [README.md](../README.md) | Root | 2.9 KB | Active |
+| 2 | [ROADMAP.md](../ROADMAP.md) | Root | 14.2 KB | Active |
+| 3 | [LICENSE](../LICENSE) | Root | 1.1 KB | Active |
+| 4 | [package.json](../package.json) | Root | 629 B | Active |
+| 5 | [API_CONTRACTS.md](./API_CONTRACTS.md) | docs/ | 4.1 KB | Active |
+| 6 | [BACKEND_GUIDE.md](./BACKEND_GUIDE.md) | docs/ | 9.5 KB | Active |
+| 7 | [BACKLOG.md](./BACKLOG.md) | docs/ | 3.0 KB | Active |
+| 8 | [CONVENTIONAL_COMMITS.md](./CONVENTIONAL_COMMITS.md) | docs/ | 1.1 KB | Active |
+| 9 | [LAYOUT_QUESTIONNAIRE.md](./LAYOUT_QUESTIONNAIRE.md) | docs/ | 6.4 KB | Active |
+| 10 | [PROPOSED_LAYOUT.md](./PROPOSED_LAYOUT.md) | docs/ | 9.2 KB | Active |
+| 11 | [SPRINTS.md](./SPRINTS.md) | docs/ | 4.7 KB | Active |
+| 12 | [beginner_backend_guide.md](./beginner_backend_guide.md) | docs/ | 15.0 KB | Active |
+| 13 | [glossary.md](./glossary.md) | docs/ | 12.4 KB | Active |
+| 14 | [linko_database_specification.md](./linko_database_specification.md) | docs/ | 12.3 KB | Active |
+| 15 | [LINKO_BPMN_PROCESS_GUIDE.md](./LINKO_BPMN_PROCESS_GUIDE.md) | docs/ | 7.2 KB | Active |
+| 16 | [linko_logistics_specification.md](./linko_logistics_specification.md) | docs/ | 4.8 KB | Active |
+| 17 | [CODEBASE_OVERVIEW.md](./codebase-notes/CODEBASE_OVERVIEW.md) | docs/codebase-notes/ | 5.9 KB | Active |
+| 18 | [FRONTEND_GUIDE.md](./archived/FRONTEND_GUIDE.md) | archived/ | 3.3 KB | Archived |
+| 19 | [archive_logistics_database_specification_outdated.md](./archived/archive_logistics_database_specification_outdated.md) | archived/ | 10.9 KB | Archived |
+| 20 | [beginner_react_guide.md](./archived/beginner_react_guide.md) | archived/ | 39.8 KB | Archived |
+| 21 | [EXAMPLE_BACKLOG.md](./examples/EXAMPLE_BACKLOG.md) | examples/ | 1.4 KB | Template |
+| 22 | [EXAMPLE_SPRINTS.md](./examples/EXAMPLE_SPRINTS.md) | examples/ | 1.6 KB | Template |
 
 ---
 
 ## Root-Level Documents
 
 ### README.md
-
 **Role:** Project introduction and developer onboarding hub.
 
 - Centered logo with badges (MIT license, last commit, "In Development" status)
-- One-liner: _"LINKO is a supply chain management platform for MSMEs that centralizes supplier discovery, logistics coordination, shipment visibility, and inventory-related workflows."_
+- One-liner: *"LINKO is a supply chain management platform for MSMEs that centralizes supplier discovery, logistics coordination, shipment visibility, and inventory-related workflows."*
 - Lists 5 team members: 2 Frontend, 1 Full-Stack, 2 Backend (one TBD)
 - Points to ROADMAP.md, FRONTEND_GUIDE.md, BACKEND_GUIDE.md, BACKLOG.md, SPRINTS.md
 
@@ -77,7 +76,6 @@
 ---
 
 ### ROADMAP.md
-
 **Role:** Central strategic planning document — product vision, 11 development phases, build order, backlog, and open questions.
 
 - **8 Core Product Domains:** Inventory, Warehouse Ops, Supplier Discovery, Supplier Matching, Orders & Fulfillment, Client Acquisition, Logistics, Analytics
@@ -87,7 +85,6 @@
 
 > [!IMPORTANT]
 > **6 open product questions remain unresolved:**
->
 > 1. Which target user group to prioritize first?
 > 2. What is the initial focus area?
 > 3. Target market/region?
@@ -100,7 +97,6 @@
 ---
 
 ### LICENSE & package.json
-
 - **MIT License** — Copyright 2026 LINKO Team
 - **Frontend deps:** React 19 + Vite 8 only. No router, no state management, no frontend test framework.
 - **Backend deps:** Express 5 + pg. Test harness is Node's built-in `node --test` (no extra packages needed).
@@ -110,7 +106,6 @@
 ## Core Documentation
 
 ### API_CONTRACTS.md
-
 **Role:** Defines exact JSON request/response shapes for Sprint 1 frontend/backend sync.
 
 - **Inventory:** 3 endpoints (`GET`, `POST`, `PATCH` on `/api/inventory`)
@@ -123,7 +118,6 @@
 ---
 
 ### BACKEND_GUIDE.md
-
 **Role:** Master backend planning document — architecture, domains, APIs, auth, matching logic.
 
 - **9 Backend Domains** defined with capabilities
@@ -137,7 +131,6 @@
 ---
 
 ### BACKLOG.md
-
 **Role:** Structured backlog of proposed/deferred work items.
 
 - 6 items total — 3 High priority (Auth, API Scaffolding, DB Setup), 1 Medium, 2 Low/Deferred
@@ -149,7 +142,6 @@
 ---
 
 ### CONVENTIONAL_COMMITS.md
-
 **Role:** Git commit message standard.
 
 - Format: `<type>(<scope>): <description>`
@@ -159,7 +151,6 @@
 ---
 
 ### LAYOUT_QUESTIONNAIRE.md
-
 **Role:** 6 unresolved UI/UX design questions spawned from PROPOSED_LAYOUT.md.
 
 > [!CAUTION]
@@ -170,7 +161,6 @@ Topics: Product Statistic header behavior, Supplier sidebar filtering, Category 
 ---
 
 ### PROPOSED_LAYOUT.md
-
 **Role:** Foundational UI/UX layout proposal — page structures, component hierarchy, React folder architecture.
 
 - **9 shared components** defined (AppHeader, SearchBar, FilterDropdown, Card, DataTable, etc.)
@@ -181,7 +171,6 @@ Topics: Product Statistic header behavior, Supplier sidebar filtering, Category 
 ---
 
 ### SPRINTS.md
-
 **Role:** Active sprint tracker.
 
 - **Sprint 1-FE** (Jun 21 – Jul 5): 4 tasks, Lead @BaelJM — all unchecked
@@ -195,7 +184,6 @@ Topics: Product Statistic header behavior, Supplier sidebar filtering, Category 
 ## Extended Documentation
 
 ### beginner_backend_guide.md
-
 **Role:** Hands-on Node.js/Express/PostgreSQL tutorial for beginner backend devs.
 
 - 4 progressive exercises: Hello World → Mock API → SQL DDL → PostgreSQL connection
@@ -203,12 +191,11 @@ Topics: Product Statistic header behavior, Supplier sidebar filtering, Category 
 - Includes MVP proximity matching logic (city-based)
 
 > [!WARNING]
-> **Outdated content:** Exercise 3 teaches `Service_Tiers` and `Parcels` tables from the old Logistics design, which has been replaced by the Inventory + Supplier schema. Also references a non-existent file `LINKO_database_specification_aligned_updated.md`.
+> **Outdated content:** Exercise 3 teaches `Service_Tiers` and `Parcels` tables from the old Logistics design, which has been replaced by the Inventory + Supplier schema. Also references a non-existent file `linko_database_specification_aligned_updated.md`.
 
 ---
 
 ### glossary.md
-
 **Role:** Canonical terminology reference — standardizes language across code, APIs, DB, docs, and UI.
 
 - Carefully distinguishes: `supplier` (umbrella) vs. `wholesaler` (preferred canonical term)
@@ -221,8 +208,7 @@ Topics: Product Statistic header behavior, Supplier sidebar filtering, Category 
 
 ---
 
-### LINKO_database_specification.md
-
+### linko_database_specification.md
 **Role:** Authoritative PostgreSQL schema for Inventory & Supplier domains.
 
 - **9 tables:** Users, Businesses, User_Businesses, Warehouses, Categories, Products, Inventory_Items, Inventory_Transactions, Supplier_Profiles
@@ -231,7 +217,6 @@ Topics: Product Statistic header behavior, Supplier sidebar filtering, Category 
 
 > [!NOTE]
 > **Design observations:**
->
 > - `trust_rating` defaults to 5.00 (maximum) for new suppliers — potentially misleading
 > - No `updated_at` columns on any table
 > - No soft-delete mechanism (`is_active` / `deleted_at`)
@@ -240,7 +225,6 @@ Topics: Product Statistic header behavior, Supplier sidebar filtering, Category 
 ---
 
 ### CODEBASE_OVERVIEW.md (docs/codebase-notes/)
-
 **Role:** Living document explaining the codebase as it exists right now — intended for student developers.
 
 - Explains the two-package structure: root Vite/React app + `backend/` Node package
@@ -257,11 +241,11 @@ Topics: Product Statistic header behavior, Supplier sidebar filtering, Category 
 
 All archived docs include clear "Archive Notes" at the top explaining why they were archived and pointing to replacement documents. **This is excellent documentation hygiene.**
 
-| Document                                                                                                                | Reason Archived                                  | Replaced By                                                             |
-| ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------------------- |
-| [FRONTEND_GUIDE.md](./archived/FRONTEND_GUIDE.md)                                                                       | Superseded by more comprehensive layout strategy | PROPOSED_LAYOUT.md                                                      |
-| [beginner_react_guide.md](./archived/beginner_react_guide.md)                                                           | Superseded (40KB full React course!)             | PROPOSED_LAYOUT.md                                                      |
-| [archive_logistics_database_specification_outdated.md](./archived/archive_logistics_database_specification_outdated.md) | Outdated MySQL-based logistics design            | [LINKO_logistics_specification.md](../LINKO_logistics_specification.md) |
+| Document | Reason Archived | Replaced By |
+|----------|----------------|-------------|
+| [FRONTEND_GUIDE.md](./archived/FRONTEND_GUIDE.md) | Superseded by more comprehensive layout strategy | PROPOSED_LAYOUT.md |
+| [beginner_react_guide.md](./archived/beginner_react_guide.md) | Superseded (40KB full React course!) | PROPOSED_LAYOUT.md |
+| [archive_logistics_database_specification_outdated.md](./archived/archive_logistics_database_specification_outdated.md) | Outdated MySQL-based logistics design | [linko_logistics_specification.md](../linko_logistics_specification.md) |
 
 ### Example Templates (2 files)
 
@@ -281,25 +265,24 @@ All archived docs include clear "Archive Notes" at the top explaining why they w
 2. **Clear archival discipline** — superseded docs are properly archived with notes pointing to replacements
 3. **Strong glossary** — resolves terminology ambiguity proactively with explicit canonical rules
 4. **Well-defined MVP constraints** — matching limited to location/proximity only, consistently enforced across all docs
-5. **Sources of truth clearly identified** — API_CONTRACTS.md, LINKO_database_specification.md, BACKEND_GUIDE.md, CODEBASE_OVERVIEW.md, ROADMAP.md
+5. **Sources of truth clearly identified** — API_CONTRACTS.md, linko_database_specification.md, BACKEND_GUIDE.md, CODEBASE_OVERVIEW.md, ROADMAP.md
 6. **Backend scaffold committed** — Express 5 + PostgreSQL with migration runner and Node test harness now live in `backend/`
 
 ### ⚠️ Terminology Inconsistency
 
 The terms **"supplier"** and **"wholesaler"** were used interchangeably across all documents. The June 28 terminology alignment commit (`30a6f3b`) resolved the most critical gap:
-
 - **Glossary** prefers `wholesaler` as the canonical term ✅
-- **Database migration SQL** now uses `'wholesaler'` in CHECK constraints ✅ _(resolved)_
+- **Database migration SQL** now uses `'wholesaler'` in CHECK constraints ✅ *(resolved)*
 - **API routes** use `/api/suppliers` — intentionally kept for implementation continuity per API_CONTRACTS.md note
 
 ### 📊 Status Tracking Drift
 
-| What             | BACKEND_GUIDE says | SPRINTS.md says | BACKLOG.md says            |
-| ---------------- | ------------------ | --------------- | -------------------------- |
-| Stack selection  | Done ✅            | Unchecked ☐     | —                          |
-| API contracts    | Done ✅            | Checked ✅      | Proposed                   |
-| DB spec          | Done ✅            | Checked ✅      | Done ✅ _(updated Jun 28)_ |
-| Backend scaffold | Done ✅            | Checked ✅      | Done ✅ _(updated Jun 28)_ |
+| What | BACKEND_GUIDE says | SPRINTS.md says | BACKLOG.md says |
+|------|-------------------|----------------|----------------|
+| Stack selection | Done ✅ | Unchecked ☐ | — |
+| API contracts | Done ✅ | Checked ✅ | Proposed |
+| DB spec | Done ✅ | Checked ✅ | Done ✅ *(updated Jun 28)* |
+| Backend scaffold | Done ✅ | Checked ✅ | Done ✅ *(updated Jun 28)* |
 
 > [!NOTE]
 > The **Stack selection** sprint checkbox remains unchecked in SPRINTS.md despite BACKEND_GUIDE.md marking it Done. This is the only remaining status drift.
@@ -310,36 +293,36 @@ The terms **"supplier"** and **"wholesaler"** were used interchangeably across a
 
 ### 🔴 Critical Issues
 
-| #   | Issue                                                                                   | Location                |
-| --- | --------------------------------------------------------------------------------------- | ----------------------- |
-| 1   | **All layout questionnaire answers blank** — blocking UI finalization                   | LAYOUT_QUESTIONNAIRE.md |
-| 2   | **Stack selection sprint checkbox still unchecked** despite being Done in BACKEND_GUIDE | SPRINTS.md              |
+| # | Issue | Location |
+|---|-------|----------|
+| 1 | **All layout questionnaire answers blank** — blocking UI finalization | LAYOUT_QUESTIONNAIRE.md |
+| 2 | **Stack selection sprint checkbox still unchecked** despite being Done in BACKEND_GUIDE | SPRINTS.md |
 
 ### 🟡 Moderate Issues
 
-| #   | Issue                                                                     | Location                        |
-| --- | ------------------------------------------------------------------------- | ------------------------------- |
-| 3   | Beginner backend guide teaches archived Logistics schema                  | beginner_backend_guide.md       |
-| 4   | Broken file reference (`LINKO_database_specification_aligned_updated.md`) | beginner_backend_guide.md       |
-| 5   | Duplicate header/purpose (copy-paste error)                               | BACKEND_GUIDE.md                |
-| 6   | No `updated_at` columns in database schema                                | LINKO_database_specification.md |
-| 7   | `trust_rating` defaults to 5.00 (max) for new suppliers                   | LINKO_database_specification.md |
+| # | Issue | Location |
+|---|-------|----------|
+| 3 | Beginner backend guide teaches archived Logistics schema | beginner_backend_guide.md |
+| 4 | Broken file reference (`linko_database_specification_aligned_updated.md`) | beginner_backend_guide.md |
+| 5 | Duplicate header/purpose (copy-paste error) | BACKEND_GUIDE.md |
+| 6 | No `updated_at` columns in database schema | linko_database_specification.md |
+| 7 | `trust_rating` defaults to 5.00 (max) for new suppliers | linko_database_specification.md |
 
 ### 🟢 Minor Issues
 
-| #   | Issue                                                                         | Location                        |
-| --- | ----------------------------------------------------------------------------- | ------------------------------- |
-| 8   | No setup instructions in README                                               | README.md                       |
-| 9   | No router library installed (`react-router-dom`)                              | package.json                    |
-| 10  | No frontend test framework configured                                         | package.json                    |
-| 11  | Vestigial `@types/react` packages (no TypeScript used)                        | package.json                    |
-| 12  | Example templates reference archived FRONTEND_GUIDE.md                        | examples/                       |
-| 13  | WSL-style paths in archived docs (inconsistent with Windows env)              | archived/                       |
-| 14  | No error response shapes in API contracts                                     | API_CONTRACTS.md                |
-| 15  | No pagination strategy for GET endpoints                                      | API_CONTRACTS.md                |
-| 16  | Missing commit types (`test`, `ci`, `perf`) and scopes (`auth`, `warehouses`) | CONVENTIONAL_COMMITS.md         |
-| 17  | Logistics & Reports pages in nav but have no designs or contracts             | PROPOSED_LAYOUT.md              |
-| 18  | Only `city` VARCHAR for location — no coordinates for real proximity matching | LINKO_database_specification.md |
+| # | Issue | Location |
+|---|-------|----------|
+| 8 | No setup instructions in README | README.md |
+| 9 | No router library installed (`react-router-dom`) | package.json |
+| 10 | No frontend test framework configured | package.json |
+| 11 | Vestigial `@types/react` packages (no TypeScript used) | package.json |
+| 12 | Example templates reference archived FRONTEND_GUIDE.md | examples/ |
+| 13 | WSL-style paths in archived docs (inconsistent with Windows env) | archived/ |
+| 14 | No error response shapes in API contracts | API_CONTRACTS.md |
+| 15 | No pagination strategy for GET endpoints | API_CONTRACTS.md |
+| 16 | Missing commit types (`test`, `ci`, `perf`) and scopes (`auth`, `warehouses`) | CONVENTIONAL_COMMITS.md |
+| 17 | Logistics & Reports pages in nav but have no designs or contracts | PROPOSED_LAYOUT.md |
+| 18 | Only `city` VARCHAR for location — no coordinates for real proximity matching | linko_database_specification.md |
 
 ---
 
