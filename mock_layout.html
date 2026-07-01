@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LINKO | Homepage</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="stylesheets.css">
+</head>
+<body>
+
+<div class="topbar"> 
+  <a href="#">Become a supplier↗</a>
+</div>
+
+<header class="header-nav">
+  <div class="logo">LINKO</div>
+  <div class="search">
+    <input type="text" placeholder="Search products, suppliers, etc">
+      <button class="icon-btn" title="Search by image">camera-icon</button>
+      <button class="icon-btn go">search-button</button>
+  </div>
+  <div class="header-actions">
+    <button class="icon-action" title="Notifications"></button>
+    <button class="icon-action" title="Menu"onclick="toggleMenu()">☰</button>
+    <button class="icon-action" title="Profile"></button>
+  </div>
+</header>
+
+<!--erm gonna have to make these parts more dynamic teehee <3-->
+<nav class="sub-nav-wrapper">
+  <button class="nav-arrow" id="backBtn" onclick="scrollNav(-1)">❮</button>
+  
+  <div class="circle-container" id="circleScroll">
+    <button class="circle-btn">
+      <img src="path-to-your-image.png" alt="cat-img">
+    </button>
+    
+    <button class="circle-btn">
+      <img src="path-to-your-image.png" alt="cat-img">
+    </button>
+
+    <button class="circle-btn">
+      <img src="path-to-your-image.png" alt="cat-img">
+    </button>
+
+    <button class="circle-btn">
+      <img src="path-to-your-image.png" alt="cat-img">
+    </button>
+
+    <button class="circle-btn">
+      <img src="path-to-your-image.png" alt="cat-img">
+    </button>
+
+    <button class="circle-btn">
+      <img src="path-to-your-image.png" alt="cat-img">
+    </button>
+
+    <button class="circle-btn">
+      <img src="path-to-your-image.png" alt="cat-img">
+    </button>
+
+    <button class="circle-btn">
+      <img src="path-to-your-image.png" alt="cat-img">
+    </button>
+
+    <button class="circle-btn">
+      <img src="path-to-your-image.png" alt="cat-img">
+    </button>
+
+    <button class="circle-btn">
+      <img src="path-to-your-image.png" alt="cat-img">
+    </button>
+
+    <button class="circle-btn">
+      <img src="path-to-your-image.png" alt="cat-img">
+    </button>
+
+    <button class="circle-btn">
+      <img src="path-to-your-image.png" alt="cat-img">
+    </button>
+
+    <button class="circle-btn">
+      <img src="path-to-your-image.png" alt="cat-img">
+    </button>
+
+    <button class="circle-btn">
+      <img src="path-to-your-image.png" alt="cat-img">
+    </button>
+
+    <button class="circle-btn">
+      <img src="path-to-your-image.png" alt="cat-img">
+    </button>
+  </div>
+  
+  <button class="nav-arrow" id="nextBtn" onclick="scrollNav(1)">❯</button>
+</nav>
+
+<main class="content-grid">
+  <div class="supplier-box">
+    <div class="supplier-box-image"></div>
+    <div class="supplier-box-info">
+      <h3>Supplier Name</h3>
+      <p>Location: City</p>
+      <p>Rating: ★★★★☆</p>
+    </div>
+  </div>
+
+ <div class="supplier-box">
+    <div class="supplier-box-image"></div>
+    <div class="supplier-box-info">
+      <h3>Supplier Name</h3>
+      <p>Location: City</p>
+      <p>Rating: ★★★★☆</p>
+    </div>
+  </div>
+
+  <div class="supplier-box">
+    <div class="supplier-box-image"></div>
+    <div class="supplier-box-info">
+      <h3>Supplier Name</h3>
+      <p>Location: City</p>
+      <p>Rating: ★★★★☆</p>
+    </div>
+  </div>
+
+  <div class="supplier-box">
+    <div class="supplier-box-image"></div>
+    <div class="supplier-box-info">
+      <h3>Supplier Name</h3>
+      <p>Location: City</p>
+      <p>Rating: ★★★★☆</p>
+    </div>
+  </div>
+
+  <div class="supplier-box">
+    <div class="supplier-box-image"></div>
+    <div class="supplier-box-info">
+      <h3>Supplier Name</h3>
+      <p>Location: City</p>
+      <p>Rating: ★★★★☆</p>
+    </div>
+  </div>
+
+  <div class="supplier-box">
+    <div class="supplier-box-image"></div>
+    <div class="supplier-box-info">
+      <h3>Supplier Name</h3>
+      <p>Location: City</p>
+      <p>Rating: ★★★★☆</p>
+    </div>
+  </div>
+
+</main>
+
+<div id="menuOverlay" class="menu-overlay">
+  <button class="close-btn" onclick="toggleMenu()">✕</button>
+  <nav class="menu-items">
+    <a href="inventory.html">Inventory</a>
+    <a href="#">Dashboard</a>
+    <a href="#">Wait List</a>
+    <a href="#">Orders</a>
+    <a href="#">Invoices</a>
+    <a href="#" class="logout">Logout</a>
+  </nav>
+</div>
+
+<script>
+const scrollContainer = document.getElementById('circleScroll');
+const backBtn = document.getElementById('backBtn');
+const nextBtn = document.getElementById('nextBtn');
+
+function scrollNav(direction) {
+  const scrollAmount = 300; // Pixels to move
+  scrollContainer.scrollBy({ left: direction * scrollAmount, behavior: 'smooth' });
+}
+
+// Update button visibility based on scroll position
+scrollContainer.addEventListener('scroll', () => {
+  // Show/Hide back button
+  backBtn.style.display = scrollContainer.scrollLeft > 0 ? 'block' : 'none';
+  
+  // Show/Hide next button (check if reached the end)
+  const isAtEnd = scrollContainer.scrollLeft + scrollContainer.clientWidth >= scrollContainer.scrollWidth - 10;
+  nextBtn.style.display = isAtEnd ? 'none' : 'block';
+});
+
+// Initial check
+backBtn.style.display = 'none';
+
+function toggleMenu() {
+  const menu = document.getElementById("menuOverlay");
+  // Toggle between width 0 (hidden) and 250px (open)
+  if (menu.style.width === "250px") {
+    menu.style.width = "0";
+  } else {
+    menu.style.width = "250px";
+  }
+}
+</script>
+</script>
+</body>
+</html>
