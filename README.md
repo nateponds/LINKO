@@ -84,7 +84,7 @@ Use these project docs to keep work organized:
 Frontend development:
 
 - [@BaelJM](https://github.com/BaelJM) (Bael)
-- (to be added) (Tantay)
+- [@grsm-m](https://github.com/grsm-m) (Tantay)
 
 Full-stack development:
 
