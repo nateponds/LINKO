@@ -1,7 +1,5 @@
-import "./assets/css/App.css";
+import InvoicePage from "./InvoicePage";
 
-function App() {
-  return null;
+export default function App() {
+  return <InvoicePage />;
 }
-
-export default App;
