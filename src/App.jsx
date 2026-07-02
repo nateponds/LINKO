@@ -1,5 +1,5 @@
-import InvoicePage from "./InvoicePage";
+import InventoryPage from "./InventoryPage";
 
 export default function App() {
-  return <InvoicePage />;
+  return <InventoryPage />;
 }
