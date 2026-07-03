@@ -4,7 +4,7 @@ import SupplierGrid from "../features/suppliers/SupplierGrid";
 
 function SupplierDiscoveryPage() {
   return (
-    <AppLayout showSubNav>
+    <AppLayout showSubNav showSearch>
       <div className="discovery-page">
         <SupplierGrid />
       </div>
