@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  # =========================================================================
+  # STAGING ENVIRONMENT (staging.linko.nateponds.com)
+  # =========================================================================
+  linko-db-staging:
+    image: postgres:16
+    container_name: linko-db-staging
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${STAGING_DB_PASSWORD:-postgres_staging_pass}
+      POSTGRES_DB: linko_staging
+    volumes:
+      - /home/nateponds/linko-data/db-staging:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5433:5432"
+
+  linko-backend-staging:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: linko-backend-staging
+    restart: always
+    environment:
+      DATABASE_URL: postgres://postgres:${STAGING_DB_PASSWORD:-postgres_staging_pass}@linko-db-staging:5432/linko_staging
+      PORT: 5000
+    ports:
+      - "127.0.0.1:3003:5000"
+    depends_on:
+      - linko-db-staging
+
+  linko-frontend-staging:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: linko-frontend-staging
+    restart: always
+    ports:
+      - "127.0.0.1:8086:80"
+
+  # =========================================================================
+  # PRODUCTION ENVIRONMENT (linko.nateponds.com)
+  # =========================================================================
+  linko-db-production:
+    image: postgres:16
+    container_name: linko-db-production
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${PROD_DB_PASSWORD:-postgres_prod_pass}
+      POSTGRES_DB: linko_production
+    volumes:
+      - /home/nateponds/linko-data/db-production:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  linko-backend-production:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: linko-backend-production
+    restart: always
+    environment:
+      DATABASE_URL: postgres://postgres:${PROD_DB_PASSWORD:-postgres_prod_pass}@linko-db-production:5432/linko_production
+      PORT: 5000
+    ports:
+      - "127.0.0.1:3002:5000"
+    depends_on:
+      - linko-db-production
+
+  linko-frontend-production:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: linko-frontend-production
+    restart: always
+    ports:
+      - "127.0.0.1:8085:80"
