@@ -1,5 +1,6 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { suppliers } from "../../data/suppliers";
+import StarRating from "../../components/ui/StarRating";
 
 function SupplierGrid() {
   const [searchParams] = useSearchParams();
@@ -39,9 +40,8 @@ function SupplierGrid() {
               <div className="supplier-box-info">
                 <h3>{supplier.supplier_name}</h3>
                 <p>Location: {supplier.location}</p>
-                <p>
-                  Rating: {"★".repeat(supplier.rating)}
-                  {"☆".repeat(5 - supplier.rating)}
+                <p className="supplier-rating">
+                  <StarRating rating={supplier.rating} />
                 </p>
               </div>
             </Link>
