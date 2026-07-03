@@ -5,9 +5,9 @@ const menuItems = [
   { name: "Home", link: "/" },
   { name: "Inventory", link: "/inventory" },
   { name: "Invoices", link: "/invoices" },
-  { name: "Dashboard", link: null },
-  { name: "Wait List", link: null },
-  { name: "Orders", link: null },
+  { name: "Dashboard", link: "/dashboard" },
+  { name: "Wait List", link: "/waitlist" },
+  { name: "Orders", link: "/orders" },
   { name: "Logout", link: null, className: "logout" },
 ];
 
