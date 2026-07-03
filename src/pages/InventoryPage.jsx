@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
+import { ChevronDown, Pencil, Plus, Search, X } from "lucide-react";
 import AppLayout from "../layouts/AppLayout";
 import "./InventoryPage.css";
 
@@ -197,12 +198,12 @@ export default function InventoryPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
-              <button className="search-icon-btn" aria-label="Search">🔍</button>
+              <button className="search-icon-btn" aria-label="Search"><Search size={16} /></button>
             </div>
 
             <div className="filter-wrap" ref={filterWrapRef}>
               <button className="filter-btn" onClick={handleFilterBtnClick}>
-                FILTER <span>▾</span>
+                FILTER <ChevronDown size={14} />
               </button>
               <div
                 className={`filter-panel${filterPanelOpen ? " open" : ""}`}
@@ -271,7 +272,7 @@ export default function InventoryPage() {
               </div>
             </div>
 
-            <button className="add-btn" onClick={openAddModal}>ADD ITEMS +</button>
+            <button className="add-btn" onClick={openAddModal}>ADD ITEMS <Plus size={16} /></button>
           </div>
         </div>
 
@@ -311,7 +312,7 @@ export default function InventoryPage() {
                       title="Edit stock"
                       onClick={(e) => handleStockEditClick(e, item)}
                     >
-                      ✏️
+                      <Pencil size={14} />
                     </button>
                   </td>
                   <td><span className={`status ${status.cls}`}>{status.label}</span></td>
@@ -325,7 +326,7 @@ export default function InventoryPage() {
       {/* ===== Add/Edit item modal ===== */}
       <div className={`modal-overlay${modalOpen ? " open" : ""}`}>
         <div className="modal-box">
-          <button className="modal-close" onClick={closeModal}>✕</button>
+          <button className="modal-close" onClick={closeModal}><X size={18} /></button>
           <h2>{editingId ? "Edit Item" : "Add Item"}</h2>
           <form onSubmit={handleFormSubmit}>
             <label>
