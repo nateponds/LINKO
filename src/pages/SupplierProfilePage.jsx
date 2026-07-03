@@ -1,24 +1,23 @@
 import { useState } from "react";
 import {
   BadgeCheck,
-  Bell,
   Check,
   Coffee,
   Croissant,
   CupSoda,
   Egg,
   Leaf,
-  Menu,
   MessageCircle,
   Package,
   Plus,
   Popcorn,
   Repeat,
-  Search,
+  Star,
   Truck,
-  X,
 } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
+import AppLayout from "../layouts/AppLayout";
+import StarRating from "../components/ui/StarRating";
 import { findSupplier } from "../data/suppliers";
 import "./SupplierProfilePage.css";
 
@@ -46,7 +45,6 @@ export default function SupplierProfilePage() {
   const { supplierSlug } = useParams();
   const supplier = findSupplier(supplierSlug);
 
-  const [menuOpen, setMenuOpen] = useState(false);
   const [following, setFollowing] = useState(false);
   const [activeTab, setActiveTab] = useState("shop");
   // Category drill-down: when set, the products grid is filtered and a back bar shows.
@@ -67,42 +65,8 @@ export default function SupplierProfilePage() {
   }
 
   return (
-    <div className="supplier-profile-page">
-      <header className="header-nav">
-        <div className="logo">Link<span className="logo-accent">o</span></div>
-
-        <div className="search">
-          <input type="text" placeholder="Search in store" />
-          <button className="icon-btn search-btn" aria-label="Search"><Search size={16} /></button>
-        </div>
-
-        <div className="header-actions">
-          <button className="icon-action" aria-label="Notifications"><Bell size={18} /></button>
-          <button
-            className="icon-action"
-            aria-label="Menu"
-            onClick={() => setMenuOpen((v) => !v)}
-          >
-            <Menu size={18} />
-          </button>
-          <button className="icon-action" aria-label="Others" />
-          {/* contains: share, block, report */}
-        </div>
-      </header>
-
-      <div className="menu-overlay" style={{ width: menuOpen ? "250px" : "0" }}>
-        <button className="close-btn" onClick={() => setMenuOpen(false)}><X size={24} /></button>
-        <nav className="menu-items">
-          <Link to="/">Home</Link>
-          <Link to="/inventory">Inventory</Link>
-          <a href="#">Dashboard</a>
-          <a href="#">Wait List</a>
-          <a href="#">Orders</a>
-          <Link to="/invoices">Invoices</Link>
-          <a href="#" className="logout">Logout</a>
-        </nav>
-      </div>
-
+    <AppLayout>
+      <div className="supplier-profile-page">
       <section className="profile-bar">
         <div className="profile-info">
           <button className="circle-btn">
@@ -116,7 +80,9 @@ export default function SupplierProfilePage() {
               {supplier?.supplier_name ?? "Supplier Name"}
             </div>
             <div className="supplier-meta">
-              <span className="ratings">★ {supplier ? supplier.rating.toFixed(1) : "4.8"}</span>
+              <span className="ratings">
+                <StarRating rating={supplier?.rating ?? 4.8} showValue />
+              </span>
               <span className="meta-divider">|</span>
               <span className="location">{supplier?.location ?? "Location"}</span>
             </div>
@@ -180,8 +146,9 @@ export default function SupplierProfilePage() {
             </div>
             <div className="stat-divider" />
             <div className="stat-item">
-              <div className="stat-number">
-                {supplier ? `${supplier.rating.toFixed(1)}★` : "4.8★"}
+              <div className="stat-number stat-rating">
+                {supplier ? supplier.rating.toFixed(1) : "4.8"}
+                <Star size={18} color="#fbbf24" fill="#fbbf24" />
               </div>
               <div className="stat-label">Average Rating</div>
             </div>
@@ -270,6 +237,7 @@ export default function SupplierProfilePage() {
           ))}
         </section>
       )}
-    </div>
+      </div>
+    </AppLayout>
   );
 }
