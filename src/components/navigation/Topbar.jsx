@@ -15,7 +15,7 @@ function Topbar({ showSearch = false }) {
         <a href="#">Become a supplier -&gt;</a>
       </div>
       <header className="header-nav">
-        <div className="logo">LINKO</div>
+        <div className="logo">LINK<span className="logo-accent">O</span></div>
         {showSearch && (
           <div className="search">
             <input type="text" placeholder="Search products, suppliers, etc" />

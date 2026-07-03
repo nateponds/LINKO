@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { ArrowLeft, ArrowLeftRight, RotateCcw } from "lucide-react";
 import AppLayout from "../layouts/AppLayout";
 import "./InvoicePage.css";
 
@@ -112,7 +113,7 @@ export default function InvoicePage() {
         {/* back button + tracking number, below the shared header */}
         <div className="invoice-subbar">
           <button className="back-btn" onClick={handleBack}>
-            <span className="back-arrow">&#8592;</span> Back
+            <ArrowLeft size={15} /> Back
           </button>
           <div className="invoice-subbar-right">
             <span className="tracking-label">Tracking No.</span>
@@ -188,8 +189,8 @@ export default function InvoicePage() {
               </div>
 
               <div className="status-actions">
-                <a href="#" className="action-link">&#8635; Return order</a>
-                <a href="#" className="action-link">&#8646; Exchange item</a>
+                <a href="#" className="action-link"><RotateCcw size={13} /> Return order</a>
+                <a href="#" className="action-link"><ArrowLeftRight size={13} /> Exchange item</a>
                 <span className="delivery-query">
                   For delivery queries, <a href="#">contact us</a>
                 </span>

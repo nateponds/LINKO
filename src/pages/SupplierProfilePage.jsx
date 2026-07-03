@@ -1,4 +1,23 @@
 import { useState } from "react";
+import {
+  BadgeCheck,
+  Bell,
+  Check,
+  Coffee,
+  Croissant,
+  CupSoda,
+  Egg,
+  Leaf,
+  Menu,
+  MessageCircle,
+  Package,
+  Plus,
+  Popcorn,
+  Repeat,
+  Search,
+  Truck,
+  X,
+} from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { findSupplier } from "../data/suppliers";
 import "./SupplierProfilePage.css";
@@ -6,12 +25,12 @@ import "./SupplierProfilePage.css";
 /* Placeholder catalog data, converted from supplier_profile.js.
    Replace with API calls keyed by the supplier slug later. */
 const CATEGORIES = [
-  { name: "Breads & Bakery", icon: "🍞" },
-  { name: "Beverages", icon: "🥤" },
-  { name: "Dairy & Eggs", icon: "🥚" },
-  { name: "Snacks", icon: "🍿" },
-  { name: "Canned & Packaged", icon: "🥫" },
-  { name: "Coffee & Tea", icon: "☕" },
+  { name: "Breads & Bakery", Icon: Croissant },
+  { name: "Beverages", Icon: CupSoda },
+  { name: "Dairy & Eggs", Icon: Egg },
+  { name: "Snacks", Icon: Popcorn },
+  { name: "Canned & Packaged", Icon: Package },
+  { name: "Coffee & Tea", Icon: Coffee },
 ];
 
 const PRODUCTS = [
@@ -50,21 +69,21 @@ export default function SupplierProfilePage() {
   return (
     <div className="supplier-profile-page">
       <header className="header-nav">
-        <div className="logo">Linko</div>
+        <div className="logo">Link<span className="logo-accent">o</span></div>
 
         <div className="search">
           <input type="text" placeholder="Search in store" />
-          <button className="icon-btn search-btn" aria-label="Search">🔍</button>
+          <button className="icon-btn search-btn" aria-label="Search"><Search size={16} /></button>
         </div>
 
         <div className="header-actions">
-          <button className="icon-action" aria-label="Notifications">🔔</button>
+          <button className="icon-action" aria-label="Notifications"><Bell size={18} /></button>
           <button
             className="icon-action"
             aria-label="Menu"
             onClick={() => setMenuOpen((v) => !v)}
           >
-            ☰
+            <Menu size={18} />
           </button>
           <button className="icon-action" aria-label="Others" />
           {/* contains: share, block, report */}
@@ -72,7 +91,7 @@ export default function SupplierProfilePage() {
       </header>
 
       <div className="menu-overlay" style={{ width: menuOpen ? "250px" : "0" }}>
-        <button className="close-btn" onClick={() => setMenuOpen(false)}>✕</button>
+        <button className="close-btn" onClick={() => setMenuOpen(false)}><X size={24} /></button>
         <nav className="menu-items">
           <Link to="/">Home</Link>
           <Link to="/inventory">Inventory</Link>
@@ -110,13 +129,13 @@ export default function SupplierProfilePage() {
             onClick={() => setFollowing((v) => !v)}
           >
             {following ? (
-              <>Following <span className="plus">✓</span></>
+              <>Following <Check size={14} /></>
             ) : (
-              <>Follow <span className="plus">+</span></>
+              <>Follow <Plus size={14} /></>
             )}
           </button>
           <button className="btn-chat">
-            Chat <span className="chat-icon">💬</span>
+            Chat <MessageCircle size={16} />
           </button>
         </div>
       </section>
@@ -138,7 +157,7 @@ export default function SupplierProfilePage() {
           {/* Hero banner */}
           <div className="shop-hero">
             <div className="shop-hero-text">
-              <div className="shop-hero-tag">🌿 Fresh &amp; Local</div>
+              <div className="shop-hero-tag"><Leaf size={14} /> Fresh &amp; Local</div>
               <h1 className="shop-hero-title">
                 Quality you can taste, <br />prices you&apos;ll love.
               </h1>
@@ -181,28 +200,28 @@ export default function SupplierProfilePage() {
           {/* Feature cards */}
           <div className="shop-features">
             <div className="feature-card">
-              <div className="feature-icon">🚚</div>
+              <div className="feature-icon"><Truck size={28} /></div>
               <div className="feature-title">Fast Delivery</div>
               <div className="feature-desc">
                 Same-day dispatch on orders placed before 12 PM.
               </div>
             </div>
             <div className="feature-card">
-              <div className="feature-icon">✅</div>
+              <div className="feature-icon"><BadgeCheck size={28} /></div>
               <div className="feature-title">Quality Assured</div>
               <div className="feature-desc">
                 Every product is checked before it leaves our facility.
               </div>
             </div>
             <div className="feature-card">
-              <div className="feature-icon">💬</div>
+              <div className="feature-icon"><MessageCircle size={28} /></div>
               <div className="feature-title">Always Here</div>
               <div className="feature-desc">
                 Our team is online 7 days a week to answer your questions.
               </div>
             </div>
             <div className="feature-card">
-              <div className="feature-icon">🔁</div>
+              <div className="feature-icon"><Repeat size={28} /></div>
               <div className="feature-title">Easy Returns</div>
               <div className="feature-desc">
                 Not satisfied? We&apos;ll sort it — no questions asked.
@@ -245,7 +264,7 @@ export default function SupplierProfilePage() {
               key={category.name}
               onClick={() => openCategory(category.name)}
             >
-              <div className="category-icon">{category.icon}</div>
+              <div className="category-icon"><category.Icon size={32} /></div>
               <div className="category-name">{category.name}</div>
             </div>
           ))}
