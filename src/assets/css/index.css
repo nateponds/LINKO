@@ -12,3 +12,16 @@ body {
   margin: 0;
   font-family: system-ui, sans-serif;
 }
+
+/* shared star-rating component */
+.star-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  vertical-align: middle;
+}
+
+.star-rating__value {
+  margin-left: 6px;
+  font-weight: 600;
+}
