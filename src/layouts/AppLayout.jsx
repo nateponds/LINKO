@@ -2,11 +2,11 @@ import "../assets/css/shell.css";
 import Topbar from "../components/navigation/Topbar";
 import SubNav from "../components/navigation/SubNav";
 
-function AppLayout({ children, showSubNav = false }) {
+function AppLayout({ children, showSubNav = false, showSearch = false }) {
   return (
     <div className="app-shell">
       <div className="app-layout">
-        <Topbar />
+        <Topbar showSearch={showSearch} />
         {showSubNav && <SubNav />}
         <main className="app-layout__content">{children}</main>
       </div>
