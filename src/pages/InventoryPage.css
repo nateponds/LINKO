@@ -1,64 +1,45 @@
-/* Scoped under .inventory-page so this page's styles don't collide with other pages' global CSS. */
+/* Inventory page content styles, in the shared home palette (vars from shell.css).
+   Scoped under .inventory-page; the nav shell comes from AppLayout. */
 .inventory-page {
-  min-height: 100vh;
-  * { box-sizing: border-box; }
-  & {
-    margin: 0;
-    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
-    background: #fafafa;
-    color: #1a1a1a;
-  }
-  
-  /* header */
-  .product-header {
-    background: #d9d9d9;
-    padding: 16px 24px;
-  }
-  
-  .header-top {
+  padding: 30px 40px 60px;
+
+  /* heading row: title + toolbar (search / filter / add) */
+  .inventory-heading {
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
     gap: 16px;
-    max-width: 1400px;
-    margin: 0 auto;
+    margin-bottom: 24px;
   }
-  
-  .header-left {
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
+
+  .inventory-heading h1 {
+    margin: 0;
+    color: var(--color-primary-dark);
+    font-size: 1.6rem;
   }
-  
-  .logo-box {
-    background: #6e6e6e;
-    color: #fff;
-    font-weight: 700;
-    font-style: italic;
-    font-size: 1.4rem;
-    padding: 16px 26px;
-    border-radius: 10px;
-    line-height: 1;
-  }
-  
+
   .header-toolbar {
     display: flex;
     align-items: center;
     gap: 14px;
-    flex: 1;
+    flex-wrap: wrap;
   }
-  
+
   .search-bar {
     display: flex;
     align-items: center;
     gap: 8px;
     flex: 1;
+    min-width: 220px;
     max-width: 460px;
     height: 44px;
     border-radius: 25px;
     padding: 0 18px;
-    background: #aaaaaa;
+    background: white;
+    border: 2px solid rgba(152, 216, 104, 0.7);
   }
-  
+
   .search-bar input {
     border: none;
     outline: none;
@@ -66,12 +47,13 @@
     height: 100%;
     font-size: 0.95rem;
     background: transparent;
+    color: var(--color-text);
   }
-  
+
   .search-bar input::placeholder {
-    color: #555;
+    color: var(--color-muted);
   }
-  
+
   .search-icon-btn {
     border: none;
     background: none;
@@ -82,12 +64,12 @@
     justify-content: center;
     flex-shrink: 0;
   }
-  
+
   .filter-wrap {
     position: relative;
     flex-shrink: 0;
   }
-  
+
   .filter-btn {
     display: flex;
     align-items: center;
@@ -96,19 +78,19 @@
     padding: 0 22px;
     border-radius: 25px;
     border: none;
-    background: #aaaaaa;
-    color: #333;
+    background: var(--color-primary-soft);
+    color: var(--color-primary-dark);
     font-weight: 600;
     font-size: 0.85rem;
     cursor: pointer;
     white-space: nowrap;
     letter-spacing: 0.03em;
   }
-  
+
   .filter-btn:hover {
-    background: #9d9d9d;
+    background: #c8d7f8;
   }
-  
+
   .add-btn {
     display: flex;
     align-items: center;
@@ -117,8 +99,8 @@
     padding: 0 24px;
     border-radius: 25px;
     border: none;
-    background: #aaaaaa;
-    color: #1a1a1a;
+    background: var(--color-primary);
+    color: white;
     font-weight: 700;
     font-size: 0.85rem;
     cursor: pointer;
@@ -126,34 +108,11 @@
     letter-spacing: 0.03em;
     flex-shrink: 0;
   }
-  
+
   .add-btn:hover {
-    background: #9d9d9d;
+    background: var(--color-primary-dark);
   }
-  
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    flex-shrink: 0;
-  }
-  
-  .icon-btn,
-  .icon-action {
-    border: none;
-    background: #c4c4c4;
-    cursor: pointer;
-    font-size: 1.1rem;
-    border-radius: 50%;
-    width: 42px;
-    height: 42px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-  
-  
+
   /* filter dropdown panel */
   .filter-panel {
     display: none;
@@ -162,144 +121,96 @@
     left: 0;
     background: #fff;
     border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    box-shadow: 0 8px 24px rgba(23, 33, 61, 0.18);
     padding: 16px;
     min-width: 220px;
     z-index: 1200;
   }
-  
+
   .filter-panel.open {
     display: block;
   }
-  
+
   .filter-group {
     margin-bottom: 14px;
   }
-  
+
   .filter-group:last-child {
     margin-bottom: 0;
   }
-  
+
   .filter-group h4 {
     margin: 0 0 8px 0;
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: #888;
+    color: var(--color-muted);
   }
-  
+
   .filter-group select,
   .filter-group input {
     width: 100%;
     padding: 8px 10px;
     border-radius: 6px;
-    border: 1px solid #ddd;
+    border: 1px solid #cbd5e6;
     font-size: 0.9rem;
   }
-  
+
   .filter-range {
     display: flex;
     align-items: center;
     gap: 6px;
   }
-  
+
   .filter-actions {
     display: flex;
     justify-content: space-between;
     gap: 8px;
     margin-top: 14px;
   }
-  
-  /* menu */
-  .menu-overlay {
-    height: 100%;
-    width: 0;
-    position: fixed;
-    z-index: 1000;
-    top: 0;
-    right: 0;
-    background-color: #0b1c3d;
-    overflow-x: hidden;
-    transition: 0.5s;
-    padding-top: 60px;
-  }
-  
-  .menu-items {
-    display: flex;
-    flex-direction: column;
-    padding: 20px;
-    height: 80%;
-  }
-  
-  .menu-items a {
-    padding: 15px;
-    text-decoration: none;
-    color: white;
-    font-size: 20px;
-    display: block;
-  }
-  
-  .menu-items a:last-child {
-    margin-top: auto;
-  }
-  
-  .logout {
-    border-top: 1px solid rgba(255, 255, 255, 0.2);
-    padding-top: 20px !important;
-    color: #ff6b6b !important;
-  }
-  
-  .close-btn {
-    position: absolute;
-    top: 20px;
-    right: 25px;
-    font-size: 30px;
-    background: none;
-    border: none;
-    color: white;
-    cursor: pointer;
-  }
-  
-  /* table */
+
+  /* table card */
   .inventory-container {
-    padding: 30px 40px;
-    width: 100%;
-    min-height: calc(100vh - 150px);
-    background: #fff;
+    background: var(--color-card);
+    border: 1px solid rgba(48, 80, 160, 0.24);
+    border-radius: 8px;
+    border-top: 4px solid var(--color-accent);
+    padding: 10px 24px 24px;
+    overflow-x: auto;
   }
-  
+
   .inventory-table {
     width: 100%;
     border-collapse: collapse;
-    background: #fff;
   }
-  
+
   .inventory-table th,
   .inventory-table td {
     padding: 15px;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid rgba(48, 80, 160, 0.16);
     text-align: left;
     vertical-align: middle;
   }
-  
+
   .inventory-table th {
-    color: #888;
+    color: var(--color-muted);
     font-size: 0.85rem;
-    font-weight: 500;
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.02em;
   }
-  
+
   .inventory-table td {
     font-size: 0.95rem;
+    color: var(--color-text);
   }
-  
+
   .stock-cell {
     display: flex;
     align-items: center;
     gap: 12px;
   }
-  
+
   .stock-edit-btn {
     width: 26px;
     height: 26px;
@@ -315,59 +226,61 @@
     opacity: 0.6;
     transition: opacity 0.15s, background 0.15s;
   }
-  
+
   .stock-edit-btn:hover {
     opacity: 1;
-    background: #eee;
+    background: rgba(48, 80, 160, 0.12);
   }
-  
+
   .stock-value {
-    color: #2952cc;
-    font-weight: 500;
+    color: var(--color-primary);
+    font-weight: 600;
     min-width: 1.5em;
     display: inline-block;
   }
-  
+
   .status {
     padding: 5px 12px;
     border-radius: 4px;
     font-size: 0.85rem;
     font-weight: 500;
+    white-space: nowrap;
   }
-  
+
   .in-stock {
     background: #e8f5e9;
     color: #2e7d32;
   }
-  
+
   .low-on-stock {
     background: #fff8e1;
     color: #b28704;
   }
-  
+
   .out-of-stock {
     background: #ffebee;
     color: #c62828;
   }
-  
+
   /* modal */
   .modal-overlay {
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.45);
+    background: rgba(23, 33, 61, 0.45);
     align-items: center;
     justify-content: center;
     z-index: 2000;
   }
-  
+
   .modal-overlay.open {
     display: flex;
   }
-  
+
   .modal-box {
     background: #fff;
     border-radius: 12px;
+    border-top: 4px solid var(--color-accent);
     padding: 28px 30px;
     width: 100%;
     max-width: 420px;
@@ -375,7 +288,7 @@
     max-height: 90vh;
     overflow-y: auto;
   }
-  
+
   .modal-close {
     position: absolute;
     top: 14px;
@@ -384,53 +297,56 @@
     background: none;
     font-size: 1.2rem;
     cursor: pointer;
-    color: #666;
+    color: var(--color-muted);
   }
-  
+
   .modal-box h2 {
     margin: 0 0 18px 0;
+    color: var(--color-primary-dark);
   }
-  
-  #itemForm {
+
+  .modal-box form {
     display: flex;
     flex-direction: column;
     gap: 14px;
   }
-  
-  #itemForm label {
+
+  .modal-box form label {
     display: flex;
     flex-direction: column;
     font-size: 0.85rem;
     font-weight: 600;
-    color: #444;
+    color: var(--color-text);
     gap: 6px;
   }
-  
-  #itemForm input,
-  #itemForm textarea {
+
+  .modal-box form input,
+  .modal-box form select,
+  .modal-box form textarea {
     font-family: inherit;
     font-size: 0.95rem;
     font-weight: 400;
     padding: 10px 12px;
-    border: 1px solid #ddd;
+    border: 1px solid #cbd5e6;
     border-radius: 8px;
     outline: none;
   }
-  
-  #itemForm input:focus,
-  #itemForm textarea:focus {
-    border-color: #0b1c3d;
+
+  .modal-box form input:focus,
+  .modal-box form select:focus,
+  .modal-box form textarea:focus {
+    border-color: var(--color-primary);
   }
-  
+
   .modal-actions {
     display: flex;
     justify-content: flex-end;
     gap: 10px;
     margin-top: 6px;
   }
-  
+
   .btn-primary {
-    background: #0b1c3d;
+    background: var(--color-primary);
     color: #fff;
     border: none;
     padding: 10px 20px;
@@ -438,53 +354,66 @@
     cursor: pointer;
     font-weight: 600;
   }
-  
+
+  .btn-primary:hover {
+    background: var(--color-primary-dark);
+  }
+
   .btn-secondary {
-    background: #f0f0f0;
-    color: #333;
+    background: var(--color-primary-soft);
+    color: var(--color-primary-dark);
     border: none;
     padding: 10px 20px;
     border-radius: 8px;
     cursor: pointer;
     font-weight: 600;
   }
-  
+
   /* stock inline edit popover */
   .stock-popover {
     display: none;
     position: absolute;
     background: #fff;
-    border: 1px solid #ddd;
+    border: 1px solid #cbd5e6;
     border-radius: 10px;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 6px 20px rgba(23, 33, 61, 0.15);
     padding: 14px;
     z-index: 1500;
     min-width: 180px;
   }
-  
+
   .stock-popover.open {
     display: block;
   }
-  
+
   .stock-popover label {
     display: flex;
     flex-direction: column;
     font-size: 0.8rem;
     font-weight: 600;
-    color: #444;
+    color: var(--color-text);
     gap: 6px;
   }
-  
+
   .stock-popover input {
     padding: 8px 10px;
-    border: 1px solid #ddd;
+    border: 1px solid #cbd5e6;
     border-radius: 6px;
     font-size: 0.9rem;
   }
-  
+
   .stock-popover-actions {
     display: flex;
     justify-content: flex-end;
     gap: 8px;
     margin-top: 10px;
-  }}
+  }
+
+  @media (max-width: 700px) {
+    padding: 16px 12px 40px;
+
+    .inventory-container {
+      padding: 4px 12px 12px;
+    }
+  }
+}

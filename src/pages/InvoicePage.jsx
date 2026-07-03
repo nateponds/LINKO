@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import AppLayout from "../layouts/AppLayout";
 import "./InvoicePage.css";
 
 /* =====================================================================
@@ -72,10 +72,7 @@ export default function InvoicePage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
-  const [navOpen, setNavOpen] = useState(false);
   const [phoneRevealed, setPhoneRevealed] = useState(false);
-
-  const navPanelRef = useRef(null);
 
   // Load order on mount
   useEffect(() => {
@@ -100,23 +97,6 @@ export default function InvoicePage() {
     };
   }, []);
 
-  // Lock body scroll while nav is open, close on Escape
-  useEffect(() => {
-    document.body.style.overflow = navOpen ? "hidden" : "";
-
-    function handleKeydown(e) {
-      if (e.key === "Escape" && navOpen) setNavOpen(false);
-    }
-    document.addEventListener("keydown", handleKeydown);
-    return () => document.removeEventListener("keydown", handleKeydown);
-  }, [navOpen]);
-
-  function handleOverlayClick(e) {
-    if (navPanelRef.current && !navPanelRef.current.contains(e.target)) {
-      setNavOpen(false);
-    }
-  }
-
   function handleBack() {
     if (window.history.length > 1) window.history.back();
   }
@@ -127,67 +107,20 @@ export default function InvoicePage() {
   }
 
   return (
-    <div className="invoice-page">
-      {/* ===== OVERLAY NAV ===== */}
-      <div
-        className={`nav-overlay${navOpen ? " open" : ""}`}
-        onClick={handleOverlayClick}
-      >
-        <div className="nav-panel" ref={navPanelRef}>
-          <div className="nav-top">
-            <span className="nav-brand">
-              Link<span className="dot">o</span>
-            </span>
-            <button
-              className="nav-close"
-              aria-label="Close menu"
-              onClick={() => setNavOpen(false)}
-            >
-              &times;
-            </button>
-          </div>
-
-          <nav className="nav-links">
-            <Link to="/" className="nav-link">Home</Link>
-            <a href="#" className="nav-link">Dashboard</a>
-            <Link to="/inventory" className="nav-link">Inventory</Link>
-            <a href="#" className="nav-link">Waitlist</a>
-            <Link to="/invoices" className="nav-link">Invoice</Link>
-            <a href="#" className="nav-link">Orders</a>
-          </nav>
-
-          <div className="nav-bottom">
-            <a href="#" className="nav-link">Notifications</a>
-            <a href="#" className="nav-link">Profile</a>
-            <a href="#" className="nav-link nav-logout">Log out</a>
-          </div>
-        </div>
-      </div>
-
-      {/* ===== TOP BAR ===== */}
-      <header className="topbar">
-        <div className="topbar-left">
-          <button
-            className="icon-btn"
-            aria-label="Open menu"
-            onClick={() => setNavOpen(true)}
-          >
-            <span className="bar" />
-            <span className="bar" />
-            <span className="bar" />
-          </button>
+    <AppLayout>
+      <div className="invoice-page">
+        {/* back button + tracking number, below the shared header */}
+        <div className="invoice-subbar">
           <button className="back-btn" onClick={handleBack}>
             <span className="back-arrow">&#8592;</span> Back
           </button>
+          <div className="invoice-subbar-right">
+            <span className="tracking-label">Tracking No.</span>
+            <span className="tracking-number">
+              {order ? `#${order.trackingNo}` : "\u2014"}
+            </span>
+          </div>
         </div>
-
-        <div className="topbar-right">
-          <span className="tracking-label">Tracking No.</span>
-          <span className="tracking-number">
-            {order ? `#${order.trackingNo}` : "\u2014"}
-          </span>
-        </div>
-      </header>
 
       {/* ===== MAIN ===== */}
       {notFound ? (
@@ -286,6 +219,7 @@ export default function InvoicePage() {
           </section>
         </main>
       )}
-    </div>
+      </div>
+    </AppLayout>
   );
 }
