@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Linko — Order Invoice</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="invoice_page.css">
+</head>
+<body>
+
+  <!-- ===== OVERLAY NAV ===== -->
+  <div class="nav-overlay" id="navOverlay">
+    <div class="nav-panel" id="navPanel">
+      <div class="nav-top">
+        <span class="nav-brand">Link<span class="dot">o</span></span>
+        <button class="nav-close" id="navClose" aria-label="Close menu">&times;</button>
+      </div>
+
+      <nav class="nav-links">
+        <a href="#" class="nav-link">Home</a>
+
+        <a href="#" class="nav-link">Dashboard</a>
+        <a href="#" class="nav-link">Inventory</a>
+        <a href="#" class="nav-link">Waitlist</a>
+
+        <a href="#" class="nav-link">Invoice</a>
+        <a href="#" class="nav-link">Orders</a>
+      </nav>
+
+      <div class="nav-bottom">
+        <a href="#" class="nav-link">Notifications</a>
+        <a href="#" class="nav-link">Profile</a>
+        <a href="#" class="nav-link nav-logout">Log out</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TOP BAR ===== -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="icon-btn" id="menuToggle" aria-label="Open menu">
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar"></span>
+      </button>
+      <button class="back-btn" id="backBtn">
+        <span class="back-arrow">&#8592;</span> Back
+      </button>
+    </div>
+
+    <div class="topbar-right">
+      <span class="tracking-label">Tracking No.</span>
+      <!-- pulled from order data, see loadOrder() in invoice_page.js -->
+      <span class="tracking-number" id="trackingNumber">&mdash;</span>
+    </div>
+  </header>
+
+  <!-- ===== MAIN ===== -->
+  <main class="invoice-wrap" id="invoiceWrap" aria-busy="true">
+
+    <!-- LEFT: parties (populated from order data) -->
+    <aside class="parties">
+      <div class="party-card">
+        <div class="shop-name" id="shopName">&mdash;</div>
+
+        <div class="party-block">
+          <span class="field-label">Customer Name</span>
+          <span class="field-value" id="customerName">&mdash;</span>
+        </div>
+        <div class="party-block">
+          <span class="field-label">Customer Contact</span>
+          <span class="field-value" id="customerContact">&mdash;</span>
+        </div>
+        <div class="party-block">
+          <span class="field-label">Delivery Address</span>
+          <span class="field-value" id="customerAddress">&mdash;</span>
+        </div>
+      </div>
+
+      <div class="party-card">
+        <div class="party-block">
+          <span class="field-label">Seller Name / Shop Name</span>
+          <span class="field-value" id="sellerName">&mdash;</span>
+        </div>
+        <div class="party-block">
+          <span class="field-label">Seller Support</span>
+          <span class="field-value">
+            <span id="sellerPhone">&mdash;</span>
+            <a href="#" class="show-number" id="showNumberBtn">Show number</a>
+          </span>
+          <span class="field-value muted" id="sellerEmail">&mdash;</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- RIGHT: status + timeline (populated from order data) -->
+    <section class="status-panel">
+
+      <div class="status-head">
+        <div>
+          <span class="status-eyebrow" id="statusEyebrow">&mdash;</span>
+          <h1 class="status-title" id="statusTitle">&mdash;</h1>
+          <span class="status-sub" id="statusSub">&mdash;</span>
+        </div>
+
+        <div class="status-actions">
+          <a href="#" class="action-link">&#8635; Return order</a>
+          <a href="#" class="action-link">&#8646; Exchange item</a>
+          <span class="delivery-query">For delivery queries, <a href="#">contact us</a></span>
+        </div>
+      </div>
+
+      <div class="timeline-block">
+        <span class="timeline-heading">Tracking History</span>
+
+        <!-- <li> items are built dynamically in invoice_page.js from order.timeline -->
+        <ol class="timeline" id="timeline"></ol>
+      </div>
+
+    </section>
+  </main>
+
+<script src="invoice_page.js"></script>
+</body>
+</html>
