@@ -56,6 +56,10 @@
     letter-spacing: 0;
   }
 
+  .logo .logo-accent {
+    color: var(--color-accent);
+  }
+
   .search {
     display: flex;
     flex-grow: 1;
