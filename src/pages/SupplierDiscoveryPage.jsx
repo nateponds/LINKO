@@ -1,14 +1,14 @@
-import "../assets/css/style.css";
+import "./SupplierDiscoveryPage.css";
 import AppLayout from "../layouts/AppLayout";
 import SupplierGrid from "../features/suppliers/SupplierGrid";
 
 function SupplierDiscoveryPage() {
   return (
-    <div className="discovery-page">
-      <AppLayout>
+    <AppLayout showSubNav>
+      <div className="discovery-page">
         <SupplierGrid />
-      </AppLayout>
-    </div>
+      </div>
+    </AppLayout>
   );
 }
 

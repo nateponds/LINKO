@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { Link } from "react-router-dom";
+import AppLayout from "../layouts/AppLayout";
 import "./InventoryPage.css";
 
 const CATEGORIES = [
@@ -34,8 +34,6 @@ export default function InventoryPage() {
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [draftFilters, setDraftFilters] = useState(EMPTY_FILTERS); // controls the panel's inputs
   const [activeFilters, setActiveFilters] = useState(EMPTY_FILTERS); // filters actually applied
-
-  const [menuOpen, setMenuOpen] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null); // null = "Add Item" mode
@@ -187,13 +185,10 @@ export default function InventoryPage() {
   }
 
   return (
-    <div className="inventory-page">
-      <header className="product-header">
-        <div className="header-top">
-          <div className="header-left">
-            <div className="logo-box">Linko</div>
-          </div>
-
+    <AppLayout>
+      <div className="inventory-page">
+        <div className="inventory-heading">
+          <h1>Inventory</h1>
           <div className="header-toolbar">
             <div className="search-bar">
               <input
@@ -278,14 +273,7 @@ export default function InventoryPage() {
 
             <button className="add-btn" onClick={openAddModal}>ADD ITEMS +</button>
           </div>
-
-          <div className="header-right">
-            <button className="icon-btn" aria-label="Notifications">🔔</button>
-            <button className="icon-action" aria-label="Menu" onClick={() => setMenuOpen((v) => !v)}>☰</button>
-            <button className="icon-btn" aria-label="Profile" />
-          </div>
         </div>
-      </header>
 
       <main className="inventory-container">
         <table className="inventory-table">
@@ -446,18 +434,7 @@ export default function InventoryPage() {
         </div>
       )}
 
-      {/* ===== Slide-out menu ===== */}
-      <div className="menu-overlay" style={{ width: menuOpen ? "250px" : "0" }}>
-        <button className="close-btn" onClick={() => setMenuOpen(false)}>✕</button>
-        <nav className="menu-items">
-          <Link to="/">Home</Link>
-          <a href="#">Dashboard</a>
-          <a href="#">Wait List</a>
-          <a href="#">Orders</a>
-          <Link to="/invoices">Invoices</Link>
-          <a href="#" className="logout">Logout</a>
-        </nav>
       </div>
-    </div>
+    </AppLayout>
   );
 }
