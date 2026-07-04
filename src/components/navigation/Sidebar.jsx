@@ -4,6 +4,7 @@ import { NavLink } from "react-router-dom";
 
 const menuItems = [
   { name: "Home", link: "/", end: true },
+  { name: "Find Wholesalers", link: "/matching" },
   { name: "Inventory", link: "/inventory" },
   { name: "Invoices", link: "/invoices" },
   { name: "Dashboard", link: "/dashboard" },
