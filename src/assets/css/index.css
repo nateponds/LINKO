@@ -26,6 +26,14 @@ body {
   font-family: system-ui, sans-serif;
 }
 
+/* keyboard focus ring (inputs keep their own border-based focus styles) */
+button:focus-visible,
+a:focus-visible,
+select:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
 /* shared star-rating component */
 .star-rating {
   display: inline-flex;

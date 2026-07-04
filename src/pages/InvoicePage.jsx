@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { ArrowLeft, ArrowLeftRight, RotateCcw } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
 import "./InvoicePage.css";
 
@@ -58,48 +59,36 @@ function fetchOrder(trackingNo) {
   });
 }
 
-/**
- * Reads ?tracking=XXXXX from the URL so this page can be linked to
- * from an orders list, e.g. /invoice?tracking=21374
- * Falls back to a default id if none is provided.
- */
-function getRequestedTrackingNo() {
-  const params = new URLSearchParams(window.location.search);
-  return params.get("tracking") || "21374";
-}
-
 export default function InvoicePage() {
+  /* ?tracking=XXXXX links here from the orders list, e.g. /invoices?tracking=21374 */
+  const [searchParams] = useSearchParams();
+  const trackingNo = searchParams.get("tracking") || "21374";
+  const navigate = useNavigate();
+
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
   const [phoneRevealed, setPhoneRevealed] = useState(false);
 
-  // Load order on mount
+  // Load the order whenever the tracking number changes.
   useEffect(() => {
     let cancelled = false;
 
-    async function loadOrder() {
-      const trackingNo = getRequestedTrackingNo();
-      const result = await fetchOrder(trackingNo);
+    fetchOrder(trackingNo).then((result) => {
       if (cancelled) return;
-
-      if (!result) {
-        setNotFound(true);
-      } else {
-        setOrder(result);
-      }
+      setOrder(result);
+      setNotFound(!result);
       setLoading(false);
-    }
+    });
 
-    loadOrder();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [trackingNo]);
 
   function handleBack() {
-    if (window.history.length > 1) window.history.back();
+    navigate(-1);
   }
 
   function handleTogglePhone(e) {
