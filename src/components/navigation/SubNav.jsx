@@ -1,19 +1,20 @@
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 
 const items = [
-  { name: "Pork", image: "https://loremflickr.com/160/160/pork,meat", link: "pork.html" },
-  { name: "Beef", image: "https://loremflickr.com/160/160/beef,meat", link: "beef.html" },
-  { name: "Chicken", image: "https://loremflickr.com/160/160/chicken,meat", link: "chicken.html" },
-  { name: "Chips", image: "https://loremflickr.com/160/160/potato,chips", link: "chips.html" },
-  { name: "Fish", image: "https://loremflickr.com/160/160/fish,seafood", link: "fish.html" },
-  { name: "Shellfish", image: "https://loremflickr.com/160/160/shellfish,seafood", link: "shellfish.html" },
-  { name: "Produce", image: "https://loremflickr.com/160/160/produce,vegetables", link: "produce.html" },
-  { name: "Bakery", image: "https://loremflickr.com/160/160/bakery,bread", link: "bakery.html" },
-  { name: "Dairy", image: "https://loremflickr.com/160/160/dairy,milk", link: "dairy.html" },
-  { name: "Frozen", image: "https://loremflickr.com/160/160/frozen,food", link: "frozen.html" },
-  { name: "Packaging", image: "https://loremflickr.com/160/160/food,packaging", link: "packaging.html" },
-  { name: "Beverages", image: "https://loremflickr.com/160/160/beverages,drinks", link: "beverages.html" },
+  { name: "Pork", image: "https://loremflickr.com/160/160/pork,meat" },
+  { name: "Beef", image: "https://loremflickr.com/160/160/beef,meat" },
+  { name: "Chicken", image: "https://loremflickr.com/160/160/chicken,meat" },
+  { name: "Chips", image: "https://loremflickr.com/160/160/potato,chips" },
+  { name: "Fish", image: "https://loremflickr.com/160/160/fish,seafood" },
+  { name: "Shellfish", image: "https://loremflickr.com/160/160/shellfish,seafood" },
+  { name: "Produce", image: "https://loremflickr.com/160/160/produce,vegetables" },
+  { name: "Bakery", image: "https://loremflickr.com/160/160/bakery,bread" },
+  { name: "Dairy", image: "https://loremflickr.com/160/160/dairy,milk" },
+  { name: "Frozen", image: "https://loremflickr.com/160/160/frozen,food" },
+  { name: "Packaging", image: "https://loremflickr.com/160/160/food,packaging" },
+  { name: "Beverages", image: "https://loremflickr.com/160/160/beverages,drinks" },
 ];
 
 function SubNav() {
@@ -63,10 +64,14 @@ function SubNav() {
 
         <div className="circle-container" ref={containerRef} onScroll={updateScrollButtons}>
           {items.map((item) => (
-            <a className="circle-btn" href={item.link} key={item.name}>
+            <Link
+              className="circle-btn"
+              to={`/?category=${encodeURIComponent(item.name)}`}
+              key={item.name}
+            >
               <img src={item.image} alt="" aria-hidden="true" />
               <span>{item.name}</span>
-            </a>
+            </Link>
           ))}
         </div>
 
