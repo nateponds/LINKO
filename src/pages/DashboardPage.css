@@ -3,21 +3,7 @@
 .dashboard-page {
   padding: 30px 40px 60px;
 
-  .dashboard-heading {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 16px;
-    margin-bottom: 24px;
-  }
-
-  .dashboard-heading h1 {
-    margin: 0;
-    color: var(--color-primary-dark);
-    font-size: 1.6rem;
-  }
-
+  /* heading row is the shared .page-head from shell.css */
   .range-toggle {
     display: flex;
     background: white;
