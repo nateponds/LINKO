@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="inventory.css">
+  <title>Linko | Inventory</title>
+</head>
+<body>
+
+  <header class="product-header">
+    <div class="header-top">
+      <div class="header-left">
+        <div class="logo-box">Linko</div>
+      </div>
+
+      <div class="header-toolbar">
+        <div class="search-bar">
+          <input type="text" id="searchInput" placeholder="Search">
+          <button class="search-icon-btn" aria-label="Search">🔍</button>
+        </div>
+
+        <div class="filter-wrap">
+          <button class="filter-btn" id="filterBtn">FILTER <span>▾</span></button>
+          <div class="filter-panel" id="filterPanel">
+            <div class="filter-group">
+              <h4>Category</h4>
+              <select id="filterCategory">
+                <option value="">All categories</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <h4>Price (₱)</h4>
+              <div class="filter-range">
+                <input type="number" id="filterPriceMin" placeholder="Min" min="0">
+                <span>–</span>
+                <input type="number" id="filterPriceMax" placeholder="Max" min="0">
+              </div>
+            </div>
+            <div class="filter-group">
+              <h4>Stock</h4>
+              <select id="filterStock">
+                <option value="">All</option>
+                <option value="in">In Stock</option>
+                <option value="low">Low on Stock</option>
+                <option value="out">Out of Stock</option>
+              </select>
+            </div>
+            <div class="filter-actions">
+              <button type="button" class="btn-secondary" id="clearFilters">Clear</button>
+              <button type="button" class="btn-primary" id="applyFilters">Apply</button>
+            </div>
+          </div>
+        </div>
+
+        <button class="add-btn" id="openAddItem">ADD ITEMS +</button>
+      </div>
+
+      
+      <div class="header-right">
+        <button class="icon-btn" aria-label="Notifications">🔔</button>
+        <button class="icon-action" aria-label="Menu" onclick="toggleMenu()">☰</button>
+        <button class="icon-btn" aria-label="Profile"></button>
+      </div>
+    </div>
+  </header>
+
+  <main class="inventory-container">
+    <table class="inventory-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th>ID Number / SKU</th>
+          <th>Name</th>
+          <th>Price</th>
+          <th>Stock</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="inventoryBody">
+        <!-- rows from inventory.js -->
+      </tbody>
+    </table>
+  </main>
+
+  <div id="itemModal" class="modal-overlay">
+    <div class="modal-box">
+      <button class="modal-close" id="closeItemModal">✕</button>
+      <h2 id="modalTitle">Add Item</h2>
+      <form id="itemForm">
+        <input type="hidden" id="itemId">
+
+        <label>ID Number / SKU
+          <input type="text" id="fieldSku" required>
+        </label>
+
+        <label>Name
+          <input type="text" id="fieldName" required>
+        </label>
+
+        <label>Price (₱)
+          <input type="number" id="fieldPrice" min="0" step="0.01" required>
+        </label>
+
+        <label>Category
+          <select id="fieldCategory" required>
+            <option value="">Select a category</option>
+          </select>
+        </label>
+
+        <label>Stock
+          <input type="number" id="fieldStock" min="0" step="1" required>
+        </label>
+
+        <label>Notes (optional)
+          <textarea id="fieldNotes" rows="3"></textarea>
+        </label>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="cancelItemModal">Cancel</button>
+          <button type="submit" class="btn-primary" id="saveItemBtn">Save Item</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="stockEditPopover" class="stock-popover">
+    <label>Stock
+      <input type="number" id="stockEditInput" min="0" step="1">
+    </label>
+    <div class="stock-popover-actions">
+      <button type="button" id="stockEditCancel" class="btn-secondary">Cancel</button>
+      <button type="button" id="stockEditSave" class="btn-primary">Update</button>
+    </div>
+  </div>
+
+  <div id="menuOverlay" class="menu-overlay">
+    <button class="close-btn" onclick="toggleMenu()">✕</button>
+    <nav class="menu-items">
+      <a href="#">Dashboard</a>
+      <a href="#">Wait List</a>
+      <a href="#">Orders</a>
+      <a href="#">Invoices</a>
+      <a href="#" class="logout">Logout</a>
+    </nav>
+  </div>
+
+  <script>
+    function toggleMenu() {
+      const menu = document.getElementById("menuOverlay");
+      if (menu.style.width === "250px") {
+        menu.style.width = "0";
+      } else {
+        menu.style.width = "250px";
+      }
+    }
+  </script>
+  <script src="inventory.js"></script>
+
+</body>
+</html>

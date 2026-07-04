@@ -1,0 +1,204 @@
+/* Standalone auth screen; palette vars come from :root (assets/css/index.css). */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    linear-gradient(135deg, rgba(48, 80, 160, 0.28), rgba(152, 216, 104, 0.3)),
+    var(--color-surface);
+
+  .login-card {
+    display: grid;
+    grid-template-columns: 1fr 1.15fr;
+    width: 100%;
+    max-width: 860px;
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(23, 33, 61, 0.25);
+  }
+
+  /* brand side */
+  .login-brand {
+    background: linear-gradient(160deg, var(--color-primary), var(--color-primary-dark));
+    color: white;
+    padding: 44px 36px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .logo {
+    font-size: 2rem;
+    font-weight: 800;
+  }
+
+  .logo .logo-accent {
+    color: var(--color-accent);
+  }
+
+  .brand-tagline {
+    margin: 14px 0 26px;
+    color: rgba(255, 255, 255, 0.85);
+    line-height: 1.5;
+  }
+
+  .brand-points {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .brand-points li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.92);
+  }
+
+  .brand-points svg {
+    color: var(--color-accent);
+    flex-shrink: 0;
+  }
+
+  /* form side */
+  .login-form-side {
+    padding: 38px 40px;
+  }
+
+  .auth-tabs {
+    display: flex;
+    background: var(--color-primary-soft);
+    border-radius: 25px;
+    padding: 4px;
+    gap: 4px;
+    margin-bottom: 24px;
+  }
+
+  .auth-tabs button {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: var(--color-muted);
+    font-weight: 700;
+    font-size: 0.9rem;
+    padding: 10px 0;
+    border-radius: 20px;
+    cursor: pointer;
+  }
+
+  .auth-tabs button.active {
+    background: var(--color-primary);
+    color: white;
+  }
+
+  form label {
+    display: block;
+    margin-bottom: 14px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  form input {
+    display: block;
+    width: 100%;
+    margin-top: 6px;
+    height: 44px;
+    border: 2px solid rgba(152, 216, 104, 0.7);
+    border-radius: 8px;
+    padding: 0 12px;
+    font-size: 0.92rem;
+    color: var(--color-text);
+    outline: none;
+  }
+
+  form input:focus {
+    border-color: var(--color-primary);
+  }
+
+  .forgot-link {
+    display: inline-block;
+    font-size: 0.8rem;
+    color: var(--color-primary);
+    text-decoration: none;
+    margin-bottom: 8px;
+  }
+
+  .forgot-link:hover {
+    text-decoration: underline;
+  }
+
+  .btn-primary {
+    display: block;
+    width: 100%;
+    border: none;
+    background: var(--color-primary);
+    color: white;
+    font-weight: 700;
+    font-size: 0.98rem;
+    padding: 13px 0;
+    border-radius: 25px;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: background 0.15s ease;
+  }
+
+  .btn-primary:hover {
+    background: var(--color-primary-dark);
+  }
+
+  .auth-alt {
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--color-muted);
+    margin: 18px 0 0;
+  }
+
+  .auth-alt button {
+    border: none;
+    background: none;
+    color: var(--color-primary);
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .auth-alt button:hover {
+    text-decoration: underline;
+  }
+
+  .guest-link {
+    display: block;
+    text-align: center;
+    margin-top: 14px;
+    font-size: 0.82rem;
+    color: var(--color-muted);
+    text-decoration: none;
+  }
+
+  .guest-link:hover {
+    color: var(--color-primary);
+  }
+
+  @media (max-width: 700px) {
+    .login-card {
+      grid-template-columns: 1fr;
+      max-width: 420px;
+    }
+
+    .login-brand {
+      padding: 30px 28px;
+    }
+
+    .login-form-side {
+      padding: 28px 24px;
+    }
+  }
+}

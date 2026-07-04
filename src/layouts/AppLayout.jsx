@@ -1,12 +1,19 @@
+import "../assets/css/shell.css";
 import Topbar from "../components/navigation/Topbar";
 import SubNav from "../components/navigation/SubNav";
+import Footer from "../components/navigation/Footer";
+import MobileNav from "../components/navigation/MobileNav";
 
-function AppLayout({ children }) {
+function AppLayout({ children, showSubNav = false, showSearch = false }) {
   return (
-    <div className="app-layout">
-      <Topbar />
-      <SubNav />
-      <main className="app-layout__content">{children}</main>
+    <div className="app-shell">
+      <div className="app-layout">
+        <Topbar showSearch={showSearch} />
+        {showSubNav && <SubNav />}
+        <main className="app-layout__content">{children}</main>
+        <Footer />
+        <MobileNav />
+      </div>
     </div>
   );
 }

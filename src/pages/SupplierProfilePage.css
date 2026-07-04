@@ -1,0 +1,421 @@
+/* Supplier profile (merchandise) page content styles, in the shared home
+   palette (vars from shell.css). Scoped under .supplier-profile-page;
+   the nav shell comes from AppLayout. */
+.supplier-profile-page {
+  /* profile bar */
+  .profile-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    background: var(--color-card);
+    border-bottom: 1px solid rgba(48, 80, 160, 0.24);
+  }
+
+  .profile-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .circle-btn {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    border: 3px solid var(--color-accent);
+    background: white;
+    cursor: pointer;
+    flex-shrink: 0;
+    overflow: hidden;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .circle-btn:hover {
+    transform: scale(1.03);
+  }
+
+  .circle-btn img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .profile-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .supplier-name {
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--color-primary-dark);
+  }
+
+  .supplier-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    color: var(--color-muted);
+  }
+
+  .meta-divider {
+    color: rgba(48, 80, 160, 0.35);
+  }
+
+  .action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .btn-follow,
+  .btn-chat {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 36px;
+    padding: 0 18px;
+    border-radius: 20px;
+    border: none;
+    background: white;
+    color: var(--color-primary-dark);
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .btn-follow:hover,
+  .btn-chat:hover {
+    background: var(--color-primary-soft);
+  }
+
+  .btn-follow.following {
+    background: var(--color-primary);
+    color: #fff;
+  }
+
+  /* tab nav */
+  .tab-nav {
+    display: flex;
+    gap: 16px;
+    padding: 16px 24px;
+  }
+
+  .tab-btn {
+    flex: 1;
+    height: 48px;
+    border-radius: 8px;
+    border: none;
+    background: var(--color-primary-soft);
+    color: var(--color-primary-dark);
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    text-transform: capitalize;
+  }
+
+  .tab-btn:hover {
+    background: #c8d7f8;
+  }
+
+  .tab-btn.active {
+    background: var(--color-primary);
+    color: #fff;
+  }
+
+  /* product grid */
+  .product-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 24px;
+    padding: 10px 24px 40px;
+  }
+
+  .product-card {
+    display: flex;
+    flex-direction: column;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--color-card);
+    border: 1px solid rgba(48, 80, 160, 0.24);
+    cursor: pointer;
+    transition: box-shadow 0.15s ease;
+  }
+
+  .product-card:hover {
+    box-shadow: 0 6px 16px rgba(23, 33, 61, 0.16);
+  }
+
+  .product-image {
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    background: rgba(48, 80, 160, 0.25);
+    transition: opacity 0.15s ease;
+    overflow: hidden;
+  }
+
+  .product-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .product-card:hover .product-image {
+    opacity: 0.85;
+  }
+
+  .product-details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 16px 16px;
+  }
+
+  .product-name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-text);
+  }
+
+  .product-price {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--color-muted);
+  }
+
+  /* category grid */
+  .category-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 20px;
+    padding: 10px 24px 40px;
+  }
+
+  .category-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 28px 16px;
+    background: var(--color-card);
+    border: 1px solid rgba(48, 80, 160, 0.24);
+    border-radius: 10px;
+    cursor: pointer;
+    font: inherit;
+    transition: box-shadow 0.15s ease, background 0.15s ease;
+  }
+
+  .category-card:hover {
+    background: #eef9de;
+    box-shadow: 0 4px 12px rgba(23, 33, 61, 0.12);
+  }
+
+  .category-icon {
+    color: var(--color-primary-dark);
+  }
+
+  .category-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-text);
+    text-align: center;
+  }
+
+  /* back button */
+  .category-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--color-text);
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 0.15s ease;
+  }
+
+  .category-back-btn:hover {
+    color: var(--color-primary);
+  }
+
+  /* wrapper for the back-to-categories button (was inline-styled in the HTML mock) */
+  .category-back-bar {
+    padding: 10px 24px 0;
+  }
+
+  /* ── Shop / About section ── */
+  .shop-section {
+    padding: 0 24px 48px;
+  }
+
+  /* Hero */
+  .shop-hero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 32px;
+    background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary) 100%);
+    border-radius: 16px;
+    padding: 48px 48px;
+    margin-top: 10px;
+    overflow: hidden;
+  }
+
+  .shop-hero-text {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 480px;
+  }
+
+  .shop-hero-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.12);
+    color: var(--color-accent);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    padding: 6px 14px;
+    border-radius: 20px;
+    width: fit-content;
+  }
+
+  .shop-hero-title {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1.2;
+  }
+
+  .shop-hero-sub {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--color-primary-soft);
+    line-height: 1.6;
+  }
+
+  .shop-hero-cta {
+    width: fit-content;
+    padding: 12px 28px;
+    border: none;
+    border-radius: 25px;
+    background: var(--color-accent);
+    color: var(--color-primary-dark);
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.15s ease;
+  }
+
+  .shop-hero-cta:hover {
+    background: var(--color-accent-dark);
+    color: #fff;
+    transform: translateY(-1px);
+  }
+
+  .shop-hero-image {
+    flex-shrink: 0;
+    width: 220px;
+    height: 180px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+  }
+
+  /* Stats */
+  .shop-stats {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    background: var(--color-card);
+    border: 1px solid rgba(48, 80, 160, 0.24);
+    border-radius: 12px;
+    padding: 28px 32px;
+    margin-top: 20px;
+  }
+
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .stat-number {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--color-primary-dark);
+  }
+
+  .stat-number.stat-rating {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .stat-label {
+    font-size: 0.8rem;
+    color: var(--color-muted);
+    font-weight: 500;
+  }
+
+  .stat-divider {
+    width: 1px;
+    height: 40px;
+    background: rgba(48, 80, 160, 0.24);
+  }
+
+  /* Feature cards */
+  .shop-features {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    margin-top: 20px;
+  }
+
+  .feature-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 24px 20px;
+    background: var(--color-card);
+    border: 1px solid rgba(48, 80, 160, 0.24);
+    border-radius: 12px;
+    transition: box-shadow 0.15s ease;
+  }
+
+  .feature-card:hover {
+    box-shadow: 0 4px 14px rgba(23, 33, 61, 0.12);
+  }
+
+  .feature-icon {
+    color: var(--color-primary);
+  }
+
+  .feature-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--color-text);
+  }
+
+  .feature-desc {
+    font-size: 0.85rem;
+    color: var(--color-muted);
+    line-height: 1.5;
+  }
+}
