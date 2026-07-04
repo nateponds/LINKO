@@ -29,8 +29,19 @@ function statusFor(stock) {
 }
 
 export default function InventoryPage() {
-  const [inventory, setInventory] = useState(INITIAL_INVENTORY);
+  // Demo persistence: edits survive reloads until a real API exists.
+  const [inventory, setInventory] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("linko-inventory")) ?? INITIAL_INVENTORY;
+    } catch {
+      return INITIAL_INVENTORY;
+    }
+  });
   const [searchTerm, setSearchTerm] = useState("");
+
+  useEffect(() => {
+    localStorage.setItem("linko-inventory", JSON.stringify(inventory));
+  }, [inventory]);
 
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [draftFilters, setDraftFilters] = useState(EMPTY_FILTERS); // controls the panel's inputs

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Bell, Check, Search, Trash2 } from "lucide-react";
 import AppLayout from "../layouts/AppLayout";
 import "./WaitlistPage.css";
@@ -14,8 +14,19 @@ const INITIAL_WAITLIST = [
 ];
 
 export default function WaitlistPage() {
-  const [waitlist, setWaitlist] = useState(INITIAL_WAITLIST);
+  // Demo persistence: notify/remove actions survive reloads until a real API exists.
+  const [waitlist, setWaitlist] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("linko-waitlist")) ?? INITIAL_WAITLIST;
+    } catch {
+      return INITIAL_WAITLIST;
+    }
+  });
   const [searchTerm, setSearchTerm] = useState("");
+
+  useEffect(() => {
+    localStorage.setItem("linko-waitlist", JSON.stringify(waitlist));
+  }, [waitlist]);
 
   const visibleWaitlist = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
