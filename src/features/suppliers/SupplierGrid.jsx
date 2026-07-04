@@ -5,24 +5,42 @@ import StarRating from "../../components/ui/StarRating";
 function SupplierGrid() {
   const [searchParams] = useSearchParams();
   const category = searchParams.get("category");
+  const query = (searchParams.get("q") ?? "").trim();
+  const q = query.toLowerCase();
 
-  const visibleSuppliers = category
-    ? suppliers.filter((supplier) => supplier.category === category)
-    : suppliers;
+  const visibleSuppliers = suppliers.filter((supplier) => {
+    if (category && supplier.category !== category) return false;
+    return (
+      !q ||
+      supplier.supplier_name.toLowerCase().includes(q) ||
+      supplier.location.toLowerCase().includes(q) ||
+      supplier.category.toLowerCase().includes(q)
+    );
+  });
 
   return (
     <>
-      {category && (
+      {(category || query) && (
         <div className="grid-filter-bar">
           <span>
-            Showing suppliers for <strong>{category}</strong>
+            Showing {visibleSuppliers.length} supplier
+            {visibleSuppliers.length === 1 ? "" : "s"}
+            {query && <> for &ldquo;{query}&rdquo;</>}
+            {category && (
+              <>
+                {" "}
+                in <strong>{category}</strong>
+              </>
+            )}
           </span>
-          <Link to="/">Clear filter</Link>
+          <Link to="/">Clear</Link>
         </div>
       )}
 
       {visibleSuppliers.length === 0 ? (
-        <p className="grid-empty">No suppliers found for {category} yet.</p>
+        <p className="grid-empty">
+          No suppliers found. Try a different search or category.
+        </p>
       ) : (
         <section className="content-grid" aria-label="Supplier results">
           {visibleSuppliers.map((supplier) => (
