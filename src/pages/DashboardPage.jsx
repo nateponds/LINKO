@@ -50,7 +50,7 @@ export default function DashboardPage() {
   return (
     <AppLayout>
       <div className="dashboard-page">
-        <div className="dashboard-heading">
+        <div className="page-head">
           <h1>Dashboard</h1>
           <div className="range-toggle" role="tablist" aria-label="Time range">
             {RANGES.map((r) => (

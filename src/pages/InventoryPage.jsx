@@ -188,7 +188,7 @@ export default function InventoryPage() {
   return (
     <AppLayout>
       <div className="inventory-page">
-        <div className="inventory-heading">
+        <div className="page-head">
           <h1>Inventory</h1>
           <div className="header-toolbar">
             <div className="search-bar">
