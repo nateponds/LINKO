@@ -41,7 +41,7 @@ export default function WaitlistPage() {
   return (
     <AppLayout>
       <div className="waitlist-page">
-        <div className="waitlist-heading">
+        <div className="page-head">
           <div>
             <h1>Wait List</h1>
             <span className="waitlist-sub">
@@ -59,15 +59,15 @@ export default function WaitlistPage() {
           </div>
         </div>
 
-        <main className="waitlist-container">
+        <main className="table-card">
           {visibleWaitlist.length === 0 ? (
-            <div className="waitlist-empty">
+            <div className="page-empty">
               {waitlist.length === 0
                 ? "Wait list is empty — every customer has been notified or served."
                 : "No entries match your search."}
             </div>
           ) : (
-            <table className="waitlist-table">
+            <table className="data-table">
               <thead>
                 <tr>
                   <th>Customer</th>
