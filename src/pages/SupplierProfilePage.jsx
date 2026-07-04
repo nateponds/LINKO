@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   BadgeCheck,
   Check,
@@ -44,6 +44,11 @@ const PRODUCTS = [
 export default function SupplierProfilePage() {
   const { supplierSlug } = useParams();
   const supplier = findSupplier(supplierSlug);
+
+  // Overrides the generic route title with the supplier's name.
+  useEffect(() => {
+    if (supplier) document.title = `${supplier.supplier_name} · LINKO`;
+  }, [supplier]);
 
   const [following, setFollowing] = useState(false);
   const [activeTab, setActiveTab] = useState("shop");
