@@ -2,6 +2,7 @@ import "../assets/css/shell.css";
 import Topbar from "../components/navigation/Topbar";
 import SubNav from "../components/navigation/SubNav";
 import Footer from "../components/navigation/Footer";
+import MobileNav from "../components/navigation/MobileNav";
 
 function AppLayout({ children, showSubNav = false, showSearch = false }) {
   return (
@@ -11,6 +12,7 @@ function AppLayout({ children, showSubNav = false, showSearch = false }) {
         {showSubNav && <SubNav />}
         <main className="app-layout__content">{children}</main>
         <Footer />
+        <MobileNav />
       </div>
     </div>
   );
