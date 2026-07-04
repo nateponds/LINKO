@@ -160,9 +160,9 @@ function Topbar({ showSearch = false }) {
                   <a href="#">
                     <Settings size={15} /> Settings
                   </a>
-                  <a href="#" className="danger">
+                  <Link to="/login" className="danger">
                     <LogOut size={15} /> Logout
-                  </a>
+                  </Link>
                 </nav>
               </div>
             )}

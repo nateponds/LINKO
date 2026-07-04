@@ -1,17 +1,7 @@
 /* Shared app shell (top strip, LINKO header, sidebar, optional category row).
    Scoped under .app-shell; every page rendered inside AppLayout gets these. */
 .app-shell {
-  & {
-    --color-primary: #3050a0;
-    --color-primary-dark: #21386f;
-    --color-primary-soft: #d9e3fb;
-    --color-accent: #98d868;
-    --color-accent-dark: #5b9f35;
-    --color-surface: #dfead2;
-    --color-card: #e5f0dc;
-    --color-text: #17213d;
-    --color-muted: #52617d;
-  }
+  /* palette vars live in assets/css/index.css (:root) */
 
   .app-layout {
     background:
