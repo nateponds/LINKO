@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supplier Profile | Linko</title>
+    <link rel="stylesheet" href="supplier_profile.css">
+</head>
+<body>
+
+<header class="header-nav">
+  <div class="logo">Linko</div>
+
+  <div class="search">
+    <input type="text" placeholder="Search in store">
+    <button class="icon-btn search-btn" aria-label="Search">🔍</button>
+  </div>
+
+  <div class="header-actions">
+    <button class="icon-action" aria-label="Notifications">🔔</button>
+    <button class="icon-action" aria-label="Menu" onclick="toggleMenu()">☰</button>
+    <button class="icon-action" aria-label="Others"></button><!--contains: share, block, report-->
+  </div>
+</header>
+
+<div id="menuOverlay" class="menu-overlay">
+  <button class="close-btn" onclick="toggleMenu()">✕</button>
+  <nav class="menu-items">
+    <a href="inventory.html">Inventory</a>
+    <a href="#">Dashboard</a>
+    <a href="#">Wait List</a>
+    <a href="#">Orders</a>
+    <a href="#">Invoices</a>
+    <a href="#" class="logout">Logout</a>
+  </nav>
+</div>
+
+<section class="profile-bar">
+  <div class="profile-info">
+    <button class="circle-btn">
+      <img src="path-to-your-image.png" alt="Supplier profile photo">
+    </button>
+    <div class="profile-text">
+      <div class="supplier-name" id="supplierName">Supplier Name</div>
+      <div class="supplier-meta">
+        <span class="ratings" id="supplierRating">★ 4.8</span>
+        <span class="meta-divider">|</span>
+        <span class="location" id="supplierLocation">Location</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="action-buttons">
+    <button class="btn-follow" id="followBtn">Follow <span class="plus">+</span></button>
+    <button class="btn-chat" id="chatBtn">Chat <span class="chat-icon">💬</span></button>
+  </div>
+</section>
+
+<nav class="tab-nav">
+  <button class="tab-btn active" data-tab="shop">Shop</button>
+  <button class="tab-btn" data-tab="products">Products</button>
+  <button class="tab-btn" data-tab="categories">Categories</button>
+</nav>
+
+<section class="shop-section" id="shopSection">
+
+  <!-- Hero banner -->
+  <div class="shop-hero">
+    <div class="shop-hero-text">
+      <div class="shop-hero-tag">🌿 Fresh &amp; Local</div>
+      <h1 class="shop-hero-title">Quality you can taste, <br>prices you'll love.</h1>
+      <p class="shop-hero-sub">Sourced from local farms and trusted partners — delivered straight to your door.</p>
+      <button class="shop-hero-cta">Browse Products →</button>
+    </div>
+    <div class="shop-hero-image"></div>
+  </div>
+
+  <!-- Stats row -->
+  <div class="shop-stats">
+    <div class="stat-item">
+      <div class="stat-number">500+</div>
+      <div class="stat-label">Products</div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <div class="stat-number">4.8★</div>
+      <div class="stat-label">Average Rating</div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <div class="stat-number">2,000+</div>
+      <div class="stat-label">Happy Customers</div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <div class="stat-number">Since 2018</div>
+      <div class="stat-label">In Business</div>
+    </div>
+  </div>
+
+  <!-- Feature cards -->
+  <div class="shop-features">
+    <div class="feature-card">
+      <div class="feature-icon">🚚</div>
+      <div class="feature-title">Fast Delivery</div>
+      <div class="feature-desc">Same-day dispatch on orders placed before 12 PM.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">✅</div>
+      <div class="feature-title">Quality Assured</div>
+      <div class="feature-desc">Every product is checked before it leaves our facility.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">💬</div>
+      <div class="feature-title">Always Here</div>
+      <div class="feature-desc">Our team is online 7 days a week to answer your questions.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🔁</div>
+      <div class="feature-title">Easy Returns</div>
+      <div class="feature-desc">Not satisfied? We'll sort it — no questions asked.</div>
+    </div>
+  </div>
+
+</section>
+
+<div id="categoryBackBar" style="display:none; padding: 10px 24px 0;">
+  <button id="categoryBackBtn" class="category-back-btn">← Back to Categories</button>
+</div>
+
+<main class="product-grid" id="productGrid">
+  <!-- product cards injected by supplier_profile.js -->
+</main>
+
+<section class="category-grid" id="categoryGrid" style="display:none;">
+  <!-- category cards injected by supplier_profile.js -->
+</section>
+
+<script src="supplier_profile.js"></script>
+
+</body>
+</html>
