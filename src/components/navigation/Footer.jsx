@@ -16,6 +16,7 @@ function Footer() {
         <div className="footer-col">
           <h4>Marketplace</h4>
           <Link to="/">Browse Suppliers</Link>
+          <Link to="/matching">Find Wholesalers</Link>
           <Link to="/orders">Orders</Link>
           <Link to="/invoices">Invoice Tracking</Link>
         </div>
