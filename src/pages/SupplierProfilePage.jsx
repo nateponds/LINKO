@@ -226,14 +226,15 @@ export default function SupplierProfilePage() {
       {activeTab === "categories" && (
         <section className="category-grid">
           {CATEGORIES.map((category) => (
-            <div
+            <button
+              type="button"
               className="category-card"
               key={category.name}
               onClick={() => openCategory(category.name)}
             >
               <div className="category-icon"><category.Icon size={32} /></div>
               <div className="category-name">{category.name}</div>
-            </div>
+            </button>
           ))}
         </section>
       )}
