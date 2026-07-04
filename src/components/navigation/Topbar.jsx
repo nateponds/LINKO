@@ -89,6 +89,7 @@ function Topbar({ showSearch = false }) {
             <button
               className="icon-action"
               title="Notifications"
+              aria-label={`Notifications (${NOTIFICATIONS.length} unread)`}
               aria-expanded={openPanel === "notifications"}
               onClick={(e) => togglePanel(e, "notifications")}
             >

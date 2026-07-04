@@ -33,12 +33,12 @@ const CATEGORIES = [
 ];
 
 const PRODUCTS = [
-  { name: "Whole Grain Bread", price: 85, category: "Breads & Bakery" },
-  { name: "Fresh Orange Juice 1L", price: 120, category: "Beverages" },
-  { name: "Organic Eggs (12pcs)", price: 150, category: "Dairy & Eggs" },
-  { name: "Cheddar Cheese Block", price: 220, category: "Dairy & Eggs" },
-  { name: "Sparkling Water 6-Pack", price: 180, category: "Beverages" },
-  { name: "Roasted Coffee Beans 250g", price: 280, category: "Coffee & Tea" },
+  { name: "Whole Grain Bread", price: 85, category: "Breads & Bakery", image: "https://loremflickr.com/400/300/bread,bakery" },
+  { name: "Fresh Orange Juice 1L", price: 120, category: "Beverages", image: "https://loremflickr.com/400/300/orange,juice" },
+  { name: "Organic Eggs (12pcs)", price: 150, category: "Dairy & Eggs", image: "https://loremflickr.com/400/300/eggs,carton" },
+  { name: "Cheddar Cheese Block", price: 220, category: "Dairy & Eggs", image: "https://loremflickr.com/400/300/cheese,cheddar" },
+  { name: "Sparkling Water 6-Pack", price: 180, category: "Beverages", image: "https://loremflickr.com/400/300/sparkling,water" },
+  { name: "Roasted Coffee Beans 250g", price: 280, category: "Coffee & Tea", image: "https://loremflickr.com/400/300/coffee,beans" },
 ];
 
 export default function SupplierProfilePage() {
@@ -213,7 +213,9 @@ export default function SupplierProfilePage() {
         <main className="product-grid">
           {visibleProducts.map((product) => (
             <div className="product-card" key={product.name}>
-              <div className="product-image" />
+              <div className="product-image">
+                <img src={product.image} alt={product.name} />
+              </div>
               <div className="product-details">
                 <div className="product-name">{product.name}</div>
                 <div className="product-price">₱{product.price.toFixed(2)}</div>
