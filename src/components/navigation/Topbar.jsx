@@ -13,7 +13,7 @@ import {
   TriangleAlert,
   User,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import Sidebar from "./Sidebar";
 
 /* Mock notifications — swap for GET /api/notifications later; keep the shape. */
@@ -26,6 +26,15 @@ const NOTIFICATIONS = [
 function Topbar({ showSearch = false }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [openPanel, setOpenPanel] = useState(null); // "notifications" | "profile" | null
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const qParam = searchParams.get("q") ?? "";
+
+  function submitSearch(e) {
+    e.preventDefault();
+    const q = String(new FormData(e.currentTarget).get("q") || "").trim();
+    navigate(q ? `/?q=${encodeURIComponent(q)}` : "/");
+  }
 
   // Any click outside a panel (or Escape) closes it.
   useEffect(() => {
@@ -59,15 +68,21 @@ function Topbar({ showSearch = false }) {
           LINK<span className="logo-accent">O</span>
         </Link>
         {showSearch && (
-          <div className="search">
-            <input type="text" placeholder="Search products, suppliers, etc" />
-            <button className="icon-btn" title="Search by image">
+          <form className="search" onSubmit={submitSearch} role="search">
+            <input
+              type="text"
+              name="q"
+              placeholder="Search products, suppliers, etc"
+              defaultValue={qParam}
+              key={qParam}
+            />
+            <button type="button" className="icon-btn" title="Search by image">
               <Camera size={16} />
             </button>
-            <button className="icon-btn go" title="Search">
+            <button type="submit" className="icon-btn go" title="Search">
               <Search size={16} />
             </button>
-          </div>
+          </form>
         )}
         <div className="header-actions">
           <div className="dropdown-anchor">
