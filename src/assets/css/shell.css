@@ -446,6 +446,137 @@
     justify-content: center;
   }
 
+  /* shared page primitives: heading row, search pill, table card, status pills.
+     Used by the Inventory / Orders / Waitlist / Dashboard pages. */
+  .page-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 22px;
+  }
+
+  .page-head h1 {
+    margin: 0;
+    color: var(--color-primary-dark);
+    font-size: 1.6rem;
+  }
+
+  .search-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 220px;
+    max-width: 460px;
+    height: 44px;
+    border-radius: 25px;
+    padding: 0 18px;
+    background: white;
+    border: 2px solid rgba(152, 216, 104, 0.7);
+  }
+
+  .search-bar input {
+    border: none;
+    outline: none;
+    flex: 1;
+    height: 100%;
+    font-size: 0.95rem;
+    background: transparent;
+    color: var(--color-text);
+  }
+
+  .search-bar input::placeholder {
+    color: var(--color-muted);
+  }
+
+  .search-icon-btn {
+    border: none;
+    background: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .table-card {
+    background: white;
+    border-radius: 12px;
+    padding: 8px 0;
+    box-shadow: 0 2px 8px rgba(23, 33, 61, 0.08);
+    overflow-x: auto;
+  }
+
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+
+  .data-table th {
+    text-align: left;
+    padding: 14px 16px;
+    color: var(--color-muted);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-bottom: 2px solid var(--color-surface);
+    white-space: nowrap;
+  }
+
+  .data-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--color-surface);
+    color: var(--color-text);
+    white-space: nowrap;
+  }
+
+  .data-table tbody tr:hover {
+    background: rgba(217, 227, 251, 0.35);
+  }
+
+  .page-empty {
+    padding: 40px;
+    text-align: center;
+    color: var(--color-muted);
+  }
+
+  .status {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .status.delivered,
+  .status.notified,
+  .status.in-stock {
+    background: var(--color-card);
+    color: var(--color-accent-dark);
+  }
+
+  .status.in-transit {
+    background: var(--color-primary-soft);
+    color: var(--color-primary-dark);
+  }
+
+  .status.processing,
+  .status.waiting,
+  .status.low-on-stock {
+    background: #fdf3d7;
+    color: #9a7b12;
+  }
+
+  .status.cancelled,
+  .status.out-of-stock {
+    background: #fdeaea;
+    color: #c0392b;
+  }
+
   /* footer */
   .app-footer {
     background: var(--color-primary-dark);

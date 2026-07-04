@@ -41,7 +41,7 @@ export default function OrdersPage() {
   return (
     <AppLayout>
       <div className="orders-page">
-        <div className="orders-heading">
+        <div className="page-head">
           <h1>Orders</h1>
           <div className="search-bar">
             <input
@@ -68,11 +68,11 @@ export default function OrdersPage() {
           ))}
         </div>
 
-        <main className="orders-container">
+        <main className="table-card">
           {visibleOrders.length === 0 ? (
-            <div className="orders-empty">No orders match your search.</div>
+            <div className="page-empty">No orders match your search.</div>
           ) : (
-            <table className="orders-table">
+            <table className="data-table">
               <thead>
                 <tr>
                   <th>Tracking No.</th>
