@@ -61,7 +61,7 @@ function Topbar({ showSearch = false }) {
   return (
     <>
       <div className="topbar">
-        <a href="#">Become a supplier &rarr;</a>
+        <Link to="/become-a-supplier">Become a supplier &rarr;</Link>
       </div>
       <header className="header-nav">
         <Link to="/" className="logo">
