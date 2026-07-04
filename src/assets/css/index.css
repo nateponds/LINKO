@@ -1,3 +1,16 @@
+/* LINKO theme palette — shared by the app shell and standalone screens. */
+:root {
+  --color-primary: #3050a0;
+  --color-primary-dark: #21386f;
+  --color-primary-soft: #d9e3fb;
+  --color-accent: #98d868;
+  --color-accent-dark: #5b9f35;
+  --color-surface: #dfead2;
+  --color-card: #e5f0dc;
+  --color-text: #17213d;
+  --color-muted: #52617d;
+}
+
 * {
   box-sizing: border-box;
 }

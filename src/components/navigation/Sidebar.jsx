@@ -10,7 +10,7 @@ const menuItems = [
   { name: "Dashboard", link: "/dashboard" },
   { name: "Wait List", link: "/waitlist" },
   { name: "Orders", link: "/orders" },
-  { name: "Logout", link: null, className: "logout" },
+  { name: "Logout", link: "/login", className: "logout" },
 ];
 
 function Sidebar({ isOpen, onClose }) {
@@ -40,23 +40,20 @@ function Sidebar({ isOpen, onClose }) {
           <X size={28} />
         </button>
         <nav className="menu-items" aria-label="Main menu">
-          {menuItems.map((item) =>
-            item.link ? (
-              <NavLink
-                to={item.link}
-                end={item.end}
-                className={({ isActive }) => (isActive ? "active" : undefined)}
-                key={item.name}
-                onClick={onClose}
-              >
-                {item.name}
-              </NavLink>
-            ) : (
-              <a href="#" className={item.className} key={item.name}>
-                {item.name}
-              </a>
-            ),
-          )}
+          {menuItems.map((item) => (
+            <NavLink
+              to={item.link}
+              end={item.end}
+              className={({ isActive }) =>
+                [item.className, isActive ? "active" : ""].filter(Boolean).join(" ") ||
+                undefined
+              }
+              key={item.name}
+              onClick={onClose}
+            >
+              {item.name}
+            </NavLink>
+          ))}
         </nav>
       </aside>
     </>
