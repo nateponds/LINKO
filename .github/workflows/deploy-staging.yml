@@ -1,0 +1,23 @@
+name: Deploy Staging
+
+on:
+  push:
+    branches:
+      - staging
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Sync Code to Hosting Path
+        run: |
+          mkdir -p /mnt/Storage2_New/website-hosting/linko-platform
+          rsync -avz --exclude '.git' --exclude 'node_modules' --exclude 'backend/node_modules' ./ /mnt/Storage2_New/website-hosting/linko-platform/
+
+      - name: Deploy Staging Services
+        run: |
+          cd /mnt/Storage2_New/website-hosting/linko-platform
+          docker compose up -d --build linko-db-staging linko-backend-staging linko-frontend-staging

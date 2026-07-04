@@ -1,0 +1,44 @@
+/* Orders page content styles; heading/search/table/status primitives come
+   from shell.css. Scoped under .orders-page. */
+.orders-page {
+  padding: 30px 40px 60px;
+
+  /* status filter tabs */
+  .status-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+
+  .status-tabs button {
+    border: none;
+    background: white;
+    color: var(--color-muted);
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 9px 20px;
+    border-radius: 20px;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(23, 33, 61, 0.08);
+  }
+
+  .status-tabs button.active {
+    background: var(--color-primary);
+    color: white;
+  }
+
+  .track-link {
+    color: var(--color-primary);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .track-link:hover {
+    text-decoration: underline;
+  }
+
+  @media (max-width: 700px) {
+    padding: 20px 16px 40px;
+  }
+}
