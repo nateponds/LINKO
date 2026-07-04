@@ -8,9 +8,11 @@ import DashboardPage from "./pages/DashboardPage";
 import WaitlistPage from "./pages/WaitlistPage";
 import OrdersPage from "./pages/OrdersPage";
 import MatchingPage from "./pages/MatchingPage";
+import BecomeSupplierPage from "./pages/BecomeSupplierPage";
 
 const TITLES = [
   ["/matching", "Find Wholesalers"],
+  ["/become-a-supplier", "Become a Supplier"],
   ["/inventory", "Inventory"],
   ["/invoices", "Invoice Tracking"],
   ["/dashboard", "Dashboard"],
@@ -45,6 +47,7 @@ function App() {
         <Route path="/waitlist" element={<WaitlistPage />} />
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/matching" element={<MatchingPage />} />
+        <Route path="/become-a-supplier" element={<BecomeSupplierPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

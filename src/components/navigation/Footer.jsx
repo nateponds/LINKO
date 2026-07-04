@@ -28,6 +28,7 @@ function Footer() {
         </div>
         <div className="footer-col">
           <h4>Company</h4>
+          <Link to="/become-a-supplier">Become a Supplier</Link>
           <a href="#">About LINKO</a>
           <a href="#">Contact</a>
           <a href="#">Terms &amp; Privacy</a>
