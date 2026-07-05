@@ -5,6 +5,7 @@ import logisticsRouter from "./routes/logistics.js";
 import ordersRouter from "./routes/orders.js";
 import productsRouter from "./routes/products.js";
 import suppliersRouter from "./routes/suppliers.js";
+import dashboardRouter from "./routes/dashboard.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { requireAnyRole, requireAuth } from "./middleware/auth.js";
 
@@ -42,6 +43,9 @@ export function createApp() {
   // Marketplace orders and invoices (Milestone 3). Owns /api/orders and
   // /api/invoices; per-route auth keeps buyer/wholesaler/admin rules local.
   app.use("/api", ordersRouter);
+
+  // Dashboard and notifications
+  app.use("/api", dashboardRouter);
 
   // Course-deliverable logistics subsystem (Sprint 2-CD). Owns several
   // top-level paths (/api/parcels, /api/service-tiers, /api/customers), so
