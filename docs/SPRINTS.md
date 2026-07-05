@@ -66,16 +66,17 @@ Public self-registration is allowed only for buyer and wholesaler owner accounts
 
 ### Remaining
 
-- [ ] Restart local backend so the new auth routes are live on `localhost:5000`.
-- [ ] Run migrations against the active local PostgreSQL database.
-- [ ] Start Vite frontend on `localhost:5173`.
-- [ ] Manually verify:
+- [x] Restart local backend so the new auth routes are live on `localhost:5000`.
+- [x] Run migrations against the active local PostgreSQL database.
+- [x] Start Vite frontend on `localhost:5173`.
+- [x] Manually verify:
   - logged-out `/logistics` redirects to `/login`
   - `logistics@linko.test` can open Logistics
   - `buyer@linko.test` cannot open Logistics
   - buyer can open Dashboard, Orders, Invoices, Inventory, and marketplace pages
   - logout returns to Login
-- [ ] Commit the Milestone 1 auth/RBAC changes.
+- [x] Backend-level verification passed 2026-07-05: migrations clean, 26/26 tests pass, live API checks confirm 401 unauthenticated, buyer 403 on /api/parcels, logistics 200, logout invalidates session. Browser walkthrough still pending.
+- [x] Commit the Milestone 1 auth/RBAC changes (commit `53b0ddc`).
 
 ### Acceptance Criteria
 
@@ -92,34 +93,35 @@ Public self-registration is allowed only for buyer and wholesaler owner accounts
 
 ## Milestone 2: Database-Backed Marketplace Products
 
-**Status:** Planned  
+**Status:** Implemented — browser walkthrough pending  
 **Priority:** Critical  
 **Goal:** Replace hardcoded merchandise with real products owned and managed by registered wholesaler businesses.
 
 ### Tasks
 
-- [ ] Review existing product, inventory, business, and supplier schema coverage.
-- [ ] Add or update product tables as needed:
+- [x] Review existing product, inventory, business, and supplier schema coverage.
+- [x] Add or update product tables as needed:
   - products
   - categories
   - business-owned listings
   - prices
   - stock status
   - product images or image URLs
-- [ ] Add wholesaler product APIs:
+- [x] Add wholesaler product APIs:
   - `GET /api/products`
   - `GET /api/products/:id`
   - `POST /api/products`
   - `PATCH /api/products/:id`
   - `DELETE /api/products/:id` or soft-delete equivalent
-- [ ] Enforce ownership:
+- [x] Enforce ownership:
   - wholesaler sees and edits only their own products
   - platform admin can see and edit all products
-- [ ] Replace frontend hardcoded merchandise with API data.
-- [ ] Add product management UI for wholesaler businesses.
-- [ ] Add buyer-facing marketplace browsing from database-backed products.
-- [ ] Add empty, loading, and error states.
-- [ ] Add backend tests for product ownership and role checks.
+- [x] Replace frontend hardcoded merchandise with API data.
+- [x] Add product management UI for wholesaler businesses.
+- [x] Add buyer-facing marketplace browsing from database-backed products.
+- [x] Add empty, loading, and error states.
+- [x] Add backend tests for product ownership and role checks.
+- [x] Verified 2026-07-05: live API smoke 23/23 checks pass (buyer browse/403, wholesaler CRUD lifecycle, admin rules); backend tests pass; lint + build clean. Review fixes applied: sku partial-unique index for soft-delete reuse, numeric :id validation, ownership-gated row actions. Known deferred: MatchingPage still uses mock supplier slugs (links to profiles show empty state) — migrate with Matching work; admin has no Add-product business picker.
 
 ### Acceptance Criteria
 

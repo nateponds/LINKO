@@ -149,6 +149,35 @@ SELECT u.user_id, b.business_id, 'courier'
  WHERE u.email = 'courier@linko.test'
 ON CONFLICT (user_id, business_id, role) DO NOTHING;
 
+-- ---------------------------------------------------------------------------
+-- MARKETPLACE PRODUCTS (Milestone 2). ~10 products for Harbor Bulk Trading,
+-- spread across seeded categories, varied prices and stock (incl. one 0 and
+-- one 1-10 to exercise every stock_status band). Categories are seeded by
+-- migration 005; business_id is resolved by name (SERIAL, never hardcoded).
+-- Idempotent: keyed on sku via NOT EXISTS, same style as the businesses block.
+-- ---------------------------------------------------------------------------
+INSERT INTO products
+    (business_id, product_name, sku, category_id, description, unit_price, stock_quantity, image_url)
+SELECT b.business_id, v.product_name, v.sku, c.category_id, v.description,
+       v.unit_price, v.stock_quantity, v.image_url
+  FROM (VALUES
+    ('Premium Pork Belly 5kg',   'HBT-PORK-01', 'Pork',      'Slabbed pork belly, vacuum-packed',          1450.00, 40, 'https://loremflickr.com/320/320/pork,meat'),
+    ('Lean Ground Beef 3kg',     'HBT-BEEF-01', 'Beef',      'Fresh lean ground beef, frozen block',       1180.00, 25, 'https://loremflickr.com/320/320/beef,meat'),
+    ('Whole Chicken Case 10pc',  'HBT-CHKN-01', 'Chicken',   'Dressed whole chickens, ~1.2kg each',         980.00,  6, 'https://loremflickr.com/320/320/chicken,meat'),
+    ('Potato Chips Bulk 24x',    'HBT-CHIP-01', 'Chips',     'Salted potato chips, 24-pack carton',         720.00, 60, 'https://loremflickr.com/320/320/potato,chips'),
+    ('Fresh Bangus 5kg',         'HBT-FISH-01', 'Fish',      'Cleaned milkfish on ice, per 5kg',            890.00,  0, 'https://loremflickr.com/320/320/fish,seafood'),
+    ('Tiger Prawns 2kg',         'HBT-SHEL-01', 'Shellfish', 'Frozen tiger prawns, 2kg pack',              1320.00, 18, 'https://loremflickr.com/320/320/shellfish,seafood'),
+    ('Mixed Vegetables Crate',   'HBT-PROD-01', 'Produce',   'Assorted market vegetables, 20kg crate',      650.00, 32, 'https://loremflickr.com/320/320/produce,vegetables'),
+    ('Pandesal Dough 10kg',      'HBT-BAKE-01', 'Bakery',    'Proofed pandesal dough, bakery grade',        540.00,  9, 'https://loremflickr.com/320/320/bakery,bread'),
+    ('Fresh Milk 12x1L',         'HBT-DARY-01', 'Dairy',     'Pasteurized fresh milk, 12x1L case',          960.00, 48, 'https://loremflickr.com/320/320/dairy,milk'),
+    ('Frozen Lumpia 100pc',      'HBT-FRZN-01', 'Frozen',    'Ready-to-fry frozen lumpia, 100 pieces',      780.00, 15, 'https://loremflickr.com/320/320/frozen,food'),
+    ('Kraft Packaging Box 50x',  'HBT-PACK-01', 'Packaging', 'Corrugated shipping boxes, 50-pack',          430.00, 75, 'https://loremflickr.com/320/320/food,packaging'),
+    ('Softdrinks Case 24x',      'HBT-BEVG-01', 'Beverages', 'Assorted softdrinks in cans, 24-pack',        560.00, 54, 'https://loremflickr.com/320/320/beverages,drinks')
+  ) AS v(product_name, sku, category_name, description, unit_price, stock_quantity, image_url)
+  JOIN businesses b ON b.business_name = 'Harbor Bulk Trading'
+  LEFT JOIN categories c ON c.category_name = v.category_name
+ WHERE NOT EXISTS (SELECT 1 FROM products p WHERE p.sku = v.sku);
+
 TRUNCATE tracking_logs, payments, commissions, parcels, couriers, branches,
          addresses, customers, service_tiers, commission_brackets
     RESTART IDENTITY CASCADE;
