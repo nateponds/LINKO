@@ -1,5 +1,6 @@
 import express from "express";
 import inventoryRouter from "./routes/inventory.js";
+import logisticsRouter from "./routes/logistics.js";
 import suppliersRouter from "./routes/suppliers.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 
@@ -19,6 +20,11 @@ export function createApp() {
   // focused on "/" because app.js attaches it under "/api/inventory".
   app.use("/api/inventory", inventoryRouter);
   app.use("/api/suppliers", suppliersRouter);
+
+  // Course-deliverable logistics subsystem (Sprint 2-CD). Owns several
+  // top-level paths (/api/parcels, /api/service-tiers, /api/customers), so
+  // it mounts at /api and declares full paths internally.
+  app.use("/api", logisticsRouter);
 
   // If no route above matched, return a JSON 404 instead of Express' HTML page.
   app.use((req, res) => {
