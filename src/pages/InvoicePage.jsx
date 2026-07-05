@@ -26,7 +26,9 @@ const FULFILLMENT_STEPS = [
 ];
 
 function normalizeStatus(status) {
-  return String(status ?? "").trim().toLowerCase();
+  return String(status ?? "")
+    .trim()
+    .toLowerCase();
 }
 
 function statusLabel(status) {
@@ -43,7 +45,11 @@ function itemQuantity(invoice) {
 function timelineFor(invoice) {
   const status = normalizeStatus(invoice?.order_status);
 
-  if (status === "cancelled" || status === "canceled" || status === "rejected") {
+  if (
+    status === "cancelled" ||
+    status === "canceled" ||
+    status === "rejected"
+  ) {
     return [
       {
         title: statusLabel(invoice.order_status),
@@ -146,9 +152,13 @@ export default function InvoicePage() {
             <ArrowLeft size={15} /> Back
           </button>
           <div className="invoice-subbar-right">
-            <span className="tracking-label">{invoiceId ? "Invoice No." : "Invoices"}</span>
+            <span className="tracking-label">
+              {invoiceId ? "Invoice No." : "Invoices"}
+            </span>
             <span className="tracking-number">
-              {invoiceId ? invoice?.invoice_number ?? `#${invoiceId}` : `${invoices.length} visible`}
+              {invoiceId
+                ? (invoice?.invoice_number ?? `#${invoiceId}`)
+                : `${invoices.length} visible`}
             </span>
           </div>
         </div>
@@ -166,9 +176,13 @@ export default function InvoicePage() {
             {loading ? (
               <div className="invoice-error">Loading invoices...</div>
             ) : error ? (
-              <div className="invoice-error">Could not load invoices: {error}. Is the backend running?</div>
+              <div className="invoice-error">
+                Could not load invoices: {error}. Backend is not running bruh
+              </div>
             ) : invoices.length === 0 ? (
-              <div className="invoice-error">No invoices are visible for this account yet.</div>
+              <div className="invoice-error">
+                No invoices are visible for this account yet.
+              </div>
             ) : (
               <div className="invoice-list">
                 {invoices.map((visibleInvoice) => (
@@ -179,7 +193,9 @@ export default function InvoicePage() {
                   >
                     <span>
                       <strong>{visibleInvoice.invoice_number}</strong>
-                      <span className="invoice-row-meta">Order #{visibleInvoice.order_id}</span>
+                      <span className="invoice-row-meta">
+                        Order #{visibleInvoice.order_id}
+                      </span>
                     </span>
                     <span>
                       <span className="invoice-row-label">Buyer</span>
@@ -191,7 +207,9 @@ export default function InvoicePage() {
                     </span>
                     <span>{shortDate(visibleInvoice.issued_at)}</span>
                     <span>{peso(visibleInvoice.total)}</span>
-                    <span className={`status ${statusClass(statusLabel(visibleInvoice.order_status))}`}>
+                    <span
+                      className={`status ${statusClass(statusLabel(visibleInvoice.order_status))}`}
+                    >
                       {statusLabel(visibleInvoice.order_status)}
                     </span>
                   </Link>
@@ -207,34 +225,48 @@ export default function InvoicePage() {
           <main className="invoice-wrap" aria-busy={loading}>
             <aside className="parties">
               <div className="party-card">
-                <div className="shop-name">{invoice?.invoice_number ?? "Loading invoice"}</div>
+                <div className="shop-name">
+                  {invoice?.invoice_number ?? "Loading invoice"}
+                </div>
 
                 <div className="party-block">
                   <span className="field-label">Buyer Business</span>
-                  <span className="field-value">{invoice?.buyer_business_name ?? "—"}</span>
+                  <span className="field-value">
+                    {invoice?.buyer_business_name ?? "—"}
+                  </span>
                 </div>
                 <div className="party-block">
                   <span className="field-label">Order No.</span>
-                  <span className="field-value">#{invoice?.order_id ?? "—"}</span>
+                  <span className="field-value">
+                    #{invoice?.order_id ?? "—"}
+                  </span>
                 </div>
                 <div className="party-block">
                   <span className="field-label">Issued</span>
-                  <span className="field-value">{shortDate(invoice?.issued_at)}</span>
+                  <span className="field-value">
+                    {shortDate(invoice?.issued_at)}
+                  </span>
                 </div>
               </div>
 
               <div className="party-card">
                 <div className="party-block">
                   <span className="field-label">Seller Name / Shop Name</span>
-                  <span className="field-value">{invoice?.wholesaler_business_name ?? "—"}</span>
+                  <span className="field-value">
+                    {invoice?.wholesaler_business_name ?? "—"}
+                  </span>
                 </div>
                 <div className="party-block">
                   <span className="field-label">Invoice Total</span>
-                  <span className="field-value invoice-total">{peso(invoice?.total)}</span>
+                  <span className="field-value invoice-total">
+                    {peso(invoice?.total)}
+                  </span>
                 </div>
                 <div className="party-block">
                   <span className="field-label">Item Quantity</span>
-                  <span className="field-value muted">{itemQuantity(invoice)} units</span>
+                  <span className="field-value muted">
+                    {itemQuantity(invoice)} units
+                  </span>
                 </div>
               </div>
             </aside>
@@ -243,15 +275,22 @@ export default function InvoicePage() {
               <div className="status-head">
                 <div>
                   <span className="status-eyebrow">Invoice order status</span>
-                  <h1 className="status-title">{statusLabel(invoice?.order_status)}</h1>
+                  <h1 className="status-title">
+                    {statusLabel(invoice?.order_status)}
+                  </h1>
                   <span className="status-sub">
-                    Issued {shortDate(invoice?.issued_at)} for order #{invoice?.order_id ?? "—"}
+                    Issued {shortDate(invoice?.issued_at)} for order #
+                    {invoice?.order_id ?? "—"}
                   </span>
                 </div>
 
                 <div className="status-actions">
-                  <Link to="/orders" className="action-link"><RotateCcw size={13} /> View orders</Link>
-                  <Link to="/invoices" className="action-link"><ArrowLeftRight size={13} /> All invoices</Link>
+                  <Link to="/orders" className="action-link">
+                    <RotateCcw size={13} /> View orders
+                  </Link>
+                  <Link to="/invoices" className="action-link">
+                    <ArrowLeftRight size={13} /> All invoices
+                  </Link>
                   <span className="delivery-query">
                     For invoice questions, use your LINKO order thread.
                   </span>

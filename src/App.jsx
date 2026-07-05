@@ -11,7 +11,9 @@ import DashboardPage from "./pages/DashboardPage";
 import WaitlistPage from "./pages/WaitlistPage";
 import OrdersPage from "./pages/OrdersPage";
 import LogisticsPage from "./pages/LogisticsPage";
+import LogisticsManagementPage from "./pages/LogisticsManagementPage";
 import ParcelDetailPage from "./pages/ParcelDetailPage";
+import CourierDashboardPage from "./pages/CourierDashboardPage";
 import MatchingPage from "./pages/MatchingPage";
 import BecomeSupplierPage from "./pages/BecomeSupplierPage";
 import LoginPage from "./pages/LoginPage";
@@ -45,13 +47,18 @@ function RouteChrome() {
 }
 
 function UnknownRouteRedirect() {
-  const { loading, user } = useAuth();
+  const { loading, user, hasAnyRole } = useAuth();
 
   if (loading) {
     return <div>Loading...</div>;
   }
 
-  return <Navigate to={user ? "/dashboard" : "/login"} replace />;
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const defaultPath = (hasAnyRole(["buyer"]) && !hasAnyRole(["wholesaler", "platform_admin", "logistics_coordinator", "courier"])) ? "/" : "/dashboard";
+  return <Navigate to={defaultPath} replace />;
 }
 
 function AppRoutes() {
@@ -81,8 +88,10 @@ function AppRoutes() {
 
       <Route element={<ProtectedRoute roles={ROLE_ACCESS.logistics} />}>
         <Route path="/logistics" element={<LogisticsPage />} />
+        <Route path="/logistics/management" element={<LogisticsManagementPage />} />
         <Route path="/logistics/:parcelId" element={<ParcelDetailPage />} />
         <Route path="/logistics/book" element={<Navigate to="/logistics" replace />} />
+        <Route path="/courier" element={<CourierDashboardPage />} />
       </Route>
 
       <Route path="*" element={<UnknownRouteRedirect />} />
