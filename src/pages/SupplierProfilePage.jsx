@@ -4,14 +4,17 @@ import {
   Check,
   Leaf,
   MessageCircle,
+  Minus,
   Package,
   Plus,
   Repeat,
+  ShoppingCart,
+  Trash2,
   Truck,
 } from "lucide-react";
 import { useParams } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
-import { apiGet } from "../lib/api";
+import { apiGet, apiSend } from "../lib/api";
 import { peso } from "../lib/format";
 import "./SupplierProfilePage.css";
 
@@ -19,6 +22,18 @@ function stockBadge(status) {
   if (status === "out_of_stock") return { label: "Out of Stock", cls: "out-of-stock" };
   if (status === "low_stock") return { label: "Low on Stock", cls: "low-on-stock" };
   return { label: "In Stock", cls: "in-stock" };
+}
+
+function stockLimit(product) {
+  const stock = Number(product?.stock_quantity);
+  if (!Number.isFinite(stock) || stock < 0) return 0;
+  return Math.floor(stock);
+}
+
+function clampQuantity(value, max) {
+  const quantity = Number(value);
+  if (!Number.isFinite(quantity)) return 1;
+  return Math.min(Math.max(Math.floor(quantity), 1), max);
 }
 
 export default function SupplierProfilePage() {
@@ -32,6 +47,12 @@ export default function SupplierProfilePage() {
   const [following, setFollowing] = useState(false);
   const [activeTab, setActiveTab] = useState("shop");
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [quantityDrafts, setQuantityDrafts] = useState({});
+  const [cart, setCart] = useState({});
+  const [cartMessage, setCartMessage] = useState(null);
+  const [checkoutError, setCheckoutError] = useState(null);
+  const [checkingOut, setCheckingOut] = useState(false);
+  const [checkoutConfirmation, setCheckoutConfirmation] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,6 +104,36 @@ export default function SupplierProfilePage() {
     ? products.filter((p) => p.category_name === selectedCategory)
     : products;
 
+  const productsById = useMemo(() => {
+    const byId = new Map();
+    for (const product of products) {
+      byId.set(String(product.product_id), product);
+    }
+    return byId;
+  }, [products]);
+
+  const cartItems = useMemo(
+    () =>
+      Object.entries(cart)
+        .map(([productId, quantity]) => {
+          const product = productsById.get(productId);
+          if (!product) return null;
+          return {
+            product,
+            productId,
+            quantity,
+            lineTotal: Number(product.unit_price ?? 0) * quantity,
+          };
+        })
+        .filter(Boolean),
+    [cart, productsById],
+  );
+
+  const cartSubtotal = useMemo(
+    () => cartItems.reduce((sum, item) => sum + item.lineTotal, 0),
+    [cartItems],
+  );
+
   function switchTab(tab) {
     setActiveTab(tab);
     setSelectedCategory(null);
@@ -91,6 +142,83 @@ export default function SupplierProfilePage() {
   function openCategory(name) {
     setSelectedCategory(name);
     setActiveTab("products");
+  }
+
+  function setProductDraft(product, value) {
+    const max = stockLimit(product);
+    setQuantityDrafts((current) => ({
+      ...current,
+      [product.product_id]: max > 0 ? clampQuantity(value, max) : 0,
+    }));
+  }
+
+  function addToCart(product) {
+    const max = stockLimit(product);
+    if (max <= 0 || product.stock_status === "out_of_stock") {
+      setCartMessage("That product is out of stock.");
+      return;
+    }
+
+    const draftQuantity = quantityDrafts[product.product_id] ?? 1;
+    const quantity = clampQuantity(draftQuantity, max);
+
+    setCart((current) => {
+      const key = String(product.product_id);
+      const nextQuantity = Math.min((current[key] ?? 0) + quantity, max);
+      return { ...current, [key]: nextQuantity };
+    });
+    setCartMessage(`${product.product_name} added to cart.`);
+    setCheckoutError(null);
+    setCheckoutConfirmation(null);
+  }
+
+  function updateCartQuantity(product, value) {
+    const key = String(product.product_id);
+    const max = stockLimit(product);
+    if (max <= 0) {
+      removeCartItem(key);
+      return;
+    }
+
+    setCart((current) => ({
+      ...current,
+      [key]: clampQuantity(value, max),
+    }));
+    setCheckoutError(null);
+  }
+
+  function removeCartItem(productId) {
+    setCart((current) => {
+      const next = { ...current };
+      delete next[String(productId)];
+      return next;
+    });
+    setCheckoutError(null);
+  }
+
+  async function checkoutCart() {
+    if (cartItems.length === 0 || checkingOut) return;
+
+    setCheckingOut(true);
+    setCheckoutError(null);
+    setCartMessage(null);
+
+    try {
+      const order = await apiSend("/api/orders", {
+        body: {
+          items: cartItems.map(({ product, quantity }) => ({
+            product_id: product.product_id,
+            quantity,
+          })),
+        },
+      });
+      setCart({});
+      setCheckoutConfirmation(order);
+    } catch (err) {
+      setCheckoutError(err.message);
+    } finally {
+      setCheckingOut(false);
+    }
   }
 
   if (loading) {
@@ -247,28 +375,157 @@ export default function SupplierProfilePage() {
           (visibleProducts.length === 0 ? (
             <p className="grid-empty">This supplier has no products yet.</p>
           ) : (
-            <main className="product-grid">
-              {visibleProducts.map((product) => {
-                const badge = stockBadge(product.stock_status);
-                return (
-                  <div className="product-card" key={product.product_id}>
-                    <div className="product-image">
-                      <img
-                        src={
-                          product.image_url ??
-                          "https://loremflickr.com/400/300/food,product"
-                        }
-                        alt={product.product_name}
-                      />
+            <main className="products-with-cart">
+              <section className="product-grid">
+                {visibleProducts.map((product) => {
+                  const badge = stockBadge(product.stock_status);
+                  const maxQuantity = stockLimit(product);
+                  const isAvailable =
+                    product.stock_status !== "out_of_stock" && maxQuantity > 0;
+                  const draftQuantity = quantityDrafts[product.product_id] ?? 1;
+
+                  return (
+                    <div className="product-card" key={product.product_id}>
+                      <div className="product-image">
+                        <img
+                          src={
+                            product.image_url ??
+                            "https://loremflickr.com/400/300/food,product"
+                          }
+                          alt={product.product_name}
+                        />
+                      </div>
+                      <div className="product-details">
+                        <div className="product-name">{product.product_name}</div>
+                        <div className="product-price">{peso(product.unit_price)}</div>
+                        <span className={`status ${badge.cls}`}>{badge.label}</span>
+                        <div className="product-stock">
+                          {maxQuantity > 0 ? `${maxQuantity} available` : "No stock available"}
+                        </div>
+                        <div className="product-cart-controls">
+                          <label className="quantity-field">
+                            <span>Qty</span>
+                            <input
+                              type="number"
+                              min="1"
+                              max={Math.max(maxQuantity, 1)}
+                              value={isAvailable ? draftQuantity : 0}
+                              disabled={!isAvailable}
+                              onChange={(event) =>
+                                setProductDraft(product, event.target.value)
+                              }
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            className="add-cart-btn"
+                            disabled={!isAvailable}
+                            onClick={() => addToCart(product)}
+                          >
+                            <ShoppingCart size={15} />
+                            Add
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    <div className="product-details">
-                      <div className="product-name">{product.product_name}</div>
-                      <div className="product-price">{peso(product.unit_price)}</div>
-                      <span className={`status ${badge.cls}`}>{badge.label}</span>
+                  );
+                })}
+              </section>
+
+              <aside className="cart-panel" aria-label="Cart">
+                <div className="cart-header">
+                  <div>
+                    <div className="cart-title">Cart</div>
+                    <div className="cart-subtitle">
+                      {cartItems.length} {cartItems.length === 1 ? "item" : "items"}
                     </div>
                   </div>
-                );
-              })}
+                  <ShoppingCart size={20} />
+                </div>
+
+                {cartMessage && <p className="cart-note">{cartMessage}</p>}
+
+                {cartItems.length === 0 ? (
+                  <p className="cart-empty">Add products to prepare a checkout.</p>
+                ) : (
+                  <div className="cart-lines">
+                    {cartItems.map(({ product, productId, quantity, lineTotal }) => {
+                      const maxQuantity = stockLimit(product);
+                      return (
+                        <div className="cart-line" key={productId}>
+                          <div className="cart-line-main">
+                            <div className="cart-line-name">{product.product_name}</div>
+                            <div className="cart-line-price">{peso(lineTotal)}</div>
+                          </div>
+                          <div className="cart-line-actions">
+                            <div className="cart-stepper">
+                              <button
+                                type="button"
+                                aria-label={`Decrease ${product.product_name}`}
+                                onClick={() => updateCartQuantity(product, quantity - 1)}
+                              >
+                                <Minus size={14} />
+                              </button>
+                              <input
+                                type="number"
+                                min="1"
+                                max={Math.max(maxQuantity, 1)}
+                                value={quantity}
+                                onChange={(event) =>
+                                  updateCartQuantity(product, event.target.value)
+                                }
+                              />
+                              <button
+                                type="button"
+                                aria-label={`Increase ${product.product_name}`}
+                                disabled={quantity >= maxQuantity}
+                                onClick={() => updateCartQuantity(product, quantity + 1)}
+                              >
+                                <Plus size={14} />
+                              </button>
+                            </div>
+                            <button
+                              type="button"
+                              className="remove-cart-btn"
+                              aria-label={`Remove ${product.product_name}`}
+                              onClick={() => removeCartItem(productId)}
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className="cart-total-row">
+                  <span>Subtotal</span>
+                  <strong>{peso(cartSubtotal)}</strong>
+                </div>
+
+                {checkoutError && (
+                  <p className="cart-error">Checkout failed: {checkoutError}</p>
+                )}
+
+                {checkoutConfirmation && (
+                  <div className="checkout-confirmation">
+                    <div className="confirmation-title">Order placed</div>
+                    <div>Order #{checkoutConfirmation.order_id}</div>
+                    <div>Status: {checkoutConfirmation.status}</div>
+                    <div>Total: {peso(checkoutConfirmation.total)}</div>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  className="checkout-btn"
+                  disabled={cartItems.length === 0 || checkingOut}
+                  onClick={checkoutCart}
+                >
+                  {checkingOut ? "Checking out..." : "Checkout"}
+                </button>
+              </aside>
             </main>
           ))}
 

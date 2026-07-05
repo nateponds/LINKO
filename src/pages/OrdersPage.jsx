@@ -1,42 +1,184 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../auth/AuthProvider";
 import AppLayout from "../layouts/AppLayout";
+import { apiGet, apiSend } from "../lib/api";
+import { peso, shortDate, statusClass } from "../lib/format";
 import "./OrdersPage.css";
 
-/* Mock data layer — swap for GET /api/orders later; keep the shape.
-   Tracking #21374 resolves on the Invoice page's mock DB, so that row
-   demonstrates the full orders → invoice tracking flow. */
-const MOCK_ORDERS = [
-  { trackingNo: "21374", customer: "Marielle Ocampo", seller: "Sunhome Hardware Supplies", date: "23 Jun 2026", items: 4, total: 5230, status: "Delivered" },
-  { trackingNo: "21358", customer: "Joseph Ramirez", seller: "Cebu Metro Distributors", date: "21 Jun 2026", items: 2, total: 1890, status: "In Transit" },
-  { trackingNo: "21344", customer: "Ana Villanueva", seller: "Sunhome Hardware Supplies", date: "20 Jun 2026", items: 7, total: 10450, status: "Processing" },
-  { trackingNo: "21329", customer: "Carlo Mendoza", seller: "Golden Grain Trading", date: "18 Jun 2026", items: 1, total: 640, status: "Delivered" },
-  { trackingNo: "21311", customer: "Bea Santos", seller: "Cebu Metro Distributors", date: "15 Jun 2026", items: 3, total: 3120, status: "Cancelled" },
-  { trackingNo: "21298", customer: "Miguel Torres", seller: "Golden Grain Trading", date: "12 Jun 2026", items: 5, total: 7800, status: "Delivered" },
+const STATUS_TABS = [
+  "All",
+  "Pending",
+  "Accepted",
+  "Preparing",
+  "Shipped",
+  "Delivered",
+  "Cancelled",
 ];
 
-const STATUS_TABS = ["All", "Processing", "In Transit", "Delivered", "Cancelled"];
+const STATUS_LABELS = {
+  pending: "Pending",
+  accepted: "Accepted",
+  preparing: "Preparing",
+  shipped: "Shipped",
+  delivered: "Delivered",
+  cancelled: "Cancelled",
+  canceled: "Cancelled",
+};
 
-const statusClass = (status) => status.toLowerCase().replace(/\s+/g, "-");
-const peso = (n) => `₱${n.toLocaleString("en-PH")}`;
+function normalizeStatus(status) {
+  return String(status ?? "").trim().toLowerCase();
+}
+
+function statusLabel(status) {
+  const normalized = normalizeStatus(status);
+  return STATUS_LABELS[normalized] ?? (status || "Unknown");
+}
+
+function itemCount(order) {
+  return Array.isArray(order.items)
+    ? order.items.reduce((sum, item) => sum + Number(item.quantity ?? 0), 0)
+    : 0;
+}
 
 export default function OrdersPage() {
+  const { memberships, user } = useAuth();
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [updatingId, setUpdatingId] = useState(null);
   const [statusFilter, setStatusFilter] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
 
+  const loadOrders = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const data = await apiGet("/api/orders");
+      setOrders(Array.isArray(data) ? data : []);
+    } catch (caughtError) {
+      setError(caughtError.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    async function load() {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const data = await apiGet("/api/orders");
+        if (active) {
+          setOrders(Array.isArray(data) ? data : []);
+        }
+      } catch (caughtError) {
+        if (active) {
+          setError(caughtError.message);
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void load();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const visibleOrders = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
-    return MOCK_ORDERS.filter((o) => {
-      if (statusFilter !== "All" && o.status !== statusFilter) return false;
+    const selectedStatus = statusFilter.toLowerCase();
+
+    return orders.filter((order) => {
+      const orderStatus = statusLabel(order.status);
+      if (statusFilter !== "All" && orderStatus.toLowerCase() !== selectedStatus) {
+        return false;
+      }
+
       return (
         !term ||
-        o.trackingNo.includes(term) ||
-        o.customer.toLowerCase().includes(term) ||
-        o.seller.toLowerCase().includes(term)
+        String(order.order_id ?? "").toLowerCase().includes(term) ||
+        (order.buyer_business_name ?? "").toLowerCase().includes(term) ||
+        (order.wholesaler_business_name ?? "").toLowerCase().includes(term) ||
+        (order.invoice?.invoice_number ?? "").toLowerCase().includes(term)
       );
     });
-  }, [statusFilter, searchTerm]);
+  }, [orders, searchTerm, statusFilter]);
+
+  async function updateOrderStatus(orderId, nextStatus) {
+    setUpdatingId(orderId);
+    setError(null);
+
+    try {
+      const updatedOrder = await apiSend(`/api/orders/${orderId}/status`, {
+        method: "PATCH",
+        body: { status: nextStatus },
+      });
+
+      setOrders((currentOrders) =>
+        currentOrders.map((order) =>
+          order.order_id === orderId ? { ...order, ...updatedOrder } : order,
+        ),
+      );
+      void loadOrders();
+    } catch (caughtError) {
+      setError(caughtError.message);
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  function actionsFor(order) {
+    const status = normalizeStatus(order.status);
+    const actions = [];
+    if (user?.global_role === "platform_admin") {
+      return actions;
+    }
+    const ownsBuyerSide = memberships.some(
+      (membership) =>
+        membership.role === "buyer" &&
+        membership.business_id === order.buyer_business_id,
+    );
+    const ownsWholesalerSide = memberships.some(
+      (membership) =>
+        membership.role === "wholesaler" &&
+        membership.business_id === order.wholesaler_business_id,
+    );
+
+    if (status === "pending") {
+      if (ownsWholesalerSide) {
+        actions.push({ label: "Accept", nextStatus: "accepted" });
+        actions.push({ label: "Reject", nextStatus: "cancelled" });
+      } else if (ownsBuyerSide) {
+        actions.push({ label: "Cancel", nextStatus: "cancelled" });
+      }
+      return actions;
+    }
+
+    if (!ownsWholesalerSide) {
+      return actions;
+    }
+
+    if (status === "accepted") {
+      actions.push({ label: "Preparing", nextStatus: "preparing" });
+    } else if (status === "preparing") {
+      actions.push({ label: "Ship", nextStatus: "shipped" });
+    } else if (status === "shipped") {
+      actions.push({ label: "Deliver", nextStatus: "delivered" });
+    }
+
+    return actions;
+  }
 
   return (
     <AppLayout>
@@ -46,9 +188,9 @@ export default function OrdersPage() {
           <div className="search-bar">
             <input
               type="text"
-              placeholder="Search tracking no., customer, seller"
+              placeholder="Search order no., customer, seller, invoice"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(event) => setSearchTerm(event.target.value)}
             />
             <button className="search-icon-btn" aria-label="Search"><Search size={16} /></button>
           </div>
@@ -69,39 +211,76 @@ export default function OrdersPage() {
         </div>
 
         <main className="table-card">
-          {visibleOrders.length === 0 ? (
+          {loading ? (
+            <div className="page-empty">Loading orders...</div>
+          ) : error ? (
+            <div className="page-empty">Could not load orders: {error}. Is the backend running?</div>
+          ) : visibleOrders.length === 0 ? (
             <div className="page-empty">No orders match your search.</div>
           ) : (
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Tracking No.</th>
+                  <th>Order No.</th>
                   <th>Customer</th>
                   <th>Seller</th>
                   <th>Date</th>
                   <th>Items</th>
                   <th>Total</th>
                   <th>Status</th>
+                  <th>Invoice</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
-                {visibleOrders.map((o) => (
-                  <tr key={o.trackingNo}>
-                    <td>#{o.trackingNo}</td>
-                    <td><strong>{o.customer}</strong></td>
-                    <td>{o.seller}</td>
-                    <td>{o.date}</td>
-                    <td>{o.items}</td>
-                    <td>{peso(o.total)}</td>
-                    <td><span className={`status ${statusClass(o.status)}`}>{o.status}</span></td>
-                    <td>
-                      <Link className="track-link" to={`/invoices?tracking=${o.trackingNo}`}>
-                        Track
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
+                {visibleOrders.map((order) => {
+                  const orderActions = actionsFor(order);
+                  const disabled = updatingId === order.order_id;
+
+                  return (
+                    <tr key={order.order_id}>
+                      <td>#{order.order_id}</td>
+                      <td><strong>{order.buyer_business_name ?? "—"}</strong></td>
+                      <td>{order.wholesaler_business_name ?? "—"}</td>
+                      <td>{shortDate(order.created_at)}</td>
+                      <td>{itemCount(order)}</td>
+                      <td>{peso(order.total)}</td>
+                      <td>
+                        <span className={`status ${statusClass(statusLabel(order.status))}`}>
+                          {statusLabel(order.status)}
+                        </span>
+                      </td>
+                      <td>
+                        {order.invoice?.invoice_id ? (
+                          <Link className="track-link" to={`/invoices?invoice=${order.invoice.invoice_id}`}>
+                            {order.invoice.invoice_number ?? "Invoice"}
+                          </Link>
+                        ) : (
+                          <span className="muted-cell">—</span>
+                        )}
+                      </td>
+                      <td>
+                        {orderActions.length > 0 ? (
+                          <div className="order-actions" aria-label={`Actions for order ${order.order_id}`}>
+                            {orderActions.map((action) => (
+                              <button
+                                key={`${action.label}-${action.nextStatus}`}
+                                className="track-link action-button"
+                                type="button"
+                                disabled={disabled}
+                                onClick={() => updateOrderStatus(order.order_id, action.nextStatus)}
+                              >
+                                {disabled ? "Updating" : action.label}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="muted-cell">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}

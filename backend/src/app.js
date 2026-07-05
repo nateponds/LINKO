@@ -2,6 +2,7 @@ import express from "express";
 import authRouter from "./routes/auth.js";
 import inventoryRouter from "./routes/inventory.js";
 import logisticsRouter from "./routes/logistics.js";
+import ordersRouter from "./routes/orders.js";
 import productsRouter from "./routes/products.js";
 import suppliersRouter from "./routes/suppliers.js";
 import { errorHandler } from "./middleware/errorHandler.js";
@@ -37,6 +38,10 @@ export function createApp() {
   // own per-route auth internally (reads are any-authenticated, writes are
   // wholesaler/platform_admin).
   app.use("/api", productsRouter);
+
+  // Marketplace orders and invoices (Milestone 3). Owns /api/orders and
+  // /api/invoices; per-route auth keeps buyer/wholesaler/admin rules local.
+  app.use("/api", ordersRouter);
 
   // Course-deliverable logistics subsystem (Sprint 2-CD). Owns several
   // top-level paths (/api/parcels, /api/service-tiers, /api/customers), so
