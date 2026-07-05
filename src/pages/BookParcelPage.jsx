@@ -36,8 +36,14 @@ export default function BookParcelPage() {
     let cancelled = false;
 
     Promise.all([
-      fetch("/api/customers").then((r) => (r.ok ? r.json() : Promise.reject(new Error(`customers: ${r.status}`)))),
-      fetch("/api/service-tiers").then((r) => (r.ok ? r.json() : Promise.reject(new Error(`service tiers: ${r.status}`)))),
+      fetch("/api/customers").then((r) =>
+        r.ok ? r.json() : Promise.reject(new Error(`customers: ${r.status}`)),
+      ),
+      fetch("/api/service-tiers").then((r) =>
+        r.ok
+          ? r.json()
+          : Promise.reject(new Error(`service tiers: ${r.status}`)),
+      ),
     ])
       .then(([customerData, tierData]) => {
         if (cancelled) return;
@@ -54,8 +60,12 @@ export default function BookParcelPage() {
     };
   }, []);
 
-  const sender = customers.find((c) => c.customer_id === Number(form.sender_id));
-  const receiver = customers.find((c) => c.customer_id === Number(form.receiver_id));
+  const sender = customers.find(
+    (c) => c.customer_id === Number(form.sender_id),
+  );
+  const receiver = customers.find(
+    (c) => c.customer_id === Number(form.receiver_id),
+  );
   const tier = tiers.find((t) => t.tier_id === Number(form.tier_id));
 
   // Preview of what the database trigger will charge.
@@ -95,15 +105,23 @@ export default function BookParcelPage() {
           destination_address_id: Number(form.destination_address_id),
           weight_kg: Number(form.weight_kg),
           dimensions: form.dimensions || undefined,
-          declared_value: form.declared_value === "" ? undefined : Number(form.declared_value),
-          total_distance_km: form.total_distance_km === "" ? undefined : Number(form.total_distance_km),
+          declared_value:
+            form.declared_value === ""
+              ? undefined
+              : Number(form.declared_value),
+          total_distance_km:
+            form.total_distance_km === ""
+              ? undefined
+              : Number(form.total_distance_km),
           payment_method: form.payment_method,
         }),
       });
       const body = await res.json();
 
       if (!res.ok) {
-        throw new Error(body.error?.message ?? `Server responded ${res.status}`);
+        throw new Error(
+          body.error?.message ?? `Server responded ${res.status}`,
+        );
       }
 
       navigate(`/logistics/${body.parcel_id}`);
@@ -114,7 +132,9 @@ export default function BookParcelPage() {
   }
 
   const addressOption = (a) =>
-    [a.street_address, a.barangay, a.city_municipality].filter(Boolean).join(", ");
+    [a.street_address, a.barangay, a.city_municipality]
+      .filter(Boolean)
+      .join(", ");
 
   return (
     <AppLayout>
@@ -131,7 +151,8 @@ export default function BookParcelPage() {
 
         {loadError ? (
           <div className="page-empty">
-            Could not load booking data: {loadError}. Is the backend running?
+            Could not load booking data: {loadError}. Backend is not running
+            bruh
           </div>
         ) : (
           <form className="book-form" onSubmit={handleSubmit}>
@@ -159,7 +180,9 @@ export default function BookParcelPage() {
                     required
                     disabled={!sender}
                     value={form.origin_address_id}
-                    onChange={(e) => setField("origin_address_id", e.target.value)}
+                    onChange={(e) =>
+                      setField("origin_address_id", e.target.value)
+                    }
                   >
                     <option value="">Select origin…</option>
                     {sender?.addresses.map((a) => (
@@ -194,7 +217,9 @@ export default function BookParcelPage() {
                     required
                     disabled={!receiver}
                     value={form.destination_address_id}
-                    onChange={(e) => setField("destination_address_id", e.target.value)}
+                    onChange={(e) =>
+                      setField("destination_address_id", e.target.value)
+                    }
                   >
                     <option value="">Select destination…</option>
                     {receiver?.addresses.map((a) => (
@@ -218,7 +243,8 @@ export default function BookParcelPage() {
                     <option value="">Select tier…</option>
                     {tiers.map((t) => (
                       <option key={t.tier_id} value={t.tier_id}>
-                        {t.tier_name} — {t.estimated_days}d, {peso(t.base_fee)} + {peso(t.base_rate_per_kg)}/kg
+                        {t.tier_name} — {t.estimated_days}d, {peso(t.base_fee)}{" "}
+                        + {peso(t.base_rate_per_kg)}/kg
                       </option>
                     ))}
                   </select>
@@ -250,7 +276,9 @@ export default function BookParcelPage() {
                     min="0"
                     step="0.1"
                     value={form.total_distance_km}
-                    onChange={(e) => setField("total_distance_km", e.target.value)}
+                    onChange={(e) =>
+                      setField("total_distance_km", e.target.value)
+                    }
                   />
                 </label>
               </fieldset>
@@ -281,7 +309,9 @@ export default function BookParcelPage() {
                 </label>
                 <div className="fee-preview">
                   <span className="field-label">Estimated shipping fee</span>
-                  <span className="fee-amount">{feePreview != null ? peso(feePreview) : "—"}</span>
+                  <span className="fee-amount">
+                    {feePreview != null ? peso(feePreview) : "—"}
+                  </span>
                 </div>
               </fieldset>
             </div>
@@ -289,7 +319,11 @@ export default function BookParcelPage() {
             {submitError && <div className="form-error">{submitError}</div>}
 
             <div className="book-actions">
-              <button className="book-submit" type="submit" disabled={submitting}>
+              <button
+                className="book-submit"
+                type="submit"
+                disabled={submitting}
+              >
                 {submitting ? "Booking…" : "Book Parcel"}
               </button>
             </div>

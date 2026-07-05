@@ -36,28 +36,28 @@ LIMIT 10;
 
 -- ----------------------------------------------------------------------------
 -- Q2. ROLE-VIA-FK — buyer/wholesaler is NOT a column. It is read from which
---     slot a customer occupies on a parcel: sender_id = selling, receiver_id =
---     buying. This classifies every customer by BEHAVIOUR, not stored type,
+--     slot a business occupies on a parcel: sender_id = selling, receiver_id =
+--     buying. This classifies every business by BEHAVIOUR, not stored type,
 --     and finds the two who play BOTH sides.
 -- ----------------------------------------------------------------------------
 SELECT
-    c.customer_id,
-    c.full_name,
-    c.customer_type,
-    count(*) FILTER (WHERE p.sender_id   = c.customer_id) AS parcels_sent,
-    count(*) FILTER (WHERE p.receiver_id = c.customer_id) AS parcels_received,
+    b.business_id,
+    b.business_name,
+    b.business_type,
+    count(*) FILTER (WHERE p.sender_id   = b.business_id) AS parcels_sent,
+    count(*) FILTER (WHERE p.receiver_id = b.business_id) AS parcels_received,
     CASE
-        WHEN bool_or(p.sender_id = c.customer_id)
-         AND bool_or(p.receiver_id = c.customer_id) THEN 'both (wholesaler + buyer)'
-        WHEN bool_or(p.sender_id = c.customer_id)   THEN 'wholesaler (sells only)'
-        WHEN bool_or(p.receiver_id = c.customer_id) THEN 'buyer (buys only)'
+        WHEN bool_or(p.sender_id = b.business_id)
+         AND bool_or(p.receiver_id = b.business_id) THEN 'both (wholesaler + buyer)'
+        WHEN bool_or(p.sender_id = b.business_id)   THEN 'wholesaler (sells only)'
+        WHEN bool_or(p.receiver_id = b.business_id) THEN 'buyer (buys only)'
         ELSE 'no activity'
     END AS behavioural_role
-FROM customers c
+FROM businesses b
 LEFT JOIN parcels p
-       ON p.sender_id = c.customer_id OR p.receiver_id = c.customer_id
-GROUP BY c.customer_id, c.full_name, c.customer_type
-ORDER BY c.customer_id;
+       ON p.sender_id = b.business_id OR p.receiver_id = b.business_id
+GROUP BY b.business_id, b.business_name, b.business_type
+ORDER BY b.business_id;
 
 
 -- ----------------------------------------------------------------------------
@@ -119,7 +119,7 @@ ORDER BY p.parcel_id;
 
 
 -- ----------------------------------------------------------------------------
--- Q6. ADDRESS NORMALIZATION + REUSE — one ADDRESSES table feeds customers,
+-- Q6. ADDRESS NORMALIZATION + REUSE — one ADDRESSES table feeds businesss,
 --     branches, AND both ends of a parcel. This reads a full parcel label by
 --     joining the SAME table twice (origin + destination), proving the 1:N
 --     structured-address design (no flat address_line duplication).
@@ -189,7 +189,7 @@ SELECT
         AND c.amount = cb.fee) AS bracket_ok
 FROM commissions c
 JOIN parcels p              ON p.parcel_id  = c.parcel_id
-JOIN customers s            ON s.customer_id = p.sender_id
+JOIN businesses s            ON s.business_id = p.sender_id
 JOIN commission_brackets cb ON cb.bracket_id = c.bracket_id
 ORDER BY p.parcel_id
 LIMIT 10;
@@ -208,8 +208,8 @@ SELECT
     round(sum(c.amount) FILTER (WHERE c.status = 'Pending'), 2)   AS outstanding
 FROM commissions c
 JOIN parcels p   ON p.parcel_id   = c.parcel_id
-JOIN customers s ON s.customer_id = p.sender_id
-GROUP BY s.customer_id, s.full_name
+JOIN businesses s ON s.business_id = p.sender_id
+GROUP BY s.business_id, s.full_name
 ORDER BY total_commission DESC;
 
 
@@ -231,7 +231,7 @@ SELECT
 FROM wholesaler_remittances r
 JOIN parcels p   ON p.parcel_id   = r.parcel_id
 JOIN payments pay ON pay.parcel_id = r.parcel_id
-JOIN customers s ON s.customer_id = r.wholesaler_id
+JOIN businesses s ON s.business_id = r.wholesaler_id
 WHERE (SELECT t.status_update FROM tracking_logs t
         WHERE t.parcel_id = r.parcel_id
         ORDER BY t.scanned_at DESC LIMIT 1) = 'Delivered'

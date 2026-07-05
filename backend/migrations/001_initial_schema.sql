@@ -12,10 +12,8 @@ CREATE TABLE users (
 CREATE TABLE businesses (
     business_id SERIAL PRIMARY KEY,
     business_name VARCHAR(100) NOT NULL,
-    business_type VARCHAR(20) NOT NULL CHECK (business_type IN ('buyer', 'wholesaler', 'both')),
+    business_type VARCHAR(20) NOT NULL CHECK (business_type IN ('buyer', 'wholesaler', 'both', 'individual', 'msme', 'corporation', 'other')),
     contact_number VARCHAR(20),
-    address_line TEXT NOT NULL,
-    city VARCHAR(50) NOT NULL,
     is_verified BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -26,12 +24,23 @@ CREATE TABLE user_businesses (
     PRIMARY KEY (user_id, business_id)
 );
 
+-- Granular Philippine-hierarchy addresses. business_id is null for
+-- ownerless branch addresses.
+CREATE TABLE addresses (
+    address_id SERIAL PRIMARY KEY,
+    business_id INT REFERENCES businesses(business_id) ON UPDATE CASCADE ON DELETE SET NULL,
+    province VARCHAR(50) NOT NULL,
+    city_municipality VARCHAR(50) NOT NULL,
+    barangay VARCHAR(50),
+    street_address VARCHAR(150),
+    postal_code VARCHAR(10)
+);
+
 CREATE TABLE warehouses (
     warehouse_id SERIAL PRIMARY KEY,
     business_id INT NOT NULL REFERENCES businesses(business_id) ON UPDATE CASCADE ON DELETE RESTRICT,
     warehouse_name VARCHAR(100) NOT NULL,
-    address_line TEXT NOT NULL,
-    city VARCHAR(50) NOT NULL
+    address_id INT NOT NULL REFERENCES addresses(address_id) ON UPDATE CASCADE ON DELETE RESTRICT
 );
 
 CREATE TABLE categories (

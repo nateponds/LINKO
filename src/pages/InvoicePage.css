@@ -212,6 +212,9 @@
   }
 
   .action-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
     font-size: 13px;
     font-weight: 600;
     color: var(--navy-deep);
@@ -313,6 +316,134 @@
     color: var(--text-muted);
   }
 
+  .invoice-total {
+    font-size: 18px;
+    color: var(--navy-deep);
+  }
+
+  .invoice-list-wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 28px;
+  }
+
+  .invoice-list-wrap[aria-busy="true"] {
+    opacity: 0.55;
+    pointer-events: none;
+  }
+
+  .invoice-list-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-top: 4px solid var(--color-accent);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
+    padding: 24px 28px;
+    margin-bottom: 18px;
+    color: var(--navy-deep);
+  }
+
+  .invoice-list-head .status-title {
+    font-size: 28px;
+  }
+
+  .invoice-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .invoice-list-row {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr 1fr 0.7fr 0.7fr auto;
+    gap: 16px;
+    align-items: center;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    padding: 16px 18px;
+    color: var(--text);
+  }
+
+  .invoice-list-row:hover {
+    border-color: var(--teal);
+    box-shadow: var(--shadow-md);
+  }
+
+  .invoice-row-meta,
+  .invoice-row-label {
+    display: block;
+    margin-top: 3px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .invoice-row-label {
+    margin-top: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .status.pending,
+  .status.preparing {
+    background: #fdf3d7;
+    color: #9a7b12;
+  }
+
+  .status.accepted,
+  .status.shipped {
+    background: var(--color-primary-soft);
+    color: var(--color-primary-dark);
+  }
+
+  .status.delivered {
+    background: var(--color-card);
+    color: var(--color-accent-dark);
+  }
+
+  .status.cancelled,
+  .status.rejected {
+    background: #fdeaea;
+    color: #c0392b;
+  }
+
+  .invoice-items {
+    padding-top: 24px;
+    margin-top: 24px;
+    border-top: 1px solid var(--border);
+  }
+
+  .invoice-items-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  .invoice-items-table th {
+    text-align: left;
+    padding: 10px 8px;
+    color: var(--text-faint);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .invoice-items-table td {
+    padding: 12px 8px;
+    border-bottom: 1px solid rgba(48, 80, 160, 0.14);
+    color: var(--text);
+  }
+
+  .invoice-items-table tr:last-child td {
+    border-bottom: none;
+  }
+
   /* ---- Empty / error state for the whole page ---- */
   .invoice-error {
     max-width: 1080px;
@@ -331,6 +462,9 @@
     .invoice-wrap {
       grid-template-columns: 1fr;
     }
+    .invoice-list-row {
+      grid-template-columns: 1fr 1fr;
+    }
     .parties {
       position: static;
       flex-direction: row;
@@ -342,8 +476,15 @@
   @media (max-width: 560px) {
     .invoice-subbar { padding: 14px 16px 0; }
     .invoice-wrap { padding: 18px; }
+    .invoice-list-wrap { padding: 18px; }
+    .invoice-list-row {
+      grid-template-columns: 1fr;
+    }
     .status-panel { padding: 20px; }
     .parties { flex-direction: column; }
     .status-title { font-size: 26px; }
+    .invoice-items {
+      overflow-x: auto;
+    }
   }
 }

@@ -3,6 +3,8 @@ import { ArrowLeft } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
 import { peso, shortDate, statusClass } from "../lib/format";
+import { useAuth } from "../auth/AuthProvider";
+import { apiGet, apiSend } from "../lib/api";
 import "./LogisticsPage.css";
 
 /* Parcel detail + tracking timeline, backed by GET /api/parcels/:id.
@@ -33,27 +35,45 @@ export default function ParcelDetailPage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState(null);
+  const [branches, setBranches] = useState([]);
+  const [couriers, setCouriers] = useState([]);
+  const { hasAnyRole } = useAuth();
+  
+  // Update form state
+  const [updating, setUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState(null);
+  const [formStatus, setFormStatus] = useState("In Transit");
+  const [formBranch, setFormBranch] = useState("");
+  const [formCourier, setFormCourier] = useState("");
+  const [formRemarks, setFormRemarks] = useState("");
 
   useEffect(() => {
     let cancelled = false;
 
-    fetch(`/api/parcels/${parcelId}`)
-      .then((res) => {
-        if (res.status === 404) return null;
-        if (!res.ok) throw new Error(`Server responded ${res.status}`);
-        return res.json();
-      })
-      .then((data) => {
+    async function load() {
+      try {
+        const [parcelData, branchData, courierData] = await Promise.all([
+          apiGet(`/api/parcels/${parcelId}`).catch((e) => {
+            if (e.statusCode === 404) return null;
+            throw e;
+          }),
+          apiGet("/api/branches").catch(() => []),
+          apiGet("/api/couriers").catch(() => []),
+        ]);
         if (cancelled) return;
-        setParcel(data);
-        setNotFound(!data);
-        setLoading(false);
-      })
-      .catch((err) => {
+        setParcel(parcelData);
+        setNotFound(!parcelData);
+        setBranches(Array.isArray(branchData) ? branchData : []);
+        setCouriers(Array.isArray(courierData) ? courierData : []);
+      } catch (err) {
         if (cancelled) return;
         setError(err.message);
-        setLoading(false);
-      });
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    
+    load();
 
     return () => {
       cancelled = true;
@@ -88,16 +108,16 @@ export default function ParcelDetailPage() {
             <aside className="parcel-cards">
               <div className="parcel-card">
                 <span className="card-heading">Sender</span>
-                <span className="field-value"><strong>{parcel.sender.full_name}</strong></span>
-                <span className="field-value muted">{parcel.sender.phone_number}</span>
+                <span className="field-value"><strong>{parcel.sender.business_name}</strong></span>
+                <span className="field-value muted">{parcel.sender.contact_number}</span>
                 <span className="field-label">Origin</span>
                 <span className="field-value">{addressLine(parcel.origin_address)}</span>
               </div>
 
               <div className="parcel-card">
                 <span className="card-heading">Receiver</span>
-                <span className="field-value"><strong>{parcel.receiver.full_name}</strong></span>
-                <span className="field-value muted">{parcel.receiver.phone_number}</span>
+                <span className="field-value"><strong>{parcel.receiver.business_name}</strong></span>
+                <span className="field-value muted">{parcel.receiver.contact_number}</span>
                 <span className="field-label">Destination</span>
                 <span className="field-value">{addressLine(parcel.destination_address)}</span>
               </div>
@@ -144,6 +164,94 @@ export default function ParcelDetailPage() {
                   {parcel.current_status ?? "—"}
                 </span>
               </div>
+
+              {hasAnyRole(["logistics_coordinator", "platform_admin", "courier"]) && (
+                <div className="update-status-form" style={{ padding: '1.5rem', background: 'var(--gray-50)', borderRadius: '8px', marginBottom: '1.5rem' }}>
+                  <h3 style={{ margin: '0 0 1rem 0', fontSize: '1rem' }}>Update Tracking</h3>
+                  {updateError && <p style={{ color: 'var(--red-600)', marginBottom: '1rem' }}>{updateError}</p>}
+                  
+                  <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                    <label style={{ flex: '1 1 150px' }}>
+                      <div style={{ fontSize: '0.875rem', marginBottom: '0.25rem' }}>Status</div>
+                      <select 
+                        value={formStatus} 
+                        onChange={e => setFormStatus(e.target.value)}
+                        style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--gray-300)' }}
+                      >
+                        <option value="Order Created">Order Created</option>
+                        <option value="Picked Up">Picked Up</option>
+                        <option value="In Transit">In Transit</option>
+                        <option value="Out for Delivery">Out for Delivery</option>
+                        <option value="Delivered">Delivered</option>
+                        <option value="Returned">Returned</option>
+                        <option value="Cancelled">Cancelled</option>
+                      </select>
+                    </label>
+
+                    <label style={{ flex: '1 1 150px' }}>
+                      <div style={{ fontSize: '0.875rem', marginBottom: '0.25rem' }}>Log at Branch</div>
+                      <select 
+                        value={formBranch} 
+                        onChange={e => setFormBranch(e.target.value)}
+                        style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--gray-300)' }}
+                      >
+                        <option value="">-- None --</option>
+                        {branches.map(b => <option key={b.branch_id} value={b.branch_id}>{b.branch_name}</option>)}
+                      </select>
+                    </label>
+
+                    <label style={{ flex: '1 1 150px' }}>
+                      <div style={{ fontSize: '0.875rem', marginBottom: '0.25rem' }}>Assign Courier</div>
+                      <select 
+                        value={formCourier} 
+                        onChange={e => setFormCourier(e.target.value)}
+                        style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--gray-300)' }}
+                      >
+                        <option value="">-- None --</option>
+                        {couriers.map(c => <option key={c.courier_id} value={c.courier_id}>{c.full_name}</option>)}
+                      </select>
+                    </label>
+                  </div>
+                  
+                  <label style={{ display: 'block', marginBottom: '1rem' }}>
+                    <div style={{ fontSize: '0.875rem', marginBottom: '0.25rem' }}>Remarks</div>
+                    <input 
+                      type="text" 
+                      value={formRemarks} 
+                      onChange={e => setFormRemarks(e.target.value)}
+                      placeholder="Optional remarks"
+                      style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--gray-300)' }}
+                    />
+                  </label>
+                  
+                  <button 
+                    onClick={async () => {
+                      if (updating) return;
+                      setUpdating(true);
+                      setUpdateError(null);
+                      try {
+                        const body = { status_update: formStatus, remarks: formRemarks };
+                        if (formBranch) body.branch_id = Number(formBranch);
+                        if (formCourier) body.courier_id = Number(formCourier);
+                        
+                        await apiSend(`/api/parcels/${parcelId}/tracking`, { body });
+                        // reload
+                        const data = await apiGet(`/api/parcels/${parcelId}`);
+                        setParcel(data);
+                        setFormRemarks("");
+                      } catch(err) {
+                        setUpdateError(err.message);
+                      } finally {
+                        setUpdating(false);
+                      }
+                    }}
+                    disabled={updating}
+                    style={{ background: 'var(--brand-600)', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '4px', cursor: 'pointer' }}
+                  >
+                    {updating ? "Saving..." : "Log Update"}
+                  </button>
+                </div>
+              )}
 
               <div className="timeline-block">
                 <span className="timeline-heading">Tracking History</span>

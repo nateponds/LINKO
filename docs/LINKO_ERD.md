@@ -1,6 +1,6 @@
 # Course Deliverable (CIS 2104) — Logistics Subsystem ERD
 
-> **Scope note:** This ERD is the finalized design for the Information Management II course deliverable (see [course-deliverable.md](./course-deliverable.md)) — a courier/parcel-tracking subsystem implemented in migrations `002` and `003`. It is **course scope, not product roadmap**: LINKO the product does not own branches, couriers, or a per-parcel commission revenue model (delivery remains third-party-carrier coordination, deferred — see `ROADMAP.md`). The subsystem is a deliberately decoupled bounded context: zero foreign keys to the marketplace tables (`businesses`, `users`). In the demo narrative, marketplace businesses appear in `customers` as sender/receiver; integration, if ever needed, would be a mapping table.
+> **Scope note:** This ERD documents the logistics tracking schema, previously built as a decoupled subsystem for a course deliverable, and now fully integrated into the LINKO marketplace architecture. The `businesses` table serves as the unified actor directory for both marketplace operations and logistics (senders/receivers).
 
 ```mermaid
 erDiagram
@@ -16,7 +16,7 @@ erDiagram
 
     ADDRESSES {
         INT address_id PK
-        INT customer_id FK
+        INT business_id FK
         VARCHAR province
         VARCHAR city_municipality
         VARCHAR barangay
@@ -24,12 +24,12 @@ erDiagram
         VARCHAR postal_code
     }
 
-    CUSTOMERS {
-        INT customer_id PK
-        VARCHAR full_name
-        VARCHAR phone_number
+    BUSINESSES {
+        INT business_id PK
+        VARCHAR business_name
+        VARCHAR contact_number
         VARCHAR email
-        VARCHAR customer_type "individual, msme, corporation, other"
+        VARCHAR business_type "buyer, wholesaler, both, individual, msme, corporation, other"
     }
 
     BRANCHES {
@@ -97,9 +97,9 @@ erDiagram
         TIMESTAMP scanned_at
     }
 
-    CUSTOMERS ||--o{ ADDRESSES : "1 to 0..*"
-    CUSTOMERS ||--o{ PARCELS : "1 to 0..* (sender)"
-    CUSTOMERS ||--o{ PARCELS : "1 to 0..* (receiver)"
+    BUSINESSES ||--o{ ADDRESSES : "1 to 0..*"
+    BUSINESSES ||--o{ PARCELS : "1 to 0..* (sender)"
+    BUSINESSES ||--o{ PARCELS : "1 to 0..* (receiver)"
     ADDRESSES ||--o{ PARCELS : "1 to 0..* (origin)"
     ADDRESSES ||--o{ PARCELS : "1 to 0..* (destination)"
     ADDRESSES ||--o{ BRANCHES : "1 to 0..*"
@@ -134,12 +134,12 @@ Delivery speed/pricing tiers (Standard, Express, Next-Day).
 
 ### ADDRESSES
 
-Structured, granular address parts (Philippine hierarchy). Referenced by customers (1:N — a customer may have many addresses), branches, and parcels (origin + destination). Ownerless branch addresses leave `customer_id` null.
+Structured, granular address parts (Philippine hierarchy). Referenced by businesses (1:N — a business may have many addresses), branches, and parcels (origin + destination). Ownerless branch addresses leave `business_id` null.
 
 | Column            | Type         | Constraints              | Notes                                    |
 | ----------------- | ------------ | ------------------------ | ---------------------------------------- |
 | address_id        | SERIAL       | PK                       |                                          |
-| customer_id       | INT          | FK → CUSTOMERS, NULLABLE | owner; null for branch addresses         |
+| business_id       | INT          | FK → BUSINESSES, NULLABLE | owner; null for branch addresses         |
 | province          | VARCHAR(50)  | NOT NULL                 | e.g. 'Cebu'                              |
 | city_municipality | VARCHAR(50)  | NOT NULL                 | e.g. 'Cebu City', 'Mandaue'              |
 | barangay          | VARCHAR(50)  |                          | local district unit                      |
@@ -148,17 +148,16 @@ Structured, granular address parts (Philippine hierarchy). Referenced by custome
 
 ---
 
-### CUSTOMERS
+### BUSINESSES
 
-Shared directory for senders and receivers. `customer_type` classifies **what kind of account it is** (individual, MSME, corporation, other) — not what it's doing in a transaction. Buy-vs-sell role is not stored here; it is read from which FK slot the customer occupies on a parcel (`sender_id` = selling, `receiver_id` = buying), so one actor can freely switch sides. Addresses live in `ADDRESSES` (1:N).
+Unified directory for marketplace companies, wholesalers, and logistics customers. `business_type` classifies what kind of account it is (buyer, wholesaler, both, individual, msme, corporation, other). Buy-vs-sell logistics role is not strictly stored here; it is read from which FK slot the business occupies on a parcel (`sender_id` = selling, `receiver_id` = buying), so one actor can freely switch sides. Addresses live in `ADDRESSES` (1:N).
 
-| Column        | Type         | Constraints                                                    | Notes                                                          |
-| ------------- | ------------ | -------------------------------------------------------------- | -------------------------------------------------------------- |
-| customer_id   | SERIAL       | PK                                                             |                                                                |
-| full_name     | VARCHAR(100) | NOT NULL                                                       |                                                                |
-| phone_number  | VARCHAR(20)  | NOT NULL                                                       | E.164 format                                                   |
-| email         | VARCHAR(100) | UNIQUE                                                         |                                                                |
-| customer_type | VARCHAR(20)  | NOT NULL, CHECK IN ('individual','msme','corporation','other') | account classification, not transaction role; role is per-parcel via FK |
+| Column        | Type         | Constraints                                                                         | Notes                                                          |
+| ------------- | ------------ | ----------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| business_id   | SERIAL       | PK                                                                                  |                                                                |
+| business_name | VARCHAR(100) | NOT NULL                                                                            |                                                                |
+| contact_number| VARCHAR(20)  | NOT NULL                                                                            | E.164 format                                                   |
+| business_type | VARCHAR(20)  | NOT NULL, CHECK IN (buyer, wholesaler, both, individual, msme, corporation, other)  | Account classification                                         | account classification, not transaction role; role is per-parcel via FK |
 
 ---
 

@@ -1,443 +1,247 @@
--- Development seed data for the logistics subsystem (migrations 002 + 003).
--- Also seeds Milestone 1 local-dev auth/RBAC demo data after 004.
--- NOT a migration: schema migrations are replayed by the runner, seed data
--- is not. Run manually in PGAdmin / psql against a dev database AFTER
--- migrations have been applied (002_logistics_schema + 003_linko_schema + 004_auth_rbac).
+-- ==========================================================================
+-- LINKO dev_seed.sql — Minimal, readable seed for development.
 --
--- Idempotent: TRUNCATE-and-reload, so re-running gives a clean fixed set.
--- RESTART IDENTITY resets SERIAL counters; CASCADE clears dependent rows.
+-- Replaces ALL data. Run with:
+--   psql $DATABASE_URL -f backend/seeds/dev_seed.sql
+--   (or via the Node runner: node seeds/_apply_seed.js)
 --
--- Buyer / wholesaler is behavior, not a stored type. It is read from the FK
--- slot on parcels: sender_id = selling side, receiver_id = buying side.
--- The 10 customers below are arranged so that:
---   sellers-only  (ids 1,2)      appear ONLY as sender_id
---   both          (ids 3,4)      appear as BOTH sender_id and receiver_id
---   buyers-only   (ids 5..10)    appear ONLY as receiver_id
--- customer_type is orthogonal account classification, chosen for realism.
+-- Password for every demo account: "password"
+-- Hash: scrypt(ln=14,r=8,p=1)
+-- ==========================================================================
 
--- Local dev auth note:
---   buyer@linko.test / Password123!
---   wholesaler@linko.test / Password123!
---   logistics@linko.test / Password123!
---   courier@linko.test / Password123!
---   admin@linko.test / Password123!
+BEGIN;
 
 -- ---------------------------------------------------------------------------
--- AUTH / RBAC DEMO DATA
+-- 0. WIPE — reverse FK order, keep reference tables (service_tiers, categories)
 -- ---------------------------------------------------------------------------
--- Shared Node crypto.scrypt-compatible PHC string for the local-dev password.
--- Password123! => $scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==
+TRUNCATE notifications, payments, tracking_logs, parcels,
+         invoices, order_items, orders,
+         auth_sessions,
+         products, warehouses,
+         couriers, branches,
+         business_memberships, user_businesses,
+         addresses, businesses, users
+  CASCADE;
 
-INSERT INTO businesses (business_name, business_type, contact_number, address_line, city, is_verified)
-SELECT 'Sunrise Retail Cooperative', 'buyer', '+639171200001', '14 Osmena Blvd', 'Cebu City', TRUE
-WHERE NOT EXISTS (
-    SELECT 1 FROM businesses WHERE business_name = 'Sunrise Retail Cooperative'
-);
+-- Reset sequences so IDs start from 1
+ALTER SEQUENCE users_user_id_seq RESTART WITH 1;
+ALTER SEQUENCE businesses_business_id_seq RESTART WITH 1;
+ALTER SEQUENCE addresses_address_id_seq RESTART WITH 1;
+ALTER SEQUENCE warehouses_warehouse_id_seq RESTART WITH 1;
+ALTER SEQUENCE products_product_id_seq RESTART WITH 1;
+ALTER SEQUENCE orders_order_id_seq RESTART WITH 1;
+ALTER SEQUENCE order_items_order_item_id_seq RESTART WITH 1;
+ALTER SEQUENCE invoices_invoice_id_seq RESTART WITH 1;
+ALTER SEQUENCE branches_branch_id_seq RESTART WITH 1;
+ALTER SEQUENCE couriers_courier_id_seq RESTART WITH 1;
+ALTER SEQUENCE business_memberships_membership_id_seq RESTART WITH 1;
+ALTER SEQUENCE tracking_logs_log_id_seq RESTART WITH 1;
+ALTER SEQUENCE payments_payment_id_seq RESTART WITH 1;
+ALTER SEQUENCE notifications_notification_id_seq RESTART WITH 1;
 
-INSERT INTO businesses (business_name, business_type, contact_number, address_line, city, is_verified)
-SELECT 'Harbor Bulk Trading', 'wholesaler', '+639171200002', '88 Portside Ave', 'Mandaue', TRUE
-WHERE NOT EXISTS (
-    SELECT 1 FROM businesses WHERE business_name = 'Harbor Bulk Trading'
-);
-
-INSERT INTO businesses (business_name, business_type, contact_number, address_line, city, is_verified)
-SELECT 'LINKO Dispatch Services', 'buyer', '+639171200003', '5 Logistics Park', 'Cebu City', TRUE
-WHERE NOT EXISTS (
-    SELECT 1 FROM businesses WHERE business_name = 'LINKO Dispatch Services'
-);
-
-UPDATE users
-   SET full_name = 'Bianca Buyer',
-       password_hash = '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==',
-       role = 'staff',
-       global_role = NULL
- WHERE email = 'buyer@linko.test';
-
-INSERT INTO users (username, email, full_name, password_hash, role, global_role)
-SELECT 'buyer_demo', 'buyer@linko.test', 'Bianca Buyer',
-       '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==',
-       'staff', NULL
-WHERE NOT EXISTS (
-    SELECT 1 FROM users WHERE email = 'buyer@linko.test'
-);
-
-UPDATE users
-   SET full_name = 'Waldo Wholesaler',
-       password_hash = '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==',
-       role = 'wholesaler',
-       global_role = NULL
- WHERE email = 'wholesaler@linko.test';
-
-INSERT INTO users (username, email, full_name, password_hash, role, global_role)
-SELECT 'wholesaler_demo', 'wholesaler@linko.test', 'Waldo Wholesaler',
-       '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==',
-       'wholesaler', NULL
-WHERE NOT EXISTS (
-    SELECT 1 FROM users WHERE email = 'wholesaler@linko.test'
-);
-
-UPDATE users
-   SET full_name = 'Lia Logistics',
-       password_hash = '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==',
-       role = 'staff',
-       global_role = NULL
- WHERE email = 'logistics@linko.test';
-
-INSERT INTO users (username, email, full_name, password_hash, role, global_role)
-SELECT 'logistics_demo', 'logistics@linko.test', 'Lia Logistics',
-       '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==',
-       'staff', NULL
-WHERE NOT EXISTS (
-    SELECT 1 FROM users WHERE email = 'logistics@linko.test'
-);
-
-UPDATE users
-   SET full_name = 'Cory Courier',
-       password_hash = '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==',
-       role = 'staff',
-       global_role = NULL
- WHERE email = 'courier@linko.test';
-
-INSERT INTO users (username, email, full_name, password_hash, role, global_role)
-SELECT 'courier_demo', 'courier@linko.test', 'Cory Courier',
-       '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==',
-       'staff', NULL
-WHERE NOT EXISTS (
-    SELECT 1 FROM users WHERE email = 'courier@linko.test'
-);
-
-UPDATE users
-   SET full_name = 'Pia Platform Admin',
-       password_hash = '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==',
-       role = 'admin',
-       global_role = 'platform_admin'
- WHERE email = 'admin@linko.test';
-
-INSERT INTO users (username, email, full_name, password_hash, role, global_role)
-SELECT 'admin_demo', 'admin@linko.test', 'Pia Platform Admin',
-       '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==',
-       'admin', 'platform_admin'
-WHERE NOT EXISTS (
-    SELECT 1 FROM users WHERE email = 'admin@linko.test'
-);
-
-INSERT INTO business_memberships (user_id, business_id, role)
-SELECT u.user_id, b.business_id, 'buyer'
-  FROM users u
-  JOIN businesses b ON b.business_name = 'Sunrise Retail Cooperative'
- WHERE u.email = 'buyer@linko.test'
-ON CONFLICT (user_id, business_id, role) DO NOTHING;
-
-INSERT INTO business_memberships (user_id, business_id, role)
-SELECT u.user_id, b.business_id, 'wholesaler'
-  FROM users u
-  JOIN businesses b ON b.business_name = 'Harbor Bulk Trading'
- WHERE u.email = 'wholesaler@linko.test'
-ON CONFLICT (user_id, business_id, role) DO NOTHING;
-
-INSERT INTO business_memberships (user_id, business_id, role)
-SELECT u.user_id, b.business_id, 'logistics_coordinator'
-  FROM users u
-  JOIN businesses b ON b.business_name = 'LINKO Dispatch Services'
- WHERE u.email = 'logistics@linko.test'
-ON CONFLICT (user_id, business_id, role) DO NOTHING;
-
-INSERT INTO business_memberships (user_id, business_id, role)
-SELECT u.user_id, b.business_id, 'courier'
-  FROM users u
-  JOIN businesses b ON b.business_name = 'LINKO Dispatch Services'
- WHERE u.email = 'courier@linko.test'
-ON CONFLICT (user_id, business_id, role) DO NOTHING;
-
-TRUNCATE tracking_logs, payments, commissions, parcels, couriers, branches,
-         addresses, customers, service_tiers, commission_brackets
-    RESTART IDENTITY CASCADE;
+-- Shared password hash for all demo accounts — plaintext is "password"
+-- Hash: scrypt(ln=14,r=8,p=1)
 
 -- ---------------------------------------------------------------------------
--- SERVICE TIERS
+-- 1. USERS (9)
+--    5 core role accounts + 1 extra buyer + 1 extra wholesaler
+--    + 1 "both" user + 1 extra courier
 -- ---------------------------------------------------------------------------
-INSERT INTO service_tiers (tier_name, base_fee, base_rate_per_kg, rate_per_km, estimated_days) VALUES
-    ('Standard', 50.00,  45.00, 2.00, 5),   -- tier_id 1
-    ('Express',  90.00,  80.00, 3.50, 2),   -- tier_id 2
-    ('Next-Day', 150.00, 130.00, 5.00, 1);  -- tier_id 3
+INSERT INTO users (username, email, full_name, password_hash, role) VALUES
+  ('buyer_demo',      'buyer@linko.test',      'Bianca Buyer',        '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff'),       -- 1
+  ('wholesaler_demo', 'wholesaler@linko.test', 'Waldo Wholesaler',   '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'wholesaler'),  -- 2
+  ('logistics_demo',  'logistics@linko.test',  'Lia Logistics',      '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff'),       -- 3
+  ('courier_demo',    'courier@linko.test',    'Cory Courier',       '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff'),       -- 4
+  ('admin_demo',      'admin@linko.test',      'Pia Platform Admin', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'admin'),       -- 5
+  ('buyer2_demo',     'buyer2@linko.test',     'Ben Buyer Jr',       '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff'),       -- 6
+  ('wholesaler2_demo','wholesaler2@linko.test','Wendy Wholesaler',   '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'wholesaler'),  -- 7
+  ('both_demo',       'both@linko.test',       'Bo Bothway',         '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff'),       -- 8
+  ('courier2_demo',   'courier2@linko.test',   'Carlo Courier',      '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff');       -- 9
 
 -- ---------------------------------------------------------------------------
--- COMMISSION BRACKETS. Must exist BEFORE parcels: the AFTER INSERT trigger
--- on parcels reads them to create each parcel's commission row.
--- Full coverage 0 -> no cap so every parcel gets a commission.
+-- 2. BUSINESSES (9) — one per user
 -- ---------------------------------------------------------------------------
-INSERT INTO commission_brackets (min_weight_kg, max_weight_kg, fee) VALUES
-    (0,  5,    20.00),   -- bracket_id 1: light
-    (5,  20,   50.00),   -- bracket_id 2: medium
-    (20, NULL, 100.00);  -- bracket_id 3: heavy, no cap
+INSERT INTO businesses (business_name, business_type, contact_number, is_verified) VALUES
+  ('Sunrise Retail Cooperative',   'buyer',      '+639170000001', TRUE),   -- 1  buyer_demo
+  ('Cebu Fresh Wholesale',         'wholesaler', '+639170000002', TRUE),   -- 2  wholesaler_demo
+  ('LINKO Logistics Hub',          'other',      '+639170000003', TRUE),   -- 3  logistics_demo
+  ('Cory Express Delivery',        'individual', '+639170000004', FALSE),  -- 4  courier_demo
+  ('LINKO Platform',               'other',      '+639170000005', TRUE),   -- 5  admin_demo
+  ('Davao Sari-Sari Mart',         'buyer',      '+639170000006', TRUE),   -- 6  buyer2_demo
+  ('Mandaue Agri Supply',          'wholesaler', '+639170000007', TRUE),   -- 7  wholesaler2_demo
+  ('Metro Cebu Trading',           'both',       '+639170000008', TRUE),   -- 8  both_demo
+  ('Carlo Quick Haul',             'individual', '+639170000009', FALSE);  -- 9  courier2_demo
+
+-- Link each user to their business
+INSERT INTO user_businesses (user_id, business_id) VALUES
+  (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
 
 -- ---------------------------------------------------------------------------
--- CUSTOMERS (10). Comment tags the intended parcel-role, not a stored column.
+-- 3. BUSINESS_MEMBERSHIPS — role-based access
 -- ---------------------------------------------------------------------------
-INSERT INTO customers (full_name, phone_number, email, customer_type) VALUES
-    ('Cebu Farms Trading',        '+639171112201', 'sales@cebufarms.ph',       'msme'),        -- 1  seller-only
-    ('Visayas Wholesale Corp',    '+639171112202', 'orders@vwc.com.ph',        'corporation'), -- 2  seller-only
-    ('Mandaue Sari-Sari Supply',  '+639171112203', 'msss@shop.ph',             'msme'),        -- 3  both
-    ('Talisay General Merch',     '+639171112204', 'tgm@merch.ph',             'msme'),        -- 4  both
-    ('Juan dela Cruz',            '+639171112205', 'juan.delacruz@gmail.com',  'individual'),  -- 5  buyer-only
-    ('Maria Santos',              '+639171112206', 'maria.santos@gmail.com',   'individual'),  -- 6  buyer-only
-    ('Lapu-Lapu Hardware',        '+639171112207', 'llh@hardware.ph',          'msme'),        -- 7  buyer-only
-    ('Davao Retail Group',        '+639171112208', 'buying@davaoretail.ph',    'corporation'), -- 8  buyer-only
-    ('Pedro Reyes',               '+639171112209', 'pedro.reyes@yahoo.com',    'individual'),  -- 9  buyer-only
-    ('Ana Lim Enterprises',       '+639171112210', 'ana@animports.ph',         'other');       -- 10 buyer-only
+INSERT INTO business_memberships (user_id, business_id, role) VALUES
+  (1, 1, 'buyer'),
+  (2, 2, 'wholesaler'),
+  (3, 3, 'logistics_coordinator'),
+  (4, 4, 'courier'),
+  -- admin (user 5) has no membership row; access comes from users.role = 'admin'
+  (6, 6, 'buyer'),
+  (7, 7, 'wholesaler'),
+  (8, 8, 'buyer'),                -- both: buyer membership
+  (8, 8, 'wholesaler'),           -- both: wholesaler membership
+  (9, 9, 'courier');
 
 -- ---------------------------------------------------------------------------
--- ADDRESSES. First 10 owned by matching customer_id; last 3 are ownerless
--- branch addresses (customer_id NULL). Cebu-centric + a few interisland.
+-- 4. ADDRESSES
+--    2 per wholesaler business (2,7), 1 per everyone else, +1 ownerless branch
 -- ---------------------------------------------------------------------------
-INSERT INTO addresses (customer_id, province, city_municipality, barangay, street_address, postal_code) VALUES
-    (1,    'Cebu',        'Cebu City',   'Mabolo',      '12 Warehouse Rd, North Reclamation',   '6000'),  -- 1
-    (2,    'Cebu',        'Mandaue',     'Tipolo',      'Blk 4 Lot 9, Ouano Ave',               '6014'),  -- 2
-    (3,    'Cebu',        'Mandaue',     'Guizo',       '88 Sari Street',                        '6014'),  -- 3
-    (4,    'Cebu',        'Talisay',     'Tabunok',     '5 Market Row, Tabunok Public Market',   '6045'),  -- 4
-    (5,    'Cebu',        'Cebu City',   'Guadalupe',   '23 V. Rama Ave',                        '6000'),  -- 5
-    (6,    'Cebu',        'Cebu City',   'Lahug',       'Unit 7, Salinas Drive',                 '6000'),  -- 6
-    (7,    'Cebu',        'Lapu-Lapu',   'Pajo',        '3 Quirino Hwy',                         '6015'),  -- 7
-    (8,    'Davao del Sur','Davao City', 'Poblacion',   '101 San Pedro St',                      '8000'),  -- 8
-    (9,    'Cebu',        'Talisay',     'Lawaan',      '14 Coastal Rd',                         '6045'),  -- 9
-    (10,   'Metro Manila','Quezon City', 'Cubao',       '55 Aurora Blvd',                        '1109'),  -- 10
-    (NULL, 'Cebu',        'Cebu City',   'North Reclamation', 'LINKO Cebu Hub, Serging Osmena Blvd', '6000'), -- 11 branch
-    (NULL, 'Cebu',        'Mandaue',     'Subangdaku',  'LINKO Mandaue Hub, AS Fortuna St',      '6014'),  -- 12 branch
-    (NULL, 'Metro Manila','Manila',      'Port Area',   'LINKO Manila Hub, Bonifacio Drive',     '1018');  -- 13 branch
+INSERT INTO addresses (business_id, province, city_municipality, barangay, street_address, postal_code) VALUES
+  -- Business 1 (Sunrise Retail — buyer)
+  (1, 'Cebu',   'Cebu City',    'Lahug',      '123 Salinas Dr',        '6000'),    -- 1
+  -- Business 2 (Cebu Fresh Wholesale) — 2 addresses
+  (2, 'Cebu',   'Cebu City',    'Mabolo',     '45 AS Fortuna St',      '6000'),    -- 2  main office
+  (2, 'Cebu',   'Cebu City',    'Banilad',    '88 Gov. Cuenco Ave',    '6000'),    -- 3  warehouse loc
+  -- Business 3 (LINKO Logistics Hub)
+  (3, 'Cebu',   'Cebu City',    'Subangdaku', '10 Ouano Ave',          '6000'),    -- 4
+  -- Business 4 (Cory Express — courier)
+  (4, 'Cebu',   'Mandaue City', 'Centro',     '5 Mantawi Intl Dr',     '6014'),    -- 5
+  -- Business 5 (LINKO Platform — admin)
+  (5, 'Cebu',   'Cebu City',    'Lahug',      'Cebu IT Park Tower 1',  '6000'),    -- 6
+  -- Business 6 (Davao Sari-Sari — buyer2)
+  (6, 'Davao del Sur', 'Davao City', 'Poblacion', '77 Roxas Ave',      '8000'),    -- 7
+  -- Business 7 (Mandaue Agri Supply) — 2 addresses
+  (7, 'Cebu',   'Mandaue City', 'Tipolo',     '32 Plaridel St',        '6014'),    -- 8  main office
+  (7, 'Cebu',   'Mandaue City', 'Casuntingan','Lot 9 NRA Compound',    '6014'),    -- 9  warehouse loc
+  -- Business 8 (Metro Cebu Trading — both)
+  (8, 'Cebu',   'Cebu City',    'Guadalupe',  '55 V. Rama Ave',        '6000'),    -- 10
+  -- Business 9 (Carlo Quick Haul — courier2)
+  (9, 'Cebu',   'Mandaue City', 'Subangdaku', '12 ML Quezon St',       '6014'),    -- 11
+  -- Ownerless branch address
+  (NULL, 'Cebu','Mandaue City', 'Centro',     'National Highway Hub',  '6014');    -- 12
 
 -- ---------------------------------------------------------------------------
--- BRANCHES (3 hubs) -> point at the ownerless addresses 11,12,13.
+-- 5. WAREHOUSES (2) — one per wholesaler, none for "both" user
+-- ---------------------------------------------------------------------------
+INSERT INTO warehouses (business_id, warehouse_name, address_id) VALUES
+  (2, 'Cebu Fresh Main Warehouse',    3),    -- 1  uses address 3 (Banilad)
+  (7, 'Mandaue Agri Cold Storage',    9);    -- 2  uses address 9 (Casuntingan)
+
+-- ---------------------------------------------------------------------------
+-- 6. PRODUCTS (13) — 6 per wholesaler, 1-2 for "both" user
+--    All listings are WHOLESALE bulk packages (cases, sacks, crates, trays).
+--    Categories: 1=Pork,2=Beef,3=Chicken,4=Chips,5=Fish,
+--    6=Shellfish,7=Produce,8=Bakery,9=Dairy,10=Frozen,11=Packaging,12=Beverages
+-- ---------------------------------------------------------------------------
+INSERT INTO products (business_id, product_name, sku, category_id, description, unit_price, stock_quantity, image_url, is_active) VALUES
+  -- Cebu Fresh Wholesale (business 2) — 6 products
+  (2, 'Pork Belly — 10kg case',           'CFW-PK001', 1,  '10kg vacuum-sealed pork belly slabs, 4-5 pcs per case',           2800.00, 45,  NULL, TRUE),   -- 1
+  (2, 'Beef Ribeye — 5kg case (10 steaks)','CFW-BF001', 2,  '5kg case, 10x 500g USDA-grade ribeye steaks',                     5200.00, 20,  NULL, TRUE),   -- 2
+  (2, 'Dressed Chicken — crate of 12',     'CFW-CK001', 3,  'Crate of 12 whole free-range dressed chickens (~1.2kg each)',     2340.00, 60,  NULL, TRUE),   -- 3
+  (2, 'Bangus Boneless — 10kg box',        'CFW-FS001', 5,  '10kg box of deboned butterflied milkfish (~20 pcs)',             3300.00, 35,  NULL, TRUE),   -- 4
+  (2, 'Tiger Prawns — 5kg styro box',      'CFW-SH001', 6,  '5kg iced styrofoam box, wild-caught tiger prawns',              3400.00, 15,  NULL, TRUE),   -- 5
+  (2, 'Carabao Mango — 20kg crate',        'CFW-PR001', 7,  '20kg crate of export-quality Cebu carabao mangoes (~50 pcs)',   2400.00, 80,  NULL, TRUE),   -- 6
+
+  -- Mandaue Agri Supply (business 7) — 5 products
+  (7, 'Pandesal — tray of 100 pcs',        'MAS-BK001', 8,  'Tray of 100 freshly baked traditional pandesal rolls',           450.00, 100, NULL, TRUE),   -- 7
+  (7, 'Carabao Milk — crate of 12L',       'MAS-DY001', 9,  'Crate of 12x 1L fresh pasteurized carabao milk',                1020.00, 40,  NULL, TRUE),   -- 8
+  (7, 'Lumpia Shanghai — 5kg bulk pack',   'MAS-FZ001', 10, '5kg bulk pack frozen pork lumpia shanghai (~200 pcs)',           1400.00, 55,  NULL, TRUE),   -- 9
+  (7, 'Calamansi Juice — case of 24 bottles','MAS-BV001', 12, 'Case of 24x 500mL pure calamansi concentrate, no preservatives',1560.00, 70,  NULL, TRUE),   -- 10
+  (7, 'Brown Paper Bags — bundle of 500',  'MAS-PK001', 11, 'Bundle of 500 medium kraft paper bags for retail use',           900.00, 200, NULL, TRUE),   -- 11
+
+  -- Metro Cebu Trading (business 8 — "both" user) — 2 products
+  (8, 'Chicharon Baboy — box of 48 packs', 'MCT-CHP01', 4,  'Box of 48x 200g crispy pork chicharon, Cebu-style',             3600.00, 90,  NULL, TRUE),   -- 12
+  (8, 'Dried Pusit — 5kg sack',            'MCT-FS001', 5,  '5kg sack of sun-dried squid, ready to grill',                   2200.00, 30,  NULL, TRUE);   -- 13
+
+-- ---------------------------------------------------------------------------
+-- 7. BRANCHES (2) — Cebu hub + Mandaue hub
 -- ---------------------------------------------------------------------------
 INSERT INTO branches (branch_name, address_id, contact_number) VALUES
-    ('Cebu Hub',    11, '+639321000011'),  -- 1
-    ('Mandaue Hub', 12, '+639321000012'),  -- 2
-    ('Manila Hub',  13, '+639321000013');  -- 3
+  ('LINKO Cebu Central Hub', 4,  '+639180000001'),   -- 1  uses logistics address
+  ('LINKO Mandaue Hub',      12, '+639180000002');   -- 2  uses ownerless address
 
 -- ---------------------------------------------------------------------------
--- COURIERS (6). Home base varies; one unassigned (NULL) line-haul driver.
+-- 8. COURIERS (2) — one per branch, linked to user accounts
 -- ---------------------------------------------------------------------------
-INSERT INTO couriers (full_name, phone_number, vehicle_type, assigned_branch_id) VALUES
-    ('Rico Bautista',   '+639201000001', 'motorcycle', 1),     -- 1  Cebu
-    ('Ella Ferrer',     '+639201000002', 'motorcycle', 1),     -- 2  Cebu
-    ('Marlon Cruz',     '+639201000003', 'van',        2),     -- 3  Mandaue
-    ('Grace Uy',        '+639201000004', 'motorcycle', 2),     -- 4  Mandaue
-    ('Ben Tan',         '+639201000005', 'truck',      3),     -- 5  Manila
-    ('Interisland Line-Haul', '+639201000006', 'truck', NULL); -- 6  no base (line-haul)
+INSERT INTO couriers (full_name, phone_number, vehicle_type, assigned_branch_id, user_id) VALUES
+  ('Cory Courier',  '+639170000004', 'motorcycle', 1, 4),   -- 1  courier_demo, Cebu hub
+  ('Carlo Courier', '+639170000009', 'van',        2, 9);   -- 2  courier2_demo, Mandaue hub
 
 -- ---------------------------------------------------------------------------
--- PARCELS (50). shipping_fee intentionally OMITTED -> the BEFORE INSERT
--- trigger fills it from tier base fee + weight_kg x tier rate + distance_km
--- x tier per-km rate. The buyer's total (declared_value + shipping_fee) is
--- NOT stored here -- it lands on payments.amount, set by its own trigger.
--- estimated_delivery_date set explicitly
--- to model the "frozen at ship time" promise (creation date + tier SLA).
---
--- sender_id drawn only from {1,2,3,4} (the sellers + both), receiver_id only
--- from {3,4,5,6,7,8,9,10} (buyers + both), and a row never has sender=receiver.
--- origin/destination addresses use the sender's / receiver's own address id.
+-- 9. ORDERS (4) — spread across statuses
+--    Buyer 1 (business 1) orders from Wholesaler (business 2)
+--    Buyer 2 (business 6) orders from Wholesaler 2 (business 7)
+--    "Both" user (business 8) acting as buyer orders from Wholesaler (business 2)
+--    Buyer 1 orders from "both" user (business 8) acting as wholesaler
 -- ---------------------------------------------------------------------------
-INSERT INTO parcels
-    (parcel_id, sender_id, receiver_id, tier_id, origin_address_id, destination_address_id,
-     weight_kg, dimensions, total_distance_km, estimated_delivery_date) VALUES
-    ('LNK-10000001', 1, 5, 1, 1, 5,  3.50, '30x30x20 cm',  6.20,  DATE '2026-06-01' + 5),
-    ('LNK-10000002', 1, 6, 2, 1, 6,  1.20, '20x15x10 cm',  7.80,  DATE '2026-06-01' + 2),
-    ('LNK-10000003', 2, 7, 1, 2, 7,  12.00,'50x40x40 cm',  9.10,  DATE '2026-06-02' + 5),
-    ('LNK-10000004', 2, 8, 3, 2, 8,  0.80, '15x10x8 cm',   587.00,DATE '2026-06-02' + 1),
-    ('LNK-10000005', 3, 5, 1, 3, 5,  4.25, '35x25x20 cm',  8.40,  DATE '2026-06-03' + 5),
-    ('LNK-10000006', 3, 9, 2, 3, 9,  2.00, '25x20x15 cm',  5.60,  DATE '2026-06-03' + 2),
-    ('LNK-10000007', 4, 6, 1, 4, 6,  6.75, '40x30x30 cm',  11.20, DATE '2026-06-04' + 5),
-    ('LNK-10000008', 4, 10,3, 4, 10, 1.50, '20x20x15 cm',  585.30,DATE '2026-06-04' + 1),
-    ('LNK-10000009', 1, 7, 2, 1, 7,  8.90, '45x35x30 cm',  10.50, DATE '2026-06-05' + 2),
-    ('LNK-10000010', 2, 3, 1, 2, 3,  15.30,'60x45x45 cm',  7.30,  DATE '2026-06-05' + 5),
-    ('LNK-10000011', 3, 6, 1, 3, 6,  3.10, '30x20x20 cm',  6.90,  DATE '2026-06-06' + 5),
-    ('LNK-10000012', 4, 8, 2, 4, 8,  5.40, '35x30x25 cm',  590.10,DATE '2026-06-06' + 2),
-    ('LNK-10000013', 1, 9, 1, 1, 9,  2.70, '25x20x18 cm',  9.80,  DATE '2026-06-07' + 5),
-    ('LNK-10000014', 2, 10,3, 2, 10, 0.95, '18x12x10 cm',  588.40,DATE '2026-06-07' + 1),
-    ('LNK-10000015', 3, 7, 2, 3, 7,  7.20, '40x35x30 cm',  6.10,  DATE '2026-06-08' + 2),
-    ('LNK-10000016', 4, 5, 1, 4, 5,  4.80, '35x25x25 cm',  8.70,  DATE '2026-06-08' + 5),
-    ('LNK-10000017', 1, 4, 1, 1, 4,  11.60,'55x40x40 cm',  7.80,  DATE '2026-06-09' + 5),
-    ('LNK-10000018', 2, 9, 2, 2, 9,  3.30, '30x22x20 cm',  9.40,  DATE '2026-06-09' + 2),
-    ('LNK-10000019', 3, 8, 3, 3, 8,  1.10, '18x14x10 cm',  586.70,DATE '2026-06-10' + 1),
-    ('LNK-10000020', 4, 10,1, 4, 10, 6.00, '40x30x28 cm',  585.90,DATE '2026-06-10' + 5),
-    ('LNK-10000021', 1, 5, 2, 1, 5,  2.40, '25x18x15 cm',  6.20,  DATE '2026-06-11' + 2),
-    ('LNK-10000022', 2, 7, 1, 2, 7,  18.75,'65x50x45 cm',  9.10,  DATE '2026-06-11' + 5),
-    ('LNK-10000023', 3, 6, 1, 3, 6,  3.90, '32x24x20 cm',  6.90,  DATE '2026-06-12' + 5),
-    ('LNK-10000024', 4, 9, 2, 4, 9,  5.10, '36x28x24 cm',  4.30,  DATE '2026-06-12' + 2),
-    ('LNK-10000025', 1, 8, 3, 1, 8,  0.70, '14x10x8 cm',   587.20,DATE '2026-06-13' + 1),
-    ('LNK-10000026', 2, 4, 1, 2, 4,  9.40, '48x36x32 cm',  7.30,  DATE '2026-06-13' + 5),
-    ('LNK-10000027', 3, 10,2, 3, 10, 4.60, '34x26x22 cm',  588.00,DATE '2026-06-14' + 2),
-    ('LNK-10000028', 4, 6, 1, 4, 6,  7.80, '42x32x30 cm',  9.90,  DATE '2026-06-14' + 5),
-    ('LNK-10000029', 1, 7, 1, 1, 7,  13.20,'58x42x40 cm',  8.60,  DATE '2026-06-15' + 5),
-    ('LNK-10000030', 2, 9, 2, 2, 9,  2.85, '28x20x18 cm',  9.40,  DATE '2026-06-15' + 2),
-    ('LNK-10000031', 3, 5, 1, 3, 5,  5.50, '38x28x24 cm',  8.40,  DATE '2026-06-16' + 5),
-    ('LNK-10000032', 4, 8, 3, 4, 8,  1.30, '20x16x12 cm',  585.50,DATE '2026-06-16' + 1),
-    ('LNK-10000033', 1, 6, 2, 1, 6,  6.20, '40x30x26 cm',  7.80,  DATE '2026-06-17' + 2),
-    ('LNK-10000034', 2, 10,1, 2, 10, 10.10,'52x40x36 cm',  588.40,DATE '2026-06-17' + 5),
-    ('LNK-10000035', 3, 7, 1, 3, 7,  4.00, '32x24x20 cm',  6.10,  DATE '2026-06-18' + 5),
-    ('LNK-10000036', 4, 5, 2, 4, 5,  3.75, '30x22x18 cm',  8.70,  DATE '2026-06-18' + 2),
-    ('LNK-10000037', 1, 3, 1, 1, 3,  8.30, '46x34x30 cm',  9.80,  DATE '2026-06-19' + 5),
-    ('LNK-10000038', 2, 6, 3, 2, 6,  0.60, '12x10x6 cm',   7.80,  DATE '2026-06-19' + 1),
-    ('LNK-10000039', 3, 8, 2, 3, 8,  5.90, '38x30x26 cm',  586.70,DATE '2026-06-20' + 2),
-    ('LNK-10000040', 4, 10,1, 4, 10, 12.40,'56x42x38 cm',  585.90,DATE '2026-06-20' + 5),
-    ('LNK-10000041', 1, 5, 1, 1, 5,  2.10, '24x18x14 cm',  6.20,  DATE '2026-06-21' + 5),
-    ('LNK-10000042', 2, 7, 2, 2, 7,  7.60, '42x32x28 cm',  9.10,  DATE '2026-06-21' + 2),
-    ('LNK-10000043', 3, 6, 1, 3, 6,  4.40, '34x26x22 cm',  6.90,  DATE '2026-06-22' + 5),
-    ('LNK-10000044', 4, 9, 1, 4, 9,  9.20, '48x36x32 cm',  4.30,  DATE '2026-06-22' + 5),
-    ('LNK-10000045', 1, 8, 3, 1, 8,  1.05, '16x12x10 cm',  587.20,DATE '2026-06-23' + 1),
-    ('LNK-10000046', 2, 5, 2, 2, 5,  6.70, '40x30x28 cm',  7.30,  DATE '2026-06-23' + 2),
-    ('LNK-10000047', 3, 10,1, 3, 10, 3.30, '30x22x20 cm',  588.00,DATE '2026-06-24' + 5),
-    ('LNK-10000048', 4, 6, 1, 4, 6,  14.80,'60x46x42 cm',  9.90,  DATE '2026-06-24' + 5),
-    ('LNK-10000049', 1, 7, 2, 1, 7,  5.25, '36x28x24 cm',  8.60,  DATE '2026-06-25' + 2),
-    ('LNK-10000050', 2, 9, 1, 2, 9,  8.00, '44x34x30 cm',  9.40,  DATE '2026-06-25' + 5);
-
--- Goods value (what the buyer pays the wholesaler; remittance = this minus
--- LINKO's commission). Deterministic formula so values vary plausibly with
--- parcel size without 50 hand-picked numbers.
-UPDATE parcels SET declared_value = round(weight_kg * 380 + 150, 2);
+INSERT INTO orders (buyer_business_id, wholesaler_business_id, tier_id, status, created_by, created_at, updated_at) VALUES
+  (1, 2, 1, 'pending',   1, NOW() - INTERVAL '2 days',  NOW() - INTERVAL '2 days'),   -- 1  pending
+  (6, 7, 2, 'accepted',  6, NOW() - INTERVAL '4 days',  NOW() - INTERVAL '3 days'),   -- 2  accepted
+  (8, 2, 1, 'shipped',   8, NOW() - INTERVAL '6 days',  NOW() - INTERVAL '4 days'),   -- 3  shipped
+  (1, 7, 3, 'delivered', 1, NOW() - INTERVAL '10 days', NOW() - INTERVAL '7 days');   -- 4  delivered
 
 -- ---------------------------------------------------------------------------
--- PAYMENTS (1:1, all 50). amount intentionally OMITTED -> the BEFORE INSERT
--- trigger freezes the buyer's total (declared_value + shipping_fee) from the
--- parcel, which is why the declared_value UPDATE above must run first.
--- Status mix drives the dispatch gate below:
---   'Paid'     -> full lifecycle allowed
---   'COD' + 'Pending' -> allowed to dispatch (cash collected on delivery)
---   'Prepaid'/'Online' + 'Pending' or 'Failed' -> parcel stuck at Order Created
---   'Refunded' -> parcel was Returned/Cancelled
--- Deterministic rule below keeps payments consistent with the log generator:
---   parcel n where n % 10 == 0  -> Failed  (stuck)        [10,20,30,40,50]
---   n % 10 == 7                 -> Pending Prepaid (stuck)[7,17,27,37,47]
---   n % 10 == 3                 -> COD Pending (ships)    [3,13,23,33,43]
---   n % 10 == 5                 -> Refunded (returned)    [5,15,25,35,45]
---   else                        -> Paid (ships/delivers)
+-- 10. ORDER_ITEMS — varying quantities per order
 -- ---------------------------------------------------------------------------
-INSERT INTO payments (parcel_id, method, payment_status, paid_at)
-SELECT
-    p.parcel_id,
-    CASE
-        WHEN (n % 10) = 3 THEN 'COD'
-        WHEN (n % 10) IN (7, 0) THEN 'Prepaid'
-        ELSE 'Online'
-    END AS method,
-    CASE
-        WHEN (n % 10) = 0 THEN 'Failed'
-        WHEN (n % 10) = 7 THEN 'Pending'
-        WHEN (n % 10) = 3 THEN 'Pending'   -- COD: collected on delivery
-        WHEN (n % 10) = 5 THEN 'Refunded'
-        ELSE 'Paid'
-    END AS payment_status,
-    CASE
-        WHEN (n % 10) IN (0, 7, 3) THEN NULL              -- not settled up front
-        WHEN (n % 10) = 5 THEN NULL                        -- refunded, cleared
-        ELSE (DATE '2026-06-01' + (n - 1)) + TIME '09:15'  -- paid at ship time
-    END AS paid_at
-FROM parcels p
-CROSS JOIN LATERAL (SELECT CAST(RIGHT(p.parcel_id, 3) AS INT) AS n) AS x;
+INSERT INTO order_items (order_id, product_id, quantity, unit_price_snapshot) VALUES
+  -- Order 1 (pending): 1 item
+  (1, 1, 3, 2800.00),                     -- 3x Pork Belly 10kg case = 8,400
+
+  -- Order 2 (accepted): 2 items
+  (2, 7,  5,  450.00),                    -- 5x Pandesal tray = 2,250
+  (2, 10, 2, 1560.00),                    -- 2x Calamansi Juice case = 3,120
+
+  -- Order 3 (shipped): 3 items
+  (3, 3, 2, 2340.00),                     -- 2x Chicken crate = 4,680
+  (3, 4, 1, 3300.00),                     -- 1x Bangus 10kg box = 3,300
+  (3, 6, 1, 2400.00),                     -- 1x Mango 20kg crate = 2,400
+
+  -- Order 4 (delivered): 2 items
+  (4, 8,  3, 1020.00),                    -- 3x Carabao Milk crate = 3,060
+  (4, 11, 1,  900.00);                    -- 1x Paper Bags bundle = 900
 
 -- ---------------------------------------------------------------------------
--- COMMISSIONS: rows were auto-created 'Pending' by the parcels AFTER INSERT
--- trigger. Mark LINKO's cut as Collected wherever the shipping fee settled
--- ('Paid'), collected at the same moment.
+-- 11. INVOICES (3) — for accepted, shipped, delivered orders
+--     total = SUM(qty * unit_price_snapshot) + service_tier base_fee
 -- ---------------------------------------------------------------------------
-UPDATE commissions c
-   SET status = 'Collected', settled_at = pay.paid_at
-  FROM payments pay
- WHERE pay.parcel_id = c.parcel_id
-   AND pay.payment_status = 'Paid';
+INSERT INTO invoices (order_id, invoice_number, total, issued_at) VALUES
+  (2, 'INV-2-001', 5460.00,  NOW() - INTERVAL '3 days'),   -- accepted: 2250+3120+90(express fee)
+  (3, 'INV-3-001', 10430.00, NOW() - INTERVAL '4 days'),   -- shipped:  4680+3300+2400+50(standard fee)
+  (4, 'INV-4-001', 4110.00,  NOW() - INTERVAL '7 days');   -- delivered: 3060+900+150(next-day fee)
 
 -- ---------------------------------------------------------------------------
--- TRACKING LOGS. Generated procedurally so 50 parcels get realistic chains
--- without 300 hand-written rows. The chain a parcel gets depends on its
--- payment status (the dispatch gate) and its position, using the same n%10
--- buckets as payments:
---   Failed / Pending-Prepaid (n%10 in 0,7)  -> ['Order Created'] only  (gate held)
---   Refunded (n%10 = 5)                      -> Created -> Picked Up -> In Transit -> Returned
---   COD Pending (n%10 = 3)                   -> full chain to Delivered (COD ships)
---   Paid, but "in flight" (n%10 in 1,9)      -> Created -> Picked Up -> In Transit -> Out for Delivery
---   Paid, delivered (else)                   -> full chain to Delivered
--- branch_id / courier_id assigned by leg: hub scans have a branch, the
--- line-haul 'In Transit' leg has courier 6 and NULL branch (matches ERD).
+-- 12. PARCELS (2) — for shipped and delivered orders
 -- ---------------------------------------------------------------------------
-DO $$
-DECLARE
-    p           RECORD;
-    n           INT;
-    ship_ts     TIMESTAMP;
-    origin_prov TEXT;
-    dest_prov   TEXT;
-    interisland BOOLEAN;
-    hub         INT;   -- origin hub branch id (1 Cebu / 2 Mandaue / 3 Manila)
-    dhub        INT;   -- destination hub branch id
-    rider       INT;   -- last-mile courier
-BEGIN
-    FOR p IN SELECT * FROM parcels ORDER BY parcel_id LOOP
-        n := CAST(RIGHT(p.parcel_id, 3) AS INT);
-        -- ship time = Order Created moment; later legs offset from here.
-        ship_ts := (DATE '2026-06-01' + (n - 1)) + TIME '08:00';
-
-        SELECT province INTO origin_prov FROM addresses WHERE address_id = p.origin_address_id;
-        SELECT province INTO dest_prov   FROM addresses WHERE address_id = p.destination_address_id;
-        interisland := origin_prov <> dest_prov;
-
-        -- origin hub: Mandaue-origin parcels sort through Mandaue Hub(2),
-        -- everything else Cebu-origin through Cebu Hub(1).
-        SELECT CASE WHEN city_municipality = 'Mandaue' THEN 2 ELSE 1 END
-          INTO hub FROM addresses WHERE address_id = p.origin_address_id;
-        -- destination hub: interisland lands at Manila Hub(3), else same as origin region.
-        dhub := CASE WHEN interisland THEN 3 ELSE hub END;
-        rider := 1 + (n % 5);  -- couriers 1..5 (last-mile, never the line-haul 6)
-
-        -- ---- Always: Order Created (system scan at origin hub, no courier) ----
-        INSERT INTO tracking_logs (parcel_id, branch_id, courier_id, status_update, remarks, scanned_at)
-        VALUES (p.parcel_id, hub, NULL, 'Order Created', 'Shipment booked, awaiting pickup', ship_ts);
-
-        -- ---- Gate held: Failed payment or unpaid prepaid -> stop here ----
-        IF (n % 10) IN (0, 7) THEN
-            CONTINUE;
-        END IF;
-
-        -- ---- Picked Up (courier at origin hub) ----
-        INSERT INTO tracking_logs (parcel_id, branch_id, courier_id, status_update, remarks, scanned_at)
-        VALUES (p.parcel_id, hub, rider, 'Picked Up', 'Collected by rider', ship_ts + INTERVAL '3 hours');
-
-        -- ---- In Transit (line-haul: NULL branch, courier 6 if interisland) ----
-        INSERT INTO tracking_logs (parcel_id, branch_id, courier_id, status_update, remarks, scanned_at)
-        VALUES (p.parcel_id, NULL,
-                CASE WHEN interisland THEN 6 ELSE rider END,
-                'In Transit',
-                CASE WHEN interisland THEN 'Departed on interisland line-haul' ELSE 'En route to destination hub' END,
-                ship_ts + INTERVAL '8 hours');
-
-        -- ---- Refunded parcels are Returned here, never delivered ----
-        IF (n % 10) = 5 THEN
-            INSERT INTO tracking_logs (parcel_id, branch_id, courier_id, status_update, remarks, scanned_at)
-            VALUES (p.parcel_id, dhub, rider, 'Returned', 'Receiver refused; returned to sender', ship_ts + INTERVAL '2 days');
-            CONTINUE;
-        END IF;
-
-        -- ---- Out for Delivery (arrived at destination hub, on the van) ----
-        INSERT INTO tracking_logs (parcel_id, branch_id, courier_id, status_update, remarks, scanned_at)
-        VALUES (p.parcel_id, dhub, rider, 'Out for Delivery', 'Loaded for final delivery',
-                ship_ts + (CASE WHEN interisland THEN INTERVAL '30 hours' ELSE INTERVAL '20 hours' END));
-
-        -- ---- Paid-but-in-flight (n%10 in 1,9): stop at Out for Delivery ----
-        IF (n % 10) IN (1, 9) THEN
-            CONTINUE;
-        END IF;
-
-        -- ---- Delivered (final) ----
-        INSERT INTO tracking_logs (parcel_id, branch_id, courier_id, status_update, remarks, scanned_at)
-        VALUES (p.parcel_id, dhub, rider, 'Delivered', 'Received by consignee',
-                ship_ts + (CASE WHEN interisland THEN INTERVAL '34 hours' ELSE INTERVAL '24 hours' END));
-    END LOOP;
-END $$;
+INSERT INTO parcels (parcel_id, sender_id, receiver_id, tier_id,
+                     origin_address_id, destination_address_id,
+                     weight_kg, dimensions, total_distance_km,
+                     estimated_delivery_date) VALUES
+  ('LKO-00000001', 2, 8, 1, 2, 10, 8.50,  '40x30x25 cm', 6.2,  NOW()::date + 3),   -- shipped order 3
+  ('LKO-00000002', 7, 1, 3, 8, 1,  4.20,  '30x25x20 cm', 8.7,  NOW()::date - 5);   -- delivered order 4
 
 -- ---------------------------------------------------------------------------
--- Sanity peek (optional): current status per parcel = latest log by scanned_at.
+-- 13. TRACKING_LOGS — realistic progression
 -- ---------------------------------------------------------------------------
--- SELECT p.parcel_id, pay.payment_status,
---        (SELECT status_update FROM tracking_logs t
---          WHERE t.parcel_id = p.parcel_id
---          ORDER BY scanned_at DESC LIMIT 1) AS current_status
---   FROM parcels p JOIN payments pay ON pay.parcel_id = p.parcel_id
---  ORDER BY p.parcel_id;
+INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id, courier_id, scanned_at) VALUES
+  -- Parcel LKO-00000001 (shipped/in-transit): 3 events
+  ('LKO-00000001', 'Order Created',  'Auto-generated from marketplace order',   NULL, NULL, NOW() - INTERVAL '4 days'),
+  ('LKO-00000001', 'Picked Up',      'Picked up from Cebu Fresh warehouse',     1,    1,   NOW() - INTERVAL '3 days'),
+  ('LKO-00000001', 'In Transit',     'En route to Metro Cebu Trading',           1,    1,   NOW() - INTERVAL '2 days'),
+
+  -- Parcel LKO-00000002 (delivered): full chain, 5 events
+  ('LKO-00000002', 'Order Created',     'Auto-generated from marketplace order', NULL, NULL, NOW() - INTERVAL '9 days'),
+  ('LKO-00000002', 'Picked Up',         'Picked up from Mandaue Agri warehouse',2,    2,   NOW() - INTERVAL '8 days'),
+  ('LKO-00000002', 'In Transit',        'Line-haul Mandaue → Cebu hub',          2,    2,   NOW() - INTERVAL '8 days'),
+  ('LKO-00000002', 'Out for Delivery',  'Last mile to Sunrise Retail',            1,    1,   NOW() - INTERVAL '7 days'),
+  ('LKO-00000002', 'Delivered',         'Received by staff at Lahug office',      1,    1,   NOW() - INTERVAL '7 days');
+
+-- ---------------------------------------------------------------------------
+-- 14. PAYMENTS — none (system-generated)
+-- ---------------------------------------------------------------------------
+-- Intentionally empty. Payments are created via the auto-parcel flow.
+
+-- ---------------------------------------------------------------------------
+-- 15. NOTIFICATIONS — none (system-generated)
+-- ---------------------------------------------------------------------------
+-- Intentionally empty. Notifications come from real user actions.
+
+COMMIT;
