@@ -42,10 +42,8 @@ Companies, wholesalers, and MSME buyers registered on the platform.
 | :--------------- | :----------- | :------------------------ | :------------------------------------------ |
 | `business_id`    | SERIAL       | PRIMARY KEY               | Unique ID for business entities.            |
 | `business_name`  | VARCHAR(100) | NOT NULL                  | Registered name of business.                |
-| `business_type`  | VARCHAR(20)  | NOT NULL                  | Role of business (buyer, wholesaler, both). |
+| `business_type`  | VARCHAR(20)  | NOT NULL                  | Role of business (buyer, wholesaler, both, individual, msme, corporation, other). |
 | `contact_number` | VARCHAR(20)  |                           | Telephone contact info.                     |
-| `address_line`   | TEXT         | NOT NULL                  | Physical company office address.            |
-| `city`           | VARCHAR(50)  | NOT NULL                  | Initial routing city.                       |
 | `is_verified`    | BOOLEAN      | DEFAULT FALSE             | Administrator trust verification status.    |
 | `created_at`     | TIMESTAMP    | DEFAULT CURRENT_TIMESTAMP | Ingestion timestamp.                        |
 
@@ -58,6 +56,20 @@ Associates platform users with business entities.
 | `user_id`     | INT       | FK (`Users`), PK      | User linked to business. |
 | `business_id` | INT       | FK (`Businesses`), PK | Business linked to user. |
 
+### 2.4 Table: `Addresses`
+
+Structured location records with Philippine hierarchy.
+
+| Column Name         | Data Type    | Constraints       | Description                             |
+| :------------------ | :----------- | :---------------- | :-------------------------------------- |
+| `address_id`        | SERIAL       | PRIMARY KEY       | Unique address location ID.             |
+| `business_id`       | INT          | FK (`Businesses`) | Owner business relationship hook.       |
+| `province`          | VARCHAR(50)  | NOT NULL          | Province name.                          |
+| `city_municipality` | VARCHAR(50)  | NOT NULL          | City or Municipality.                   |
+| `barangay`          | VARCHAR(50)  |                   | Barangay (optional).                    |
+| `street_address`    | VARCHAR(150) |                   | Granular street line.                   |
+| `postal_code`       | VARCHAR(10)  |                   | ZIP code.                               |
+
 ### 2.4 Table: `Warehouses`
 
 Storage infrastructure owned by businesses, with `warehouse` as the canonical operational term.
@@ -67,8 +79,7 @@ Storage infrastructure owned by businesses, with `warehouse` as the canonical op
 | `warehouse_id`   | SERIAL       | PRIMARY KEY       | Unique storage location ID.             |
 | `business_id`    | INT          | FK (`Businesses`) | Owner business relationship hook.       |
 | `warehouse_name` | VARCHAR(100) | NOT NULL          | Name of warehouse facility.             |
-| `address_line`   | TEXT         | NOT NULL          | Location details of physical warehouse. |
-| `city`           | VARCHAR(50)  | NOT NULL          | City location of warehouse.             |
+| `address_id`     | INT          | FK (`Addresses`)  | Location details of physical warehouse. |
 
 ### 2.5 Table: `Categories`
 
