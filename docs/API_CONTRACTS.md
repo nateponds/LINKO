@@ -352,8 +352,8 @@ List parcels with derived current status, most recently scanned first.
 [
   {
     "parcel_id": "LKO-0005",
-    "sender": { "customer_id": 5, "full_name": "Fishy Friends" },
-    "receiver": { "customer_id": 7, "full_name": "Marielle Ocampo" },
+    "sender": { "business_id": 5, "full_name": "Fishy Friends" },
+    "receiver": { "business_id": 7, "full_name": "Marielle Ocampo" },
     "tier_name": "Express",
     "weight_kg": 6.2,
     "shipping_fee": 318.15,
@@ -373,8 +373,8 @@ Parcel detail with full tracking timeline (oldest first). `404` if unknown.
 ```json
 {
   "parcel_id": "LKO-0001",
-  "sender": { "customer_id": 1, "full_name": "John's Pork", "phone_number": "0917-555-0101" },
-  "receiver": { "customer_id": 7, "full_name": "Marielle Ocampo", "phone_number": "0918-555-0107" },
+  "sender": { "business_id": 1, "full_name": "John's Pork", "phone_number": "0917-555-0101" },
+  "receiver": { "business_id": 7, "full_name": "Marielle Ocampo", "phone_number": "0918-555-0107" },
   "tier": { "tier_id": 2, "tier_name": "Express", "estimated_days": 2 },
   "origin_address": {
     "province": "Cebu",
@@ -453,18 +453,18 @@ Book a parcel. The database fills `shipping_fee` (tier pricing trigger), `paymen
 ]
 ```
 
-### 3.5 `GET /api/customers`
+### 3.5 `GET /api/businesses`
 
-Customers with their addresses — feeds the book-a-parcel form's sender/receiver and origin/destination selects.
+Businesses with their addresses — feeds the book-a-parcel form's sender/receiver and origin/destination selects.
 
 ```json
 [
   {
-    "customer_id": 1,
+    "business_id": 1,
     "full_name": "John's Pork",
     "phone_number": "0917-555-0101",
     "email": "orders@johnspork.ph",
-    "customer_type": "msme",
+    "business_type": "msme",
     "addresses": [
       {
         "address_id": 1,
