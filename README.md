@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./public/images/linko.png" alt="LINKO" />
+  <img src="./public/images/linko.png" alt="LINKO Logo" width="200" />
 </div>
 <br>
 
@@ -7,93 +7,110 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="MIT License"></a>
   <a href="https://github.com/nateponds/LINKO/commits/main"><img src="https://img.shields.io/github/last-commit/nateponds/LINKO/main" alt="Last Commit"></a>
   <img src="https://img.shields.io/badge/Status-In%20Development-yellow.svg" alt="Status: In Development">
-</div><hr>
+</div>
 
 <h1 align="center">LINKO</h1>
 
-LINKO is a buyer-wholesaler marketplace and operations platform for MSMEs and other businesses. It helps buyers discover reliable wholesalers, compare supply options, organize inventory work, and prepare for quote, order, and fulfillment workflows in one place.
+> **LINKO** is a buyer-wholesaler marketplace and operations platform for MSMEs and other businesses. It helps buyers discover reliable wholesalers, compare supply options, organize inventory work, and prepare for quote, order, and fulfillment workflows in one centralized place.
 
-The product is designed for small and growing businesses that need practical tools for procurement and stock visibility without taking on the complexity of a full enterprise supply-chain system. LINKO focuses on the direct buyer-wholesaler relationship: who can supply, where they can serve, how buyers can connect with them, and how those connections can become operational workflows over time.
+The product is designed for small and growing businesses that need practical tools for procurement and stock visibility without taking on the complexity of a full enterprise supply-chain system. LINKO focuses on the direct buyer-wholesaler relationship: *who can supply, where they can serve, how buyers can connect with them, and how those connections can become operational workflows over time.*
+
+---
 
 ## Product Direction
 
-LINKO is being built around four near-term ideas:
+LINKO is being built around four near-term pillars:
 
-- Wholesaler discovery for buyers looking for supply partners.
-- Inventory visibility for businesses tracking products, stock levels, warehouses, and movement history.
-- Proximity-based matching that starts simple and explainable.
-- Deferred logistics coordination for shipment status, dispatch visibility, and fulfillment timelines.
+1. **Wholesaler Discovery**: Helping buyers looking for supply partners.
+2. **Inventory Visibility**: Tools for businesses tracking products, stock levels, warehouses, and movement history.
+3. **Proximity-Based Matching**: Starts simple, local, and explainable.
+4. **Deferred Logistics Coordination**: Shipment status, dispatch visibility, and fulfillment timelines.
 
-The current scope does not model the full upstream/downstream chain. Manufacturers, distributors, retailers, and wholesalers may appear as real-world business context, but LINKO's active product model centers on buyers and wholesalers interacting through the platform.
+*(Note: The current scope focuses exclusively on direct buyer-wholesaler interactions. We do not model the full upstream/downstream manufacturer or distributor chains yet).*
+
+---
 
 ## Codebase Snapshot
 
-This repository contains the web application, backend scaffold, and planning documents for LINKO.
+This repository contains the web application, backend scaffold, and planning documents for LINKO. 
 
-- Frontend: React 19, Vite 8, plain JSX.
-- Backend: Node.js, Express 5, PostgreSQL, and a custom migration runner.
-- API scaffold: `/health`, `/api/inventory`, and `/api/suppliers`.
-- Database foundation: users, businesses, warehouses, products, inventory items, inventory transactions, and supplier profiles.
-- Documentation: glossary, roadmap, API contracts, database specification, backend guide, layout proposal, backlog, and sprint tracking.
+**Tech Stack & Architecture**
+- **Frontend**: React 19, Vite 8, plain JSX
+- **Backend**: Node.js, Express 5, PostgreSQL, and a custom migration runner
+- **API Scaffold**: `/health`, `/api/inventory`, and `/api/suppliers`
+- **Database Foundation**: Users, auth, businesses, warehouses, products, inventory items, orders, invoices, full logistics (parcels/tracking), commissions, and supplier profiles
 
-The project is still in active development. Some UI files are scaffolds, and several backend routes are intentionally placeholder endpoints while the team settles the product flow and data contracts.
+> [!NOTE]
+> **Status:** The project is in active development. Some UI files are scaffolds, and several backend routes are intentionally placeholder endpoints while the team finalizes product flow and data contracts.
+
+---
 
 ## Local Development
 
-Install and run the frontend from the repo root:
+To run LINKO locally, you will need Node.js and PostgreSQL.
 
+### 1. Frontend Setup
+Install and run the Vite dev server from the repository root:
 ```bash
 npm install
 npm run dev
 ```
 
-Run backend commands from `backend/`:
-
+### 2. Backend Setup
+Navigate to the backend directory to install dependencies and run tests:
 ```bash
 cd backend
 npm install
 npm test
+```
+
+### 3. Database Migrations & Start
+Ensure you have a PostgreSQL instance running. Configure your `DATABASE_URL` (see `backend/.env.example` for reference), then run migrations and start the server:
+```bash
+# Apply database schemas
+npm run migrate
+
+# Start the Express server
 npm start
 ```
 
-Set `DATABASE_URL` before running backend migrations or starting the backend against PostgreSQL.
+---
 
 ## Documentation
 
 Start here if you are evaluating, contributing to, or extending the project:
 
-- [ROADMAP.md](./ROADMAP.md) explains product direction and development phases.
-- [docs/glossary.md](./docs/glossary.md) defines canonical product language.
-- [docs/API_CONTRACTS.md](./docs/API_CONTRACTS.md) defines current frontend/backend payload expectations.
-- [docs/LINKO_database_specification.md](./docs/LINKO_database_specification.md) defines the current PostgreSQL schema.
-- [docs/BACKEND_GUIDE.md](./docs/BACKEND_GUIDE.md) explains backend domains and build order.
-- [docs/PROPOSED_LAYOUT.md](./docs/PROPOSED_LAYOUT.md) captures the current frontend layout direction.
+- **[ROADMAP.md](./ROADMAP.md)**: Explains product direction and development phases.
+- **[Glossary](./docs/glossary.md)**: Defines canonical product language.
+- **[API Contracts](./docs/API_CONTRACTS.md)**: Defines current frontend/backend payload expectations.
+- **[Database Spec](./docs/linko_database_specification.md)**: Defines the current PostgreSQL schema.
+- **[Backend Guide](./docs/BACKEND_GUIDE.md)**: Explains backend domains and build order.
+
+---
 
 ## Development Workflow
 
-The team uses `staging` as the active integration branch. Feature work should branch from `staging`, return through pull requests, and only reach `main` when it is ready to represent the public project.
+We use `staging` as the active integration branch. 
 
-Use these project docs to keep work organized:
+1. Branch off `staging` for feature work.
+2. Submit a Pull Request targeting `staging`.
+3. Code only reaches `main` when it is ready to represent the public project.
 
-- [docs/BACKLOG.md](./docs/BACKLOG.md) for proposed or deferred work.
-- [docs/SPRINTS.md](./docs/SPRINTS.md) for committed sprint work.
-- [docs/CONVENTIONAL_COMMITS.md](./docs/CONVENTIONAL_COMMITS.md) for commit message standards.
+**Project Management:**
+- **[BACKLOG.md](./docs/BACKLOG.md)**: Proposed or deferred work.
+- **[SPRINTS.md](./docs/SPRINTS.md)**: Committed sprint work.
+- **[CONVENTIONAL_COMMITS.md](./docs/CONVENTIONAL_COMMITS.md)**: Commit message standards.
 
-## Team
+---
 
-Frontend development:
+## Meet the Team
 
-- [@BaelJM](https://github.com/BaelJM) (Bael)
-- [@grsm-m](https://github.com/grsm-m) (Tantay)
+| Frontend | Full-Stack | Backend |
+| :--- | :--- | :--- |
+| [@BaelJM](https://github.com/BaelJM) (Bael) | [@nateponds](https://github.com/nateponds) (Ponce) | [@Swashua](https://github.com/Swashua) (Faber) |
+| [@grsm-m](https://github.com/grsm-m) (Tantay) | | [@fR3yA-ctrl](https://github.com/fR3yA-ctrl) (Hermosilla) |
 
-Full-stack development:
-
-- [@nateponds](https://github.com/nateponds) (Ponce)
-
-Backend development:
-
-- [@Swashua](https://github.com/Swashua) (Faber)
-- [@fR3yA-ctrl](https://github.com/fR3yA-ctrl) (Hermosilla)
+---
 
 ## License
 
