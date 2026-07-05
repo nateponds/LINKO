@@ -339,4 +339,3 @@ Public self-registration is allowed only for buyer and wholesaler owner accounts
 - Keep buyer-wholesaler marketplace framing as the primary LINKO workflow.
 - Treat logistics as fulfillment after an order exists.
 - Add tests when changing auth, ownership, order, invoice, product, or logistics behavior.
-
