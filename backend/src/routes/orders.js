@@ -33,11 +33,14 @@ function membershipIds(auth, role) {
     .map((membership) => membership.business_id);
 }
 
-function resolveSingleMembership(auth, role, adminBodyBusinessId, errorRoleLabel) {
-  const ids = membershipIds(auth, role);
-  if (ids.length === 1) return ids[0];
-  if (ids.length > 1) {
-    throw createHttpError(400, `multiple ${role} businesses not supported yet`);
+function resolveSingleMembership(auth, roles, adminBodyBusinessId, errorRoleLabel) {
+  const roleArray = Array.isArray(roles) ? roles : [roles];
+  for (const role of roleArray) {
+    const ids = membershipIds(auth, role);
+    if (ids.length === 1) return ids[0];
+    if (ids.length > 1) {
+      throw createHttpError(400, `multiple ${role} businesses not supported yet`);
+    }
   }
   if (isAdmin(auth) && adminBodyBusinessId !== undefined && adminBodyBusinessId !== null) {
     return Number(adminBodyBusinessId);
@@ -63,7 +66,8 @@ const ORDER_BASE_SELECT = `
          o.wholesaler_business_id,
          wholesaler.business_name AS wholesaler_business_name,
          o.status,
-         COALESCE(SUM(oi.quantity * oi.unit_price_snapshot), 0)::text AS total,
+         o.tier_id,
+         (COALESCE(SUM(oi.quantity * oi.unit_price_snapshot), 0) + COALESCE(MAX(st.base_fee), 0))::text AS total,
          o.created_at,
          o.updated_at,
          i.invoice_id,
@@ -73,6 +77,7 @@ const ORDER_BASE_SELECT = `
     FROM orders o
     JOIN businesses buyer ON buyer.business_id = o.buyer_business_id
     JOIN businesses wholesaler ON wholesaler.business_id = o.wholesaler_business_id
+    LEFT JOIN service_tiers st ON st.tier_id = o.tier_id
     LEFT JOIN order_items oi ON oi.order_id = o.order_id
     LEFT JOIN invoices i ON i.order_id = o.order_id`;
 
@@ -84,6 +89,7 @@ function orderFromRow(row, items = []) {
     wholesaler_business_id: row.wholesaler_business_id,
     wholesaler_business_name: row.wholesaler_business_name,
     status: row.status,
+    tier_id: row.tier_id,
     total: row.total,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -222,9 +228,11 @@ function assertTransitionAllowed(auth, order, nextStatus) {
 
 async function createInvoiceForAcceptedOrder(client, orderId) {
   const totalResult = await client.query(
-    `SELECT COALESCE(SUM(quantity * unit_price_snapshot), 0) AS total
-       FROM order_items
-      WHERE order_id = $1`,
+    `SELECT COALESCE(SUM(oi.quantity * oi.unit_price_snapshot), 0) + COALESCE(MAX(st.base_fee), 0) AS total
+       FROM orders o
+       LEFT JOIN order_items oi ON oi.order_id = o.order_id
+       LEFT JOIN service_tiers st ON st.tier_id = o.tier_id
+      WHERE o.order_id = $1`,
     [orderId],
   );
   const total = totalResult.rows[0].total;
@@ -304,14 +312,18 @@ router.get(
 router.post(
   "/orders",
   requireAuth,
-  requireAnyRole(["buyer", "platform_admin"]),
+  requireAnyRole(["buyer", "wholesaler", "platform_admin"]),
   async (req, res, next) => {
     const pool = getPool();
     const client = await pool.connect();
     try {
-      const { items, buyer_business_id: bodyBuyerBusinessId } = req.body ?? {};
+      const { items, buyer_business_id: bodyBuyerBusinessId, tier_id: reqTierId } = req.body ?? {};
       if (!Array.isArray(items) || items.length === 0) {
         throw createHttpError(400, "items must contain at least one product");
+      }
+      const tierId = Number(reqTierId);
+      if (!Number.isInteger(tierId) || tierId <= 0) {
+        throw createHttpError(400, "tier_id is required and must be a positive integer");
       }
 
       const normalizedItems = items.map((item) => {
@@ -328,12 +340,20 @@ router.post(
 
       const buyerBusinessId = resolveSingleMembership(
         req.auth,
-        "buyer",
+        ["buyer", "wholesaler"],
         bodyBuyerBusinessId,
-        "buyer",
+        "buyer or wholesaler",
       );
       if (isAdmin(req.auth)) {
-        await validateBusinessRole(buyerBusinessId, ["buyer", "both"]);
+        await validateBusinessRole(buyerBusinessId, ["buyer", "wholesaler", "both"]);
+      }
+
+      const tierResult = await client.query(
+        "SELECT tier_id FROM service_tiers WHERE tier_id = $1",
+        [tierId]
+      );
+      if (!tierResult.rows.length) {
+        throw createHttpError(400, "invalid tier_id");
       }
 
       const productIds = normalizedItems.map((item) => item.productId);
@@ -361,10 +381,10 @@ router.post(
       await client.query("BEGIN");
       const orderResult = await client.query(
         `INSERT INTO orders
-           (buyer_business_id, wholesaler_business_id, status, created_by)
-         VALUES ($1, $2, 'pending', $3)
+           (buyer_business_id, wholesaler_business_id, tier_id, status, created_by)
+         VALUES ($1, $2, $3, 'pending', $4)
          RETURNING order_id`,
-        [buyerBusinessId, wholesalerBusinessId, req.auth.user.user_id],
+        [buyerBusinessId, wholesalerBusinessId, tierId, req.auth.user.user_id],
       );
       const orderId = orderResult.rows[0].order_id;
 
@@ -407,7 +427,7 @@ router.patch(
 
       await client.query("BEGIN");
       const lock = await client.query(
-        `SELECT order_id, buyer_business_id, wholesaler_business_id, status
+        `SELECT order_id, buyer_business_id, wholesaler_business_id, tier_id, status
            FROM orders
           WHERE order_id = $1
           FOR UPDATE`,
@@ -428,6 +448,47 @@ router.patch(
             WHERE order_id = $2`,
           [status, orderId],
         );
+
+        if (status === "shipped") {
+          const originAddress = await client.query(
+            "SELECT address_id FROM addresses WHERE business_id = $1 LIMIT 1",
+            [order.wholesaler_business_id]
+          );
+          const destAddress = await client.query(
+            "SELECT address_id FROM addresses WHERE business_id = $1 LIMIT 1",
+            [order.buyer_business_id]
+          );
+
+          if (originAddress.rows.length > 0 && destAddress.rows.length > 0) {
+            const parcelId = `LKO-${Date.now().toString().slice(-8)}`;
+            await client.query(
+              `INSERT INTO parcels (parcel_id, sender_id, receiver_id, tier_id,
+                                   origin_address_id, destination_address_id,
+                                   weight_kg, total_distance_km, estimated_delivery_date)
+               VALUES ($1, $2, $3, $4, $5, $6, 10.0, 15.0, CURRENT_DATE + 5)`,
+              [
+                parcelId,
+                order.wholesaler_business_id,
+                order.buyer_business_id,
+                order.tier_id,
+                originAddress.rows[0].address_id,
+                destAddress.rows[0].address_id,
+              ]
+            );
+
+            await client.query(
+              `INSERT INTO payments (parcel_id, method, payment_status, amount)
+               VALUES ($1, 'Online', 'Pending', NULL)`,
+              [parcelId]
+            );
+
+            await client.query(
+              `INSERT INTO tracking_logs (parcel_id, status_update, remarks)
+               VALUES ($1, 'Order Created', 'System-generated from marketplace order')`,
+              [parcelId]
+            );
+          }
+        }
       }
 
       await client.query("COMMIT");
