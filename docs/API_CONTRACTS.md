@@ -112,102 +112,93 @@ Modify stock count, reorder limits, or units.
 
 Note: the route name remains `suppliers` for implementation continuity, but in product language this domain primarily represents wholesaler-facing marketplace profiles.
 
-### 2.1 `GET /api/suppliers`
+> **Milestone 2 reconciliation.** The Sprint 1 sketch below (nested `supplier_profiles` shape, `POST`/`PATCH`) has been replaced by a real, read-only listing. The `POST`/`PATCH` supplier-registration endpoints and the `supplier_profiles`-nested payload are **not implemented**; suppliers are derived from `businesses` where `business_type IN ('wholesaler','both')`. Any authenticated user may read. See §2.1 for the shipped shape.
 
-List wholesalers matching search keywords or category filters.
+### 2.1 `GET /api/suppliers` (shipped, Milestone 2)
+
+List businesses acting as wholesalers, each with a count of their active products. Any authenticated user.
 
 **Query Parameters (Optional):**
 
-- `city`: filter by location
-- `category_id`: filter by product categories
+- `q`: ILIKE match on `business_name`
+- `category_id`: only suppliers having ≥1 active product in that category (EXISTS)
 
 **Response Body (`200 OK`):**
 
 ```json
 [
   {
-    "supplier_id": 201,
-    "business_name": "Apex Wholesale Tools",
-    "contact_number": "+639171234567",
-    "address_line": "12 Building Blocks St",
-    "city": "Manila",
+    "business_id": 2,
+    "business_name": "Harbor Bulk Trading",
+    "city": "Mandaue",
+    "address_line": "88 Portside Ave",
     "is_verified": true,
-    "profile": {
-      "minimum_order_quantity": 50.00,
-      "lead_time_days": 5,
-      "delivery_terms": "FOB Manila Hub",
-      "trust_rating": 4.80,
-      "verification_status": "verified"
-    }
+    "product_count": 12
   }
 ]
 ```
 
-### 2.2 `POST /api/suppliers`
+`POST /api/suppliers` and `PATCH /api/suppliers/:id` are not implemented in Milestone 2 (business/wholesaler registration happens through `/api/auth/register`).
 
-Register a business as a wholesaler.
+---
 
-**Request Body:**
+## 2b. Product & Category Domain (`/api/products`, `/api/categories`) — Milestone 2
 
-```json
-{
-  "business_name": "Global Metalworks Ltd",
-  "contact_number": "+639177654321",
-  "address_line": "Industrial Zone B",
-  "city": "Cebu",
-  "minimum_order_quantity": 100.00,
-  "lead_time_days": 10,
-  "delivery_terms": "CIF Cebu Port"
-}
-```
+All endpoints require authentication (`401` unauthenticated). `stock_status` is derived, never stored: `out_of_stock` when `stock_quantity = 0`, `low_stock` at 1–10, `in_stock` above 10. `unit_price` is a decimal string (`NUMERIC(12,2)`).
 
-**Response Body (`201 Created`):**
+**Product JSON shape (returned everywhere):**
 
 ```json
 {
-  "supplier_id": 202,
-  "business_name": "Global Metalworks Ltd",
-  "contact_number": "+639177654321",
-  "address_line": "Industrial Zone B",
-  "city": "Cebu",
-  "is_verified": false,
-  "profile": {
-    "minimum_order_quantity": 100.00,
-    "lead_time_days": 10,
-    "delivery_terms": "CIF Cebu Port",
-    "trust_rating": 5.00,
-    "verification_status": "pending"
-  }
+  "product_id": 1,
+  "business_id": 2,
+  "business_name": "Harbor Bulk Trading",
+  "product_name": "Jasmine Rice 25kg",
+  "sku": "RICE-25",
+  "description": "...",
+  "category_id": 3,
+  "category_name": "Grains",
+  "unit_price": "1250.00",
+  "stock_quantity": 40,
+  "stock_status": "in_stock",
+  "image_url": "https://...",
+  "created_at": "..."
 }
 ```
 
-### 2.3 `PATCH /api/suppliers/:id`
+### 2b.1 `GET /api/categories`
 
-Modify wholesale limits, lead time expectations, or shipping rules.
-
-**Request Body:**
+Any authenticated user. Ordered by name.
 
 ```json
-{
-  "minimum_order_quantity": 80.00,
-  "lead_time_days": 8
-}
+[{ "category_id": 1, "category_name": "Bakery" }]
 ```
 
-**Response Body (`200 OK`):**
+### 2b.2 `GET /api/products`
 
-```json
-{
-  "supplier_id": 202,
-  "profile": {
-    "minimum_order_quantity": 80.00,
-    "lead_time_days": 8,
-    "delivery_terms": "CIF Cebu Port",
-    "trust_rating": 5.00,
-    "verification_status": "pending"
-  }
-}
-```
+Any authenticated user. Returns only `is_active = TRUE` products, ordered by `product_name`.
+
+**Query Parameters (all optional, combinable):** `business_id` (int), `category_id` (int), `q` (ILIKE on `product_name`).
+
+### 2b.3 `GET /api/products/:id`
+
+Any authenticated user. `404` if missing or inactive.
+
+### 2b.4 `POST /api/products`
+
+Roles: `wholesaler` or `platform_admin`.
+
+**Body:** `product_name` (required, non-empty, ≤100), `unit_price` (required, number ≥ 0), `sku?` (≤50), `description?`, `category_id?`, `stock_quantity?` (int ≥ 0, default 0), `image_url?`.
+
+Owning `business_id` comes from the caller's `wholesaler` membership: 0 memberships and not admin → `403`; more than 1 → `400` ("multiple wholesaler businesses not supported yet"). A `platform_admin` with no wholesaler membership **must** pass `business_id` in the body; it is validated to exist with `business_type IN ('wholesaler','both')`, else `400`. Duplicate `sku` → `400`. Returns `201` + the created product (full shape).
+
+### 2b.5 `PATCH /api/products/:id`
+
+Roles: `wholesaler` (own product only) or `platform_admin` (any). Partial update of the POST fields (not `business_id`). Not owner → `403`. Missing/inactive → `404`. Returns the updated product.
+
+### 2b.6 `DELETE /api/products/:id`
+
+Same auth/ownership as PATCH. Soft delete (`is_active = FALSE`). `204`. Already inactive/missing → `404`.
 
 ---
 
