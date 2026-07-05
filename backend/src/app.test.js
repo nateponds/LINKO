@@ -276,7 +276,12 @@ test("buyer session can access suppliers", { skip: !hasDb }, async () => {
   });
 
   assert.equal(response.status, 200);
-  assert.deepEqual(response.body, []);
+  assert.ok(Array.isArray(response.body));
+  // Only wholesaler/both businesses appear, each with a product_count.
+  const harbor = response.body.find((s) => s.business_name === "Harbor Bulk Trading");
+  assert.ok(harbor, "Harbor Bulk Trading should be listed as a supplier");
+  assert.equal(typeof harbor.product_count, "number");
+  assert.ok("city" in harbor && "is_verified" in harbor);
 });
 
 test("wholesaler session can access suppliers", { skip: !hasDb }, async () => {
@@ -286,7 +291,7 @@ test("wholesaler session can access suppliers", { skip: !hasDb }, async () => {
   });
 
   assert.equal(response.status, 200);
-  assert.deepEqual(response.body, []);
+  assert.ok(Array.isArray(response.body));
 });
 
 test("auth me rejects unauthenticated requests", async () => {
@@ -465,4 +470,264 @@ test("auth register rejects public privileged role business types without creati
 
     assert.equal(login.status, 401);
   }
+});
+
+// ---------------------------------------------------------------------------
+// Milestone 2: marketplace products + categories
+// ---------------------------------------------------------------------------
+
+async function postJson(path, cookie, body) {
+  return request(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: cookie },
+    body: JSON.stringify(body),
+  });
+}
+
+test("unauthenticated product list is rejected", async () => {
+  const response = await request("/api/products");
+
+  assert.equal(response.status, 401);
+  assert.match(response.body.error.message, /authentication required/i);
+});
+
+test("categories come back after migration", { skip: !hasDb }, async () => {
+  const cookie = await loginAs("buyer@linko.test");
+  const response = await request("/api/categories", {
+    headers: { Cookie: cookie },
+  });
+
+  assert.equal(response.status, 200);
+  assert.ok(Array.isArray(response.body));
+  assert.ok(response.body.length >= 12, "expected at least 12 seeded categories");
+  assert.ok("category_id" in response.body[0] && "category_name" in response.body[0]);
+});
+
+test("buyer can list products but cannot create them", { skip: !hasDb }, async () => {
+  const cookie = await loginAs("buyer@linko.test");
+
+  const list = await request("/api/products", { headers: { Cookie: cookie } });
+  assert.equal(list.status, 200);
+  assert.ok(Array.isArray(list.body));
+  for (const product of list.body) {
+    assert.ok("stock_status" in product);
+    assert.ok("business_name" in product);
+  }
+
+  const create = await postJson("/api/products", cookie, {
+    product_name: "Buyer Should Not Create",
+    unit_price: 10,
+  });
+  assert.equal(create.status, 403);
+});
+
+test("wholesaler creates, reads, patches, and deletes a product", { skip: !hasDb }, async () => {
+  const cookie = await loginAs("wholesaler@linko.test");
+  const sku = `TEST-${Date.now()}`;
+
+  const created = await postJson("/api/products", cookie, {
+    product_name: "Test Marketplace Product",
+    unit_price: 250.5,
+    sku,
+    stock_quantity: 3,
+  });
+  assert.equal(created.status, 201);
+  assert.equal(created.body.product_name, "Test Marketplace Product");
+  assert.equal(created.body.unit_price, "250.50");
+  assert.equal(created.body.stock_status, "low_stock");
+  assert.equal(created.body.business_name, "Harbor Bulk Trading");
+  const productId = created.body.product_id;
+
+  const list = await request("/api/products?business_id=" + created.body.business_id, {
+    headers: { Cookie: cookie },
+  });
+  assert.equal(list.status, 200);
+  assert.ok(list.body.some((p) => p.product_id === productId));
+
+  const detail = await request(`/api/products/${productId}`, {
+    headers: { Cookie: cookie },
+  });
+  assert.equal(detail.status, 200);
+  assert.equal(detail.body.product_id, productId);
+
+  const patched = await request(`/api/products/${productId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Cookie: cookie },
+    body: JSON.stringify({ stock_quantity: 0 }),
+  });
+  assert.equal(patched.status, 200);
+  assert.equal(patched.body.stock_status, "out_of_stock");
+
+  const deleted = await request(`/api/products/${productId}`, {
+    method: "DELETE",
+    headers: { Cookie: cookie },
+  });
+  assert.equal(deleted.status, 204);
+
+  const gone = await request(`/api/products/${productId}`, {
+    headers: { Cookie: cookie },
+  });
+  assert.equal(gone.status, 404);
+
+  const listAfter = await request("/api/products?business_id=" + created.body.business_id, {
+    headers: { Cookie: cookie },
+  });
+  assert.ok(!listAfter.body.some((p) => p.product_id === productId));
+});
+
+test("product create rejects missing name or negative price", { skip: !hasDb }, async () => {
+  const cookie = await loginAs("wholesaler@linko.test");
+
+  const noName = await postJson("/api/products", cookie, { unit_price: 10 });
+  assert.equal(noName.status, 400);
+  assert.match(noName.body.error.message, /product_name/i);
+
+  const badPrice = await postJson("/api/products", cookie, {
+    product_name: "Bad Price",
+    unit_price: -5,
+  });
+  assert.equal(badPrice.status, 400);
+  assert.match(badPrice.body.error.message, /unit_price/i);
+});
+
+test("wholesaler cannot patch a product owned by another business", { skip: !hasDb }, async () => {
+  const cookie = await loginAs("wholesaler@linko.test");
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+  const bizName = `Temp Wholesaler ${Date.now()}`;
+  let foreignProductId;
+  try {
+    const biz = await pool.query(
+      `INSERT INTO businesses (business_name, business_type, address_line, city)
+       VALUES ($1, 'wholesaler', 'Temp Address', 'Cebu City') RETURNING business_id`,
+      [bizName],
+    );
+    const prod = await pool.query(
+      `INSERT INTO products (business_id, product_name, sku, unit_price, stock_quantity)
+       VALUES ($1, 'Foreign Product', $2, 100, 5) RETURNING product_id`,
+      [biz.rows[0].business_id, `FOREIGN-${Date.now()}`],
+    );
+    foreignProductId = prod.rows[0].product_id;
+
+    const patched = await request(`/api/products/${foreignProductId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: cookie },
+      body: JSON.stringify({ unit_price: 1 }),
+    });
+    assert.equal(patched.status, 403);
+  } finally {
+    if (foreignProductId) {
+      await pool.query("DELETE FROM products WHERE product_id = $1", [foreignProductId]);
+    }
+    await pool.query("DELETE FROM businesses WHERE business_name = $1", [bizName]);
+    await pool.end();
+  }
+});
+
+test("platform admin manages products across businesses", { skip: !hasDb }, async () => {
+  const adminCookie = await loginAs("admin@linko.test");
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+
+  // Resolve Harbor's business_id by name (SERIAL, never hardcoded).
+  const harbor = await pool.query(
+    "SELECT business_id FROM businesses WHERE business_name = 'Harbor Bulk Trading'",
+  );
+  const harborId = harbor.rows[0].business_id;
+
+  // Admin has no wholesaler membership, so POST without business_id -> 400.
+  const noBiz = await postJson("/api/products", adminCookie, {
+    product_name: "Admin No Business",
+    unit_price: 10,
+  });
+  assert.equal(noBiz.status, 400);
+  assert.match(noBiz.body.error.message, /business_id/i);
+
+  // POST with a valid wholesaler business_id -> 201.
+  const created = await postJson("/api/products", adminCookie, {
+    product_name: "Admin Created Product",
+    unit_price: 42,
+    sku: `ADMIN-${Date.now()}`,
+    business_id: harborId,
+  });
+  assert.equal(created.status, 201);
+  const productId = created.body.product_id;
+
+  try {
+    // Admin can patch a product it does not "own".
+    const patched = await request(`/api/products/${productId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: adminCookie },
+      body: JSON.stringify({ unit_price: 99 }),
+    });
+    assert.equal(patched.status, 200);
+    assert.equal(patched.body.unit_price, "99.00");
+  } finally {
+    await pool.query("DELETE FROM products WHERE product_id = $1", [productId]);
+    await pool.end();
+  }
+});
+
+test("a soft-deleted product's sku can be reused, but an active sku cannot", { skip: !hasDb }, async () => {
+  const cookie = await loginAs("wholesaler@linko.test");
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+  const suffix = Date.now();
+  const reuseSku = `REUSE-1-${suffix}`;
+  const activeSku = `REUSE-2-${suffix}`;
+  const created = [];
+  try {
+    // Create then soft-delete a product, then re-create with the same sku -> 201.
+    const first = await postJson("/api/products", cookie, {
+      product_name: "Reusable Sku Product",
+      unit_price: 10,
+      sku: reuseSku,
+    });
+    assert.equal(first.status, 201);
+    created.push(first.body.product_id);
+
+    const del = await request(`/api/products/${first.body.product_id}`, {
+      method: "DELETE",
+      headers: { Cookie: cookie },
+    });
+    assert.equal(del.status, 204);
+
+    const reused = await postJson("/api/products", cookie, {
+      product_name: "Reused Sku Product",
+      unit_price: 12,
+      sku: reuseSku,
+    });
+    assert.equal(reused.status, 201);
+    created.push(reused.body.product_id);
+
+    // A second ACTIVE product with the same sku -> 400 (partial unique index).
+    const firstActive = await postJson("/api/products", cookie, {
+      product_name: "Active Sku Product",
+      unit_price: 15,
+      sku: activeSku,
+    });
+    assert.equal(firstActive.status, 201);
+    created.push(firstActive.body.product_id);
+
+    const dupActive = await postJson("/api/products", cookie, {
+      product_name: "Duplicate Active Sku",
+      unit_price: 15,
+      sku: activeSku,
+    });
+    assert.equal(dupActive.status, 400);
+  } finally {
+    for (const id of created) {
+      await pool.query("DELETE FROM products WHERE product_id = $1", [id]);
+    }
+    await pool.end();
+  }
+});
+
+test("non-numeric product id returns 404 not 500", { skip: !hasDb }, async () => {
+  const cookie = await loginAs("buyer@linko.test");
+  const response = await request("/api/products/not-a-number", {
+    headers: { Cookie: cookie },
+  });
+
+  assert.equal(response.status, 404);
 });

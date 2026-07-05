@@ -2,6 +2,7 @@ import express from "express";
 import authRouter from "./routes/auth.js";
 import inventoryRouter from "./routes/inventory.js";
 import logisticsRouter from "./routes/logistics.js";
+import productsRouter from "./routes/products.js";
 import suppliersRouter from "./routes/suppliers.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { requireAnyRole, requireAuth } from "./middleware/auth.js";
@@ -27,12 +28,15 @@ export function createApp() {
     requireAnyRole(["buyer", "wholesaler", "platform_admin"]),
     inventoryRouter,
   );
-  app.use(
-    "/api/suppliers",
-    requireAuth,
-    requireAnyRole(["buyer", "wholesaler", "platform_admin"]),
-    suppliersRouter,
-  );
+  // Suppliers is a read-only marketplace listing for any authenticated user
+  // (buyers browse wholesalers), so it only needs requireAuth -- no role gate.
+  app.use("/api/suppliers", requireAuth, suppliersRouter);
+
+  // Marketplace products + category taxonomy (Milestone 2). Owns /api/products
+  // and /api/categories, so it mounts at /api and declares full paths and its
+  // own per-route auth internally (reads are any-authenticated, writes are
+  // wholesaler/platform_admin).
+  app.use("/api", productsRouter);
 
   // Course-deliverable logistics subsystem (Sprint 2-CD). Owns several
   // top-level paths (/api/parcels, /api/service-tiers, /api/customers), so
