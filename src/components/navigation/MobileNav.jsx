@@ -1,19 +1,23 @@
 import { NavLink } from "react-router-dom";
-import { Boxes, ClipboardList, LayoutDashboard, MapPin, Store } from "lucide-react";
+import { Boxes, ClipboardList, LayoutDashboard, MapPin, Store, Truck } from "lucide-react";
+import { useAuth } from "../../auth/AuthProvider";
 
 const items = [
-  { name: "Home", link: "/", Icon: Store, end: true },
-  { name: "Nearby", link: "/matching", Icon: MapPin },
-  { name: "Orders", link: "/orders", Icon: ClipboardList },
-  { name: "Inventory", link: "/inventory", Icon: Boxes },
-  { name: "Dashboard", link: "/dashboard", Icon: LayoutDashboard },
+  { name: "Home", link: "/", Icon: Store, end: true, roles: ["buyer", "wholesaler", "platform_admin"] },
+  { name: "Nearby", link: "/matching", Icon: MapPin, roles: ["buyer", "platform_admin"] },
+  { name: "Orders", link: "/orders", Icon: ClipboardList, roles: ["buyer", "wholesaler", "platform_admin"] },
+  { name: "Inventory", link: "/inventory", Icon: Boxes, roles: ["buyer", "wholesaler", "platform_admin"] },
+  { name: "Logistics", link: "/logistics", Icon: Truck, roles: ["wholesaler", "logistics_coordinator", "courier", "platform_admin"] },
+  { name: "Dashboard", link: "/dashboard", Icon: LayoutDashboard, roles: [] },
 ];
 
-/* Bottom tab bar, shown on narrow screens only (see shell.css). */
 function MobileNav() {
+  const { hasAnyRole } = useAuth();
+  const visibleItems = items.filter((item) => hasAnyRole(item.roles));
+
   return (
     <nav className="mobile-nav" aria-label="Primary">
-      {items.map(({ name, link, Icon, end }) => (
+      {visibleItems.map(({ name, link, Icon, end }) => (
         <NavLink
           key={name}
           to={link}

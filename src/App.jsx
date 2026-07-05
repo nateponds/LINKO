@@ -1,5 +1,8 @@
 import { useEffect } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { AuthProvider, useAuth } from "./auth/AuthProvider";
+import ProtectedRoute from "./auth/ProtectedRoute";
+import { ROLE_ACCESS } from "./auth/roleAccess";
 import SupplierDiscoveryPage from "./pages/SupplierDiscoveryPage";
 import SupplierProfilePage from "./pages/SupplierProfilePage";
 import InventoryPage from "./pages/InventoryPage";
@@ -7,11 +10,15 @@ import InvoicePage from "./pages/InvoicePage";
 import DashboardPage from "./pages/DashboardPage";
 import WaitlistPage from "./pages/WaitlistPage";
 import OrdersPage from "./pages/OrdersPage";
+import LogisticsPage from "./pages/LogisticsPage";
+import ParcelDetailPage from "./pages/ParcelDetailPage";
 import MatchingPage from "./pages/MatchingPage";
 import BecomeSupplierPage from "./pages/BecomeSupplierPage";
 import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
 
 const TITLES = [
+  ["/register", "Register"],
   ["/matching", "Find Wholesalers"],
   ["/become-a-supplier", "Become a Supplier"],
   ["/login", "Log In"],
@@ -20,6 +27,7 @@ const TITLES = [
   ["/dashboard", "Dashboard"],
   ["/waitlist", "Wait List"],
   ["/orders", "Orders"],
+  ["/logistics", "Logistics"],
   ["/suppliers/", "Supplier"],
 ];
 
@@ -36,23 +44,59 @@ function RouteChrome() {
   return null;
 }
 
-function App() {
+function UnknownRouteRedirect() {
+  const { loading, user } = useAuth();
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  return <Navigate to={user ? "/dashboard" : "/login"} replace />;
+}
+
+function AppRoutes() {
   return (
-    <BrowserRouter>
-      <RouteChrome />
-      <Routes>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+
+      <Route element={<ProtectedRoute />}>
+        <Route path="/dashboard" element={<DashboardPage />} />
+      </Route>
+
+      <Route element={<ProtectedRoute roles={ROLE_ACCESS.marketplace} />}>
         <Route path="/" element={<SupplierDiscoveryPage />} />
+        <Route path="/suppliers" element={<SupplierDiscoveryPage />} />
         <Route path="/suppliers/:supplierSlug" element={<SupplierProfilePage />} />
         <Route path="/inventory" element={<InventoryPage />} />
         <Route path="/invoices" element={<InvoicePage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/waitlist" element={<WaitlistPage />} />
         <Route path="/orders" element={<OrdersPage />} />
-        <Route path="/matching" element={<MatchingPage />} />
         <Route path="/become-a-supplier" element={<BecomeSupplierPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      </Route>
+
+      <Route element={<ProtectedRoute roles={ROLE_ACCESS.matching} />}>
+        <Route path="/matching" element={<MatchingPage />} />
+      </Route>
+
+      <Route element={<ProtectedRoute roles={ROLE_ACCESS.logistics} />}>
+        <Route path="/logistics" element={<LogisticsPage />} />
+        <Route path="/logistics/:parcelId" element={<ParcelDetailPage />} />
+        <Route path="/logistics/book" element={<Navigate to="/logistics" replace />} />
+      </Route>
+
+      <Route path="*" element={<UnknownRouteRedirect />} />
+    </Routes>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <RouteChrome />
+        <AppRoutes />
+      </AuthProvider>
     </BrowserRouter>
   );
 }
