@@ -7,6 +7,9 @@ import InvoicePage from "./pages/InvoicePage";
 import DashboardPage from "./pages/DashboardPage";
 import WaitlistPage from "./pages/WaitlistPage";
 import OrdersPage from "./pages/OrdersPage";
+import LogisticsPage from "./pages/LogisticsPage";
+import ParcelDetailPage from "./pages/ParcelDetailPage";
+import BookParcelPage from "./pages/BookParcelPage";
 import MatchingPage from "./pages/MatchingPage";
 import BecomeSupplierPage from "./pages/BecomeSupplierPage";
 import LoginPage from "./pages/LoginPage";
@@ -20,6 +23,7 @@ const TITLES = [
   ["/dashboard", "Dashboard"],
   ["/waitlist", "Wait List"],
   ["/orders", "Orders"],
+  ["/logistics", "Logistics"],
   ["/suppliers/", "Supplier"],
 ];
 
@@ -48,6 +52,9 @@ function App() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/waitlist" element={<WaitlistPage />} />
         <Route path="/orders" element={<OrdersPage />} />
+        <Route path="/logistics" element={<LogisticsPage />} />
+        <Route path="/logistics/book" element={<BookParcelPage />} />
+        <Route path="/logistics/:parcelId" element={<ParcelDetailPage />} />
         <Route path="/matching" element={<MatchingPage />} />
         <Route path="/become-a-supplier" element={<BecomeSupplierPage />} />
         <Route path="/login" element={<LoginPage />} />
