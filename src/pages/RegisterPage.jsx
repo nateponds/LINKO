@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Handshake, MapPin, ShieldCheck } from "lucide-react";
-import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import "./LoginPage.css";
 
@@ -10,17 +10,20 @@ const HIGHLIGHTS = [
   { Icon: ShieldCheck, text: "Verified supplier profiles" },
 ];
 
-export default function LoginPage() {
-  const { user, login } = useAuth();
-  const location = useLocation();
+const INITIAL_FORM = {
+  full_name: "",
+  email: "",
+  password: "",
+  business_name: "",
+  business_type: "buyer",
+};
+
+export default function RegisterPage() {
+  const { user, register } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ email: "", password: "" });
+  const [form, setForm] = useState(INITIAL_FORM);
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const redirectTo = useMemo(
-    () => location.state?.from?.pathname || "/dashboard",
-    [location.state],
-  );
 
   if (user) {
     return <Navigate to="/dashboard" replace />;
@@ -36,11 +39,14 @@ export default function LoginPage() {
     setSubmitting(true);
 
     try {
-      await login({
+      await register({
         email: form.email.trim(),
         password: form.password,
+        full_name: form.full_name.trim(),
+        business_name: form.business_name.trim(),
+        business_type: form.business_type,
       });
-      navigate(redirectTo, { replace: true });
+      navigate("/dashboard", { replace: true });
     } catch (error) {
       setSubmitError(error.message);
     } finally {
@@ -69,11 +75,23 @@ export default function LoginPage() {
 
         <div className="login-form-side">
           <div className="auth-page-header">
-            <h1>Log in</h1>
-            <p>Access your buyer or wholesaler workspace.</p>
+            <h1>Create account</h1>
+            <p>Set up your buyer or wholesaler workspace.</p>
           </div>
 
           <form onSubmit={handleSubmit}>
+            <label>
+              Full name
+              <input
+                type="text"
+                required
+                autoComplete="name"
+                placeholder="Your full name"
+                value={form.full_name}
+                onChange={(event) => setField("full_name", event.target.value)}
+              />
+            </label>
+
             <label>
               Email
               <input
@@ -91,22 +109,46 @@ export default function LoginPage() {
               <input
                 type="password"
                 required
-                autoComplete="current-password"
-                placeholder="Your password"
+                minLength={8}
+                autoComplete="new-password"
+                placeholder="At least 8 characters"
                 value={form.password}
                 onChange={(event) => setField("password", event.target.value)}
               />
             </label>
 
+            <label>
+              Business name
+              <input
+                type="text"
+                required
+                autoComplete="organization"
+                placeholder="e.g. Linko Trading Co."
+                value={form.business_name}
+                onChange={(event) => setField("business_name", event.target.value)}
+              />
+            </label>
+
+            <label>
+              Business type
+              <select
+                value={form.business_type}
+                onChange={(event) => setField("business_type", event.target.value)}
+              >
+                <option value="buyer">Buyer</option>
+                <option value="wholesaler">Wholesaler</option>
+              </select>
+            </label>
+
             {submitError && <p className="auth-error">{submitError}</p>}
 
             <button type="submit" className="btn-primary" disabled={submitting}>
-              {submitting ? "Logging in..." : "Log in"}
+              {submitting ? "Creating account..." : "Create account"}
             </button>
           </form>
 
           <p className="auth-alt">
-            New to LINKO? <Link to="/register">Create an account</Link>
+            Already have an account? <Link to="/login">Log in</Link>
           </p>
         </div>
       </div>

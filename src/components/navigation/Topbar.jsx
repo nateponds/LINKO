@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import {
   Bell,
   Boxes,
-  Camera,
   ClipboardList,
+  LayoutDashboard,
   LogOut,
   Menu,
   Package,
@@ -14,54 +14,80 @@ import {
   User,
 } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useAuth } from "../../auth/AuthProvider";
+import { formatRoleLabel, getPrimaryMembership } from "../../auth/roleAccess";
 import Sidebar from "./Sidebar";
 
-/* Mock notifications — swap for GET /api/notifications later; keep the shape. */
 const NOTIFICATIONS = [
   { id: 1, Icon: Package, text: "Order #21358 is now in transit", time: "2h ago" },
-  { id: 2, Icon: TriangleAlert, text: "Low stock: AF41W — 8 units left", time: "5h ago" },
+  { id: 2, Icon: TriangleAlert, text: "Low stock: AF41W - 8 units left", time: "5h ago" },
   { id: 3, Icon: Star, text: "New 5-star review on your shop", time: "Yesterday" },
 ];
 
 function Topbar({ showSearch = false }) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [openPanel, setOpenPanel] = useState(null); // "notifications" | "profile" | null
+  const [openPanel, setOpenPanel] = useState(null);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { user, memberships, logout, hasAnyRole } = useAuth();
   const qParam = searchParams.get("q") ?? "";
+  const primaryMembership = getPrimaryMembership(memberships);
+  const displayName = user?.full_name || user?.email || "LINKO User";
+  const displayBusiness = primaryMembership?.business_name || "No business assigned";
+  const displayRole = formatRoleLabel(
+    user?.global_role === "platform_admin" ? user.global_role : primaryMembership?.role,
+  );
+  const avatarLetter = displayName.charAt(0).toUpperCase();
 
-  function submitSearch(e) {
-    e.preventDefault();
-    const q = String(new FormData(e.currentTarget).get("q") || "").trim();
+  function submitSearch(event) {
+    event.preventDefault();
+    const q = String(new FormData(event.currentTarget).get("q") || "").trim();
     navigate(q ? `/?q=${encodeURIComponent(q)}` : "/");
   }
 
-  // Any click outside a panel (or Escape) closes it.
+  async function handleLogout() {
+    setOpenPanel(null);
+    setMenuOpen(false);
+    await logout();
+    navigate("/login", { replace: true });
+  }
+
   useEffect(() => {
-    if (!openPanel) return;
+    if (!openPanel) {
+      return undefined;
+    }
+
     function close() {
       setOpenPanel(null);
     }
-    function handleKey(e) {
-      if (e.key === "Escape") close();
+
+    function handleKey(event) {
+      if (event.key === "Escape") {
+        close();
+      }
     }
+
     document.addEventListener("click", close);
     document.addEventListener("keydown", handleKey);
+
     return () => {
       document.removeEventListener("click", close);
       document.removeEventListener("keydown", handleKey);
     };
   }, [openPanel]);
 
-  function togglePanel(e, name) {
-    e.stopPropagation();
-    setOpenPanel((prev) => (prev === name ? null : name));
+  function togglePanel(event, name) {
+    event.stopPropagation();
+    setOpenPanel((current) => (current === name ? null : name));
   }
 
   return (
     <>
       <div className="topbar">
-        <Link to="/become-a-supplier">Become a supplier &rarr;</Link>
+        <span>
+          Signed in as <strong>{displayName}</strong>
+          {displayBusiness ? ` - ${displayBusiness}` : ""}
+        </span>
       </div>
       <header className="header-nav">
         <Link to="/" className="logo">
@@ -76,9 +102,6 @@ function Topbar({ showSearch = false }) {
               defaultValue={qParam}
               key={qParam}
             />
-            <button type="button" className="icon-btn" title="Search by image">
-              <Camera size={16} />
-            </button>
             <button type="submit" className="icon-btn go" title="Search">
               <Search size={16} />
             </button>
@@ -91,13 +114,13 @@ function Topbar({ showSearch = false }) {
               title="Notifications"
               aria-label={`Notifications (${NOTIFICATIONS.length} unread)`}
               aria-expanded={openPanel === "notifications"}
-              onClick={(e) => togglePanel(e, "notifications")}
+              onClick={(event) => togglePanel(event, "notifications")}
             >
               <Bell size={16} />
               <span className="notif-badge">{NOTIFICATIONS.length}</span>
             </button>
             {openPanel === "notifications" && (
-              <div className="dropdown-panel" onClick={(e) => e.stopPropagation()}>
+              <div className="dropdown-panel" onClick={(event) => event.stopPropagation()}>
                 <div className="dropdown-head">Notifications</div>
                 <ul className="notif-list">
                   {NOTIFICATIONS.map(({ id, Icon, text, time }) => (
@@ -128,7 +151,7 @@ function Topbar({ showSearch = false }) {
             title={menuOpen ? "Close menu" : "Menu"}
             aria-expanded={menuOpen}
             aria-label={menuOpen ? "Close menu" : "Open menu"}
-            onClick={() => setMenuOpen((prev) => !prev)}
+            onClick={() => setMenuOpen((current) => !current)}
           >
             <Menu size={16} />
           </button>
@@ -138,39 +161,51 @@ function Topbar({ showSearch = false }) {
               className="icon-action"
               title="Profile"
               aria-expanded={openPanel === "profile"}
-              onClick={(e) => togglePanel(e, "profile")}
+              onClick={(event) => togglePanel(event, "profile")}
             >
               <User size={16} />
             </button>
             {openPanel === "profile" && (
-              <div className="dropdown-panel" onClick={(e) => e.stopPropagation()}>
+              <div className="dropdown-panel" onClick={(event) => event.stopPropagation()}>
                 <div className="profile-head">
-                  <span className="profile-avatar">N</span>
+                  <span className="profile-avatar">{avatarLetter}</span>
                   <div>
-                    <span className="profile-name">Nathaniel</span>
-                    <span className="profile-biz">Linko Trading Co.</span>
+                    <span className="profile-name">{displayName}</span>
+                    <span className="profile-biz">{displayBusiness}</span>
+                    <span className="profile-meta">{displayRole}</span>
                   </div>
                 </div>
-                <nav className="dropdown-menu" onClick={() => setOpenPanel(null)}>
-                  <Link to="/dashboard">
-                    <ClipboardList size={15} /> My Business
+                <nav className="dropdown-menu">
+                  <Link to="/dashboard" onClick={() => setOpenPanel(null)}>
+                    <LayoutDashboard size={15} /> Dashboard
                   </Link>
-                  <Link to="/inventory">
-                    <Boxes size={15} /> Inventory
-                  </Link>
-                  <a href="#">
+                  {hasAnyRole(["buyer", "wholesaler", "platform_admin"]) && (
+                    <Link to="/inventory" onClick={() => setOpenPanel(null)}>
+                      <Boxes size={15} /> Inventory
+                    </Link>
+                  )}
+                  {hasAnyRole(["buyer", "wholesaler", "platform_admin"]) && (
+                    <Link to="/orders" onClick={() => setOpenPanel(null)}>
+                      <ClipboardList size={15} /> Orders
+                    </Link>
+                  )}
+                  <button type="button">
                     <Settings size={15} /> Settings
-                  </a>
-                  <Link to="/login" className="danger">
+                  </button>
+                  <button type="button" className="danger" onClick={handleLogout}>
                     <LogOut size={15} /> Logout
-                  </Link>
+                  </button>
                 </nav>
               </div>
             )}
           </div>
         </div>
       </header>
-      <Sidebar isOpen={menuOpen} onClose={() => setMenuOpen(false)} />
+      <Sidebar
+        isOpen={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        onLogout={handleLogout}
+      />
     </>
   );
 }
