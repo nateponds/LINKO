@@ -136,37 +136,38 @@ Public self-registration is allowed only for buyer and wholesaler owner accounts
 
 ## Milestone 3: Orders And Invoices
 
-**Status:** Planned  
+**Status:** Implemented
 **Priority:** Critical  
 **Goal:** Turn product browsing into a real purchase workflow.
 
 ### Tasks
 
-- [ ] Define order lifecycle:
+- [x] Define order lifecycle:
   - pending
   - accepted
   - preparing
   - shipped
   - delivered
   - cancelled
-- [ ] Add order tables or update existing order schema.
-- [ ] Add order item rows tied to products.
-- [ ] Add order APIs:
+- [x] Add order tables or update existing order schema.
+- [x] Add order item rows tied to products.
+- [x] Add order APIs:
   - buyer creates order
   - buyer views own orders
   - wholesaler views incoming orders
   - wholesaler accepts or rejects order
   - wholesaler updates order preparation status
   - platform admin views all orders
-- [ ] Add invoice generation from accepted orders.
-- [ ] Add invoice APIs:
+- [x] Add invoice generation from accepted orders.
+- [x] Add invoice APIs:
   - buyer views own invoices
   - wholesaler views invoices for their orders
   - platform admin views all invoices
-- [ ] Update frontend Orders page to use real data.
-- [ ] Update frontend Invoices page to use real data.
-- [ ] Add order creation flow from product purchase.
-- [ ] Add tests for order ownership, invoice ownership, and role checks.
+- [x] Update frontend Orders page to use real data.
+- [x] Update frontend Invoices page to use real data.
+- [x] Add order creation flow from product purchase.
+- [x] Add tests for order ownership, invoice ownership, and role checks.
+- [x] Verified 2026-07-05: migration 006 applied locally; backend tests pass 42/42; lint and production build pass; live backend smoke confirms buyer multi-item cart order, platform admin status mutation blocked, wholesaler incoming visibility, acceptance-time stock decrement, generated invoice list/detail, and cleanup. Browser automation could not run in this environment because the in-app browser was unavailable and Playwright is not installed, but the React build is clean.
 
 ### Acceptance Criteria
 
