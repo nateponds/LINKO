@@ -19,14 +19,15 @@ const INITIAL_FORM = {
 };
 
 export default function RegisterPage() {
-  const { user, register } = useAuth();
+  const { user, register: authRegister, hasAnyRole } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState(INITIAL_FORM);
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   if (user) {
-    return <Navigate to="/dashboard" replace />;
+    const defaultPath = (hasAnyRole(["buyer"]) && !hasAnyRole(["wholesaler", "platform_admin", "logistics_coordinator", "courier"])) ? "/" : "/dashboard";
+    return <Navigate to={defaultPath} replace />;
   }
 
   function setField(field, value) {
@@ -39,14 +40,19 @@ export default function RegisterPage() {
     setSubmitting(true);
 
     try {
-      await register({
+      const payload = await authRegister({
         email: form.email.trim(),
         password: form.password,
         full_name: form.full_name.trim(),
         business_name: form.business_name.trim(),
         business_type: form.business_type,
       });
-      navigate("/dashboard", { replace: true });
+      const roles = payload.memberships?.map((m) => m.role) || [];
+      const isBuyer = roles.includes("buyer");
+      const hasOtherRoles = roles.some(r => r !== "buyer") || payload.user.global_role === "platform_admin";
+      
+      const defaultPath = (isBuyer && !hasOtherRoles) ? "/" : "/dashboard";
+      navigate(defaultPath, { replace: true });
     } catch (error) {
       setSubmitError(error.message);
     } finally {
