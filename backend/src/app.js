@@ -1,7 +1,10 @@
 import express from "express";
+import authRouter from "./routes/auth.js";
 import inventoryRouter from "./routes/inventory.js";
+import logisticsRouter from "./routes/logistics.js";
 import suppliersRouter from "./routes/suppliers.js";
 import { errorHandler } from "./middleware/errorHandler.js";
+import { requireAnyRole, requireAuth } from "./middleware/auth.js";
 
 export function createApp() {
   const app = express();
@@ -17,8 +20,24 @@ export function createApp() {
 
   // These routers own their domain paths. Code inside inventory.js can stay
   // focused on "/" because app.js attaches it under "/api/inventory".
-  app.use("/api/inventory", inventoryRouter);
-  app.use("/api/suppliers", suppliersRouter);
+  app.use("/api/auth", authRouter);
+  app.use(
+    "/api/inventory",
+    requireAuth,
+    requireAnyRole(["buyer", "wholesaler", "platform_admin"]),
+    inventoryRouter,
+  );
+  app.use(
+    "/api/suppliers",
+    requireAuth,
+    requireAnyRole(["buyer", "wholesaler", "platform_admin"]),
+    suppliersRouter,
+  );
+
+  // Course-deliverable logistics subsystem (Sprint 2-CD). Owns several
+  // top-level paths (/api/parcels, /api/service-tiers, /api/customers), so
+  // it mounts at /api and declares full paths internally.
+  app.use("/api", logisticsRouter);
 
   // If no route above matched, return a JSON 404 instead of Express' HTML page.
   app.use((req, res) => {
