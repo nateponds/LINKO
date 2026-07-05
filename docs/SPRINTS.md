@@ -4,6 +4,32 @@ This file is used to track the team's active development cycles for LINKO. Sprin
 
 ---
 
+## Sprint 2-CD: Course Deliverable Demo — Logistics (Proposed)
+
+**Date range:** 2026-07-06 to 2026-07-13
+**Sprint lead:** @nateponds
+**Status:** Planned
+
+**Goal:**
+Make the CIS 2104 courier/parcel-tracking subsystem (migrations 002/003) visible in the live app for grading. Scope per `docs/course-deliverable.md`; design per `docs/LINKO_ERD.md`. No FKs to marketplace tables — the subsystem stays a decoupled bounded context.
+
+### Tasks
+
+- [ ] **Seed script for logistics tables**
+  - **Area:** Database
+  - **Notes:** Customers named after seeded businesses (demo coherence), 3 service tiers, 2–3 branches, commission brackets covering 0→∞, ~10 parcels with tracking histories.
+- [ ] **Logistics API routes (`backend/src/routes/logistics.js`)**
+  - **Area:** Backend / API
+  - **Notes:** `GET /api/parcels`, `GET /api/parcels/:id` (detail + tracking timeline), `POST /api/parcels`, `GET /api/service-tiers`, `GET /api/customers`. Document shapes in `docs/API_CONTRACTS.md`.
+- [ ] **Logistics demo UI**
+  - **Area:** Frontend
+  - **Notes:** Parcel list → parcel detail with tracking timeline (status derived from latest log) → book-a-parcel form (cut the form first if time squeezes). All 5 core tables visible through this flow.
+- [ ] **Finals report draft (database project proposal)**
+  - **Area:** Docs
+  - **Notes:** Reuse `docs/LINKO_ERD.md` design notes; frame subsystems as decoupled bounded contexts; defend the Parcels-status deviation (status lives in Tracking_Logs).
+
+---
+
 ## Sprint 2: Frontend & Backend Integration (Proposed)
 
 **Date range:** 2026-07-06 to 2026-07-20  
