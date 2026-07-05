@@ -1,7 +1,8 @@
 -- Development seed data for the logistics subsystem (migrations 002 + 003).
+-- Also seeds Milestone 1 local-dev auth/RBAC demo data after 004.
 -- NOT a migration: schema migrations are replayed by the runner, seed data
 -- is not. Run manually in PGAdmin / psql against a dev database AFTER
--- migrations have been applied (002_logistics_schema + 003_linko_schema).
+-- migrations have been applied (002_logistics_schema + 003_linko_schema + 004_auth_rbac).
 --
 -- Idempotent: TRUNCATE-and-reload, so re-running gives a clean fixed set.
 -- RESTART IDENTITY resets SERIAL counters; CASCADE clears dependent rows.
@@ -13,6 +14,140 @@
 --   both          (ids 3,4)      appear as BOTH sender_id and receiver_id
 --   buyers-only   (ids 5..10)    appear ONLY as receiver_id
 -- customer_type is orthogonal account classification, chosen for realism.
+
+-- Local dev auth note:
+--   buyer@linko.test / Password123!
+--   wholesaler@linko.test / Password123!
+--   logistics@linko.test / Password123!
+--   courier@linko.test / Password123!
+--   admin@linko.test / Password123!
+
+-- ---------------------------------------------------------------------------
+-- AUTH / RBAC DEMO DATA
+-- ---------------------------------------------------------------------------
+-- Shared Node crypto.scrypt-compatible PHC string for the local-dev password.
+-- Password123! => $scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==
+
+INSERT INTO businesses (business_name, business_type, contact_number, address_line, city, is_verified)
+SELECT 'Sunrise Retail Cooperative', 'buyer', '+639171200001', '14 Osmena Blvd', 'Cebu City', TRUE
+WHERE NOT EXISTS (
+    SELECT 1 FROM businesses WHERE business_name = 'Sunrise Retail Cooperative'
+);
+
+INSERT INTO businesses (business_name, business_type, contact_number, address_line, city, is_verified)
+SELECT 'Harbor Bulk Trading', 'wholesaler', '+639171200002', '88 Portside Ave', 'Mandaue', TRUE
+WHERE NOT EXISTS (
+    SELECT 1 FROM businesses WHERE business_name = 'Harbor Bulk Trading'
+);
+
+INSERT INTO businesses (business_name, business_type, contact_number, address_line, city, is_verified)
+SELECT 'LINKO Dispatch Services', 'buyer', '+639171200003', '5 Logistics Park', 'Cebu City', TRUE
+WHERE NOT EXISTS (
+    SELECT 1 FROM businesses WHERE business_name = 'LINKO Dispatch Services'
+);
+
+UPDATE users
+   SET full_name = 'Bianca Buyer',
+       password_hash = '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==',
+       role = 'staff',
+       global_role = NULL
+ WHERE email = 'buyer@linko.test';
+
+INSERT INTO users (username, email, full_name, password_hash, role, global_role)
+SELECT 'buyer_demo', 'buyer@linko.test', 'Bianca Buyer',
+       '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==',
+       'staff', NULL
+WHERE NOT EXISTS (
+    SELECT 1 FROM users WHERE email = 'buyer@linko.test'
+);
+
+UPDATE users
+   SET full_name = 'Waldo Wholesaler',
+       password_hash = '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==',
+       role = 'wholesaler',
+       global_role = NULL
+ WHERE email = 'wholesaler@linko.test';
+
+INSERT INTO users (username, email, full_name, password_hash, role, global_role)
+SELECT 'wholesaler_demo', 'wholesaler@linko.test', 'Waldo Wholesaler',
+       '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==',
+       'wholesaler', NULL
+WHERE NOT EXISTS (
+    SELECT 1 FROM users WHERE email = 'wholesaler@linko.test'
+);
+
+UPDATE users
+   SET full_name = 'Lia Logistics',
+       password_hash = '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==',
+       role = 'staff',
+       global_role = NULL
+ WHERE email = 'logistics@linko.test';
+
+INSERT INTO users (username, email, full_name, password_hash, role, global_role)
+SELECT 'logistics_demo', 'logistics@linko.test', 'Lia Logistics',
+       '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==',
+       'staff', NULL
+WHERE NOT EXISTS (
+    SELECT 1 FROM users WHERE email = 'logistics@linko.test'
+);
+
+UPDATE users
+   SET full_name = 'Cory Courier',
+       password_hash = '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==',
+       role = 'staff',
+       global_role = NULL
+ WHERE email = 'courier@linko.test';
+
+INSERT INTO users (username, email, full_name, password_hash, role, global_role)
+SELECT 'courier_demo', 'courier@linko.test', 'Cory Courier',
+       '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==',
+       'staff', NULL
+WHERE NOT EXISTS (
+    SELECT 1 FROM users WHERE email = 'courier@linko.test'
+);
+
+UPDATE users
+   SET full_name = 'Pia Platform Admin',
+       password_hash = '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==',
+       role = 'admin',
+       global_role = 'platform_admin'
+ WHERE email = 'admin@linko.test';
+
+INSERT INTO users (username, email, full_name, password_hash, role, global_role)
+SELECT 'admin_demo', 'admin@linko.test', 'Pia Platform Admin',
+       '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==',
+       'admin', 'platform_admin'
+WHERE NOT EXISTS (
+    SELECT 1 FROM users WHERE email = 'admin@linko.test'
+);
+
+INSERT INTO business_memberships (user_id, business_id, role)
+SELECT u.user_id, b.business_id, 'buyer'
+  FROM users u
+  JOIN businesses b ON b.business_name = 'Sunrise Retail Cooperative'
+ WHERE u.email = 'buyer@linko.test'
+ON CONFLICT (user_id, business_id, role) DO NOTHING;
+
+INSERT INTO business_memberships (user_id, business_id, role)
+SELECT u.user_id, b.business_id, 'wholesaler'
+  FROM users u
+  JOIN businesses b ON b.business_name = 'Harbor Bulk Trading'
+ WHERE u.email = 'wholesaler@linko.test'
+ON CONFLICT (user_id, business_id, role) DO NOTHING;
+
+INSERT INTO business_memberships (user_id, business_id, role)
+SELECT u.user_id, b.business_id, 'logistics_coordinator'
+  FROM users u
+  JOIN businesses b ON b.business_name = 'LINKO Dispatch Services'
+ WHERE u.email = 'logistics@linko.test'
+ON CONFLICT (user_id, business_id, role) DO NOTHING;
+
+INSERT INTO business_memberships (user_id, business_id, role)
+SELECT u.user_id, b.business_id, 'courier'
+  FROM users u
+  JOIN businesses b ON b.business_name = 'LINKO Dispatch Services'
+ WHERE u.email = 'courier@linko.test'
+ON CONFLICT (user_id, business_id, role) DO NOTHING;
 
 TRUNCATE tracking_logs, payments, commissions, parcels, couriers, branches,
          addresses, customers, service_tiers, commission_brackets
