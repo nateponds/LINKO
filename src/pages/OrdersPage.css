@@ -38,6 +38,48 @@
     text-decoration: underline;
   }
 
+  .muted-cell {
+    color: var(--color-muted);
+  }
+
+  .order-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+
+  .action-button {
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 0;
+    font: inherit;
+  }
+
+  .action-button:disabled {
+    color: var(--color-muted);
+    cursor: default;
+    text-decoration: none;
+  }
+
+  .status.pending,
+  .status.preparing {
+    background: #fdf3d7;
+    color: #9a7b12;
+  }
+
+  .status.accepted,
+  .status.shipped {
+    background: var(--color-primary-soft);
+    color: var(--color-primary-dark);
+  }
+
+  .status.rejected {
+    background: #fdeaea;
+    color: #c0392b;
+  }
+
   @media (max-width: 700px) {
     padding: 20px 16px 40px;
   }

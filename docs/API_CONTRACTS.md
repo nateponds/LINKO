@@ -202,6 +202,142 @@ Same auth/ownership as PATCH. Soft delete (`is_active = FALSE`). `204`. Already 
 
 ---
 
+## 2c. Orders & Invoices Domain (`/api/orders`, `/api/invoices`) — Milestone 3
+
+All endpoints require authentication (`401` unauthenticated). Roles: `buyer`, `wholesaler`, or `platform_admin`; logistics/courier-only users receive `403`.
+
+Order status lifecycle is server-enforced:
+
+`pending → accepted | cancelled`, `accepted → preparing`, `preparing → shipped`, `shipped → delivered`.
+
+Invalid skips/backwards transitions return `400`. Buyers may cancel only their own pending orders. Wholesalers may accept/reject and advance only incoming orders for their business. Platform admins can view all orders and invoices.
+
+**Order JSON shape:**
+
+```json
+{
+  "order_id": 1,
+  "buyer_business_id": 1,
+  "buyer_business_name": "Sunrise Retail Cooperative",
+  "wholesaler_business_id": 2,
+  "wholesaler_business_name": "Harbor Bulk Trading",
+  "status": "pending",
+  "total": "351.00",
+  "created_at": "2026-07-05T12:00:00.000Z",
+  "updated_at": "2026-07-05T12:00:00.000Z",
+  "items": [
+    {
+      "order_item_id": 1,
+      "product_id": 10,
+      "product_name": "Premium Pork Belly 5kg",
+      "sku": "HBT-PORK-01",
+      "quantity": 2,
+      "unit_price_snapshot": "150.50",
+      "line_total": "301.00"
+    }
+  ],
+  "invoice": null
+}
+```
+
+`total`, `unit_price_snapshot`, and `line_total` are decimal strings from PostgreSQL `NUMERIC`.
+
+### 2c.1 `GET /api/orders`
+
+Returns visible orders:
+
+- buyers: orders for their buyer business
+- wholesalers: incoming orders for their wholesaler business
+- platform admins: all orders
+
+```json
+[
+  {
+    "order_id": 1,
+    "buyer_business_name": "Sunrise Retail Cooperative",
+    "wholesaler_business_name": "Harbor Bulk Trading",
+    "status": "accepted",
+    "total": "240.00",
+    "items": [],
+    "invoice": {
+      "invoice_id": 1,
+      "invoice_number": "INV-1-1783253000000",
+      "total": "240.00",
+      "issued_at": "2026-07-05T12:05:00.000Z"
+    }
+  }
+]
+```
+
+### 2c.2 `GET /api/orders/:id`
+
+Returns one visible order. Missing, non-numeric, or not-owned orders return `404`.
+
+### 2c.3 `POST /api/orders`
+
+Role: `buyer` (or platform admin with explicit `buyer_business_id`).
+
+Owning `buyer_business_id` comes from the caller's buyer membership: 0 memberships → `403`; more than 1 → `400` ("multiple buyer businesses not supported yet"). Order items must reference active products, all from one wholesaler business. Product prices are snapshotted into `order_items.unit_price_snapshot` when the order is created. Stock is not decremented until acceptance.
+
+**Body:**
+
+```json
+{
+  "items": [
+    { "product_id": 10, "quantity": 2 },
+    { "product_id": 11, "quantity": 1 }
+  ]
+}
+```
+
+Returns `201` + the created order.
+
+### 2c.4 `PATCH /api/orders/:id/status`
+
+Roles: `buyer` or `wholesaler`. Platform admins can view all orders but do not mutate order status in Milestone 3.
+
+**Body:**
+
+```json
+{ "status": "accepted" }
+```
+
+Accepting an order decrements each product's `stock_quantity` in the same transaction and generates exactly one invoice. If any line lacks enough stock, the request returns `400` and neither stock nor invoices change. Rejecting an order uses status `cancelled`.
+
+Returns the updated order.
+
+### 2c.5 `GET /api/invoices`
+
+Returns visible invoices:
+
+- buyers: invoices for their buyer business
+- wholesalers: invoices for their fulfilled orders
+- platform admins: all invoices
+
+```json
+[
+  {
+    "invoice_id": 1,
+    "invoice_number": "INV-1-1783253000000",
+    "order_id": 1,
+    "order_status": "accepted",
+    "buyer_business_id": 1,
+    "buyer_business_name": "Sunrise Retail Cooperative",
+    "wholesaler_business_id": 2,
+    "wholesaler_business_name": "Harbor Bulk Trading",
+    "total": "240.00",
+    "issued_at": "2026-07-05T12:05:00.000Z",
+    "items": []
+  }
+]
+```
+
+### 2c.6 `GET /api/invoices/:id`
+
+Returns one visible invoice with item rows. Missing, non-numeric, or not-owned invoices return `404`.
+
+---
+
 ## 3. Logistics Domain (course deliverable — Sprint 2-CD)
 
 Exposes the CIS 2104 courier subsystem (migrations 002/003) for the demo UI. Decoupled bounded context — no joins to marketplace tables. Money and measurement fields are JSON numbers. `current_status` is always derived from the latest `tracking_logs` row, never stored on the parcel (see `docs/LINKO_ERD.md`).
