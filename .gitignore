@@ -24,5 +24,5 @@ dist-ssr
 *.sw?
 
 # Local source/reference documents that need explicit review before publishing
-docs/BPMN-process-flow.pdf
-docs/LINKO business plan.md
+docs/archived/BPMN-process-flow.pdf
+docs/archived/LINKO business plan.md
