@@ -71,10 +71,16 @@ router.post("/register", async (req, res, next) => {
     );
 
     const businessResult = await client.query(
-      `INSERT INTO businesses (business_name, business_type, address_line, city)
-       VALUES ($1, $2, 'Not provided', 'Not provided')
+      `INSERT INTO businesses (business_name, business_type)
+       VALUES ($1, $2)
        RETURNING business_id, business_name, business_type`,
       [businessName, businessType],
+    );
+
+    await client.query(
+      `INSERT INTO addresses (business_id, province, city_municipality, barangay, street_address, postal_code)
+       VALUES ($1, 'Not provided', 'Not provided', 'Not provided', 'Not provided', '0000')`,
+      [businessResult.rows[0].business_id],
     );
 
     await client.query(

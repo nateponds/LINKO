@@ -13,28 +13,6 @@ CREATE TABLE service_tiers (
     estimated_days INT NOT NULL
 );
 
--- Shared directory for senders and receivers. customer_type is account
--- classification, not transaction role.
-CREATE TABLE customers (
-    customer_id SERIAL PRIMARY KEY,
-    full_name VARCHAR(100) NOT NULL,
-    phone_number VARCHAR(20) NOT NULL,
-    email VARCHAR(100) UNIQUE,
-    customer_type VARCHAR(20) NOT NULL
-        CHECK (customer_type IN ('individual', 'msme', 'corporation', 'other'))
-);
-
--- Granular Philippine-hierarchy addresses. customer_id is null for
--- ownerless branch addresses.
-CREATE TABLE addresses (
-    address_id SERIAL PRIMARY KEY,
-    customer_id INT REFERENCES customers(customer_id) ON UPDATE CASCADE ON DELETE SET NULL,
-    province VARCHAR(50) NOT NULL,
-    city_municipality VARCHAR(50) NOT NULL,
-    barangay VARCHAR(50),
-    street_address VARCHAR(150),
-    postal_code VARCHAR(10)
-);
 
 -- Physical hubs/warehouses where parcels are processed.
 CREATE TABLE branches (
@@ -57,8 +35,8 @@ CREATE TABLE couriers (
 -- tracking_logs, not here. total_cost is set by a BEFORE INSERT trigger.
 CREATE TABLE parcels (
     parcel_id VARCHAR(20) PRIMARY KEY,
-    sender_id INT NOT NULL REFERENCES customers(customer_id) ON UPDATE CASCADE ON DELETE RESTRICT,
-    receiver_id INT NOT NULL REFERENCES customers(customer_id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    sender_id INT NOT NULL REFERENCES businesses(business_id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    receiver_id INT NOT NULL REFERENCES businesses(business_id) ON UPDATE CASCADE ON DELETE RESTRICT,
     tier_id INT NOT NULL REFERENCES service_tiers(tier_id) ON UPDATE CASCADE ON DELETE RESTRICT,
     origin_address_id INT NOT NULL REFERENCES addresses(address_id) ON UPDATE CASCADE ON DELETE RESTRICT,
     destination_address_id INT NOT NULL REFERENCES addresses(address_id) ON UPDATE CASCADE ON DELETE RESTRICT,

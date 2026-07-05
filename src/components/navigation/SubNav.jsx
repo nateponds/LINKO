@@ -1,26 +1,53 @@
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { apiGet } from "../../lib/api";
 
-const items = [
-  { name: "Pork", image: "https://loremflickr.com/160/160/pork,meat" },
-  { name: "Beef", image: "https://loremflickr.com/160/160/beef,meat" },
-  { name: "Chicken", image: "https://loremflickr.com/160/160/chicken,meat" },
-  { name: "Chips", image: "https://loremflickr.com/160/160/potato,chips" },
-  { name: "Fish", image: "https://loremflickr.com/160/160/fish,seafood" },
-  { name: "Shellfish", image: "https://loremflickr.com/160/160/shellfish,seafood" },
-  { name: "Produce", image: "https://loremflickr.com/160/160/produce,vegetables" },
-  { name: "Bakery", image: "https://loremflickr.com/160/160/bakery,bread" },
-  { name: "Dairy", image: "https://loremflickr.com/160/160/dairy,milk" },
-  { name: "Frozen", image: "https://loremflickr.com/160/160/frozen,food" },
-  { name: "Packaging", image: "https://loremflickr.com/160/160/food,packaging" },
-  { name: "Beverages", image: "https://loremflickr.com/160/160/beverages,drinks" },
-];
+/* Deterministic placeholder image per category name. Categories not listed
+   fall back to a generic food image so the carousel always renders. */
+const CATEGORY_IMAGES = {
+  Pork: "https://loremflickr.com/160/160/pork,meat",
+  Beef: "https://loremflickr.com/160/160/beef,meat",
+  Chicken: "https://loremflickr.com/160/160/chicken,meat",
+  Chips: "https://loremflickr.com/160/160/potato,chips",
+  Fish: "https://loremflickr.com/160/160/fish,seafood",
+  Shellfish: "https://loremflickr.com/160/160/shellfish,seafood",
+  Produce: "https://loremflickr.com/160/160/produce,vegetables",
+  Bakery: "https://loremflickr.com/160/160/bakery,bread",
+  Dairy: "https://loremflickr.com/160/160/dairy,milk",
+  Frozen: "https://loremflickr.com/160/160/frozen,food",
+  Packaging: "https://loremflickr.com/160/160/food,packaging",
+  Beverages: "https://loremflickr.com/160/160/beverages,drinks",
+};
+
+function imageFor(name) {
+  return (
+    CATEGORY_IMAGES[name] ??
+    `https://loremflickr.com/160/160/${encodeURIComponent(name.toLowerCase())},food`
+  );
+}
 
 function SubNav() {
   const containerRef = useRef(null);
   const [canScrollBack, setCanScrollBack] = useState(false);
   const [canScrollNext, setCanScrollNext] = useState(false);
+  const [categories, setCategories] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    apiGet("/api/categories")
+      .then((data) => {
+        if (!cancelled) setCategories(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {
+        if (!cancelled) setCategories([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function updateScrollButtons() {
     const container = containerRef.current;
@@ -40,13 +67,17 @@ function SubNav() {
     window.addEventListener("resize", updateScrollButtons);
 
     return () => window.removeEventListener("resize", updateScrollButtons);
-  }, []);
+  }, [categories]);
 
   function scrollNav(direction) {
     containerRef.current?.scrollBy({
       left: direction * 300,
       behavior: "smooth",
     });
+  }
+
+  if (categories.length === 0) {
+    return null;
   }
 
   return (
@@ -63,14 +94,14 @@ function SubNav() {
         </button>
 
         <div className="circle-container" ref={containerRef} onScroll={updateScrollButtons}>
-          {items.map((item) => (
+          {categories.map((item) => (
             <Link
               className="circle-btn"
-              to={`/?category=${encodeURIComponent(item.name)}`}
-              key={item.name}
+              to={`/?category=${encodeURIComponent(item.category_name)}`}
+              key={item.category_id}
             >
-              <img src={item.image} alt="" aria-hidden="true" />
-              <span>{item.name}</span>
+              <img src={imageFor(item.category_name)} alt="" aria-hidden="true" />
+              <span>{item.category_name}</span>
             </Link>
           ))}
         </div>

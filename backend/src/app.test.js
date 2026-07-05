@@ -141,7 +141,7 @@ test("logistics session can access parcel list", { skip: !hasDb }, async () => {
   assert.equal(response.status, 200);
   for (const parcel of response.body) {
     assert.ok("current_status" in parcel);
-    assert.ok(parcel.sender.full_name);
+    assert.ok(parcel.sender.business_name);
   }
 });
 
@@ -165,6 +165,14 @@ test("unknown parcel returns 404", { skip: !hasDb }, async () => {
 });
 
 test("booking a parcel creates payment, commission, and first log", { skip: !hasDb }, async () => {
+  const { createPool: createPoolPatch } = await import("./db.js");
+  const patchPool = createPoolPatch();
+  const harborId = await getBusinessIdByName(patchPool, "Harbor Bulk Trading");
+  const sunriseId = await getBusinessIdByName(patchPool, "Sunrise Retail Cooperative");
+  const harborAddr = (await patchPool.query("SELECT address_id FROM addresses WHERE business_id = $1 LIMIT 1", [harborId])).rows[0].address_id;
+  const sunriseAddr = (await patchPool.query("SELECT address_id FROM addresses WHERE business_id = $1 LIMIT 1", [sunriseId])).rows[0].address_id;
+  await patchPool.end();
+
   const cookie = await loginAs("logistics@linko.test");
   const created = await request("/api/parcels", {
     method: "POST",
@@ -173,11 +181,11 @@ test("booking a parcel creates payment, commission, and first log", { skip: !has
       Cookie: cookie,
     },
     body: JSON.stringify({
-      sender_id: 1,
-      receiver_id: 7,
+      sender_id: harborId,
+      receiver_id: sunriseId,
       tier_id: 1,
-      origin_address_id: 1,
-      destination_address_id: 7,
+      origin_address_id: harborAddr,
+      destination_address_id: sunriseAddr,
       weight_kg: 2.5,
       declared_value: 1000,
       total_distance_km: 10,
@@ -276,7 +284,12 @@ test("buyer session can access suppliers", { skip: !hasDb }, async () => {
   });
 
   assert.equal(response.status, 200);
-  assert.deepEqual(response.body, []);
+  assert.ok(Array.isArray(response.body));
+  // Only wholesaler/both businesses appear, each with a product_count.
+  const harbor = response.body.find((s) => s.business_name === "Harbor Bulk Trading");
+  assert.ok(harbor, "Harbor Bulk Trading should be listed as a supplier");
+  assert.equal(typeof harbor.product_count, "number");
+  assert.ok("city_municipality" in harbor && "is_verified" in harbor);
 });
 
 test("wholesaler session can access suppliers", { skip: !hasDb }, async () => {
@@ -286,7 +299,7 @@ test("wholesaler session can access suppliers", { skip: !hasDb }, async () => {
   });
 
   assert.equal(response.status, 200);
-  assert.deepEqual(response.body, []);
+  assert.ok(Array.isArray(response.body));
 });
 
 test("auth me rejects unauthenticated requests", async () => {
@@ -464,5 +477,649 @@ test("auth register rejects public privileged role business types without creati
     });
 
     assert.equal(login.status, 401);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Milestone 2: marketplace products + categories
+// ---------------------------------------------------------------------------
+
+async function postJson(path, cookie, body) {
+  return request(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: cookie },
+    body: JSON.stringify(body),
+  });
+}
+
+test("unauthenticated product list is rejected", async () => {
+  const response = await request("/api/products");
+
+  assert.equal(response.status, 401);
+  assert.match(response.body.error.message, /authentication required/i);
+});
+
+test("categories come back after migration", { skip: !hasDb }, async () => {
+  const cookie = await loginAs("buyer@linko.test");
+  const response = await request("/api/categories", {
+    headers: { Cookie: cookie },
+  });
+
+  assert.equal(response.status, 200);
+  assert.ok(Array.isArray(response.body));
+  assert.ok(response.body.length >= 12, "expected at least 12 seeded categories");
+  assert.ok("category_id" in response.body[0] && "category_name" in response.body[0]);
+});
+
+test("buyer can list products but cannot create them", { skip: !hasDb }, async () => {
+  const cookie = await loginAs("buyer@linko.test");
+
+  const list = await request("/api/products", { headers: { Cookie: cookie } });
+  assert.equal(list.status, 200);
+  assert.ok(Array.isArray(list.body));
+  for (const product of list.body) {
+    assert.ok("stock_status" in product);
+    assert.ok("business_name" in product);
+  }
+
+  const create = await postJson("/api/products", cookie, {
+    product_name: "Buyer Should Not Create",
+    unit_price: 10,
+  });
+  assert.equal(create.status, 403);
+});
+
+test("wholesaler creates, reads, patches, and deletes a product", { skip: !hasDb }, async () => {
+  const cookie = await loginAs("wholesaler@linko.test");
+  const sku = `TEST-${Date.now()}`;
+
+  const created = await postJson("/api/products", cookie, {
+    product_name: "Test Marketplace Product",
+    unit_price: 250.5,
+    sku,
+    stock_quantity: 3,
+  });
+  assert.equal(created.status, 201);
+  assert.equal(created.body.product_name, "Test Marketplace Product");
+  assert.equal(created.body.unit_price, "250.50");
+  assert.equal(created.body.stock_status, "low_stock");
+  assert.equal(created.body.business_name, "Harbor Bulk Trading");
+  const productId = created.body.product_id;
+
+  const list = await request("/api/products?business_id=" + created.body.business_id, {
+    headers: { Cookie: cookie },
+  });
+  assert.equal(list.status, 200);
+  assert.ok(list.body.some((p) => p.product_id === productId));
+
+  const detail = await request(`/api/products/${productId}`, {
+    headers: { Cookie: cookie },
+  });
+  assert.equal(detail.status, 200);
+  assert.equal(detail.body.product_id, productId);
+
+  const patched = await request(`/api/products/${productId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Cookie: cookie },
+    body: JSON.stringify({ stock_quantity: 0 }),
+  });
+  assert.equal(patched.status, 200);
+  assert.equal(patched.body.stock_status, "out_of_stock");
+
+  const deleted = await request(`/api/products/${productId}`, {
+    method: "DELETE",
+    headers: { Cookie: cookie },
+  });
+  assert.equal(deleted.status, 204);
+
+  const gone = await request(`/api/products/${productId}`, {
+    headers: { Cookie: cookie },
+  });
+  assert.equal(gone.status, 404);
+
+  const listAfter = await request("/api/products?business_id=" + created.body.business_id, {
+    headers: { Cookie: cookie },
+  });
+  assert.ok(!listAfter.body.some((p) => p.product_id === productId));
+});
+
+test("product create rejects missing name or negative price", { skip: !hasDb }, async () => {
+  const cookie = await loginAs("wholesaler@linko.test");
+
+  const noName = await postJson("/api/products", cookie, { unit_price: 10 });
+  assert.equal(noName.status, 400);
+  assert.match(noName.body.error.message, /product_name/i);
+
+  const badPrice = await postJson("/api/products", cookie, {
+    product_name: "Bad Price",
+    unit_price: -5,
+  });
+  assert.equal(badPrice.status, 400);
+  assert.match(badPrice.body.error.message, /unit_price/i);
+});
+
+test("wholesaler cannot patch a product owned by another business", { skip: !hasDb }, async () => {
+  const cookie = await loginAs("wholesaler@linko.test");
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+  const bizName = `Temp Wholesaler ${Date.now()}`;
+  let foreignProductId;
+  try {
+    const biz = await pool.query(
+      `INSERT INTO businesses (business_name, business_type)
+       VALUES ($1, 'wholesaler') RETURNING business_id`,
+      [bizName],
+    );
+    const prod = await pool.query(
+      `INSERT INTO products (business_id, product_name, sku, unit_price, stock_quantity)
+       VALUES ($1, 'Foreign Product', $2, 100, 5) RETURNING product_id`,
+      [biz.rows[0].business_id, `FOREIGN-${Date.now()}`],
+    );
+    foreignProductId = prod.rows[0].product_id;
+
+    const patched = await request(`/api/products/${foreignProductId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: cookie },
+      body: JSON.stringify({ unit_price: 1 }),
+    });
+    assert.equal(patched.status, 403);
+  } finally {
+    if (foreignProductId) {
+      await pool.query("DELETE FROM products WHERE product_id = $1", [foreignProductId]);
+    }
+    await pool.query("DELETE FROM businesses WHERE business_name = $1", [bizName]);
+    await pool.end();
+  }
+});
+
+test("platform admin manages products across businesses", { skip: !hasDb }, async () => {
+  const adminCookie = await loginAs("admin@linko.test");
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+
+  // Resolve Harbor's business_id by name (SERIAL, never hardcoded).
+  const harbor = await pool.query(
+    "SELECT business_id FROM businesses WHERE business_name = 'Harbor Bulk Trading'",
+  );
+  const harborId = harbor.rows[0].business_id;
+
+  // Admin has no wholesaler membership, so POST without business_id -> 400.
+  const noBiz = await postJson("/api/products", adminCookie, {
+    product_name: "Admin No Business",
+    unit_price: 10,
+  });
+  assert.equal(noBiz.status, 400);
+  assert.match(noBiz.body.error.message, /business_id/i);
+
+  // POST with a valid wholesaler business_id -> 201.
+  const created = await postJson("/api/products", adminCookie, {
+    product_name: "Admin Created Product",
+    unit_price: 42,
+    sku: `ADMIN-${Date.now()}`,
+    business_id: harborId,
+  });
+  assert.equal(created.status, 201);
+  const productId = created.body.product_id;
+
+  try {
+    // Admin can patch a product it does not "own".
+    const patched = await request(`/api/products/${productId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: adminCookie },
+      body: JSON.stringify({ unit_price: 99 }),
+    });
+    assert.equal(patched.status, 200);
+    assert.equal(patched.body.unit_price, "99.00");
+  } finally {
+    await pool.query("DELETE FROM products WHERE product_id = $1", [productId]);
+    await pool.end();
+  }
+});
+
+test("a soft-deleted product's sku can be reused, but an active sku cannot", { skip: !hasDb }, async () => {
+  const cookie = await loginAs("wholesaler@linko.test");
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+  const suffix = Date.now();
+  const reuseSku = `REUSE-1-${suffix}`;
+  const activeSku = `REUSE-2-${suffix}`;
+  const created = [];
+  try {
+    // Create then soft-delete a product, then re-create with the same sku -> 201.
+    const first = await postJson("/api/products", cookie, {
+      product_name: "Reusable Sku Product",
+      unit_price: 10,
+      sku: reuseSku,
+    });
+    assert.equal(first.status, 201);
+    created.push(first.body.product_id);
+
+    const del = await request(`/api/products/${first.body.product_id}`, {
+      method: "DELETE",
+      headers: { Cookie: cookie },
+    });
+    assert.equal(del.status, 204);
+
+    const reused = await postJson("/api/products", cookie, {
+      product_name: "Reused Sku Product",
+      unit_price: 12,
+      sku: reuseSku,
+    });
+    assert.equal(reused.status, 201);
+    created.push(reused.body.product_id);
+
+    // A second ACTIVE product with the same sku -> 400 (partial unique index).
+    const firstActive = await postJson("/api/products", cookie, {
+      product_name: "Active Sku Product",
+      unit_price: 15,
+      sku: activeSku,
+    });
+    assert.equal(firstActive.status, 201);
+    created.push(firstActive.body.product_id);
+
+    const dupActive = await postJson("/api/products", cookie, {
+      product_name: "Duplicate Active Sku",
+      unit_price: 15,
+      sku: activeSku,
+    });
+    assert.equal(dupActive.status, 400);
+  } finally {
+    for (const id of created) {
+      await pool.query("DELETE FROM products WHERE product_id = $1", [id]);
+    }
+    await pool.end();
+  }
+});
+
+test("non-numeric product id returns 404 not 500", { skip: !hasDb }, async () => {
+  const cookie = await loginAs("buyer@linko.test");
+  const response = await request("/api/products/not-a-number", {
+    headers: { Cookie: cookie },
+  });
+
+  assert.equal(response.status, 404);
+});
+
+// ---------------------------------------------------------------------------
+// Milestone 3: orders + invoices
+// ---------------------------------------------------------------------------
+
+async function getBusinessIdByName(pool, businessName) {
+  const { rows } = await pool.query(
+    "SELECT business_id FROM businesses WHERE business_name = $1",
+    [businessName],
+  );
+  assert.ok(rows[0], `expected business ${businessName} to exist`);
+  return rows[0].business_id;
+}
+
+async function getProductStock(pool, productId) {
+  const { rows } = await pool.query(
+    "SELECT stock_quantity FROM products WHERE product_id = $1",
+    [productId],
+  );
+  assert.ok(rows[0], `expected product ${productId} to exist`);
+  return rows[0].stock_quantity;
+}
+
+async function createTestProduct(pool, overrides = {}) {
+  const harborId = await getBusinessIdByName(pool, "Harbor Bulk Trading");
+  const product = await pool.query(
+    `INSERT INTO products
+       (business_id, product_name, sku, unit_price, stock_quantity)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING product_id`,
+    [
+      harborId,
+      overrides.product_name ?? "Order Test Product",
+      overrides.sku ?? `ORDER-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      overrides.unit_price ?? 125,
+      overrides.stock_quantity ?? 9,
+    ],
+  );
+  return product.rows[0].product_id;
+}
+
+test("unauthenticated order and invoice lists are rejected", async () => {
+  const orders = await request("/api/orders");
+  assert.equal(orders.status, 401);
+  assert.match(orders.body.error.message, /authentication required/i);
+
+  const invoices = await request("/api/invoices");
+  assert.equal(invoices.status, 401);
+  assert.match(invoices.body.error.message, /authentication required/i);
+});
+
+test("buyer creates an order and buyer and wholesaler can see their own sides", { skip: !hasDb }, async () => {
+  const buyerCookie = await loginAs("buyer@linko.test");
+  const wholesalerCookie = await loginAs("wholesaler@linko.test");
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+  let orderId;
+  const productIds = [];
+
+  try {
+    const firstProductId = await createTestProduct(pool, {
+      stock_quantity: 12,
+      unit_price: 150.5,
+    });
+    const secondProductId = await createTestProduct(pool, {
+      product_name: "Second Cart Product",
+      stock_quantity: 8,
+      unit_price: 50,
+    });
+    productIds.push(firstProductId, secondProductId);
+
+    const created = await postJson("/api/orders", buyerCookie, {
+      tier_id: 1,
+      items: [
+        { product_id: firstProductId, quantity: 2 },
+        { product_id: secondProductId, quantity: 1 },
+      ],
+    });
+    assert.equal(created.status, 201);
+    assert.equal(created.body.status, "pending");
+    assert.equal(created.body.wholesaler_business_name, "Harbor Bulk Trading");
+    assert.equal(created.body.buyer_business_name, "Sunrise Retail Cooperative");
+    assert.equal(created.body.total, "401.00");
+    assert.equal(created.body.items.length, 2);
+    assert.equal(created.body.items[0].unit_price_snapshot, "150.50");
+    assert.equal(created.body.invoice, null);
+    orderId = created.body.order_id;
+
+    const buyerList = await request("/api/orders", { headers: { Cookie: buyerCookie } });
+    assert.equal(buyerList.status, 200);
+    assert.ok(buyerList.body.some((order) => order.order_id === orderId));
+
+    const wholesalerList = await request("/api/orders", {
+      headers: { Cookie: wholesalerCookie },
+    });
+    assert.equal(wholesalerList.status, 200);
+    assert.ok(wholesalerList.body.some((order) => order.order_id === orderId));
+  } finally {
+    if (orderId) {
+      await pool.query("DELETE FROM order_items WHERE order_id = $1", [orderId]);
+      await pool.query("DELETE FROM orders WHERE order_id = $1", [orderId]);
+    }
+    for (const productId of productIds) {
+      await pool.query("DELETE FROM products WHERE product_id = $1", [productId]);
+    }
+    await pool.end();
+  }
+});
+
+test("wholesaler accepts an order, decrements stock, and generates one invoice", { skip: !hasDb }, async () => {
+  const buyerCookie = await loginAs("buyer@linko.test");
+  const wholesalerCookie = await loginAs("wholesaler@linko.test");
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+  let orderId;
+  let productId;
+
+  try {
+    productId = await createTestProduct(pool, { stock_quantity: 5, unit_price: 80 });
+    const created = await postJson("/api/orders", buyerCookie, {
+      tier_id: 1, items: [{ product_id: productId, quantity: 3 }],
+    });
+    assert.equal(created.status, 201);
+    orderId = created.body.order_id;
+
+    const accepted = await request(`/api/orders/${orderId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: wholesalerCookie },
+      body: JSON.stringify({ status: "accepted" }),
+    });
+    assert.equal(accepted.status, 200);
+    assert.equal(accepted.body.status, "accepted");
+    assert.equal(accepted.body.invoice.total, "290.00");
+    assert.match(accepted.body.invoice.invoice_number, /^INV-\d+-\d+$/);
+    assert.equal(await getProductStock(pool, productId), 2);
+
+    const secondAccept = await request(`/api/orders/${orderId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: wholesalerCookie },
+      body: JSON.stringify({ status: "accepted" }),
+    });
+    assert.equal(secondAccept.status, 400);
+
+    const invoices = await request("/api/invoices", { headers: { Cookie: buyerCookie } });
+    assert.equal(invoices.status, 200);
+    const invoice = invoices.body.find((row) => row.order_id === orderId);
+    assert.ok(invoice);
+    assert.equal(invoice.total, "290.00");
+
+    const invoiceDetail = await request(`/api/invoices/${invoice.invoice_id}`, {
+      headers: { Cookie: wholesalerCookie },
+    });
+    assert.equal(invoiceDetail.status, 200);
+    assert.equal(invoiceDetail.body.order_id, orderId);
+    assert.equal(invoiceDetail.body.items[0].product_id, productId);
+  } finally {
+    if (orderId) {
+      await pool.query("DELETE FROM order_items WHERE order_id = $1", [orderId]);
+      await pool.query("DELETE FROM orders WHERE order_id = $1", [orderId]);
+    }
+    if (productId) {
+      await pool.query("DELETE FROM products WHERE product_id = $1", [productId]);
+    }
+    await pool.end();
+  }
+});
+
+test("order status transitions and ownership are enforced", { skip: !hasDb }, async () => {
+  const buyerCookie = await loginAs("buyer@linko.test");
+  const wholesalerCookie = await loginAs("wholesaler@linko.test");
+  const logisticsCookie = await loginAs("logistics@linko.test");
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+  let orderId;
+  let productId;
+
+  try {
+    productId = await createTestProduct(pool, { stock_quantity: 2, unit_price: 25 });
+    const created = await postJson("/api/orders", buyerCookie, {
+      tier_id: 1, items: [{ product_id: productId, quantity: 2 }],
+    });
+    assert.equal(created.status, 201);
+    orderId = created.body.order_id;
+
+    const logisticsList = await request("/api/orders", {
+      headers: { Cookie: logisticsCookie },
+    });
+    assert.equal(logisticsList.status, 403);
+
+    const buyerAccept = await request(`/api/orders/${orderId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: buyerCookie },
+      body: JSON.stringify({ status: "accepted" }),
+    });
+    assert.equal(buyerAccept.status, 403);
+
+    const skipped = await request(`/api/orders/${orderId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: wholesalerCookie },
+      body: JSON.stringify({ status: "delivered" }),
+    });
+    assert.equal(skipped.status, 400);
+
+    const cancelled = await request(`/api/orders/${orderId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: buyerCookie },
+      body: JSON.stringify({ status: "cancelled" }),
+    });
+    assert.equal(cancelled.status, 200);
+    assert.equal(cancelled.body.status, "cancelled");
+    assert.equal(cancelled.body.invoice, null);
+    assert.equal(await getProductStock(pool, productId), 2);
+  } finally {
+    if (orderId) {
+      await pool.query("DELETE FROM order_items WHERE order_id = $1", [orderId]);
+      await pool.query("DELETE FROM orders WHERE order_id = $1", [orderId]);
+    }
+    if (productId) {
+      await pool.query("DELETE FROM products WHERE product_id = $1", [productId]);
+    }
+    await pool.end();
+  }
+});
+
+test("accepting an order rejects insufficient stock without generating an invoice", { skip: !hasDb }, async () => {
+  const buyerCookie = await loginAs("buyer@linko.test");
+  const wholesalerCookie = await loginAs("wholesaler@linko.test");
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+  let orderId;
+  let productId;
+
+  try {
+    productId = await createTestProduct(pool, { stock_quantity: 1, unit_price: 40 });
+    const created = await postJson("/api/orders", buyerCookie, {
+      tier_id: 1, items: [{ product_id: productId, quantity: 2 }],
+    });
+    assert.equal(created.status, 201);
+    orderId = created.body.order_id;
+
+    const accepted = await request(`/api/orders/${orderId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: wholesalerCookie },
+      body: JSON.stringify({ status: "accepted" }),
+    });
+    assert.equal(accepted.status, 400);
+    assert.match(accepted.body.error.message, /insufficient stock/i);
+    assert.equal(await getProductStock(pool, productId), 1);
+
+    const invoices = await request("/api/invoices", { headers: { Cookie: buyerCookie } });
+    assert.equal(invoices.status, 200);
+    assert.ok(!invoices.body.some((row) => row.order_id === orderId));
+  } finally {
+    if (orderId) {
+      await pool.query("DELETE FROM order_items WHERE order_id = $1", [orderId]);
+      await pool.query("DELETE FROM orders WHERE order_id = $1", [orderId]);
+    }
+    if (productId) {
+      await pool.query("DELETE FROM products WHERE product_id = $1", [productId]);
+    }
+    await pool.end();
+  }
+});
+
+test("platform admin can view but cannot mutate order status", { skip: !hasDb }, async () => {
+  const buyerCookie = await loginAs("buyer@linko.test");
+  const adminCookie = await loginAs("admin@linko.test");
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+  let orderId;
+  let productId;
+  let adminMembershipAdded = false;
+
+  try {
+    const harborId = await getBusinessIdByName(pool, "Harbor Bulk Trading");
+    await pool.query(
+      `INSERT INTO business_memberships (user_id, business_id, role)
+       SELECT user_id, $1, 'wholesaler'
+         FROM users
+        WHERE email = 'admin@linko.test'
+       ON CONFLICT (user_id, business_id, role) DO NOTHING`,
+      [harborId],
+    );
+    adminMembershipAdded = true;
+
+    productId = await createTestProduct(pool, { stock_quantity: 4, unit_price: 30 });
+    const created = await postJson("/api/orders", buyerCookie, {
+      tier_id: 1, items: [{ product_id: productId, quantity: 2 }],
+    });
+    assert.equal(created.status, 201);
+    orderId = created.body.order_id;
+
+    const adminList = await request("/api/orders", { headers: { Cookie: adminCookie } });
+    assert.equal(adminList.status, 200);
+    assert.ok(adminList.body.some((order) => order.order_id === orderId));
+
+    const adminAccept = await request(`/api/orders/${orderId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: adminCookie },
+      body: JSON.stringify({ status: "accepted" }),
+    });
+    assert.equal(adminAccept.status, 403);
+    assert.equal(await getProductStock(pool, productId), 4);
+
+    const invoices = await request("/api/invoices", { headers: { Cookie: adminCookie } });
+    assert.equal(invoices.status, 200);
+    assert.ok(!invoices.body.some((row) => row.order_id === orderId));
+  } finally {
+    if (orderId) {
+      await pool.query("DELETE FROM order_items WHERE order_id = $1", [orderId]);
+      await pool.query("DELETE FROM orders WHERE order_id = $1", [orderId]);
+    }
+    if (productId) {
+      await pool.query("DELETE FROM products WHERE product_id = $1", [productId]);
+    }
+    if (adminMembershipAdded) {
+      await pool.query(
+        `DELETE FROM business_memberships
+          WHERE user_id = (SELECT user_id FROM users WHERE email = 'admin@linko.test')
+            AND business_id = (SELECT business_id FROM businesses WHERE business_name = 'Harbor Bulk Trading')
+            AND role = 'wholesaler'`,
+      );
+    }
+    await pool.end();
+  }
+});
+
+test("non-owner status mutation is rejected before lifecycle details leak", { skip: !hasDb }, async () => {
+  const wholesalerCookie = await loginAs("wholesaler@linko.test");
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+  let orderId;
+  let productId;
+  let foreignBusinessId;
+
+  try {
+    const buyerBusinessId = await getBusinessIdByName(pool, "Sunrise Retail Cooperative");
+    const business = await pool.query(
+      `INSERT INTO businesses (business_name, business_type)
+       VALUES ($1, 'wholesaler')
+       RETURNING business_id`,
+      [`Foreign Order Wholesaler ${Date.now()}`],
+    );
+    foreignBusinessId = business.rows[0].business_id;
+    const product = await pool.query(
+      `INSERT INTO products (business_id, product_name, sku, unit_price, stock_quantity)
+       VALUES ($1, 'Foreign Order Product', $2, 40, 5)
+       RETURNING product_id`,
+      [foreignBusinessId, `FOREIGN-ORDER-${Date.now()}`],
+    );
+    productId = product.rows[0].product_id;
+    const order = await pool.query(
+      `INSERT INTO orders (buyer_business_id, wholesaler_business_id, status, tier_id)
+       VALUES ($1, $2, 'delivered', 1)
+       RETURNING order_id`,
+      [buyerBusinessId, foreignBusinessId],
+    );
+    orderId = order.rows[0].order_id;
+    await pool.query(
+      `INSERT INTO order_items (order_id, product_id, quantity, unit_price_snapshot)
+       VALUES ($1, $2, 1, 40)`,
+      [orderId, productId],
+    );
+
+    const response = await request(`/api/orders/${orderId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: wholesalerCookie },
+      body: JSON.stringify({ status: "accepted" }),
+    });
+    assert.equal(response.status, 403);
+  } finally {
+    if (orderId) {
+      await pool.query("DELETE FROM order_items WHERE order_id = $1", [orderId]);
+      await pool.query("DELETE FROM orders WHERE order_id = $1", [orderId]);
+    }
+    if (productId) {
+      await pool.query("DELETE FROM products WHERE product_id = $1", [productId]);
+    }
+    if (foreignBusinessId) {
+      await pool.query("DELETE FROM businesses WHERE business_id = $1", [foreignBusinessId]);
+    }
+    await pool.end();
   }
 });
