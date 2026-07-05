@@ -1,213 +1,36 @@
 # LINKO Sprint And Milestone Plan
 
-This file is the active delivery plan for LINKO. It replaces the older mock-data integration sprint with the current product direction:
-
-- LINKO must require real authentication before users can access the app.
-- LINKO must use role-based access control for buyer, wholesaler, logistics, courier, and platform admin workflows.
-- Marketplace products must be owned by registered businesses, not hardcoded frontend data.
-- Logistics must be created from orders and shipments, not from a public standalone parcel booking form.
-- Buyer-facing delivery visibility belongs in Orders and Invoices, not in the Logistics staff workspace.
-
-## Current Direction
-
-LINKO is being developed as a buyer-wholesaler marketplace and operations platform. The immediate goal is to move from a portfolio-style demo into a course-deliverable application with credible users, businesses, authentication, permissions, database-backed workflows, and end-to-end marketplace behavior.
-
-## Roles
-
-- `buyer`: can browse and buy supplies, manage buyer-side orders and invoices, and track deliveries through order/invoice views.
-- `wholesaler`: can manage a wholesaler business, list products, receive orders, and coordinate fulfillment.
-- `logistics_coordinator`: can manage shipments and delivery coordination.
-- `courier`: can view and update assigned shipment progress.
-- `platform_admin`: can manage the platform, users, businesses, and all operational data.
-
-Public self-registration is allowed only for buyer and wholesaler owner accounts. Logistics, courier, and platform admin accounts must be seeded or created by an admin.
-
----
-
-## Milestone 1: Authentication And RBAC
-
-**Status:** In progress  
-**Priority:** Critical  
-**Goal:** Remove guest/demo access and make LINKO a real logged-in application with backend-enforced authorization.
-
-### Completed Or Implemented
-
-- [x] Add PostgreSQL-backed cookie sessions.
-- [x] Add `linko_session` session cookie.
-- [x] Store only hashed session tokens in the database.
-- [x] Add password hashing with Node `crypto.scrypt`.
-- [x] Add auth/RBAC migration:
-  - `business_memberships`
-  - `auth_sessions`
-  - auth fields on `users`
-  - global platform admin role support
-- [x] Add seeded demo accounts:
-  - `buyer@linko.test`
-  - `wholesaler@linko.test`
-  - `logistics@linko.test`
-  - `courier@linko.test`
-  - `admin@linko.test`
-- [x] Add backend auth routes:
-  - `POST /api/auth/register`
-  - `POST /api/auth/login`
-  - `POST /api/auth/logout`
-  - `GET /api/auth/me`
-- [x] Protect backend APIs with authentication and role checks.
-- [x] Block unauthenticated Logistics access.
-- [x] Block buyer access to Logistics.
-- [x] Add frontend auth provider.
-- [x] Add protected frontend routes.
-- [x] Add real Login page.
-- [x] Add real Register page.
-- [x] Add role-aware navigation.
-- [x] Add logout.
-- [x] Redirect `/logistics/book` away for now.
-- [x] Add backend tests for auth, sessions, protected APIs, and logistics authorization.
-
-### Remaining
-
-- [x] Restart local backend so the new auth routes are live on `localhost:5000`.
-- [x] Run migrations against the active local PostgreSQL database.
-- [x] Start Vite frontend on `localhost:5173`.
-- [x] Manually verify:
-  - logged-out `/logistics` redirects to `/login`
-  - `logistics@linko.test` can open Logistics
-  - `buyer@linko.test` cannot open Logistics
-  - buyer can open Dashboard, Orders, Invoices, Inventory, and marketplace pages
-  - logout returns to Login
-- [x] Backend-level verification passed 2026-07-05: migrations clean, 26/26 tests pass, live API checks confirm 401 unauthenticated, buyer 403 on /api/parcels, logistics 200, logout invalidates session. Browser walkthrough still pending.
-- [x] Commit the Milestone 1 auth/RBAC changes (commit `53b0ddc`).
-
-### Acceptance Criteria
-
-- No protected app route is visible while logged out.
-- Backend APIs return `401` when unauthenticated.
-- Backend APIs return `403` when authenticated with the wrong role.
-- Login/register/logout work through the browser.
-- Seeded role accounts work.
-- Buyer cannot use Logistics.
-- Logistics coordinator can use Logistics.
-- Existing build, lint, and backend tests pass.
-
----
-
-## Milestone 2: Database-Backed Marketplace Products
-
-**Status:** Implemented — browser walkthrough pending  
-**Priority:** Critical  
-**Goal:** Replace hardcoded merchandise with real products owned and managed by registered wholesaler businesses.
-
-### Tasks
-
-- [x] Review existing product, inventory, business, and supplier schema coverage.
-- [x] Add or update product tables as needed:
-  - products
-  - categories
-  - business-owned listings
-  - prices
-  - stock status
-  - product images or image URLs
-- [x] Add wholesaler product APIs:
-  - `GET /api/products`
-  - `GET /api/products/:id`
-  - `POST /api/products`
-  - `PATCH /api/products/:id`
-  - `DELETE /api/products/:id` or soft-delete equivalent
-- [x] Enforce ownership:
-  - wholesaler sees and edits only their own products
-  - platform admin can see and edit all products
-- [x] Replace frontend hardcoded merchandise with API data.
-- [x] Add product management UI for wholesaler businesses.
-- [x] Add buyer-facing marketplace browsing from database-backed products.
-- [x] Add empty, loading, and error states.
-- [x] Add backend tests for product ownership and role checks.
-- [x] Verified 2026-07-05: live API smoke 23/23 checks pass (buyer browse/403, wholesaler CRUD lifecycle, admin rules); backend tests pass; lint + build clean. Review fixes applied: sku partial-unique index for soft-delete reuse, numeric :id validation, ownership-gated row actions. Known deferred: MatchingPage still uses mock supplier slugs (links to profiles show empty state) — migrate with Matching work; admin has no Add-product business picker.
-
-### Acceptance Criteria
-
-- Marketplace products come from PostgreSQL, not hardcoded arrays.
-- Wholesaler can create and edit products for their business.
-- Buyer can browse products.
-- Buyer cannot create wholesaler listings.
-- Unauthenticated users cannot browse the app.
-- Product APIs are covered by tests.
-
----
-
-## Milestone 3: Orders And Invoices
-
-**Status:** Implemented
-**Priority:** Critical  
-**Goal:** Turn product browsing into a real purchase workflow.
-
-### Tasks
-
-- [x] Define order lifecycle:
-  - pending
-  - accepted
-  - preparing
-  - shipped
-  - delivered
-  - cancelled
-- [x] Add order tables or update existing order schema.
-- [x] Add order item rows tied to products.
-- [x] Add order APIs:
-  - buyer creates order
-  - buyer views own orders
-  - wholesaler views incoming orders
-  - wholesaler accepts or rejects order
-  - wholesaler updates order preparation status
-  - platform admin views all orders
-- [x] Add invoice generation from accepted orders.
-- [x] Add invoice APIs:
-  - buyer views own invoices
-  - wholesaler views invoices for their orders
-  - platform admin views all invoices
-- [x] Update frontend Orders page to use real data.
-- [x] Update frontend Invoices page to use real data.
-- [x] Add order creation flow from product purchase.
-- [x] Add tests for order ownership, invoice ownership, and role checks.
-- [x] Verified 2026-07-05: migration 006 applied locally; backend tests pass 42/42; lint and production build pass; live backend smoke confirms buyer multi-item cart order, platform admin status mutation blocked, wholesaler incoming visibility, acceptance-time stock decrement, generated invoice list/detail, and cleanup. Browser automation could not run in this environment because the in-app browser was unavailable and Playwright is not installed, but the React build is clean.
-
-### Acceptance Criteria
-
-- Buyer can place an order from a real product.
-- Wholesaler can see and manage incoming orders.
-- Buyer can see order and invoice status.
-- Invoices are tied to real orders.
-- Users cannot access orders or invoices they do not own, except platform admin.
-
----
+This file is the active delivery plan fo\n\n---
 
 ## Milestone 4: Logistics From Orders
 
-**Status:** Planned  
+**Status:** Implemented  
 **Priority:** High  
 **Goal:** Replace standalone parcel booking with shipments created from real accepted orders.
 
 ### Tasks
 
-- [ ] Remove or permanently disable standalone buyer-facing parcel booking.
-- [ ] Add shipment creation from accepted orders.
-- [ ] Link shipments to:
+- [x] Remove or permanently disable standalone buyer-facing parcel booking.
+- [x] Add shipment creation from accepted orders.
+- [x] Link shipments to:
   - order
   - buyer business
   - wholesaler business
   - logistics coordinator
   - courier
-- [ ] Add logistics coordinator workflow:
+- [x] Add logistics coordinator workflow:
   - view shipments needing assignment
   - assign courier
   - update service tier
   - update route/status
-- [ ] Add courier workflow:
+- [x] Add courier workflow:
   - view assigned shipments
   - update pickup status
   - update in-transit status
   - mark delivered
-- [ ] Add buyer delivery visibility through Orders and Invoices.
-- [ ] Keep Logistics page restricted to wholesaler, logistics coordinator, courier, and platform admin.
-- [ ] Add tests for shipment creation, assignment, courier access, and buyer visibility.
+- [x] Add buyer delivery visibility through Orders and Invoices.
+- [x] Keep Logistics page restricted to wholesaler, logistics coordinator, courier, and platform admin.
+- [x] Add tests for shipment creation, assignment, courier access, and buyer visibility.
 
 ### Acceptance Criteria
 
@@ -217,8 +40,6 @@ Public self-registration is allowed only for buyer and wholesaler owner accounts
 - Couriers see only assigned shipments.
 - Logistics coordinators can coordinate shipments.
 - Wholesalers can see shipment status for their fulfilled orders.
-
----
 
 ## Milestone 5: Ownership, Multi-Business Context, And Security
 
