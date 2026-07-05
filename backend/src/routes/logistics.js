@@ -21,7 +21,7 @@ function asClientError(error) {
 // parcels -- see docs/LINKO_ERD.md design notes.
 const LATEST_LOG = `
   LEFT JOIN LATERAL (
-    SELECT status_update, scanned_at
+    SELECT status_update, scanned_at, courier_id
       FROM tracking_logs tl
      WHERE tl.parcel_id = p.parcel_id
      ORDER BY tl.scanned_at DESC
@@ -37,20 +37,30 @@ router.use(
 router.use(
   "/service-tiers",
   requireAuth,
-  requireAnyRole(["wholesaler", "logistics_coordinator", "courier", "platform_admin"]),
+  requireAnyRole(["buyer", "wholesaler", "logistics_coordinator", "courier", "platform_admin"]),
 );
 
 router.use(
-  "/customers",
+  "/businesses",
   requireAuth,
   requireAnyRole(["wholesaler", "logistics_coordinator", "courier", "platform_admin"]),
 );
 
-router.get("/parcels", async (_req, res) => {
+router.get("/parcels", async (req, res) => {
+  const isCourierOnly = !req.auth.user.global_role && !req.auth.memberships.some(m => ["logistics_coordinator", "platform_admin", "wholesaler"].includes(m.role));
+  
+  let filterClause = "";
+  let params = [];
+  
+  if (isCourierOnly) {
+    filterClause = "WHERE latest.courier_id = (SELECT courier_id FROM couriers WHERE user_id = $1)";
+    params.push(req.auth.user.user_id);
+  }
+
   const { rows } = await query(`
     SELECT p.parcel_id,
-           json_build_object('customer_id', s.customer_id, 'full_name', s.full_name) AS sender,
-           json_build_object('customer_id', r.customer_id, 'full_name', r.full_name) AS receiver,
+           json_build_object('business_id', s.business_id, 'business_name', s.business_name) AS sender,
+           json_build_object('business_id', r.business_id, 'business_name', r.business_name) AS receiver,
            st.tier_name,
            p.weight_kg::float8,
            p.shipping_fee::float8,
@@ -58,11 +68,12 @@ router.get("/parcels", async (_req, res) => {
            latest.status_update AS current_status,
            latest.scanned_at    AS last_scanned_at
       FROM parcels p
-      JOIN customers s      ON s.customer_id = p.sender_id
-      JOIN customers r      ON r.customer_id = p.receiver_id
+      JOIN businesses s      ON s.business_id = p.sender_id
+      JOIN businesses r      ON r.business_id = p.receiver_id
       JOIN service_tiers st ON st.tier_id = p.tier_id
       ${LATEST_LOG}
-     ORDER BY latest.scanned_at DESC NULLS LAST`);
+      ${filterClause}
+     ORDER BY latest.scanned_at DESC NULLS LAST`, params);
 
   res.json(rows);
 });
@@ -71,10 +82,10 @@ router.get("/parcels/:id", async (req, res) => {
   const { rows } = await query(
     `
     SELECT p.parcel_id,
-           json_build_object('customer_id', s.customer_id, 'full_name', s.full_name,
-                             'phone_number', s.phone_number) AS sender,
-           json_build_object('customer_id', r.customer_id, 'full_name', r.full_name,
-                             'phone_number', r.phone_number) AS receiver,
+           json_build_object('business_id', s.business_id, 'business_name', s.business_name,
+                             'contact_number', s.contact_number) AS sender,
+           json_build_object('business_id', r.business_id, 'business_name', r.business_name,
+                             'contact_number', r.contact_number) AS receiver,
            json_build_object('tier_id', st.tier_id, 'tier_name', st.tier_name,
                              'estimated_days', st.estimated_days) AS tier,
            json_build_object('province', o.province, 'city_municipality', o.city_municipality,
@@ -101,8 +112,8 @@ router.get("/parcels/:id", async (req, res) => {
               LEFT JOIN couriers c ON c.courier_id = tl.courier_id
              WHERE tl.parcel_id = p.parcel_id) AS tracking_history
       FROM parcels p
-      JOIN customers s      ON s.customer_id = p.sender_id
-      JOIN customers r      ON r.customer_id = p.receiver_id
+      JOIN businesses s      ON s.business_id = p.sender_id
+      JOIN businesses r      ON r.business_id = p.receiver_id
       JOIN service_tiers st ON st.tier_id = p.tier_id
       JOIN addresses o      ON o.address_id = p.origin_address_id
       JOIN addresses d      ON d.address_id = p.destination_address_id
@@ -236,11 +247,11 @@ router.get("/service-tiers", async (_req, res) => {
   res.json(rows);
 });
 
-// Customers with their addresses -- the book-a-parcel form needs both to
+// Businesses with their addresses -- the book-a-parcel form needs both to
 // fill sender/receiver and origin/destination selects.
-router.get("/customers", async (_req, res) => {
+router.get("/businesses", async (_req, res) => {
   const { rows } = await query(`
-    SELECT c.customer_id, c.full_name, c.phone_number, c.email, c.customer_type,
+    SELECT b.business_id, b.business_name, b.contact_number, b.business_type,
            COALESCE(json_agg(json_build_object(
                       'address_id', a.address_id,
                       'province', a.province,
@@ -250,12 +261,99 @@ router.get("/customers", async (_req, res) => {
                       'postal_code', a.postal_code)
                     ORDER BY a.address_id)
                     FILTER (WHERE a.address_id IS NOT NULL), '[]') AS addresses
-      FROM customers c
-      LEFT JOIN addresses a ON a.customer_id = c.customer_id
-     GROUP BY c.customer_id
-     ORDER BY c.customer_id`);
+      FROM businesses b
+      LEFT JOIN addresses a ON a.business_id = b.business_id
+     GROUP BY b.business_id
+     ORDER BY b.business_id`);
 
   res.json(rows);
+});
+
+router.get("/branches", async (_req, res) => {
+  const { rows } = await query(`
+    SELECT b.branch_id, b.branch_name, b.contact_number,
+           a.province, a.city_municipality, a.barangay, a.street_address
+      FROM branches b
+      JOIN addresses a ON a.address_id = b.address_id
+     ORDER BY b.branch_id`);
+  res.json(rows);
+});
+
+router.get("/couriers", async (_req, res) => {
+  const { rows } = await query(`
+    SELECT courier_id, full_name, phone_number, vehicle_type, assigned_branch_id
+      FROM couriers
+     ORDER BY full_name`);
+  res.json(rows);
+});
+
+router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "courier", "platform_admin"]), async (req, res, next) => {
+  try {
+    const parcelId = req.params.id;
+    const { status_update, remarks, branch_id, courier_id } = req.body ?? {};
+
+    const validStatuses = [
+      'Order Created', 'Picked Up', 'In Transit',
+      'Out for Delivery', 'Delivered', 'Returned', 'Cancelled'
+    ];
+
+    if (!validStatuses.includes(status_update)) {
+      return res.status(400).json({
+        error: { message: "Invalid status_update" },
+      });
+    }
+
+    const { rows } = await query(
+      `INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id, courier_id)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [parcelId, status_update, remarks || null, branch_id || null, courier_id || null]
+    );
+
+    res.status(201).json(rows[0]);
+  } catch (error) {
+    next(asClientError(error));
+  }
+});
+
+
+router.post("/branches", requireAnyRole(["logistics_coordinator", "platform_admin"]), async (req, res, next) => {
+  const client = await getPool().connect();
+  try {
+    const { branch_name, contact_number, province, city_municipality, barangay, street_address, postal_code } = req.body;
+    await client.query("BEGIN");
+    const addr = await client.query(
+      `INSERT INTO addresses (province, city_municipality, barangay, street_address, postal_code)
+       VALUES ($1, $2, $3, $4, $5) RETURNING address_id`,
+      [province, city_municipality, barangay, street_address, postal_code]
+    );
+    const branch = await client.query(
+      `INSERT INTO branches (branch_name, contact_number, address_id)
+       VALUES ($1, $2, $3) RETURNING *`,
+      [branch_name, contact_number, addr.rows[0].address_id]
+    );
+    await client.query("COMMIT");
+    res.status(201).json(branch.rows[0]);
+  } catch(e) {
+    await client.query("ROLLBACK").catch(()=>{});
+    next(asClientError(e));
+  } finally {
+    client.release();
+  }
+});
+
+router.post("/couriers", requireAnyRole(["logistics_coordinator", "platform_admin"]), async (req, res, next) => {
+  try {
+    const { full_name, phone_number, vehicle_type, assigned_branch_id } = req.body;
+    const { rows } = await query(
+      `INSERT INTO couriers (full_name, phone_number, vehicle_type, assigned_branch_id)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [full_name, phone_number, vehicle_type, assigned_branch_id || null]
+    );
+    res.status(201).json(rows[0]);
+  } catch(e) {
+    next(asClientError(e));
+  }
 });
 
 export default router;
