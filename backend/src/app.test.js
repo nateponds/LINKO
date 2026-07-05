@@ -141,7 +141,7 @@ test("logistics session can access parcel list", { skip: !hasDb }, async () => {
   assert.equal(response.status, 200);
   for (const parcel of response.body) {
     assert.ok("current_status" in parcel);
-    assert.ok(parcel.sender.full_name);
+    assert.ok(parcel.sender.business_name);
   }
 });
 
@@ -165,6 +165,14 @@ test("unknown parcel returns 404", { skip: !hasDb }, async () => {
 });
 
 test("booking a parcel creates payment, commission, and first log", { skip: !hasDb }, async () => {
+  const { createPool: createPoolPatch } = await import("./db.js");
+  const patchPool = createPoolPatch();
+  const harborId = await getBusinessIdByName(patchPool, "Harbor Bulk Trading");
+  const sunriseId = await getBusinessIdByName(patchPool, "Sunrise Retail Cooperative");
+  const harborAddr = (await patchPool.query("SELECT address_id FROM addresses WHERE business_id = $1 LIMIT 1", [harborId])).rows[0].address_id;
+  const sunriseAddr = (await patchPool.query("SELECT address_id FROM addresses WHERE business_id = $1 LIMIT 1", [sunriseId])).rows[0].address_id;
+  await patchPool.end();
+
   const cookie = await loginAs("logistics@linko.test");
   const created = await request("/api/parcels", {
     method: "POST",
@@ -173,11 +181,11 @@ test("booking a parcel creates payment, commission, and first log", { skip: !has
       Cookie: cookie,
     },
     body: JSON.stringify({
-      sender_id: 1,
-      receiver_id: 7,
+      sender_id: harborId,
+      receiver_id: sunriseId,
       tier_id: 1,
-      origin_address_id: 1,
-      destination_address_id: 7,
+      origin_address_id: harborAddr,
+      destination_address_id: sunriseAddr,
       weight_kg: 2.5,
       declared_value: 1000,
       total_distance_km: 10,
@@ -281,7 +289,7 @@ test("buyer session can access suppliers", { skip: !hasDb }, async () => {
   const harbor = response.body.find((s) => s.business_name === "Harbor Bulk Trading");
   assert.ok(harbor, "Harbor Bulk Trading should be listed as a supplier");
   assert.equal(typeof harbor.product_count, "number");
-  assert.ok("city" in harbor && "is_verified" in harbor);
+  assert.ok("city_municipality" in harbor && "is_verified" in harbor);
 });
 
 test("wholesaler session can access suppliers", { skip: !hasDb }, async () => {
@@ -598,8 +606,8 @@ test("wholesaler cannot patch a product owned by another business", { skip: !has
   let foreignProductId;
   try {
     const biz = await pool.query(
-      `INSERT INTO businesses (business_name, business_type, address_line, city)
-       VALUES ($1, 'wholesaler', 'Temp Address', 'Cebu City') RETURNING business_id`,
+      `INSERT INTO businesses (business_name, business_type)
+       VALUES ($1, 'wholesaler') RETURNING business_id`,
       [bizName],
     );
     const prod = await pool.query(
@@ -803,6 +811,7 @@ test("buyer creates an order and buyer and wholesaler can see their own sides", 
     productIds.push(firstProductId, secondProductId);
 
     const created = await postJson("/api/orders", buyerCookie, {
+      tier_id: 1,
       items: [
         { product_id: firstProductId, quantity: 2 },
         { product_id: secondProductId, quantity: 1 },
@@ -812,7 +821,7 @@ test("buyer creates an order and buyer and wholesaler can see their own sides", 
     assert.equal(created.body.status, "pending");
     assert.equal(created.body.wholesaler_business_name, "Harbor Bulk Trading");
     assert.equal(created.body.buyer_business_name, "Sunrise Retail Cooperative");
-    assert.equal(created.body.total, "351.00");
+    assert.equal(created.body.total, "401.00");
     assert.equal(created.body.items.length, 2);
     assert.equal(created.body.items[0].unit_price_snapshot, "150.50");
     assert.equal(created.body.invoice, null);
@@ -829,6 +838,7 @@ test("buyer creates an order and buyer and wholesaler can see their own sides", 
     assert.ok(wholesalerList.body.some((order) => order.order_id === orderId));
   } finally {
     if (orderId) {
+      await pool.query("DELETE FROM order_items WHERE order_id = $1", [orderId]);
       await pool.query("DELETE FROM orders WHERE order_id = $1", [orderId]);
     }
     for (const productId of productIds) {
@@ -849,7 +859,7 @@ test("wholesaler accepts an order, decrements stock, and generates one invoice",
   try {
     productId = await createTestProduct(pool, { stock_quantity: 5, unit_price: 80 });
     const created = await postJson("/api/orders", buyerCookie, {
-      items: [{ product_id: productId, quantity: 3 }],
+      tier_id: 1, items: [{ product_id: productId, quantity: 3 }],
     });
     assert.equal(created.status, 201);
     orderId = created.body.order_id;
@@ -861,7 +871,7 @@ test("wholesaler accepts an order, decrements stock, and generates one invoice",
     });
     assert.equal(accepted.status, 200);
     assert.equal(accepted.body.status, "accepted");
-    assert.equal(accepted.body.invoice.total, "240.00");
+    assert.equal(accepted.body.invoice.total, "290.00");
     assert.match(accepted.body.invoice.invoice_number, /^INV-\d+-\d+$/);
     assert.equal(await getProductStock(pool, productId), 2);
 
@@ -876,7 +886,7 @@ test("wholesaler accepts an order, decrements stock, and generates one invoice",
     assert.equal(invoices.status, 200);
     const invoice = invoices.body.find((row) => row.order_id === orderId);
     assert.ok(invoice);
-    assert.equal(invoice.total, "240.00");
+    assert.equal(invoice.total, "290.00");
 
     const invoiceDetail = await request(`/api/invoices/${invoice.invoice_id}`, {
       headers: { Cookie: wholesalerCookie },
@@ -886,6 +896,7 @@ test("wholesaler accepts an order, decrements stock, and generates one invoice",
     assert.equal(invoiceDetail.body.items[0].product_id, productId);
   } finally {
     if (orderId) {
+      await pool.query("DELETE FROM order_items WHERE order_id = $1", [orderId]);
       await pool.query("DELETE FROM orders WHERE order_id = $1", [orderId]);
     }
     if (productId) {
@@ -907,7 +918,7 @@ test("order status transitions and ownership are enforced", { skip: !hasDb }, as
   try {
     productId = await createTestProduct(pool, { stock_quantity: 2, unit_price: 25 });
     const created = await postJson("/api/orders", buyerCookie, {
-      items: [{ product_id: productId, quantity: 2 }],
+      tier_id: 1, items: [{ product_id: productId, quantity: 2 }],
     });
     assert.equal(created.status, 201);
     orderId = created.body.order_id;
@@ -942,6 +953,7 @@ test("order status transitions and ownership are enforced", { skip: !hasDb }, as
     assert.equal(await getProductStock(pool, productId), 2);
   } finally {
     if (orderId) {
+      await pool.query("DELETE FROM order_items WHERE order_id = $1", [orderId]);
       await pool.query("DELETE FROM orders WHERE order_id = $1", [orderId]);
     }
     if (productId) {
@@ -962,7 +974,7 @@ test("accepting an order rejects insufficient stock without generating an invoic
   try {
     productId = await createTestProduct(pool, { stock_quantity: 1, unit_price: 40 });
     const created = await postJson("/api/orders", buyerCookie, {
-      items: [{ product_id: productId, quantity: 2 }],
+      tier_id: 1, items: [{ product_id: productId, quantity: 2 }],
     });
     assert.equal(created.status, 201);
     orderId = created.body.order_id;
@@ -981,6 +993,7 @@ test("accepting an order rejects insufficient stock without generating an invoic
     assert.ok(!invoices.body.some((row) => row.order_id === orderId));
   } finally {
     if (orderId) {
+      await pool.query("DELETE FROM order_items WHERE order_id = $1", [orderId]);
       await pool.query("DELETE FROM orders WHERE order_id = $1", [orderId]);
     }
     if (productId) {
@@ -1013,7 +1026,7 @@ test("platform admin can view but cannot mutate order status", { skip: !hasDb },
 
     productId = await createTestProduct(pool, { stock_quantity: 4, unit_price: 30 });
     const created = await postJson("/api/orders", buyerCookie, {
-      items: [{ product_id: productId, quantity: 2 }],
+      tier_id: 1, items: [{ product_id: productId, quantity: 2 }],
     });
     assert.equal(created.status, 201);
     orderId = created.body.order_id;
@@ -1035,6 +1048,7 @@ test("platform admin can view but cannot mutate order status", { skip: !hasDb },
     assert.ok(!invoices.body.some((row) => row.order_id === orderId));
   } finally {
     if (orderId) {
+      await pool.query("DELETE FROM order_items WHERE order_id = $1", [orderId]);
       await pool.query("DELETE FROM orders WHERE order_id = $1", [orderId]);
     }
     if (productId) {
@@ -1063,8 +1077,8 @@ test("non-owner status mutation is rejected before lifecycle details leak", { sk
   try {
     const buyerBusinessId = await getBusinessIdByName(pool, "Sunrise Retail Cooperative");
     const business = await pool.query(
-      `INSERT INTO businesses (business_name, business_type, address_line, city)
-       VALUES ($1, 'wholesaler', 'Temp Address', 'Cebu City')
+      `INSERT INTO businesses (business_name, business_type)
+       VALUES ($1, 'wholesaler')
        RETURNING business_id`,
       [`Foreign Order Wholesaler ${Date.now()}`],
     );
@@ -1077,8 +1091,8 @@ test("non-owner status mutation is rejected before lifecycle details leak", { sk
     );
     productId = product.rows[0].product_id;
     const order = await pool.query(
-      `INSERT INTO orders (buyer_business_id, wholesaler_business_id, status)
-       VALUES ($1, $2, 'delivered')
+      `INSERT INTO orders (buyer_business_id, wholesaler_business_id, status, tier_id)
+       VALUES ($1, $2, 'delivered', 1)
        RETURNING order_id`,
       [buyerBusinessId, foreignBusinessId],
     );
@@ -1097,6 +1111,7 @@ test("non-owner status mutation is rejected before lifecycle details leak", { sk
     assert.equal(response.status, 403);
   } finally {
     if (orderId) {
+      await pool.query("DELETE FROM order_items WHERE order_id = $1", [orderId]);
       await pool.query("DELETE FROM orders WHERE order_id = $1", [orderId]);
     }
     if (productId) {
