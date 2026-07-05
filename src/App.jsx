@@ -22,7 +22,7 @@ const TITLES = [
   ["/matching", "Find Wholesalers"],
   ["/become-a-supplier", "Become a Supplier"],
   ["/login", "Log In"],
-  ["/inventory", "Inventory"],
+  ["/inventory", "My Products"],
   ["/invoices", "Invoice Tracking"],
   ["/dashboard", "Dashboard"],
   ["/waitlist", "Wait List"],
@@ -67,7 +67,7 @@ function AppRoutes() {
       <Route element={<ProtectedRoute roles={ROLE_ACCESS.marketplace} />}>
         <Route path="/" element={<SupplierDiscoveryPage />} />
         <Route path="/suppliers" element={<SupplierDiscoveryPage />} />
-        <Route path="/suppliers/:supplierSlug" element={<SupplierProfilePage />} />
+        <Route path="/suppliers/:supplierId" element={<SupplierProfilePage />} />
         <Route path="/inventory" element={<InventoryPage />} />
         <Route path="/invoices" element={<InvoicePage />} />
         <Route path="/waitlist" element={<WaitlistPage />} />
