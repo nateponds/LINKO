@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "start": "node src/server.js",
-    "migrate": "node src/migrate.js",
-    "test": "node --test"
+    "start": "node --env-file-if-exists=.env src/server.js",
+    "migrate": "node --env-file-if-exists=.env src/migrate.js",
+    "test": "node --env-file-if-exists=.env --test"
   },
   "dependencies": {
     "express": "^5.2.1",
