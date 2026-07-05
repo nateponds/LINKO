@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./public/images/linko.png" alt="LINKO Logo" width="200" />
+  <img src="./public/images/linko.png" alt="LINKO Logo" />
 </div>
 <br>
 
