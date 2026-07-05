@@ -18,8 +18,10 @@ const EMPTY_FORM = {
 const EMPTY_FILTERS = { category: "", priceMin: "", priceMax: "", stock: "" };
 
 function statusFor(status) {
-  if (status === "out_of_stock") return { label: "Out of Stock", cls: "out-of-stock" };
-  if (status === "low_stock") return { label: "Low on Stock", cls: "low-on-stock" };
+  if (status === "out_of_stock")
+    return { label: "Out of Stock", cls: "out-of-stock" };
+  if (status === "low_stock")
+    return { label: "Low on Stock", cls: "low-on-stock" };
   return { label: "In Stock", cls: "in-stock" };
 }
 
@@ -113,8 +115,10 @@ export default function InventoryPage() {
   /* ===== derived: filtered + searched rows ===== */
   const visibleProducts = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
-    const priceMin = activeFilters.priceMin === "" ? null : parseFloat(activeFilters.priceMin);
-    const priceMax = activeFilters.priceMax === "" ? null : parseFloat(activeFilters.priceMax);
+    const priceMin =
+      activeFilters.priceMin === "" ? null : parseFloat(activeFilters.priceMin);
+    const priceMax =
+      activeFilters.priceMax === "" ? null : parseFloat(activeFilters.priceMax);
 
     return products.filter((item) => {
       const price = Number(item.unit_price);
@@ -136,8 +140,10 @@ export default function InventoryPage() {
       if (activeFilters.stock) {
         const s = statusFor(item.stock_status);
         if (activeFilters.stock === "in" && s.cls !== "in-stock") return false;
-        if (activeFilters.stock === "low" && s.cls !== "low-on-stock") return false;
-        if (activeFilters.stock === "out" && s.cls !== "out-of-stock") return false;
+        if (activeFilters.stock === "low" && s.cls !== "low-on-stock")
+          return false;
+        if (activeFilters.stock === "out" && s.cls !== "out-of-stock")
+          return false;
       }
       return true;
     });
@@ -183,8 +189,11 @@ export default function InventoryPage() {
       product_name: formData.name.trim(),
       unit_price: parseFloat(formData.price) || 0,
       sku: formData.sku.trim() || undefined,
-      category_id: formData.category_id ? Number(formData.category_id) : undefined,
-      stock_quantity: formData.stock === "" ? 0 : parseInt(formData.stock, 10) || 0,
+      category_id: formData.category_id
+        ? Number(formData.category_id)
+        : undefined,
+      stock_quantity:
+        formData.stock === "" ? 0 : parseInt(formData.stock, 10) || 0,
       image_url: formData.image_url.trim() || undefined,
       description: formData.description.trim() || undefined,
     };
@@ -276,7 +285,9 @@ export default function InventoryPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
-              <button className="search-icon-btn" aria-label="Search"><Search size={16} /></button>
+              <button className="search-icon-btn" aria-label="Search">
+                <Search size={16} />
+              </button>
             </div>
 
             <div className="filter-wrap" ref={filterWrapRef}>
@@ -292,7 +303,10 @@ export default function InventoryPage() {
                   <select
                     value={draftFilters.category}
                     onChange={(e) =>
-                      setDraftFilters((f) => ({ ...f, category: e.target.value }))
+                      setDraftFilters((f) => ({
+                        ...f,
+                        category: e.target.value,
+                      }))
                     }
                   >
                     <option value="">All categories</option>
@@ -312,7 +326,10 @@ export default function InventoryPage() {
                       min="0"
                       value={draftFilters.priceMin}
                       onChange={(e) =>
-                        setDraftFilters((f) => ({ ...f, priceMin: e.target.value }))
+                        setDraftFilters((f) => ({
+                          ...f,
+                          priceMin: e.target.value,
+                        }))
                       }
                     />
                     <span>–</span>
@@ -322,7 +339,10 @@ export default function InventoryPage() {
                       min="0"
                       value={draftFilters.priceMax}
                       onChange={(e) =>
-                        setDraftFilters((f) => ({ ...f, priceMax: e.target.value }))
+                        setDraftFilters((f) => ({
+                          ...f,
+                          priceMax: e.target.value,
+                        }))
                       }
                     />
                   </div>
@@ -342,10 +362,18 @@ export default function InventoryPage() {
                   </select>
                 </div>
                 <div className="filter-actions">
-                  <button type="button" className="btn-secondary" onClick={clearFilters}>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={clearFilters}
+                  >
                     Clear
                   </button>
-                  <button type="button" className="btn-primary" onClick={applyFilters}>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={applyFilters}
+                  >
                     Apply
                   </button>
                 </div>
@@ -365,7 +393,7 @@ export default function InventoryPage() {
             <p className="grid-empty">Loading products…</p>
           ) : error ? (
             <p className="grid-empty">
-              Could not load products: {error}. Is the backend running?
+              Could not load products: {error}. Backend is not running bruh
             </p>
           ) : visibleProducts.length === 0 ? (
             <p className="grid-empty">No products yet.</p>
@@ -384,14 +412,19 @@ export default function InventoryPage() {
               <tbody>
                 {visibleProducts.map((item) => {
                   const status = statusFor(item.stock_status);
-                  const canManage = isAdmin || item.business_id === ownBusinessId;
+                  const canManage =
+                    isAdmin || item.business_id === ownBusinessId;
                   return (
                     <tr key={item.product_id}>
                       <td>{item.sku ?? "—"}</td>
-                      <td><strong>{item.product_name}</strong></td>
+                      <td>
+                        <strong>{item.product_name}</strong>
+                      </td>
                       <td>{peso(item.unit_price)}</td>
                       <td className="stock-cell">
-                        <span className="stock-value">{item.stock_quantity}</span>
+                        <span className="stock-value">
+                          {item.stock_quantity}
+                        </span>
                         {canManage && (
                           <button
                             type="button"
@@ -403,7 +436,11 @@ export default function InventoryPage() {
                           </button>
                         )}
                       </td>
-                      <td><span className={`status ${status.cls}`}>{status.label}</span></td>
+                      <td>
+                        <span className={`status ${status.cls}`}>
+                          {status.label}
+                        </span>
+                      </td>
                       <td>
                         {canManage && (
                           <>
@@ -437,7 +474,9 @@ export default function InventoryPage() {
         {/* ===== Add/Edit item modal ===== */}
         <div className={`modal-overlay${modalOpen ? " open" : ""}`}>
           <div className="modal-box">
-            <button className="modal-close" onClick={closeModal}><X size={18} /></button>
+            <button className="modal-close" onClick={closeModal}>
+              <X size={18} />
+            </button>
             <h2>{editingId ? "Edit Item" : "Add Item"}</h2>
             <form onSubmit={handleFormSubmit}>
               <label>
@@ -475,7 +514,9 @@ export default function InventoryPage() {
                 Category
                 <select
                   value={formData.category_id}
-                  onChange={(e) => handleFormChange("category_id", e.target.value)}
+                  onChange={(e) =>
+                    handleFormChange("category_id", e.target.value)
+                  }
                 >
                   <option value="">No category</option>
                   {categories.map((c) => (
@@ -502,7 +543,9 @@ export default function InventoryPage() {
                 <input
                   type="text"
                   value={formData.image_url}
-                  onChange={(e) => handleFormChange("image_url", e.target.value)}
+                  onChange={(e) =>
+                    handleFormChange("image_url", e.target.value)
+                  }
                 />
               </label>
 
@@ -511,14 +554,20 @@ export default function InventoryPage() {
                 <textarea
                   rows="3"
                   value={formData.description}
-                  onChange={(e) => handleFormChange("description", e.target.value)}
+                  onChange={(e) =>
+                    handleFormChange("description", e.target.value)
+                  }
                 />
               </label>
 
               {formError && <p className="grid-empty">{formError}</p>}
 
               <div className="modal-actions">
-                <button type="button" className="btn-secondary" onClick={closeModal}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={closeModal}
+                >
                   Cancel
                 </button>
                 <button type="submit" className="btn-primary" disabled={saving}>
@@ -548,10 +597,18 @@ export default function InventoryPage() {
               />
             </label>
             <div className="stock-popover-actions">
-              <button type="button" className="btn-secondary" onClick={() => setStockPopover(null)}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setStockPopover(null)}
+              >
                 Cancel
               </button>
-              <button type="button" className="btn-primary" onClick={saveStockEdit}>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={saveStockEdit}
+              >
                 Update
               </button>
             </div>

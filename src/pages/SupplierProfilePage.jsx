@@ -19,8 +19,10 @@ import { peso } from "../lib/format";
 import "./SupplierProfilePage.css";
 
 function stockBadge(status) {
-  if (status === "out_of_stock") return { label: "Out of Stock", cls: "out-of-stock" };
-  if (status === "low_stock") return { label: "Low on Stock", cls: "low-on-stock" };
+  if (status === "out_of_stock")
+    return { label: "Out of Stock", cls: "out-of-stock" };
+  if (status === "low_stock")
+    return { label: "Low on Stock", cls: "low-on-stock" };
   return { label: "In Stock", cls: "in-stock" };
 }
 
@@ -41,6 +43,7 @@ export default function SupplierProfilePage() {
 
   const [supplier, setSupplier] = useState(null);
   const [products, setProducts] = useState([]);
+  const [tiers, setTiers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -53,15 +56,17 @@ export default function SupplierProfilePage() {
   const [checkoutError, setCheckoutError] = useState(null);
   const [checkingOut, setCheckingOut] = useState(false);
   const [checkoutConfirmation, setCheckoutConfirmation] = useState(null);
+  const [selectedTierId, setSelectedTierId] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
       try {
-        const [suppliers, productList] = await Promise.all([
+        const [suppliers, productList, tiersList] = await Promise.all([
           apiGet("/api/suppliers"),
           apiGet(`/api/products?business_id=${encodeURIComponent(supplierId)}`),
+          apiGet("/api/service-tiers").catch(() => []),
         ]);
         if (cancelled) return;
         const match = (Array.isArray(suppliers) ? suppliers : []).find(
@@ -69,6 +74,10 @@ export default function SupplierProfilePage() {
         );
         setSupplier(match ?? null);
         setProducts(Array.isArray(productList) ? productList : []);
+        setTiers(Array.isArray(tiersList) ? tiersList : []);
+        if (Array.isArray(tiersList) && tiersList.length > 0) {
+          setSelectedTierId(tiersList[0].tier_id);
+        }
         setLoading(false);
       } catch (err) {
         if (cancelled) return;
@@ -133,6 +142,17 @@ export default function SupplierProfilePage() {
     () => cartItems.reduce((sum, item) => sum + item.lineTotal, 0),
     [cartItems],
   );
+
+  const deliveryFee = useMemo(
+    () => {
+      if (!selectedTierId) return 0;
+      const tier = tiers.find((t) => t.tier_id === selectedTierId);
+      return Number(tier?.base_fee ?? 0);
+    },
+    [selectedTierId, tiers]
+  );
+
+  const cartTotal = cartSubtotal + deliveryFee;
 
   function switchTab(tab) {
     setActiveTab(tab);
@@ -203,9 +223,16 @@ export default function SupplierProfilePage() {
     setCheckoutError(null);
     setCartMessage(null);
 
+    if (!selectedTierId) {
+      setCheckoutError("Please select a delivery tier.");
+      setCheckingOut(false);
+      return;
+    }
+
     try {
       const order = await apiSend("/api/orders", {
         body: {
+          tier_id: selectedTierId,
           items: cartItems.map(({ product, quantity }) => ({
             product_id: product.product_id,
             quantity,
@@ -236,7 +263,7 @@ export default function SupplierProfilePage() {
       <AppLayout>
         <div className="supplier-profile-page">
           <p className="grid-empty">
-            Could not load supplier: {error}. Is the backend running?
+            Could not load supplier: {error}. Backend is not running bruh
           </p>
         </div>
       </AppLayout>
@@ -273,9 +300,13 @@ export default function SupplierProfilePage() {
               onClick={() => setFollowing((v) => !v)}
             >
               {following ? (
-                <>Following <Check size={14} /></>
+                <>
+                  Following <Check size={14} />
+                </>
               ) : (
-                <>Follow <Plus size={14} /></>
+                <>
+                  Follow <Plus size={14} />
+                </>
               )}
             </button>
             <button className="btn-chat">
@@ -300,15 +331,21 @@ export default function SupplierProfilePage() {
           <section className="shop-section">
             <div className="shop-hero">
               <div className="shop-hero-text">
-                <div className="shop-hero-tag"><Leaf size={14} /> Fresh &amp; Local</div>
+                <div className="shop-hero-tag">
+                  <Leaf size={14} /> Fresh &amp; Local
+                </div>
                 <h1 className="shop-hero-title">
-                  Quality you can taste, <br />prices you&apos;ll love.
+                  Quality you can taste, <br />
+                  prices you&apos;ll love.
                 </h1>
                 <p className="shop-hero-sub">
-                  Sourced from local farms and trusted partners — delivered straight
-                  to your door.
+                  Sourced from local farms and trusted partners — delivered
+                  straight to your door.
                 </p>
-                <button className="shop-hero-cta" onClick={() => switchTab("products")}>
+                <button
+                  className="shop-hero-cta"
+                  onClick={() => switchTab("products")}
+                >
                   Browse Products →
                 </button>
               </div>
@@ -329,28 +366,36 @@ export default function SupplierProfilePage() {
 
             <div className="shop-features">
               <div className="feature-card">
-                <div className="feature-icon"><Truck size={28} /></div>
+                <div className="feature-icon">
+                  <Truck size={28} />
+                </div>
                 <div className="feature-title">Fast Delivery</div>
                 <div className="feature-desc">
                   Same-day dispatch on orders placed before 12 PM.
                 </div>
               </div>
               <div className="feature-card">
-                <div className="feature-icon"><BadgeCheck size={28} /></div>
+                <div className="feature-icon">
+                  <BadgeCheck size={28} />
+                </div>
                 <div className="feature-title">Quality Assured</div>
                 <div className="feature-desc">
                   Every product is checked before it leaves our facility.
                 </div>
               </div>
               <div className="feature-card">
-                <div className="feature-icon"><MessageCircle size={28} /></div>
+                <div className="feature-icon">
+                  <MessageCircle size={28} />
+                </div>
                 <div className="feature-title">Always Here</div>
                 <div className="feature-desc">
                   Our team is online 7 days a week to answer your questions.
                 </div>
               </div>
               <div className="feature-card">
-                <div className="feature-icon"><Repeat size={28} /></div>
+                <div className="feature-icon">
+                  <Repeat size={28} />
+                </div>
                 <div className="feature-title">Easy Returns</div>
                 <div className="feature-desc">
                   Not satisfied? We&apos;ll sort it — no questions asked.
@@ -396,11 +441,19 @@ export default function SupplierProfilePage() {
                         />
                       </div>
                       <div className="product-details">
-                        <div className="product-name">{product.product_name}</div>
-                        <div className="product-price">{peso(product.unit_price)}</div>
-                        <span className={`status ${badge.cls}`}>{badge.label}</span>
+                        <div className="product-name">
+                          {product.product_name}
+                        </div>
+                        <div className="product-price">
+                          {peso(product.unit_price)}
+                        </div>
+                        <span className={`status ${badge.cls}`}>
+                          {badge.label}
+                        </span>
                         <div className="product-stock">
-                          {maxQuantity > 0 ? `${maxQuantity} available` : "No stock available"}
+                          {maxQuantity > 0
+                            ? `${maxQuantity} available`
+                            : "No stock available"}
                         </div>
                         <div className="product-cart-controls">
                           <label className="quantity-field">
@@ -437,7 +490,8 @@ export default function SupplierProfilePage() {
                   <div>
                     <div className="cart-title">Cart</div>
                     <div className="cart-subtitle">
-                      {cartItems.length} {cartItems.length === 1 ? "item" : "items"}
+                      {cartItems.length}{" "}
+                      {cartItems.length === 1 ? "item" : "items"}
                     </div>
                   </div>
                   <ShoppingCart size={20} />
@@ -446,63 +500,113 @@ export default function SupplierProfilePage() {
                 {cartMessage && <p className="cart-note">{cartMessage}</p>}
 
                 {cartItems.length === 0 ? (
-                  <p className="cart-empty">Add products to prepare a checkout.</p>
+                  <p className="cart-empty">
+                    Add products to prepare a checkout.
+                  </p>
                 ) : (
                   <div className="cart-lines">
-                    {cartItems.map(({ product, productId, quantity, lineTotal }) => {
-                      const maxQuantity = stockLimit(product);
-                      return (
-                        <div className="cart-line" key={productId}>
-                          <div className="cart-line-main">
-                            <div className="cart-line-name">{product.product_name}</div>
-                            <div className="cart-line-price">{peso(lineTotal)}</div>
-                          </div>
-                          <div className="cart-line-actions">
-                            <div className="cart-stepper">
+                    {cartItems.map(
+                      ({ product, productId, quantity, lineTotal }) => {
+                        const maxQuantity = stockLimit(product);
+                        return (
+                          <div className="cart-line" key={productId}>
+                            <div className="cart-line-main">
+                              <div className="cart-line-name">
+                                {product.product_name}
+                              </div>
+                              <div className="cart-line-price">
+                                {peso(lineTotal)}
+                              </div>
+                            </div>
+                            <div className="cart-line-actions">
+                              <div className="cart-stepper">
+                                <button
+                                  type="button"
+                                  aria-label={`Decrease ${product.product_name}`}
+                                  onClick={() =>
+                                    updateCartQuantity(product, quantity - 1)
+                                  }
+                                >
+                                  <Minus size={14} />
+                                </button>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max={Math.max(maxQuantity, 1)}
+                                  value={quantity}
+                                  onChange={(event) =>
+                                    updateCartQuantity(
+                                      product,
+                                      event.target.value,
+                                    )
+                                  }
+                                />
+                                <button
+                                  type="button"
+                                  aria-label={`Increase ${product.product_name}`}
+                                  disabled={quantity >= maxQuantity}
+                                  onClick={() =>
+                                    updateCartQuantity(product, quantity + 1)
+                                  }
+                                >
+                                  <Plus size={14} />
+                                </button>
+                              </div>
                               <button
                                 type="button"
-                                aria-label={`Decrease ${product.product_name}`}
-                                onClick={() => updateCartQuantity(product, quantity - 1)}
+                                className="remove-cart-btn"
+                                aria-label={`Remove ${product.product_name}`}
+                                onClick={() => removeCartItem(productId)}
                               >
-                                <Minus size={14} />
-                              </button>
-                              <input
-                                type="number"
-                                min="1"
-                                max={Math.max(maxQuantity, 1)}
-                                value={quantity}
-                                onChange={(event) =>
-                                  updateCartQuantity(product, event.target.value)
-                                }
-                              />
-                              <button
-                                type="button"
-                                aria-label={`Increase ${product.product_name}`}
-                                disabled={quantity >= maxQuantity}
-                                onClick={() => updateCartQuantity(product, quantity + 1)}
-                              >
-                                <Plus size={14} />
+                                <Trash2 size={15} />
                               </button>
                             </div>
-                            <button
-                              type="button"
-                              className="remove-cart-btn"
-                              aria-label={`Remove ${product.product_name}`}
-                              onClick={() => removeCartItem(productId)}
-                            >
-                              <Trash2 size={15} />
-                            </button>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      },
+                    )}
                   </div>
                 )}
 
-                <div className="cart-total-row">
-                  <span>Subtotal</span>
-                  <strong>{peso(cartSubtotal)}</strong>
-                </div>
+                {cartItems.length > 0 && (
+                  <>
+                    <div className="cart-total-row">
+                      <span>Subtotal</span>
+                      <strong>{peso(cartSubtotal)}</strong>
+                    </div>
+
+                    {tiers.length > 0 && (
+                      <div className="cart-tier-selection" style={{ marginTop: '1rem' }}>
+                        <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem', color: 'var(--gray-600)' }}>
+                          Delivery Speed
+                        </label>
+                        <select 
+                          value={selectedTierId || ""}
+                          onChange={(e) => setSelectedTierId(Number(e.target.value))}
+                          style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--gray-200)' }}
+                        >
+                          {tiers.map((t) => (
+                            <option key={t.tier_id} value={t.tier_id}>
+                              {t.tier_name} ({t.estimated_days} days)
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {selectedTierId && (
+                      <div className="cart-total-row" style={{ marginTop: '0.5rem' }}>
+                        <span>Delivery Fee</span>
+                        <strong>{peso(deliveryFee)}</strong>
+                      </div>
+                    )}
+
+                    <div className="cart-total-row" style={{ marginTop: '1rem', borderTop: '1px solid var(--gray-200)', paddingTop: '1rem', fontSize: '1.1rem' }}>
+                      <span>Total</span>
+                      <strong>{peso(cartTotal)}</strong>
+                    </div>
+                  </>
+                )}
 
                 {checkoutError && (
                   <p className="cart-error">Checkout failed: {checkoutError}</p>
@@ -541,7 +645,9 @@ export default function SupplierProfilePage() {
                   key={name}
                   onClick={() => openCategory(name)}
                 >
-                  <div className="category-icon"><Package size={32} /></div>
+                  <div className="category-icon">
+                    <Package size={32} />
+                  </div>
                   <div className="category-name">{name}</div>
                 </button>
               ))}
