@@ -11,19 +11,20 @@ const HIGHLIGHTS = [
 ];
 
 export default function LoginPage() {
-  const { user, login } = useAuth();
+  const { user, login, hasAnyRole } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const redirectTo = useMemo(
-    () => location.state?.from?.pathname || "/dashboard",
+    () => location.state?.from?.pathname || null,
     [location.state],
   );
 
   if (user) {
-    return <Navigate to="/dashboard" replace />;
+    const defaultPath = (hasAnyRole(["buyer"]) && !hasAnyRole(["wholesaler", "platform_admin", "logistics_coordinator", "courier"])) ? "/" : "/dashboard";
+    return <Navigate to={redirectTo || defaultPath} replace />;
   }
 
   function setField(field, value) {
@@ -36,11 +37,16 @@ export default function LoginPage() {
     setSubmitting(true);
 
     try {
-      await login({
+      const payload = await login({
         email: form.email.trim(),
         password: form.password,
       });
-      navigate(redirectTo, { replace: true });
+      const roles = payload.memberships?.map((m) => m.role) || [];
+      const isBuyer = roles.includes("buyer");
+      const hasOtherRoles = roles.some(r => r !== "buyer") || payload.user.global_role === "platform_admin";
+      
+      const defaultPath = (isBuyer && !hasOtherRoles) ? "/" : "/dashboard";
+      navigate(redirectTo || defaultPath, { replace: true });
     } catch (error) {
       setSubmitError(error.message);
     } finally {

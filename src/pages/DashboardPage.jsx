@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Boxes, ClipboardList, PhilippinePeso, TriangleAlert } from "lucide-react";
 import { Link } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
+import { apiGet } from "../lib/api";
 import "./DashboardPage.css";
 
 /* Mock data layer — swap for /api/dashboard?range=7d later; keep the shape. */
@@ -44,8 +45,28 @@ const peso = (n) => `₱${n.toLocaleString("en-PH")}`;
 
 export default function DashboardPage() {
   const [range, setRange] = useState("7d");
-  const stats = MOCK_STATS[range];
-  const maxSale = Math.max(...stats.sales);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const data = await apiGet("/api/dashboard");
+        if (cancelled) return;
+        setDashboardData(data);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
+  const stats = dashboardData || MOCK_STATS[range];
+  const maxSale = Math.max(...(stats.sales || [0]));
 
   return (
     <AppLayout>
@@ -108,7 +129,7 @@ export default function DashboardPage() {
             <div className="bar-chart" aria-hidden="true">
               {stats.sales.map((v, i) => (
                 <div className="bar-col" key={i}>
-                  <div className="bar" style={{ height: `${(v / maxSale) * 100}%` }} title={v} />
+                  <div className="bar" style={{ height: `${(v / (maxSale || 1)) * 100}%` }} title={v} />
                 </div>
               ))}
             </div>
