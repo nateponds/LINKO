@@ -67,6 +67,8 @@ Help wholesalers receive leads, manage inquiries, respond to buyer needs, and co
 
 Track shipment details, delivery status, warehouse dispatches, carrier information, and fulfillment timelines.
 
+> Note: the courier/parcel-tracking subsystem in the database (migrations 002/003, `docs/LINKO_ERD.md`) is a **course deliverable** (`docs/course-deliverable.md`), not this roadmap item. LINKO the product coordinates third-party carriers; it does not own branches, couriers, or per-parcel commissions.
+
 ### Analytics
 
 Provide simple insights such as low-stock alerts, wholesaler performance, order volume, lead conversion, fulfillment delays, and inventory movement trends.
