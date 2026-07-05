@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Search, PackagePlus } from "lucide-react";
 import { Link } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
+import { useAuth } from "../auth/AuthProvider";
 import { peso, shortDate, statusClass } from "../lib/format";
 import "./LogisticsPage.css";
 
@@ -25,6 +26,7 @@ export default function LogisticsPage() {
   const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
+  const { hasAnyRole } = useAuth();
 
   useEffect(() => {
     let cancelled = false;
@@ -53,12 +55,13 @@ export default function LogisticsPage() {
   const visibleParcels = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     return parcels.filter((p) => {
-      if (statusFilter !== "All" && p.current_status !== statusFilter) return false;
+      if (statusFilter !== "All" && p.current_status !== statusFilter)
+        return false;
       return (
         !term ||
         p.parcel_id.toLowerCase().includes(term) ||
-        p.sender.full_name.toLowerCase().includes(term) ||
-        p.receiver.full_name.toLowerCase().includes(term)
+        p.sender.business_name.toLowerCase().includes(term) ||
+        p.receiver.business_name.toLowerCase().includes(term)
       );
     });
   }, [parcels, statusFilter, searchTerm]);
@@ -76,15 +79,26 @@ export default function LogisticsPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
-              <button className="search-icon-btn" aria-label="Search"><Search size={16} /></button>
+              <button className="search-icon-btn" aria-label="Search">
+                <Search size={16} />
+              </button>
             </div>
+            {hasAnyRole(["logistics_coordinator", "platform_admin"]) && (
+              <Link className="book-parcel-btn" to="/logistics/management" style={{background: 'var(--gray-800)'}}>
+                Manage
+              </Link>
+            )}
             <Link className="book-parcel-btn" to="/logistics/book">
               <PackagePlus size={16} /> Book a Parcel
             </Link>
           </div>
         </div>
 
-        <div className="status-tabs" role="tablist" aria-label="Filter by status">
+        <div
+          className="status-tabs"
+          role="tablist"
+          aria-label="Filter by status"
+        >
           {STATUS_TABS.map((tab) => (
             <button
               key={tab}
@@ -103,7 +117,7 @@ export default function LogisticsPage() {
             <div className="page-empty">Loading parcels…</div>
           ) : error ? (
             <div className="page-empty">
-              Could not load parcels: {error}. Is the backend running?
+              Could not load parcels: {error}. Backend is not running bruh
             </div>
           ) : visibleParcels.length === 0 ? (
             <div className="page-empty">No parcels match your search.</div>
@@ -126,19 +140,26 @@ export default function LogisticsPage() {
                 {visibleParcels.map((p) => (
                   <tr key={p.parcel_id}>
                     <td>#{p.parcel_id}</td>
-                    <td><strong>{p.sender.full_name}</strong></td>
-                    <td>{p.receiver.full_name}</td>
+                    <td>
+                      <strong>{p.sender.business_name}</strong>
+                    </td>
+                    <td>{p.receiver.business_name}</td>
                     <td>{p.tier_name}</td>
                     <td>{p.weight_kg} kg</td>
                     <td>{peso(p.shipping_fee)}</td>
                     <td>{shortDate(p.estimated_delivery_date)}</td>
                     <td>
-                      <span className={`status ${statusClass(p.current_status)}`}>
+                      <span
+                        className={`status ${statusClass(p.current_status)}`}
+                      >
                         {p.current_status ?? "—"}
                       </span>
                     </td>
                     <td>
-                      <Link className="track-link" to={`/logistics/${p.parcel_id}`}>
+                      <Link
+                        className="track-link"
+                        to={`/logistics/${p.parcel_id}`}
+                      >
                         Track
                       </Link>
                     </td>

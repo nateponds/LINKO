@@ -18,15 +18,20 @@ import { useAuth } from "../../auth/AuthProvider";
 import { formatRoleLabel, getPrimaryMembership } from "../../auth/roleAccess";
 import Sidebar from "./Sidebar";
 
-const NOTIFICATIONS = [
-  { id: 1, Icon: Package, text: "Order #21358 is now in transit", time: "2h ago" },
-  { id: 2, Icon: TriangleAlert, text: "Low stock: AF41W - 8 units left", time: "5h ago" },
-  { id: 3, Icon: Star, text: "New 5-star review on your shop", time: "Yesterday" },
+const FALLBACK_NOTIFICATIONS = [
+  { id: 1, type: "info", text: "Order #21358 is now in transit", time: "2h ago" },
 ];
+
+function getIconForType(type) {
+  if (type === "warning") return TriangleAlert;
+  if (type === "success") return Star;
+  return Package;
+}
 
 function Topbar({ showSearch = false }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [openPanel, setOpenPanel] = useState(null);
+  const [notifications, setNotifications] = useState([]);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, memberships, logout, hasAnyRole } = useAuth();
@@ -76,6 +81,33 @@ function Topbar({ showSearch = false }) {
     };
   }, [openPanel]);
 
+  useEffect(() => {
+    let cancelled = false;
+    async function loadNotifs() {
+      try {
+        const { apiGet } = await import("../../lib/api.js");
+        const data = await apiGet("/api/notifications");
+        if (!cancelled && Array.isArray(data)) {
+          setNotifications(data);
+        }
+      } catch (err) {
+        // ignore
+      }
+    }
+    if (user) loadNotifs();
+    return () => { cancelled = true; };
+  }, [user]);
+
+  async function markAsRead(id) {
+    try {
+      const { apiSend } = await import("../../lib/api.js");
+      await apiSend(`/api/notifications/${id}/read`, { method: "PATCH" });
+      setNotifications((prev) => prev.filter((n) => n.notification_id !== id));
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
   function togglePanel(event, name) {
     event.stopPropagation();
     setOpenPanel((current) => (current === name ? null : name));
@@ -112,28 +144,35 @@ function Topbar({ showSearch = false }) {
             <button
               className="icon-action"
               title="Notifications"
-              aria-label={`Notifications (${NOTIFICATIONS.length} unread)`}
+              aria-label={`Notifications (${notifications.length} unread)`}
               aria-expanded={openPanel === "notifications"}
               onClick={(event) => togglePanel(event, "notifications")}
             >
               <Bell size={16} />
-              <span className="notif-badge">{NOTIFICATIONS.length}</span>
+              {notifications.length > 0 && <span className="notif-badge">{notifications.length}</span>}
             </button>
             {openPanel === "notifications" && (
               <div className="dropdown-panel" onClick={(event) => event.stopPropagation()}>
                 <div className="dropdown-head">Notifications</div>
                 <ul className="notif-list">
-                  {NOTIFICATIONS.map(({ id, Icon, text, time }) => (
-                    <li key={id}>
-                      <span className="notif-icon">
-                        <Icon size={16} />
-                      </span>
-                      <div>
-                        <span className="notif-text">{text}</span>
-                        <span className="notif-time">{time}</span>
-                      </div>
-                    </li>
-                  ))}
+                  {notifications.length === 0 ? (
+                    <li style={{ padding: '1rem', textAlign: 'center', color: '#666' }}>No new notifications</li>
+                  ) : (
+                    notifications.map((n) => {
+                      const Icon = getIconForType(n.type);
+                      return (
+                        <li key={n.notification_id} onClick={() => markAsRead(n.notification_id)} style={{ cursor: 'pointer' }}>
+                          <span className="notif-icon">
+                            <Icon size={16} />
+                          </span>
+                          <div>
+                            <span className="notif-text">{n.message}</span>
+                            <span className="notif-time">{new Date(n.created_at).toLocaleDateString()}</span>
+                          </div>
+                        </li>
+                      );
+                    })
+                  )}
                 </ul>
                 <Link
                   to="/dashboard"
