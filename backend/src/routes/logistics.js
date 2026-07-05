@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { query, getPool } from "../db.js";
+import { requireAnyRole, requireAuth } from "../middleware/auth.js";
 
 const router = Router();
 
@@ -26,6 +27,24 @@ const LATEST_LOG = `
      ORDER BY tl.scanned_at DESC
      LIMIT 1
   ) latest ON TRUE`;
+
+router.use(
+  "/parcels",
+  requireAuth,
+  requireAnyRole(["wholesaler", "logistics_coordinator", "courier", "platform_admin"]),
+);
+
+router.use(
+  "/service-tiers",
+  requireAuth,
+  requireAnyRole(["wholesaler", "logistics_coordinator", "courier", "platform_admin"]),
+);
+
+router.use(
+  "/customers",
+  requireAuth,
+  requireAnyRole(["wholesaler", "logistics_coordinator", "courier", "platform_admin"]),
+);
 
 router.get("/parcels", async (_req, res) => {
   const { rows } = await query(`
@@ -102,7 +121,10 @@ router.get("/parcels/:id", async (req, res) => {
   res.json(rows[0]);
 });
 
-router.post("/parcels", async (req, res, next) => {
+router.post(
+  "/parcels",
+  requireAnyRole(["wholesaler", "logistics_coordinator", "platform_admin"]),
+  async (req, res, next) => {
   const {
     sender_id,
     receiver_id,
