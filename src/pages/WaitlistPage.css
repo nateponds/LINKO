@@ -10,11 +10,14 @@
     color: var(--color-muted);
   }
 
-  /* row actions */
-  .row-actions {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+  .notify-action {
+    min-width: 96px;
+    text-align: center;
+  }
+
+  .remove-column {
+    text-align: center;
+    width: 52px;
   }
 
   .notify-btn {

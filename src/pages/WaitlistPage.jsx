@@ -88,7 +88,8 @@ export default function WaitlistPage() {
                   <th>Qty Wanted</th>
                   <th>Waiting Since</th>
                   <th>Status</th>
-                  <th></th>
+                  <th>Notify</th>
+                  <th className="remove-column" aria-label="Remove"></th>
                 </tr>
               </thead>
               <tbody>
@@ -105,7 +106,7 @@ export default function WaitlistPage() {
                         {w.notified ? "Notified" : "Waiting"}
                       </span>
                     </td>
-                    <td className="row-actions">
+                    <td className="notify-action">
                       {w.notified ? (
                         <span className="notified-check" title="Customer notified">
                           <Check size={15} /> Sent
@@ -119,6 +120,8 @@ export default function WaitlistPage() {
                           <Bell size={14} /> Notify
                         </button>
                       )}
+                    </td>
+                    <td className="remove-column">
                       <button
                         type="button"
                         className="remove-btn"
