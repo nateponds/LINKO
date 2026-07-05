@@ -36,12 +36,14 @@ router.get("/", async (req, res, next) => {
     const { rows } = await query(
       `SELECT b.business_id,
               b.business_name,
-              b.city,
-              b.address_line,
+              a.province,
+              a.city_municipality,
+              a.street_address,
               b.is_verified,
               (SELECT COUNT(*)::int FROM products p
                 WHERE p.business_id = b.business_id AND p.is_active = TRUE) AS product_count
          FROM businesses b
+         LEFT JOIN LATERAL (SELECT province, city_municipality, street_address FROM addresses WHERE business_id = b.business_id LIMIT 1) a ON TRUE
         WHERE ${conditions.join(" AND ")}
         ORDER BY b.business_name`,
       params,
