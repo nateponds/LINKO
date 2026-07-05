@@ -10,6 +10,7 @@ const menuItems = [
   { name: "Dashboard", link: "/dashboard" },
   { name: "Wait List", link: "/waitlist" },
   { name: "Orders", link: "/orders" },
+  { name: "Logistics", link: "/logistics" },
   { name: "Logout", link: "/login", className: "logout" },
 ];
 
