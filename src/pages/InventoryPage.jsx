@@ -1,60 +1,106 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { ChevronDown, Pencil, Plus, Search, X } from "lucide-react";
 import AppLayout from "../layouts/AppLayout";
+import { useAuth } from "../auth/AuthProvider";
+import { apiGet, apiSend } from "../lib/api";
+import { peso } from "../lib/format";
 import "./InventoryPage.css";
 
-const CATEGORIES = [
-  "Beverages",
-  "Snacks",
-  "Dairy",
-  "Bakery",
-  "Frozen Foods",
-  "Household",
-  "Personal Care",
-  "General",
-];
-
-const INITIAL_INVENTORY = [
-  { id: "A2G51", sku: "A2G51", name: "Something Product Name", price: 200, category: "General", stock: 100, notes: "" },
-  { id: "AF41W", sku: "AF41W", name: "Something Product Name", price: 200, category: "General", stock: 0, notes: "" },
-];
-
-const EMPTY_FORM = { sku: "", name: "", price: "", category: "", stock: "", notes: "" };
+const EMPTY_FORM = {
+  sku: "",
+  name: "",
+  price: "",
+  category_id: "",
+  stock: "",
+  image_url: "",
+  description: "",
+};
 const EMPTY_FILTERS = { category: "", priceMin: "", priceMax: "", stock: "" };
 
-function statusFor(stock) {
-  if (stock <= 0) return { label: "Out of Stock", cls: "out-of-stock" };
-  if (stock <= 10) return { label: "Low on Stock", cls: "low-on-stock" };
+function statusFor(status) {
+  if (status === "out_of_stock")
+    return { label: "Out of Stock", cls: "out-of-stock" };
+  if (status === "low_stock")
+    return { label: "Low on Stock", cls: "low-on-stock" };
   return { label: "In Stock", cls: "in-stock" };
 }
 
 export default function InventoryPage() {
-  // Demo persistence: edits survive reloads until a real API exists.
-  const [inventory, setInventory] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("linko-inventory")) ?? INITIAL_INVENTORY;
-    } catch {
-      return INITIAL_INVENTORY;
-    }
-  });
+  const { user, memberships } = useAuth();
+
+  const isAdmin = user?.global_role === "platform_admin";
+  const wholesalerMembership = useMemo(
+    () => memberships.find((m) => m.role === "wholesaler") ?? null,
+    [memberships],
+  );
+  const ownBusinessId = wholesalerMembership?.business_id ?? null;
+
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   const [searchTerm, setSearchTerm] = useState("");
-
-  useEffect(() => {
-    localStorage.setItem("linko-inventory", JSON.stringify(inventory));
-  }, [inventory]);
-
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
-  const [draftFilters, setDraftFilters] = useState(EMPTY_FILTERS); // controls the panel's inputs
-  const [activeFilters, setActiveFilters] = useState(EMPTY_FILTERS); // filters actually applied
+  const [draftFilters, setDraftFilters] = useState(EMPTY_FILTERS);
+  const [activeFilters, setActiveFilters] = useState(EMPTY_FILTERS);
 
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState(null); // null = "Add Item" mode
+  const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
-  const [checkedRowId, setCheckedRowId] = useState(null);
+  const [formError, setFormError] = useState(null);
+  const [saving, setSaving] = useState(false);
 
-  const [stockPopover, setStockPopover] = useState(null); // { rowId, top, left, value } | null
+  const [stockPopover, setStockPopover] = useState(null);
 
   const filterWrapRef = useRef(null);
+
+  const loadProducts = useCallback(async () => {
+    const path =
+      isAdmin || !ownBusinessId
+        ? "/api/products"
+        : `/api/products?business_id=${encodeURIComponent(ownBusinessId)}`;
+    try {
+      const data = await apiGet(path);
+      setProducts(Array.isArray(data) ? data : []);
+      setError(null);
+    } catch (err) {
+      setError(err.message);
+    }
+  }, [isAdmin, ownBusinessId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      try {
+        await loadProducts();
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loadProducts]);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiGet("/api/categories")
+      .then((data) => {
+        if (!cancelled) setCategories(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {
+        if (!cancelled) setCategories([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   /* ===== close filter panel on outside click ===== */
   useEffect(() => {
@@ -67,96 +113,119 @@ export default function InventoryPage() {
   }, [filterPanelOpen]);
 
   /* ===== derived: filtered + searched rows ===== */
-  const visibleInventory = useMemo(() => {
+  const visibleProducts = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
-    const priceMin = activeFilters.priceMin === "" ? null : parseFloat(activeFilters.priceMin);
-    const priceMax = activeFilters.priceMax === "" ? null : parseFloat(activeFilters.priceMax);
+    const priceMin =
+      activeFilters.priceMin === "" ? null : parseFloat(activeFilters.priceMin);
+    const priceMax =
+      activeFilters.priceMax === "" ? null : parseFloat(activeFilters.priceMax);
 
-    return inventory.filter((item) => {
+    return products.filter((item) => {
+      const price = Number(item.unit_price);
       const matchesSearch =
         !term ||
-        item.name.toLowerCase().includes(term) ||
-        item.sku.toLowerCase().includes(term) ||
-        (item.category || "").toLowerCase().includes(term);
+        item.product_name.toLowerCase().includes(term) ||
+        (item.sku || "").toLowerCase().includes(term) ||
+        (item.category_name || "").toLowerCase().includes(term);
       if (!matchesSearch) return false;
 
-      if (activeFilters.category && item.category !== activeFilters.category) return false;
-      if (priceMin !== null && item.price < priceMin) return false;
-      if (priceMax !== null && item.price > priceMax) return false;
+      if (
+        activeFilters.category &&
+        String(item.category_id) !== String(activeFilters.category)
+      )
+        return false;
+      if (priceMin !== null && price < priceMin) return false;
+      if (priceMax !== null && price > priceMax) return false;
 
       if (activeFilters.stock) {
-        const s = statusFor(item.stock);
+        const s = statusFor(item.stock_status);
         if (activeFilters.stock === "in" && s.cls !== "in-stock") return false;
-        if (activeFilters.stock === "low" && s.cls !== "low-on-stock") return false;
-        if (activeFilters.stock === "out" && s.cls !== "out-of-stock") return false;
+        if (activeFilters.stock === "low" && s.cls !== "low-on-stock")
+          return false;
+        if (activeFilters.stock === "out" && s.cls !== "out-of-stock")
+          return false;
       }
       return true;
     });
-  }, [inventory, searchTerm, activeFilters]);
+  }, [products, searchTerm, activeFilters]);
 
   /* ===== add/edit item modal ===== */
   function openAddModal() {
     setEditingId(null);
     setFormData(EMPTY_FORM);
+    setFormError(null);
     setModalOpen(true);
   }
 
   function openEditModal(item) {
-    setEditingId(item.id);
+    setEditingId(item.product_id);
     setFormData({
-      sku: item.sku,
-      name: item.name,
-      price: item.price,
-      category: item.category,
-      stock: item.stock,
-      notes: item.notes,
+      sku: item.sku ?? "",
+      name: item.product_name ?? "",
+      price: item.unit_price ?? "",
+      category_id: item.category_id != null ? String(item.category_id) : "",
+      stock: item.stock_quantity ?? "",
+      image_url: item.image_url ?? "",
+      description: item.description ?? "",
     });
+    setFormError(null);
     setModalOpen(true);
   }
 
   function closeModal() {
     setModalOpen(false);
-    setCheckedRowId(null);
   }
 
   function handleFormChange(field, value) {
     setFormData((prev) => ({ ...prev, [field]: value }));
   }
 
-  function handleFormSubmit(e) {
+  async function handleFormSubmit(e) {
     e.preventDefault();
+    setFormError(null);
+    setSaving(true);
 
-    const sku = formData.sku.trim();
-    const newItem = {
-      id: editingId || sku,
-      sku,
-      name: formData.name.trim(),
-      price: parseFloat(formData.price) || 0,
-      category: formData.category.trim(),
-      stock: parseInt(formData.stock, 10) || 0,
-      notes: formData.notes.trim(),
+    const body = {
+      product_name: formData.name.trim(),
+      unit_price: parseFloat(formData.price) || 0,
+      sku: formData.sku.trim() || undefined,
+      category_id: formData.category_id
+        ? Number(formData.category_id)
+        : undefined,
+      stock_quantity:
+        formData.stock === "" ? 0 : parseInt(formData.stock, 10) || 0,
+      image_url: formData.image_url.trim() || undefined,
+      description: formData.description.trim() || undefined,
     };
 
-    setInventory((prev) => {
+    try {
       if (editingId) {
-        return prev.map((i) => (i.id === editingId ? newItem : i));
+        await apiSend(`/api/products/${editingId}`, { method: "PATCH", body });
+      } else {
+        await apiSend("/api/products", { method: "POST", body });
       }
-      return [...prev, newItem];
-    });
-
-    closeModal();
+      closeModal();
+      await loadProducts();
+    } catch (err) {
+      setFormError(err.message);
+    } finally {
+      setSaving(false);
+    }
   }
 
-  /* ===== row checkbox → opens edit modal ===== */
-  function handleRowCheckboxChange(item, checked) {
-    if (!checked) return;
-    setCheckedRowId(item.id);
-    openEditModal(item);
+  async function handleDelete(item) {
+    if (!window.confirm(`Delete "${item.product_name}"?`)) return;
+    try {
+      await apiSend(`/api/products/${item.product_id}`, { method: "DELETE" });
+      await loadProducts();
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   /* ===== stock inline-edit popover ===== */
   function handleStockEditClick(e, item) {
-    const isOpen = stockPopover && stockPopover.rowId === item.id;
+    const isOpen = stockPopover && stockPopover.rowId === item.product_id;
     if (isOpen) {
       setStockPopover(null);
       return;
@@ -164,20 +233,27 @@ export default function InventoryPage() {
 
     const rect = e.currentTarget.getBoundingClientRect();
     setStockPopover({
-      rowId: item.id,
+      rowId: item.product_id,
       top: window.scrollY + rect.bottom + 6,
       left: window.scrollX + rect.left - 160,
-      value: item.stock,
+      value: item.stock_quantity,
     });
   }
 
-  function saveStockEdit() {
+  async function saveStockEdit() {
     if (!stockPopover) return;
     const newStock = parseInt(stockPopover.value, 10) || 0;
-    setInventory((prev) =>
-      prev.map((i) => (i.id === stockPopover.rowId ? { ...i, stock: newStock } : i))
-    );
+    const rowId = stockPopover.rowId;
     setStockPopover(null);
+    try {
+      await apiSend(`/api/products/${rowId}`, {
+        method: "PATCH",
+        body: { stock_quantity: newStock },
+      });
+      await loadProducts();
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   /* ===== filter panel ===== */
@@ -200,7 +276,7 @@ export default function InventoryPage() {
     <AppLayout>
       <div className="inventory-page">
         <div className="page-head">
-          <h1>Inventory</h1>
+          <h1>My Products</h1>
           <div className="header-toolbar">
             <div className="search-bar">
               <input
@@ -209,7 +285,9 @@ export default function InventoryPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
-              <button className="search-icon-btn" aria-label="Search"><Search size={16} /></button>
+              <button className="search-icon-btn" aria-label="Search">
+                <Search size={16} />
+              </button>
             </div>
 
             <div className="filter-wrap" ref={filterWrapRef}>
@@ -225,12 +303,17 @@ export default function InventoryPage() {
                   <select
                     value={draftFilters.category}
                     onChange={(e) =>
-                      setDraftFilters((f) => ({ ...f, category: e.target.value }))
+                      setDraftFilters((f) => ({
+                        ...f,
+                        category: e.target.value,
+                      }))
                     }
                   >
                     <option value="">All categories</option>
-                    {CATEGORIES.map((c) => (
-                      <option key={c} value={c}>{c}</option>
+                    {categories.map((c) => (
+                      <option key={c.category_id} value={c.category_id}>
+                        {c.category_name}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -243,7 +326,10 @@ export default function InventoryPage() {
                       min="0"
                       value={draftFilters.priceMin}
                       onChange={(e) =>
-                        setDraftFilters((f) => ({ ...f, priceMin: e.target.value }))
+                        setDraftFilters((f) => ({
+                          ...f,
+                          priceMin: e.target.value,
+                        }))
                       }
                     />
                     <span>–</span>
@@ -253,7 +339,10 @@ export default function InventoryPage() {
                       min="0"
                       value={draftFilters.priceMax}
                       onChange={(e) =>
-                        setDraftFilters((f) => ({ ...f, priceMax: e.target.value }))
+                        setDraftFilters((f) => ({
+                          ...f,
+                          priceMax: e.target.value,
+                        }))
                       }
                     />
                   </div>
@@ -273,179 +362,258 @@ export default function InventoryPage() {
                   </select>
                 </div>
                 <div className="filter-actions">
-                  <button type="button" className="btn-secondary" onClick={clearFilters}>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={clearFilters}
+                  >
                     Clear
                   </button>
-                  <button type="button" className="btn-primary" onClick={applyFilters}>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={applyFilters}
+                  >
                     Apply
                   </button>
                 </div>
               </div>
             </div>
 
-            <button className="add-btn" onClick={openAddModal}>ADD ITEMS <Plus size={16} /></button>
+            {ownBusinessId && (
+              <button className="add-btn" onClick={openAddModal}>
+                ADD ITEMS <Plus size={16} />
+              </button>
+            )}
           </div>
         </div>
 
-      <main className="inventory-container">
-        <table className="inventory-table">
-          <thead>
-            <tr>
-              <th></th>
-              <th>ID Number / SKU</th>
-              <th>Name</th>
-              <th>Price</th>
-              <th>Stock</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleInventory.map((item) => {
-              const status = statusFor(item.stock);
-              return (
-                <tr key={item.id}>
-                  <td>
-                    <input
-                      type="checkbox"
-                      className="row-select"
-                      checked={checkedRowId === item.id}
-                      onChange={(e) => handleRowCheckboxChange(item, e.target.checked)}
-                    />
-                  </td>
-                  <td>{item.sku}</td>
-                  <td><strong>{item.name}</strong></td>
-                  <td>₱{Number(item.price).toFixed(2)}</td>
-                  <td className="stock-cell">
-                    <span className="stock-value">{item.stock}</span>
-                    <button
-                      type="button"
-                      className="stock-edit-btn"
-                      title="Edit stock"
-                      onClick={(e) => handleStockEditClick(e, item)}
-                    >
-                      <Pencil size={14} />
-                    </button>
-                  </td>
-                  <td><span className={`status ${status.cls}`}>{status.label}</span></td>
+        <main className="inventory-container">
+          {loading ? (
+            <p className="grid-empty">Loading products…</p>
+          ) : error ? (
+            <p className="grid-empty">
+              Could not load products: {error}. Backend is not running bruh
+            </p>
+          ) : visibleProducts.length === 0 ? (
+            <p className="grid-empty">No products yet.</p>
+          ) : (
+            <table className="inventory-table">
+              <thead>
+                <tr>
+                  <th>SKU</th>
+                  <th>Name</th>
+                  <th>Price</th>
+                  <th>Stock</th>
+                  <th>Status</th>
+                  <th></th>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </main>
+              </thead>
+              <tbody>
+                {visibleProducts.map((item) => {
+                  const status = statusFor(item.stock_status);
+                  const canManage =
+                    isAdmin || item.business_id === ownBusinessId;
+                  return (
+                    <tr key={item.product_id}>
+                      <td>{item.sku ?? "—"}</td>
+                      <td>
+                        <strong>{item.product_name}</strong>
+                      </td>
+                      <td>{peso(item.unit_price)}</td>
+                      <td className="stock-cell">
+                        <span className="stock-value">
+                          {item.stock_quantity}
+                        </span>
+                        {canManage && (
+                          <button
+                            type="button"
+                            className="stock-edit-btn"
+                            title="Edit stock"
+                            onClick={(e) => handleStockEditClick(e, item)}
+                          >
+                            <Pencil size={14} />
+                          </button>
+                        )}
+                      </td>
+                      <td>
+                        <span className={`status ${status.cls}`}>
+                          {status.label}
+                        </span>
+                      </td>
+                      <td>
+                        {canManage && (
+                          <>
+                            <button
+                              type="button"
+                              className="stock-edit-btn"
+                              title="Edit item"
+                              onClick={() => openEditModal(item)}
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              className="stock-edit-btn"
+                              title="Delete item"
+                              onClick={() => handleDelete(item)}
+                            >
+                              <X size={14} />
+                            </button>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </main>
 
-      {/* ===== Add/Edit item modal ===== */}
-      <div className={`modal-overlay${modalOpen ? " open" : ""}`}>
-        <div className="modal-box">
-          <button className="modal-close" onClick={closeModal}><X size={18} /></button>
-          <h2>{editingId ? "Edit Item" : "Add Item"}</h2>
-          <form onSubmit={handleFormSubmit}>
-            <label>
-              ID Number / SKU
-              <input
-                type="text"
-                required
-                value={formData.sku}
-                onChange={(e) => handleFormChange("sku", e.target.value)}
-              />
-            </label>
+        {/* ===== Add/Edit item modal ===== */}
+        <div className={`modal-overlay${modalOpen ? " open" : ""}`}>
+          <div className="modal-box">
+            <button className="modal-close" onClick={closeModal}>
+              <X size={18} />
+            </button>
+            <h2>{editingId ? "Edit Item" : "Add Item"}</h2>
+            <form onSubmit={handleFormSubmit}>
+              <label>
+                SKU (optional)
+                <input
+                  type="text"
+                  value={formData.sku}
+                  onChange={(e) => handleFormChange("sku", e.target.value)}
+                />
+              </label>
 
-            <label>
-              Name
-              <input
-                type="text"
-                required
-                value={formData.name}
-                onChange={(e) => handleFormChange("name", e.target.value)}
-              />
-            </label>
+              <label>
+                Name
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) => handleFormChange("name", e.target.value)}
+                />
+              </label>
 
-            <label>
-              Price (₱)
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                required
-                value={formData.price}
-                onChange={(e) => handleFormChange("price", e.target.value)}
-              />
-            </label>
+              <label>
+                Price (₱)
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  required
+                  value={formData.price}
+                  onChange={(e) => handleFormChange("price", e.target.value)}
+                />
+              </label>
 
-            <label>
-              Category
-              <select
-                required
-                value={formData.category}
-                onChange={(e) => handleFormChange("category", e.target.value)}
-              >
-                <option value="">Select a category</option>
-                {CATEGORIES.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </label>
+              <label>
+                Category
+                <select
+                  value={formData.category_id}
+                  onChange={(e) =>
+                    handleFormChange("category_id", e.target.value)
+                  }
+                >
+                  <option value="">No category</option>
+                  {categories.map((c) => (
+                    <option key={c.category_id} value={c.category_id}>
+                      {c.category_name}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
+              <label>
+                Stock
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={formData.stock}
+                  onChange={(e) => handleFormChange("stock", e.target.value)}
+                />
+              </label>
+
+              <label>
+                Image URL (optional)
+                <input
+                  type="text"
+                  value={formData.image_url}
+                  onChange={(e) =>
+                    handleFormChange("image_url", e.target.value)
+                  }
+                />
+              </label>
+
+              <label>
+                Description (optional)
+                <textarea
+                  rows="3"
+                  value={formData.description}
+                  onChange={(e) =>
+                    handleFormChange("description", e.target.value)
+                  }
+                />
+              </label>
+
+              {formError && <p className="grid-empty">{formError}</p>}
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={closeModal}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary" disabled={saving}>
+                  {saving ? "Saving…" : "Save Item"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        {/* ===== Stock inline-edit popover ===== */}
+        {stockPopover && (
+          <div
+            className="stock-popover open"
+            style={{ top: stockPopover.top, left: stockPopover.left }}
+          >
             <label>
               Stock
               <input
                 type="number"
                 min="0"
                 step="1"
-                required
-                value={formData.stock}
-                onChange={(e) => handleFormChange("stock", e.target.value)}
+                value={stockPopover.value}
+                onChange={(e) =>
+                  setStockPopover((p) => ({ ...p, value: e.target.value }))
+                }
               />
             </label>
-
-            <label>
-              Notes (optional)
-              <textarea
-                rows="3"
-                value={formData.notes}
-                onChange={(e) => handleFormChange("notes", e.target.value)}
-              />
-            </label>
-
-            <div className="modal-actions">
-              <button type="button" className="btn-secondary" onClick={closeModal}>
+            <div className="stock-popover-actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setStockPopover(null)}
+              >
                 Cancel
               </button>
-              <button type="submit" className="btn-primary">Save Item</button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={saveStockEdit}
+              >
+                Update
+              </button>
             </div>
-          </form>
-        </div>
-      </div>
-
-      {/* ===== Stock inline-edit popover ===== */}
-      {stockPopover && (
-        <div
-          className="stock-popover open"
-          style={{ top: stockPopover.top, left: stockPopover.left }}
-        >
-          <label>
-            Stock
-            <input
-              type="number"
-              min="0"
-              step="1"
-              value={stockPopover.value}
-              onChange={(e) =>
-                setStockPopover((p) => ({ ...p, value: e.target.value }))
-              }
-            />
-          </label>
-          <div className="stock-popover-actions">
-            <button type="button" className="btn-secondary" onClick={() => setStockPopover(null)}>
-              Cancel
-            </button>
-            <button type="button" className="btn-primary" onClick={saveStockEdit}>
-              Update
-            </button>
           </div>
-        </div>
-      )}
-
+        )}
       </div>
     </AppLayout>
   );

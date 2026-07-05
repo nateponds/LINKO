@@ -1,214 +1,349 @@
-import { useState, useEffect } from "react";
-import { ArrowLeft, ArrowLeftRight, RotateCcw } from "lucide-react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft, ArrowLeftRight, FileText, RotateCcw } from "lucide-react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
+import { apiGet } from "../lib/api";
+import { peso, shortDate, statusClass } from "../lib/format";
 import "./InvoicePage.css";
 
-/* =====================================================================
-   DATA LAYER
-   ---------------------------------------------------------------------
-   Stands in for a future database/API call. Replace fetchOrder() with
-   a real request later, e.g.:
-
-     async function fetchOrder(trackingNo) {
-       const res = await fetch(`/api/orders/${trackingNo}`);
-       if (!res.ok) return null;
-       return res.json();
-     }
-
-   ...as long as the resolved object keeps this same shape, no other
-   code on the page needs to change.
-===================================================================== */
-
-const MOCK_ORDER_DB = {
-  21374: {
-    trackingNo: "21374",
-    shopName: "Linko Trading Co.",
-    customer: {
-      name: "Marielle Ocampo",
-      contact: "+63 917 234 5678",
-      address: "Blk 4 Lot 12, Banilad Rd, Cebu City, 6000",
-    },
-    seller: {
-      name: "Sunhome Hardware Supplies",
-      supportPhoneMasked: "+63 998 ******12",
-      supportPhoneFull: "+63 998 765 4312",
-      supportEmail: "support@sunhomehardware.com",
-    },
-    status: {
-      eyebrow: "Your order is",
-      title: "Delivered",
-      sub: "as on 27 Jun 2026, Friday · last updated 29 Jun 2026, Sunday",
-    },
-    timeline: [
-      { title: "Delivered", meta: "27 Jun 2026 · 2:30 PM — at Cebu City, PH", state: "current" },
-      { title: "Out for delivery", meta: "27 Jun 2026 · 11:30 AM — at Cebu City, PH", state: "done" },
-      { title: "In transit", meta: "25 Jun 2026 · 5:30 PM — Manila, PH → Cebu City, PH", state: "done" },
-      { title: "Order picked up", meta: "24 Jun 2026 · 7:26 AM — from Manila, PH", state: "done" },
-      { title: "Order received", meta: "23 Jun 2026 · 12:46 PM — at Manila, PH", state: "done" },
-    ],
-  },
+const STATUS_LABELS = {
+  pending: "Pending",
+  accepted: "Accepted",
+  preparing: "Preparing",
+  shipped: "Shipped",
+  delivered: "Delivered",
+  cancelled: "Cancelled",
+  canceled: "Cancelled",
+  rejected: "Rejected",
 };
 
-/** Fetches a single order by tracking number. Resolves to an order object, or null if not found. */
-function fetchOrder(trackingNo) {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(MOCK_ORDER_DB[trackingNo] || null);
-    }, 250); // simulated network delay
-  });
+const FULFILLMENT_STEPS = [
+  { status: "pending", title: "Order received" },
+  { status: "accepted", title: "Accepted by wholesaler" },
+  { status: "preparing", title: "Preparing order" },
+  { status: "shipped", title: "Shipped" },
+  { status: "delivered", title: "Delivered" },
+];
+
+function normalizeStatus(status) {
+  return String(status ?? "")
+    .trim()
+    .toLowerCase();
+}
+
+function statusLabel(status) {
+  const normalized = normalizeStatus(status);
+  return STATUS_LABELS[normalized] ?? (status || "Unknown");
+}
+
+function itemQuantity(invoice) {
+  return Array.isArray(invoice?.items)
+    ? invoice.items.reduce((sum, item) => sum + Number(item.quantity ?? 0), 0)
+    : 0;
+}
+
+function timelineFor(invoice) {
+  const status = normalizeStatus(invoice?.order_status);
+
+  if (
+    status === "cancelled" ||
+    status === "canceled" ||
+    status === "rejected"
+  ) {
+    return [
+      {
+        title: statusLabel(invoice.order_status),
+        meta: `Order ${statusLabel(invoice.order_status).toLowerCase()} after invoice issuance`,
+        state: "current",
+      },
+      {
+        title: "Invoice issued",
+        meta: shortDate(invoice.issued_at),
+        state: "done",
+      },
+    ];
+  }
+
+  const currentIndex = Math.max(
+    FULFILLMENT_STEPS.findIndex((step) => step.status === status),
+    0,
+  );
+
+  return FULFILLMENT_STEPS.slice(0, currentIndex + 1)
+    .map((step, index) => ({
+      title: step.title,
+      meta:
+        index === 0
+          ? `Invoice ${invoice?.invoice_number ?? "issued"} on ${shortDate(invoice?.issued_at)}`
+          : `Order status: ${step.title.toLowerCase()}`,
+      state: index === currentIndex ? "current" : "done",
+    }))
+    .reverse();
 }
 
 export default function InvoicePage() {
-  /* ?tracking=XXXXX links here from the orders list, e.g. /invoices?tracking=21374 */
   const [searchParams] = useSearchParams();
-  const trackingNo = searchParams.get("tracking") || "21374";
+  const invoiceId = searchParams.get("invoice");
   const navigate = useNavigate();
 
-  const [order, setOrder] = useState(null);
+  const [invoices, setInvoices] = useState([]);
+  const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
+  const [error, setError] = useState(null);
 
-  const [phoneRevealed, setPhoneRevealed] = useState(false);
-
-  // Load the order whenever the tracking number changes.
   useEffect(() => {
-    let cancelled = false;
+    let active = true;
 
-    fetchOrder(trackingNo).then((result) => {
-      if (cancelled) return;
-      setOrder(result);
-      setNotFound(!result);
-      setLoading(false);
-    });
+    async function loadInvoices() {
+      setLoading(true);
+      setError(null);
+      setInvoice(null);
+
+      try {
+        const data = invoiceId
+          ? await apiGet(`/api/invoices/${encodeURIComponent(invoiceId)}`)
+          : await apiGet("/api/invoices");
+
+        if (!active) {
+          return;
+        }
+
+        if (invoiceId) {
+          setInvoice(data);
+          setInvoices([]);
+        } else {
+          setInvoices(Array.isArray(data) ? data : []);
+          setInvoice(null);
+        }
+      } catch (caughtError) {
+        if (active) {
+          setError(caughtError.message);
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadInvoices();
 
     return () => {
-      cancelled = true;
+      active = false;
     };
-  }, [trackingNo]);
+  }, [invoiceId]);
+
+  const timeline = useMemo(() => timelineFor(invoice), [invoice]);
 
   function handleBack() {
-    navigate(-1);
-  }
+    if (invoiceId) {
+      navigate("/invoices");
+      return;
+    }
 
-  function handleTogglePhone(e) {
-    e.preventDefault();
-    setPhoneRevealed((v) => !v);
+    navigate(-1);
   }
 
   return (
     <AppLayout>
       <div className="invoice-page">
-        {/* back button + tracking number, below the shared header */}
         <div className="invoice-subbar">
           <button className="back-btn" onClick={handleBack}>
             <ArrowLeft size={15} /> Back
           </button>
           <div className="invoice-subbar-right">
-            <span className="tracking-label">Tracking No.</span>
+            <span className="tracking-label">
+              {invoiceId ? "Invoice No." : "Invoices"}
+            </span>
             <span className="tracking-number">
-              {order ? `#${order.trackingNo}` : "\u2014"}
+              {invoiceId
+                ? (invoice?.invoice_number ?? `#${invoiceId}`)
+                : `${invoices.length} visible`}
             </span>
           </div>
         </div>
 
-      {/* ===== MAIN ===== */}
-      {notFound ? (
-        <div className="invoice-error">
-          We couldn't find an order with that tracking number.
-        </div>
-      ) : (
-        <main className="invoice-wrap" aria-busy={loading}>
-          {/* LEFT: parties */}
-          <aside className="parties">
-            <div className="party-card">
-              <div className="shop-name">{order?.shopName ?? "\u2014"}</div>
-
-              <div className="party-block">
-                <span className="field-label">Customer Name</span>
-                <span className="field-value">{order?.customer.name ?? "\u2014"}</span>
-              </div>
-              <div className="party-block">
-                <span className="field-label">Customer Contact</span>
-                <span className="field-value">{order?.customer.contact ?? "\u2014"}</span>
-              </div>
-              <div className="party-block">
-                <span className="field-label">Delivery Address</span>
-                <span className="field-value">{order?.customer.address ?? "\u2014"}</span>
-              </div>
-            </div>
-
-            <div className="party-card">
-              <div className="party-block">
-                <span className="field-label">Seller Name / Shop Name</span>
-                <span className="field-value">{order?.seller.name ?? "\u2014"}</span>
-              </div>
-              <div className="party-block">
-                <span className="field-label">Seller Support</span>
-                <span className="field-value">
-                  <span>
-                    {order
-                      ? phoneRevealed
-                        ? order.seller.supportPhoneFull
-                        : order.seller.supportPhoneMasked
-                      : "\u2014"}
-                  </span>
-                  <a
-                    href="#"
-                    className="show-number"
-                    onClick={handleTogglePhone}
-                  >
-                    {phoneRevealed ? "Hide number" : "Show number"}
-                  </a>
-                </span>
-                <span className="field-value muted">
-                  {order?.seller.supportEmail ?? "\u2014"}
-                </span>
-              </div>
-            </div>
-          </aside>
-
-          {/* RIGHT: status + timeline */}
-          <section className="status-panel">
-            <div className="status-head">
+        {!invoiceId ? (
+          <main className="invoice-list-wrap" aria-busy={loading}>
+            <div className="invoice-list-head">
               <div>
-                <span className="status-eyebrow">{order?.status.eyebrow ?? "\u2014"}</span>
-                <h1 className="status-title">{order?.status.title ?? "\u2014"}</h1>
-                <span className="status-sub">{order?.status.sub ?? "\u2014"}</span>
+                <span className="status-eyebrow">Billing workspace</span>
+                <h1 className="status-title">Invoices</h1>
               </div>
-
-              <div className="status-actions">
-                <a href="#" className="action-link"><RotateCcw size={13} /> Return order</a>
-                <a href="#" className="action-link"><ArrowLeftRight size={13} /> Exchange item</a>
-                <span className="delivery-query">
-                  For delivery queries, <a href="#">contact us</a>
-                </span>
-              </div>
+              <FileText size={24} aria-hidden="true" />
             </div>
 
-            <div className="timeline-block">
-              <span className="timeline-heading">Tracking History</span>
-
-              <ol className="timeline">
-                {order?.timeline.map((step) => (
-                  <li
-                    key={step.title + step.meta}
-                    className={`tl-step ${
-                      step.state === "current" ? "done current" : "done"
-                    }`}
+            {loading ? (
+              <div className="invoice-error">Loading invoices...</div>
+            ) : error ? (
+              <div className="invoice-error">
+                Could not load invoices: {error}. Backend is not running bruh
+              </div>
+            ) : invoices.length === 0 ? (
+              <div className="invoice-error">
+                No invoices are visible for this account yet.
+              </div>
+            ) : (
+              <div className="invoice-list">
+                {invoices.map((visibleInvoice) => (
+                  <Link
+                    className="invoice-list-row"
+                    key={visibleInvoice.invoice_id}
+                    to={`/invoices?invoice=${visibleInvoice.invoice_id}`}
                   >
-                    <span className="tl-dot" />
-                    <div className="tl-content">
-                      <span className="tl-title">{step.title}</span>
-                      <span className="tl-meta">{step.meta}</span>
-                    </div>
-                  </li>
+                    <span>
+                      <strong>{visibleInvoice.invoice_number}</strong>
+                      <span className="invoice-row-meta">
+                        Order #{visibleInvoice.order_id}
+                      </span>
+                    </span>
+                    <span>
+                      <span className="invoice-row-label">Buyer</span>
+                      {visibleInvoice.buyer_business_name ?? "—"}
+                    </span>
+                    <span>
+                      <span className="invoice-row-label">Seller</span>
+                      {visibleInvoice.wholesaler_business_name ?? "—"}
+                    </span>
+                    <span>{shortDate(visibleInvoice.issued_at)}</span>
+                    <span>{peso(visibleInvoice.total)}</span>
+                    <span
+                      className={`status ${statusClass(statusLabel(visibleInvoice.order_status))}`}
+                    >
+                      {statusLabel(visibleInvoice.order_status)}
+                    </span>
+                  </Link>
                 ))}
-              </ol>
-            </div>
-          </section>
-        </main>
-      )}
+              </div>
+            )}
+          </main>
+        ) : error && !loading ? (
+          <div className="invoice-error">
+            We couldn't find that invoice: {error}
+          </div>
+        ) : (
+          <main className="invoice-wrap" aria-busy={loading}>
+            <aside className="parties">
+              <div className="party-card">
+                <div className="shop-name">
+                  {invoice?.invoice_number ?? "Loading invoice"}
+                </div>
+
+                <div className="party-block">
+                  <span className="field-label">Buyer Business</span>
+                  <span className="field-value">
+                    {invoice?.buyer_business_name ?? "—"}
+                  </span>
+                </div>
+                <div className="party-block">
+                  <span className="field-label">Order No.</span>
+                  <span className="field-value">
+                    #{invoice?.order_id ?? "—"}
+                  </span>
+                </div>
+                <div className="party-block">
+                  <span className="field-label">Issued</span>
+                  <span className="field-value">
+                    {shortDate(invoice?.issued_at)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="party-card">
+                <div className="party-block">
+                  <span className="field-label">Seller Name / Shop Name</span>
+                  <span className="field-value">
+                    {invoice?.wholesaler_business_name ?? "—"}
+                  </span>
+                </div>
+                <div className="party-block">
+                  <span className="field-label">Invoice Total</span>
+                  <span className="field-value invoice-total">
+                    {peso(invoice?.total)}
+                  </span>
+                </div>
+                <div className="party-block">
+                  <span className="field-label">Item Quantity</span>
+                  <span className="field-value muted">
+                    {itemQuantity(invoice)} units
+                  </span>
+                </div>
+              </div>
+            </aside>
+
+            <section className="status-panel">
+              <div className="status-head">
+                <div>
+                  <span className="status-eyebrow">Invoice order status</span>
+                  <h1 className="status-title">
+                    {statusLabel(invoice?.order_status)}
+                  </h1>
+                  <span className="status-sub">
+                    Issued {shortDate(invoice?.issued_at)} for order #
+                    {invoice?.order_id ?? "—"}
+                  </span>
+                </div>
+
+                <div className="status-actions">
+                  <Link to="/orders" className="action-link">
+                    <RotateCcw size={13} /> View orders
+                  </Link>
+                  <Link to="/invoices" className="action-link">
+                    <ArrowLeftRight size={13} /> All invoices
+                  </Link>
+                  <span className="delivery-query">
+                    For invoice questions, use your LINKO order thread.
+                  </span>
+                </div>
+              </div>
+
+              <div className="timeline-block">
+                <span className="timeline-heading">Order Timeline</span>
+
+                <ol className="timeline">
+                  {timeline.map((step) => (
+                    <li
+                      key={step.title + step.meta}
+                      className={`tl-step ${step.state === "current" ? "done current" : "done"}`}
+                    >
+                      <span className="tl-dot" />
+                      <div className="tl-content">
+                        <span className="tl-title">{step.title}</span>
+                        <span className="tl-meta">{step.meta}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+
+              <div className="invoice-items">
+                <span className="timeline-heading">Invoice Items</span>
+                <table className="invoice-items-table">
+                  <thead>
+                    <tr>
+                      <th>Product</th>
+                      <th>SKU</th>
+                      <th>Qty</th>
+                      <th>Unit</th>
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(invoice?.items ?? []).map((item) => (
+                      <tr key={`${item.product_id}-${item.sku}`}>
+                        <td>{item.product_name ?? "—"}</td>
+                        <td>{item.sku ?? "—"}</td>
+                        <td>{item.quantity ?? "—"}</td>
+                        <td>{peso(item.unit_price_snapshot)}</td>
+                        <td>{peso(item.line_total)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </main>
+        )}
       </div>
     </AppLayout>
   );

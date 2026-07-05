@@ -1,25 +1,57 @@
 import { Router } from "express";
+import { query } from "../db.js";
 
 const router = Router();
 
-router.get("/", (_req, res) => {
-  // Placeholder for Sprint 1. Later this should query businesses joined with
-  // supplier_profiles and return the supplier contract shape.
-  res.json([]);
-});
+// Milestone 2: real supplier listing -- businesses acting as wholesalers, with
+// a count of their active products. Auth is enforced at the mount (any
+// authenticated user). Shape documented in docs/API_CONTRACTS.md.
 
-router.post("/", (_req, res) => {
-  res.status(501).json({
-    error: { message: "Supplier creation is not implemented yet" },
-  });
-});
+function asClientError(error) {
+  if (["23503", "23514", "23505"].includes(error.code)) {
+    error.statusCode = 400;
+  }
+  return error;
+}
 
-router.patch("/:id", (req, res) => {
-  res.status(501).json({
-    error: {
-      message: `Supplier ${req.params.id} updates are not implemented yet`,
-    },
-  });
+router.get("/", async (req, res, next) => {
+  try {
+    const conditions = ["b.business_type IN ('wholesaler', 'both')"];
+    const params = [];
+
+    if (req.query.q !== undefined && req.query.q !== "") {
+      params.push(`%${req.query.q}%`);
+      conditions.push(`b.business_name ILIKE $${params.length}`);
+    }
+    if (req.query.category_id !== undefined) {
+      params.push(Number(req.query.category_id));
+      conditions.push(`EXISTS (
+        SELECT 1 FROM products p
+         WHERE p.business_id = b.business_id
+           AND p.is_active = TRUE
+           AND p.category_id = $${params.length}
+      )`);
+    }
+
+    const { rows } = await query(
+      `SELECT b.business_id,
+              b.business_name,
+              a.province,
+              a.city_municipality,
+              a.street_address,
+              b.is_verified,
+              (SELECT COUNT(*)::int FROM products p
+                WHERE p.business_id = b.business_id AND p.is_active = TRUE) AS product_count
+         FROM businesses b
+         LEFT JOIN LATERAL (SELECT province, city_municipality, street_address FROM addresses WHERE business_id = b.business_id LIMIT 1) a ON TRUE
+        WHERE ${conditions.join(" AND ")}
+        ORDER BY b.business_name`,
+      params,
+    );
+    res.json(rows);
+  } catch (error) {
+    next(asClientError(error));
+  }
 });
 
 export default router;

@@ -1,30 +1,80 @@
+import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { suppliers } from "../../data/suppliers";
-import StarRating from "../../components/ui/StarRating";
+import { BadgeCheck } from "lucide-react";
+import { apiGet } from "../../lib/api";
+
+const PLACEHOLDER_IMAGE = "https://loremflickr.com/600/700/warehouse,store";
 
 function SupplierGrid() {
   const [searchParams] = useSearchParams();
   const category = searchParams.get("category");
   const query = (searchParams.get("q") ?? "").trim();
-  const q = query.toLowerCase();
 
-  const visibleSuppliers = suppliers.filter((supplier) => {
-    if (category && supplier.category !== category) return false;
+  const [suppliers, setSuppliers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        // Resolve the category name (from SubNav links) to its id.
+        let categoryId = null;
+        if (category) {
+          const categories = await apiGet("/api/categories");
+          const match = (Array.isArray(categories) ? categories : []).find(
+            (c) => c.category_name === category,
+          );
+          categoryId = match ? match.category_id : null;
+        }
+
+        const params = new URLSearchParams();
+        if (query) params.set("q", query);
+        if (categoryId != null) params.set("category_id", String(categoryId));
+        const qs = params.toString();
+
+        const data = await apiGet(`/api/suppliers${qs ? `?${qs}` : ""}`);
+        if (!cancelled) {
+          setSuppliers(Array.isArray(data) ? data : []);
+          setLoading(false);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err.message);
+          setLoading(false);
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [category, query]);
+
+  if (loading) {
+    return <p className="grid-empty">Loading suppliers…</p>;
+  }
+
+  if (error) {
     return (
-      !q ||
-      supplier.supplier_name.toLowerCase().includes(q) ||
-      supplier.location.toLowerCase().includes(q) ||
-      supplier.category.toLowerCase().includes(q)
+      <p className="grid-empty">
+        Could not load suppliers: {error}. Is the backend running?
+      </p>
     );
-  });
+  }
 
   return (
     <>
       {(category || query) && (
         <div className="grid-filter-bar">
           <span>
-            Showing {visibleSuppliers.length} supplier
-            {visibleSuppliers.length === 1 ? "" : "s"}
+            Showing {suppliers.length} supplier
+            {suppliers.length === 1 ? "" : "s"}
             {query && <> for &ldquo;{query}&rdquo;</>}
             {category && (
               <>
@@ -37,29 +87,39 @@ function SupplierGrid() {
         </div>
       )}
 
-      {visibleSuppliers.length === 0 ? (
+      {suppliers.length === 0 ? (
         <p className="grid-empty">
           No suppliers found. Try a different search or category.
         </p>
       ) : (
         <section className="content-grid" aria-label="Supplier results">
-          {visibleSuppliers.map((supplier) => (
+          {suppliers.map((supplier) => (
             <Link
-              to={`/suppliers/${supplier.slug}`}
+              to={`/suppliers/${supplier.business_id}`}
               className="supplier-box"
-              key={supplier.slug}
+              key={supplier.business_id}
             >
               <div className="supplier-box-image">
                 <img
-                  src={supplier.supplier_image}
-                  alt={`${supplier.supplier_name} supplier`}
+                  src={PLACEHOLDER_IMAGE}
+                  alt={`${supplier.business_name} supplier`}
                 />
               </div>
               <div className="supplier-box-info">
-                <h3>{supplier.supplier_name}</h3>
-                <p>Location: {supplier.location}</p>
-                <p className="supplier-rating">
-                  <StarRating rating={supplier.rating} />
+                <h3>
+                  {supplier.business_name}
+                  {supplier.is_verified && (
+                    <BadgeCheck
+                      size={16}
+                      className="verified-badge"
+                      aria-label="Verified"
+                    />
+                  )}
+                </h3>
+                <p>Location: {supplier.city ?? "—"}</p>
+                <p>
+                  {supplier.product_count} product
+                  {supplier.product_count === 1 ? "" : "s"}
                 </p>
               </div>
             </Link>
