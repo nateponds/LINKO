@@ -4,6 +4,9 @@
 > **Files Analyzed:** 21 documents across 5 directories
 > **Total Documentation Size:** ~162 KB
 
+> [!NOTE]
+> **Point-in-time snapshot** — findings reflect June 28, 2026. Since then: `LAYOUT_QUESTIONNAIRE.md`, `LINKO_BPMN_PROCESS_GUIDE.md`, and `linko_logistics_specification.md` moved to `archived/`; Sprint 1 completed and Sprint 2 planned in `SPRINTS.md`; migrations 002/003 added a logistics subsystem that is a **CIS 2104 course deliverable** (see [course-deliverable.md](./course-deliverable.md) and [LINKO_ERD.md](./LINKO_ERD.md)), not product scope. Links in the tables below have been repaired to current locations; the prose findings are historical.
+
 ---
 
 ## Table of Contents
@@ -43,14 +46,14 @@
 | 6   | [BACKEND_GUIDE.md](./BACKEND_GUIDE.md)                                                                                  | docs/                | 9.5 KB  | Active   |
 | 7   | [BACKLOG.md](./BACKLOG.md)                                                                                              | docs/                | 3.0 KB  | Active   |
 | 8   | [CONVENTIONAL_COMMITS.md](./CONVENTIONAL_COMMITS.md)                                                                    | docs/                | 1.1 KB  | Active   |
-| 9   | [LAYOUT_QUESTIONNAIRE.md](./LAYOUT_QUESTIONNAIRE.md)                                                                    | docs/                | 6.4 KB  | Active   |
+| 9   | [LAYOUT_QUESTIONNAIRE.md](./archived/LAYOUT_QUESTIONNAIRE.md)                                                           | archived/            | 6.4 KB  | Archived |
 | 10  | [PROPOSED_LAYOUT.md](./PROPOSED_LAYOUT.md)                                                                              | docs/                | 9.2 KB  | Active   |
 | 11  | [SPRINTS.md](./SPRINTS.md)                                                                                              | docs/                | 4.7 KB  | Active   |
 | 12  | [beginner_backend_guide.md](./beginner_backend_guide.md)                                                                | docs/                | 15.0 KB | Active   |
 | 13  | [glossary.md](./glossary.md)                                                                                            | docs/                | 12.4 KB | Active   |
-| 14  | [LINKO_database_specification.md](./LINKO_database_specification.md)                                                    | docs/                | 12.3 KB | Active   |
-| 15  | [LINKO_BPMN_PROCESS_GUIDE.md](./LINKO_BPMN_PROCESS_GUIDE.md)                                                            | docs/                | 7.2 KB  | Active   |
-| 16  | [LINKO_logistics_specification.md](./LINKO_logistics_specification.md)                                                  | docs/                | 4.8 KB  | Active   |
+| 14  | [linko_database_specification.md](./linko_database_specification.md)                                                    | docs/                | 12.3 KB | Active   |
+| 15  | [LINKO_BPMN_PROCESS_GUIDE.md](./archived/LINKO_BPMN_PROCESS_GUIDE.md)                                                   | archived/            | 7.2 KB  | Archived |
+| 16  | [linko_logistics_specification.md](./archived/linko_logistics_specification.md)                                         | archived/            | 4.8 KB  | Archived |
 | 17  | [CODEBASE_OVERVIEW.md](./codebase-notes/CODEBASE_OVERVIEW.md)                                                           | docs/codebase-notes/ | 5.9 KB  | Active   |
 | 18  | [FRONTEND_GUIDE.md](./archived/FRONTEND_GUIDE.md)                                                                       | archived/            | 3.3 KB  | Archived |
 | 19  | [archive_logistics_database_specification_outdated.md](./archived/archive_logistics_database_specification_outdated.md) | archived/            | 10.9 KB | Archived |
@@ -261,7 +264,7 @@ All archived docs include clear "Archive Notes" at the top explaining why they w
 | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------------------- |
 | [FRONTEND_GUIDE.md](./archived/FRONTEND_GUIDE.md)                                                                       | Superseded by more comprehensive layout strategy | PROPOSED_LAYOUT.md                                                      |
 | [beginner_react_guide.md](./archived/beginner_react_guide.md)                                                           | Superseded (40KB full React course!)             | PROPOSED_LAYOUT.md                                                      |
-| [archive_logistics_database_specification_outdated.md](./archived/archive_logistics_database_specification_outdated.md) | Outdated MySQL-based logistics design            | [LINKO_logistics_specification.md](../LINKO_logistics_specification.md) |
+| [archive_logistics_database_specification_outdated.md](./archived/archive_logistics_database_specification_outdated.md) | Outdated MySQL-based logistics design            | [linko_logistics_specification.md](./archived/linko_logistics_specification.md) |
 
 ### Example Templates (2 files)
 
