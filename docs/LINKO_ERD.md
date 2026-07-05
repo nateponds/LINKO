@@ -1,4 +1,6 @@
-# LINKO — Logistics Subsystem Entity Relationship Diagram
+# Course Deliverable (CIS 2104) — Logistics Subsystem ERD
+
+> **Scope note:** This ERD is the finalized design for the Information Management II course deliverable (see [course-deliverable.md](./course-deliverable.md)) — a courier/parcel-tracking subsystem implemented in migrations `002` and `003`. It is **course scope, not product roadmap**: LINKO the product does not own branches, couriers, or a per-parcel commission revenue model (delivery remains third-party-carrier coordination, deferred — see `ROADMAP.md`). The subsystem is a deliberately decoupled bounded context: zero foreign keys to the marketplace tables (`businesses`, `users`). In the demo narrative, marketplace businesses appear in `customers` as sender/receiver; integration, if ever needed, would be a mapping table.
 
 ```mermaid
 erDiagram
