@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../auth/AuthProvider";
-import { formatRoleLabel, getPrimaryMembership } from "../../auth/roleAccess";
+import { formatRoleLabel } from "../../auth/roleAccess";
 import Sidebar from "./Sidebar";
 
 const FALLBACK_NOTIFICATIONS = [
@@ -34,13 +34,20 @@ function Topbar({ showSearch = false }) {
   const [notifications, setNotifications] = useState([]);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user, memberships, logout, hasAnyRole } = useAuth();
+  const {
+    user,
+    memberships,
+    activeBusinessId,
+    activeMembership,
+    setActiveBusiness,
+    logout,
+    hasAnyRole,
+  } = useAuth();
   const qParam = searchParams.get("q") ?? "";
-  const primaryMembership = getPrimaryMembership(memberships);
   const displayName = user?.full_name || user?.email || "LINKO User";
-  const displayBusiness = primaryMembership?.business_name || "No business assigned";
+  const displayBusiness = activeMembership?.business_name || "No business assigned";
   const displayRole = formatRoleLabel(
-    user?.global_role === "platform_admin" ? user.global_role : primaryMembership?.role,
+    user?.global_role === "platform_admin" ? user.global_role : activeMembership?.role,
   );
   const avatarLetter = displayName.charAt(0).toUpperCase();
 
@@ -118,7 +125,28 @@ function Topbar({ showSearch = false }) {
       <div className="topbar">
         <span>
           Signed in as <strong>{displayName}</strong>
-          {displayBusiness ? ` - ${displayBusiness}` : ""}
+          {memberships.length > 1 ? (
+            <>
+              {" - "}
+              <select
+                className="business-switcher"
+                aria-label="Active business"
+                value={activeBusinessId ?? ""}
+                onChange={(event) => setActiveBusiness(event.target.value)}
+              >
+                {memberships.map((membership) => (
+                  <option
+                    key={membership.business_id}
+                    value={membership.business_id}
+                  >
+                    {membership.business_name} ({formatRoleLabel(membership.role)})
+                  </option>
+                ))}
+              </select>
+            </>
+          ) : (
+            displayBusiness ? ` - ${displayBusiness}` : ""
+          )}
         </span>
       </div>
       <header className="header-nav">
