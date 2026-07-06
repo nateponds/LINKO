@@ -43,26 +43,28 @@ This file is the active delivery plan fo\n\n---
 
 ## Milestone 5: Ownership, Multi-Business Context, And Security
 
-**Status:** Planned  
+**Status:** Implemented  
 **Priority:** High  
 **Goal:** Move beyond broad role checks into correct data ownership and business context behavior.
 
+> Verified 2026-07-06: backend suite green locally, build+lint clean.
+
 ### Tasks
 
-- [ ] Add active business context for users with multiple businesses.
-- [ ] Add business switcher to the app shell.
-- [ ] Enforce row-level ownership in backend services:
+- [x] Add active business context for users with multiple businesses.
+- [x] Add business switcher to the app shell.
+- [x] Enforce row-level ownership in backend services:
   - products
   - inventory
   - orders
   - invoices
   - shipments
   - supplier profiles
-- [ ] Add platform admin bypass where appropriate.
-- [ ] Add authorization helper tests for all ownership patterns.
-- [ ] Add CSRF protection or a documented same-site cookie mitigation plan.
-- [ ] Improve input validation across auth, products, orders, invoices, and shipments.
-- [ ] Add audit-friendly timestamps and created/updated metadata where missing.
+- [x] Add platform admin bypass where appropriate.
+- [x] Add authorization helper tests for all ownership patterns.
+- [x] Add CSRF protection or a documented same-site cookie mitigation plan. (same-site mitigation documented in docs/DEPLOYMENT.md §security)
+- [x] Improve input validation across auth, products, orders, invoices, and shipments.
+- [x] Add audit-friendly timestamps and created/updated metadata where missing.
 
 ### Acceptance Criteria
 

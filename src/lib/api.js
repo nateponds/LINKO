@@ -11,14 +11,28 @@ async function readJson(response) {
   return text ? JSON.parse(text) : null;
 }
 
+function readActiveBusinessId() {
+  try {
+    return window.localStorage.getItem("linko-active-business");
+  } catch {
+    return null;
+  }
+}
+
 async function request(path, { method = "GET", body } = {}) {
   const options = {
     method,
     credentials: "same-origin",
+    headers: {},
   };
 
+  const activeBusinessId = readActiveBusinessId();
+  if (activeBusinessId) {
+    options.headers["X-Active-Business"] = activeBusinessId;
+  }
+
   if (body !== undefined) {
-    options.headers = { "Content-Type": "application/json" };
+    options.headers["Content-Type"] = "application/json";
     options.body = JSON.stringify(body);
   }
 
