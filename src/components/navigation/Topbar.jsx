@@ -18,10 +18,6 @@ import { useAuth } from "../../auth/AuthProvider";
 import { formatRoleLabel } from "../../auth/roleAccess";
 import Sidebar from "./Sidebar";
 
-const FALLBACK_NOTIFICATIONS = [
-  { id: 1, type: "info", text: "Order #21358 is now in transit", time: "2h ago" },
-];
-
 function getIconForType(type) {
   if (type === "warning") return TriangleAlert;
   if (type === "success") return Star;
@@ -97,12 +93,17 @@ function Topbar({ showSearch = false }) {
         if (!cancelled && Array.isArray(data)) {
           setNotifications(data);
         }
-      } catch (err) {
+      } catch {
         // ignore
       }
     }
-    if (user) loadNotifs();
-    return () => { cancelled = true; };
+    if (!user) return () => { cancelled = true; };
+    loadNotifs();
+    const intervalId = setInterval(loadNotifs, 30000);
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
   }, [user]);
 
   async function markAsRead(id) {
@@ -202,13 +203,6 @@ function Topbar({ showSearch = false }) {
                     })
                   )}
                 </ul>
-                <Link
-                  to="/dashboard"
-                  className="dropdown-foot"
-                  onClick={() => setOpenPanel(null)}
-                >
-                  View all activity
-                </Link>
               </div>
             )}
           </div>
