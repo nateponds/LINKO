@@ -63,6 +63,7 @@ export async function getSessionUser(sessionToken, db = getPool()) {
      LEFT JOIN businesses b ON b.business_id = bm.business_id
      WHERE s.token_hash = $1
        AND s.expires_at > CURRENT_TIMESTAMP
+       AND u.is_active
      GROUP BY u.user_id, u.email, u.full_name, u.global_role`,
     [tokenHash],
   );

@@ -238,7 +238,7 @@ export default function OrdersPage() {
             <div className="page-empty">Loading orders...</div>
           ) : error ? (
             <div className="page-empty">
-              Could not load orders: {error}. Backend is not running bruh
+              Could not load orders: {error}
             </div>
           ) : visibleOrders.length === 0 ? (
             <div className="page-empty">No orders match your search.</div>

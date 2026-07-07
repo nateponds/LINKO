@@ -114,7 +114,7 @@ export default function LogisticsPage() {
             <div className="page-empty">Loading parcels…</div>
           ) : error ? (
             <div className="page-empty">
-              Could not load parcels: {error}. Backend is not running bruh
+              Could not load parcels: {error}
             </div>
           ) : visibleParcels.length === 0 ? (
             <div className="page-empty">No parcels match your search.</div>

@@ -77,28 +77,28 @@ This file is the active delivery plan fo\n\n---
 
 ## Milestone 6: Admin, Demo Readiness, And Course Polish
 
-**Status:** Planned  
+**Status:** Implemented  
 **Priority:** Medium  
 **Goal:** Make LINKO credible for professor review, demo walkthroughs, and team grading.
 
 ### Tasks
 
-- [ ] Add platform admin dashboard.
-- [ ] Add admin user management:
+- [x] Add platform admin dashboard.
+- [x] Add admin user management:
   - list users
   - create logistics/courier/admin users
   - deactivate users
   - view business memberships
-- [ ] Add admin business management:
+- [x] Add admin business management:
   - list businesses
   - inspect business owners
   - manage verification/status fields if needed
-- [ ] Add seed/reset demo data script for consistent grading demos.
-- [ ] Add clear demo account documentation.
-- [ ] Improve empty states across the app.
-- [ ] Improve user-facing error messages.
-- [ ] Remove or label remaining mock/demo-only data.
-- [ ] Prepare a professor demo script:
+- [x] Add seed/reset demo data script for consistent grading demos.
+- [x] Add clear demo account documentation.
+- [x] Improve empty states across the app.
+- [x] Improve user-facing error messages.
+- [x] Remove or label remaining mock/demo-only data.
+- [x] Prepare a professor demo script:
   - buyer journey
   - wholesaler journey
   - logistics coordinator journey
