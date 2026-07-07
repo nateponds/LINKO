@@ -393,7 +393,7 @@ export default function InventoryPage() {
             <p className="grid-empty">Loading products…</p>
           ) : error ? (
             <p className="grid-empty">
-              Could not load products: {error}. Backend is not running bruh
+              Could not load products: {error}
             </p>
           ) : visibleProducts.length === 0 ? (
             <p className="grid-empty">No products yet.</p>

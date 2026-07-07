@@ -18,6 +18,13 @@
     max-width: 640px;
   }
 
+  .page-demo-note {
+    margin: 0 0 20px;
+    color: var(--color-muted);
+    font-size: 0.82rem;
+    font-style: italic;
+  }
+
   .matching-form {
     display: flex;
     align-items: center;

@@ -43,26 +43,28 @@ This file is the active delivery plan fo\n\n---
 
 ## Milestone 5: Ownership, Multi-Business Context, And Security
 
-**Status:** Planned  
+**Status:** Implemented  
 **Priority:** High  
 **Goal:** Move beyond broad role checks into correct data ownership and business context behavior.
 
+> Verified 2026-07-06: backend suite green locally, build+lint clean.
+
 ### Tasks
 
-- [ ] Add active business context for users with multiple businesses.
-- [ ] Add business switcher to the app shell.
-- [ ] Enforce row-level ownership in backend services:
+- [x] Add active business context for users with multiple businesses.
+- [x] Add business switcher to the app shell.
+- [x] Enforce row-level ownership in backend services:
   - products
   - inventory
   - orders
   - invoices
   - shipments
   - supplier profiles
-- [ ] Add platform admin bypass where appropriate.
-- [ ] Add authorization helper tests for all ownership patterns.
-- [ ] Add CSRF protection or a documented same-site cookie mitigation plan.
-- [ ] Improve input validation across auth, products, orders, invoices, and shipments.
-- [ ] Add audit-friendly timestamps and created/updated metadata where missing.
+- [x] Add platform admin bypass where appropriate.
+- [x] Add authorization helper tests for all ownership patterns.
+- [x] Add CSRF protection or a documented same-site cookie mitigation plan. (same-site mitigation documented in docs/DEPLOYMENT.md §security)
+- [x] Improve input validation across auth, products, orders, invoices, and shipments.
+- [x] Add audit-friendly timestamps and created/updated metadata where missing.
 
 ### Acceptance Criteria
 
@@ -75,28 +77,28 @@ This file is the active delivery plan fo\n\n---
 
 ## Milestone 6: Admin, Demo Readiness, And Course Polish
 
-**Status:** Planned  
+**Status:** Implemented  
 **Priority:** Medium  
 **Goal:** Make LINKO credible for professor review, demo walkthroughs, and team grading.
 
 ### Tasks
 
-- [ ] Add platform admin dashboard.
-- [ ] Add admin user management:
+- [x] Add platform admin dashboard.
+- [x] Add admin user management:
   - list users
   - create logistics/courier/admin users
   - deactivate users
   - view business memberships
-- [ ] Add admin business management:
+- [x] Add admin business management:
   - list businesses
   - inspect business owners
   - manage verification/status fields if needed
-- [ ] Add seed/reset demo data script for consistent grading demos.
-- [ ] Add clear demo account documentation.
-- [ ] Improve empty states across the app.
-- [ ] Improve user-facing error messages.
-- [ ] Remove or label remaining mock/demo-only data.
-- [ ] Prepare a professor demo script:
+- [x] Add seed/reset demo data script for consistent grading demos.
+- [x] Add clear demo account documentation.
+- [x] Improve empty states across the app.
+- [x] Improve user-facing error messages.
+- [x] Remove or label remaining mock/demo-only data.
+- [x] Prepare a professor demo script:
   - buyer journey
   - wholesaler journey
   - logistics coordinator journey

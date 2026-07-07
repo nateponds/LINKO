@@ -1,6 +1,10 @@
 import { Router } from "express";
 import { query, getPool } from "../db.js";
 import { requireAnyRole, requireAuth } from "../middleware/auth.js";
+import {
+  getActiveMembership,
+  isPlatformAdmin,
+} from "../middleware/ownership.js";
 
 const router = Router();
 
@@ -46,15 +50,60 @@ router.use(
   requireAnyRole(["wholesaler", "logistics_coordinator", "courier", "platform_admin"]),
 );
 
+// Branches and couriers are logistics reference data. Reads (GET) were
+// previously UNAUTHENTICATED; gate the whole path so only logistics-adjacent
+// roles may read. Writes add their own tighter role guard per-route below.
+router.use(
+  "/branches",
+  requireAuth,
+  requireAnyRole(["wholesaler", "logistics_coordinator", "courier", "platform_admin"]),
+);
+
+router.use(
+  "/couriers",
+  requireAuth,
+  requireAnyRole(["wholesaler", "logistics_coordinator", "courier", "platform_admin"]),
+);
+
+// Row-level parcel visibility for the current caller:
+//   { all: true }              -> logistics_coordinator or platform_admin
+//   { businessIds: [...] }     -> wholesaler: parcels they send OR receive
+//   { courierId: <id|null> }   -> courier: only parcels they are assigned to
+// Resolved once per request; used to build the WHERE clause in the house style.
+async function parcelScope(req) {
+  const { user, memberships } = req.auth;
+  if (isPlatformAdmin(user) || memberships.some((m) => m.role === "logistics_coordinator")) {
+    return { all: true };
+  }
+
+  const businessIds = memberships
+    .filter((m) => m.role === "wholesaler")
+    .map((m) => m.business_id);
+  if (businessIds.length) {
+    return { businessIds };
+  }
+
+  const { rows } = await query(
+    "SELECT courier_id FROM couriers WHERE user_id = $1",
+    [user.user_id],
+  );
+  return { courierId: rows[0]?.courier_id ?? null };
+}
+
 router.get("/parcels", async (req, res) => {
-  const isCourierOnly = !req.auth.user.global_role && !req.auth.memberships.some(m => ["logistics_coordinator", "platform_admin", "wholesaler"].includes(m.role));
-  
+  const scope = await parcelScope(req);
+
   let filterClause = "";
-  let params = [];
-  
-  if (isCourierOnly) {
-    filterClause = "WHERE latest.courier_id = (SELECT courier_id FROM couriers WHERE user_id = $1)";
-    params.push(req.auth.user.user_id);
+  const params = [];
+
+  if (scope.businessIds) {
+    params.push(scope.businessIds);
+    filterClause = `WHERE (p.sender_id = ANY($${params.length}::int[])
+                       OR p.receiver_id = ANY($${params.length}::int[]))`;
+  } else if (scope.courierId !== undefined && !scope.all) {
+    // Courier with no linked courier row sees nothing (courierId may be null).
+    params.push(scope.courierId);
+    filterClause = `WHERE latest.courier_id = $${params.length}`;
   }
 
   const { rows } = await query(`
@@ -79,9 +128,11 @@ router.get("/parcels", async (req, res) => {
 });
 
 router.get("/parcels/:id", async (req, res) => {
+  const scope = await parcelScope(req);
   const { rows } = await query(
     `
     SELECT p.parcel_id,
+           p.sender_id, p.receiver_id,
            json_build_object('business_id', s.business_id, 'business_name', s.business_name,
                              'contact_number', s.contact_number) AS sender,
            json_build_object('business_id', r.business_id, 'business_name', r.business_name,
@@ -100,6 +151,7 @@ router.get("/parcels/:id", async (req, res) => {
            json_build_object('method', pay.method, 'payment_status', pay.payment_status,
                              'amount', pay.amount, 'paid_at', pay.paid_at) AS payment,
            latest.status_update AS current_status,
+           latest.courier_id AS latest_courier_id,
            (SELECT json_agg(json_build_object(
                       'status_update', tl.status_update,
                       'branch_name', b.branch_name,
@@ -129,7 +181,31 @@ router.get("/parcels/:id", async (req, res) => {
     });
   }
 
-  res.json(rows[0]);
+  // Ownership: same rule as the list. A caller who cannot see this parcel gets
+  // a 404 (not 403) so parcel existence is not leaked -- matches the not-found
+  // response above.
+  const parcel = rows[0];
+  const visible =
+    scope.all ||
+    (scope.businessIds &&
+      (scope.businessIds.includes(parcel.sender_id) ||
+        scope.businessIds.includes(parcel.receiver_id))) ||
+    (scope.courierId !== undefined &&
+      scope.courierId !== null &&
+      parcel.latest_courier_id === scope.courierId);
+
+  if (!visible) {
+    return res.status(404).json({
+      error: { message: `Parcel ${req.params.id} not found` },
+    });
+  }
+
+  // Strip the internal-only fields used for the ownership check.
+  delete parcel.sender_id;
+  delete parcel.receiver_id;
+  delete parcel.latest_courier_id;
+
+  res.json(parcel);
 });
 
 router.post(
@@ -180,6 +256,28 @@ router.post(
     });
   }
 
+  // Sender must be derived from the caller's own business, never trusted from
+  // the body. A wholesaler can only send parcels as one of their businesses:
+  // resolve the active wholesaler membership and reject any body sender_id that
+  // does not match it. Logistics coordinators and platform admins operate the
+  // whole network, so they may book on behalf of any sender business.
+  let effectiveSenderId = sender_id;
+  const isWholesaler = req.auth.memberships.some((m) => m.role === "wholesaler");
+  if (!isPlatformAdmin(req.auth.user) && isWholesaler) {
+    let ownBusinessId;
+    try {
+      ownBusinessId = getActiveMembership(req, ["wholesaler"]).business_id;
+    } catch (error) {
+      return next(error);
+    }
+    if (Number(sender_id) !== ownBusinessId) {
+      return res.status(403).json({
+        error: { message: "sender_id must be your own business" },
+      });
+    }
+    effectiveSenderId = ownBusinessId;
+  }
+
   // ponytail: timestamp-derived tracking number, unique enough for the course
   // demo; swap for a sequence if bookings ever go concurrent.
   const parcelId = `LKO-${Date.now().toString().slice(-8)}`;
@@ -202,7 +300,7 @@ router.post(
       RETURNING parcel_id, shipping_fee::float8, declared_value::float8, estimated_delivery_date`,
       [
         parcelId,
-        sender_id,
+        effectiveSenderId,
         receiver_id,
         tier_id,
         origin_address_id,

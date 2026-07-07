@@ -4,6 +4,43 @@ import { hasAccess } from "./roleAccess";
 
 const AuthContext = createContext(null);
 
+const ACTIVE_BUSINESS_KEY = "linko-active-business";
+
+function readStoredActiveBusiness() {
+  try {
+    return window.localStorage.getItem(ACTIVE_BUSINESS_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function persistActiveBusiness(id) {
+  try {
+    if (id === null || id === undefined) {
+      window.localStorage.removeItem(ACTIVE_BUSINESS_KEY);
+    } else {
+      window.localStorage.setItem(ACTIVE_BUSINESS_KEY, String(id));
+    }
+  } catch {
+    // ignore storage failures (private mode, etc.)
+  }
+}
+
+function resolveActiveBusinessId(memberships, preferredId) {
+  if (!Array.isArray(memberships) || memberships.length === 0) {
+    return null;
+  }
+
+  const match = memberships.find(
+    (membership) => String(membership.business_id) === String(preferredId),
+  );
+  if (match) {
+    return match.business_id;
+  }
+
+  return memberships[0]?.business_id ?? null;
+}
+
 async function readJson(response) {
   if (response.status === 204) {
     return null;
@@ -16,13 +53,47 @@ async function readJson(response) {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [memberships, setMemberships] = useState([]);
+  const [activeBusinessId, setActiveBusinessId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const applySession = useCallback((session) => {
+    const nextMemberships = Array.isArray(session?.memberships)
+      ? session.memberships
+      : [];
     setUser(session?.user ?? null);
-    setMemberships(Array.isArray(session?.memberships) ? session.memberships : []);
+    setMemberships(nextMemberships);
+
+    const resolvedId = resolveActiveBusinessId(
+      nextMemberships,
+      readStoredActiveBusiness(),
+    );
+    setActiveBusinessId(resolvedId);
+    persistActiveBusiness(resolvedId);
   }, []);
+
+  const setActiveBusiness = useCallback(
+    (id) => {
+      const match = memberships.find(
+        (membership) => String(membership.business_id) === String(id),
+      );
+      if (!match) {
+        return false;
+      }
+      setActiveBusinessId(match.business_id);
+      persistActiveBusiness(match.business_id);
+      return true;
+    },
+    [memberships],
+  );
+
+  const activeMembership = useMemo(
+    () =>
+      memberships.find(
+        (membership) => String(membership.business_id) === String(activeBusinessId),
+      ) ?? null,
+    [activeBusinessId, memberships],
+  );
 
   const refreshAuth = useCallback(async () => {
     setLoading(true);
@@ -166,6 +237,8 @@ export function AuthProvider({ children }) {
       });
     } finally {
       applySession(null);
+      setActiveBusinessId(null);
+      persistActiveBusiness(null);
     }
   }, [applySession]);
 
@@ -178,6 +251,9 @@ export function AuthProvider({ children }) {
     () => ({
       user,
       memberships,
+      activeBusinessId,
+      activeMembership,
+      setActiveBusiness,
       loading,
       error,
       refreshAuth,
@@ -186,7 +262,20 @@ export function AuthProvider({ children }) {
       logout,
       hasAnyRole,
     }),
-    [error, hasAnyRole, loading, login, logout, memberships, refreshAuth, register, user],
+    [
+      activeBusinessId,
+      activeMembership,
+      error,
+      hasAnyRole,
+      loading,
+      login,
+      logout,
+      memberships,
+      refreshAuth,
+      register,
+      setActiveBusiness,
+      user,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

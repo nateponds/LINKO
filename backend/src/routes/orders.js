@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { getPool, query } from "../db.js";
 import { requireAnyRole, requireAuth } from "../middleware/auth.js";
+import { getActiveMembership } from "../middleware/ownership.js";
+import { notifyBusiness } from "../services/notify.js";
 
 const router = Router();
 
@@ -33,16 +35,17 @@ function membershipIds(auth, role) {
     .map((membership) => membership.business_id);
 }
 
-function resolveSingleMembership(auth, roles, adminBodyBusinessId, errorRoleLabel) {
+// Resolve the business the caller is acting as (buyer/wholesaler). Multi-business
+// users disambiguate via the X-Active-Business header (validated in
+// getActiveMembership); single-membership behavior is unchanged. A platform_admin
+// with no such membership falls back to an explicit body business_id.
+function resolveSingleMembership(req, roles, adminBodyBusinessId, errorRoleLabel) {
   const roleArray = Array.isArray(roles) ? roles : [roles];
-  for (const role of roleArray) {
-    const ids = membershipIds(auth, role);
-    if (ids.length === 1) return ids[0];
-    if (ids.length > 1) {
-      throw createHttpError(400, `multiple ${role} businesses not supported yet`);
-    }
+  const hasMatching = req.auth.memberships.some((m) => roleArray.includes(m.role));
+  if (hasMatching) {
+    return getActiveMembership(req, roleArray).business_id;
   }
-  if (isAdmin(auth) && adminBodyBusinessId !== undefined && adminBodyBusinessId !== null) {
+  if (isAdmin(req.auth) && adminBodyBusinessId !== undefined && adminBodyBusinessId !== null) {
     return Number(adminBodyBusinessId);
   }
   throw createHttpError(403, `You must belong to a ${errorRoleLabel} business`);
@@ -339,7 +342,7 @@ router.post(
       });
 
       const buyerBusinessId = resolveSingleMembership(
-        req.auth,
+        req,
         ["buyer", "wholesaler"],
         bodyBuyerBusinessId,
         "buyer or wholesaler",
@@ -397,6 +400,13 @@ router.post(
           [orderId, item.productId, item.quantity, product.unit_price],
         );
       }
+
+      await notifyBusiness(
+        client,
+        wholesalerBusinessId,
+        "New Order",
+        `You have received a new order #${orderId}.`,
+      );
 
       await client.query("COMMIT");
       const order = await fetchOneOrder(orderId);
@@ -489,6 +499,29 @@ router.patch(
             );
           }
         }
+      }
+
+      const statusNotifications = {
+        accepted: [order.buyer_business_id, "Order Accepted", "success"],
+        shipped: [order.buyer_business_id, "Order Shipped", "info"],
+        delivered: [order.buyer_business_id, "Order Delivered", "success"],
+        cancelled: [
+          canBuyerCancel(req.auth, order)
+            ? order.wholesaler_business_id
+            : order.buyer_business_id,
+          "Order Cancelled",
+          "warning",
+        ],
+      };
+      if (statusNotifications[status]) {
+        const [businessId, title, type] = statusNotifications[status];
+        await notifyBusiness(
+          client,
+          businessId,
+          title,
+          `Order #${orderId} is now ${status}.`,
+          type,
+        );
       }
 
       await client.query("COMMIT");

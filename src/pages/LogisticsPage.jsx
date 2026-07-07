@@ -84,13 +84,10 @@ export default function LogisticsPage() {
               </button>
             </div>
             {hasAnyRole(["logistics_coordinator", "platform_admin"]) && (
-              <Link className="book-parcel-btn" to="/logistics/management" style={{background: 'var(--gray-800)'}}>
-                Manage
+              <Link className="book-parcel-btn" to="/logistics/management">
+                <PackagePlus size={16} /> Manage
               </Link>
             )}
-            <Link className="book-parcel-btn" to="/logistics/book">
-              <PackagePlus size={16} /> Book a Parcel
-            </Link>
           </div>
         </div>
 
@@ -117,7 +114,7 @@ export default function LogisticsPage() {
             <div className="page-empty">Loading parcels…</div>
           ) : error ? (
             <div className="page-empty">
-              Could not load parcels: {error}. Backend is not running bruh
+              Could not load parcels: {error}
             </div>
           ) : visibleParcels.length === 0 ? (
             <div className="page-empty">No parcels match your search.</div>
