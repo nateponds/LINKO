@@ -3,7 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { BadgeCheck } from "lucide-react";
 import { apiGet } from "../../lib/api";
 
-const PLACEHOLDER_IMAGE = "https://loremflickr.com/600/700/warehouse,store";
+const PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1586528116311-ad8ed745d44c?auto=format&fit=crop&q=80&w=600";
 
 function SupplierGrid() {
   const [searchParams] = useSearchParams();
