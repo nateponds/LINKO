@@ -82,7 +82,7 @@ export default function RegisterPage() {
         <div className="login-form-side">
           <div className="auth-page-header">
             <h1>Create account</h1>
-            <p>Set up your buyer or wholesaler workspace.</p>
+            <p>Set up your buyer, wholesaler, or hybrid workspace.</p>
           </div>
 
           <form onSubmit={handleSubmit}>
@@ -143,6 +143,7 @@ export default function RegisterPage() {
               >
                 <option value="buyer">Buyer</option>
                 <option value="wholesaler">Wholesaler</option>
+                <option value="both">Both (Buyer &amp; Wholesaler)</option>
               </select>
             </label>
 
