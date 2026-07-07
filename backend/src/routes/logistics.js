@@ -5,6 +5,7 @@ import {
   getActiveMembership,
   isPlatformAdmin,
 } from "../middleware/ownership.js";
+import { notifyBusiness } from "../services/notify.js";
 
 const router = Router();
 
@@ -101,9 +102,11 @@ router.get("/parcels", async (req, res) => {
     filterClause = `WHERE (p.sender_id = ANY($${params.length}::int[])
                        OR p.receiver_id = ANY($${params.length}::int[]))`;
   } else if (scope.courierId !== undefined && !scope.all) {
-    // Courier with no linked courier row sees nothing (courierId may be null).
+    // Courier sees their own parcels plus the unassigned pickup pool (latest
+    // log has no courier) -- docs/delivery-status-logistics.md. An unlinked
+    // courier account (courierId null) still sees the pool but cannot claim.
     params.push(scope.courierId);
-    filterClause = `WHERE latest.courier_id = $${params.length}`;
+    filterClause = `WHERE (latest.courier_id = $${params.length} OR latest.courier_id IS NULL)`;
   }
 
   const { rows } = await query(`
@@ -191,8 +194,8 @@ router.get("/parcels/:id", async (req, res) => {
       (scope.businessIds.includes(parcel.sender_id) ||
         scope.businessIds.includes(parcel.receiver_id))) ||
     (scope.courierId !== undefined &&
-      scope.courierId !== null &&
-      parcel.latest_courier_id === scope.courierId);
+      (parcel.latest_courier_id === null ||
+        (scope.courierId !== null && parcel.latest_courier_id === scope.courierId)));
 
   if (!visible) {
     return res.status(404).json({
@@ -386,31 +389,84 @@ router.get("/couriers", async (_req, res) => {
 });
 
 router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "courier", "platform_admin"]), async (req, res, next) => {
-  try {
-    const parcelId = req.params.id;
-    const { status_update, remarks, branch_id, courier_id } = req.body ?? {};
+  const parcelId = req.params.id;
+  const { status_update, remarks, branch_id, courier_id } = req.body ?? {};
 
-    const validStatuses = [
-      'Order Created', 'Picked Up', 'In Transit',
-      'Out for Delivery', 'Delivered', 'Returned', 'Cancelled'
-    ];
+  const validStatuses = [
+    'Order Created', 'Picked Up', 'In Transit',
+    'Out for Delivery', 'Delivered', 'Returned', 'Cancelled'
+  ];
 
-    if (!validStatuses.includes(status_update)) {
-      return res.status(400).json({
-        error: { message: "Invalid status_update" },
+  if (!validStatuses.includes(status_update)) {
+    return res.status(400).json({
+      error: { message: "Invalid status_update" },
+    });
+  }
+
+  // Couriers act as themselves: stamp courier_id from their linked couriers
+  // row and ignore any client-supplied value (no spoofing, and the scan keeps
+  // the parcel in their list). Coordinators/admins may assign explicitly.
+  let effectiveCourierId = courier_id || null;
+  const isPrivileged =
+    isPlatformAdmin(req.auth.user) ||
+    req.auth.memberships.some((m) => m.role === "logistics_coordinator");
+  if (!isPrivileged) {
+    const { rows } = await query(
+      "SELECT courier_id FROM couriers WHERE user_id = $1",
+      [req.auth.user.user_id],
+    );
+    if (!rows.length) {
+      return res.status(403).json({
+        error: { message: "Your account is not linked to a courier profile" },
       });
     }
+    effectiveCourierId = rows[0].courier_id;
+  }
 
-    const { rows } = await query(
+  // Transaction: the scan and its order side effect commit together.
+  const client = await getPool().connect();
+  try {
+    await client.query("BEGIN");
+
+    const { rows } = await client.query(
       `INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id, courier_id)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [parcelId, status_update, remarks || null, branch_id || null, courier_id || null]
+      [parcelId, status_update, remarks || null, branch_id || null, effectiveCourierId]
     );
 
+    // A Delivered scan completes the linked marketplace order and tells the
+    // buyer -- the wholesaler's job ended at 'shipped'
+    // (docs/delivery-status-logistics.md).
+    if (status_update === "Delivered") {
+      const { rows: orderRows } = await client.query(
+        `UPDATE orders o
+            SET status = 'delivered', updated_at = CURRENT_TIMESTAMP
+           FROM parcels p
+          WHERE p.parcel_id = $1
+            AND o.order_id = p.order_id
+            AND o.status = 'shipped'
+        RETURNING o.order_id, o.buyer_business_id`,
+        [parcelId],
+      );
+      if (orderRows.length) {
+        await notifyBusiness(
+          client,
+          orderRows[0].buyer_business_id,
+          "Order Delivered",
+          `Order #${orderRows[0].order_id} is now delivered.`,
+          "success",
+        );
+      }
+    }
+
+    await client.query("COMMIT");
     res.status(201).json(rows[0]);
   } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
     next(asClientError(error));
+  } finally {
+    client.release();
   }
 });
 

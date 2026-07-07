@@ -139,6 +139,16 @@ router.post("/users", async (req, res, next) => {
       );
     }
 
+    // A courier login is useless without a linked couriers row: parcel
+    // visibility and tracking scans resolve through couriers.user_id
+    // (docs/delivery-status-logistics.md).
+    if (kind === "courier") {
+      await client.query(
+        "INSERT INTO couriers (full_name, user_id) VALUES ($1, $2)",
+        [fullName, user.user_id],
+      );
+    }
+
     await client.query("COMMIT");
     return res.status(201).json({ ...user, memberships: [] });
   } catch (error) {
