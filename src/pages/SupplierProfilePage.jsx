@@ -263,7 +263,7 @@ export default function SupplierProfilePage() {
       <AppLayout>
         <div className="supplier-profile-page">
           <p className="grid-empty">
-            Could not load supplier: {error}. Backend is not running bruh
+            Could not load supplier: {error}
           </p>
         </div>
       </AppLayout>

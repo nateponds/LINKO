@@ -177,7 +177,7 @@ export default function InvoicePage() {
               <div className="invoice-error">Loading invoices...</div>
             ) : error ? (
               <div className="invoice-error">
-                Could not load invoices: {error}. Backend is not running bruh
+                Could not load invoices: {error}
               </div>
             ) : invoices.length === 0 ? (
               <div className="invoice-error">

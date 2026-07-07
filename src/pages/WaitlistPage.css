@@ -10,6 +10,13 @@
     color: var(--color-muted);
   }
 
+  .page-demo-note {
+    margin: 6px 0 0;
+    font-size: 0.82rem;
+    font-style: italic;
+    color: var(--color-muted);
+  }
+
   .notify-action {
     min-width: 96px;
     text-align: center;

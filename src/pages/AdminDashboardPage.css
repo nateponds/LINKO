@@ -1,0 +1,117 @@
+/* Admin dashboard content styles; heading/table/status primitives come from
+   shell.css. Scoped under .admin-page. */
+.admin-page {
+  padding: 30px 40px 60px;
+
+  .admin-error {
+    margin-bottom: 20px;
+  }
+
+  .admin-section {
+    margin-bottom: 36px;
+  }
+
+  .admin-section-head h2 {
+    margin: 0 0 14px;
+    color: var(--color-primary-dark);
+    font-size: 1.15rem;
+  }
+
+  .admin-create-form {
+    background: white;
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-bottom: 18px;
+    box-shadow: 0 2px 8px rgba(23, 33, 61, 0.08);
+  }
+
+  .admin-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+  }
+
+  .admin-form-grid label {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    font-size: 0.82rem;
+    color: var(--color-muted);
+    font-weight: 600;
+  }
+
+  .admin-form-grid input,
+  .admin-form-grid select {
+    height: 40px;
+    padding: 0 12px;
+    border: 1px solid rgba(23, 33, 61, 0.16);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: var(--color-text);
+    background: white;
+  }
+
+  .admin-form-grid input:focus,
+  .admin-form-grid select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+  }
+
+  .admin-form-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 14px;
+    margin-top: 16px;
+  }
+
+  .admin-form-error {
+    color: #c0392b;
+    font-size: 0.85rem;
+  }
+
+  .admin-primary-btn {
+    border: none;
+    background: var(--color-primary);
+    color: white;
+    font-weight: 600;
+    font-size: 0.88rem;
+    padding: 10px 22px;
+    border-radius: 20px;
+    cursor: pointer;
+  }
+
+  .admin-primary-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  .admin-action-btn {
+    border: none;
+    background: none;
+    color: var(--color-primary);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .admin-action-btn:hover:not(:disabled) {
+    text-decoration: underline;
+  }
+
+  .admin-action-btn:disabled {
+    color: var(--color-muted);
+    cursor: default;
+  }
+
+  .admin-memberships {
+    white-space: normal;
+    max-width: 320px;
+    color: var(--color-muted);
+  }
+
+  @media (max-width: 700px) {
+    padding: 20px 16px 40px;
+  }
+}
