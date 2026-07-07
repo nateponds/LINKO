@@ -408,6 +408,42 @@ test("auth register creates account, membership, and session", { skip: !hasDb },
   await pool.end();
 });
 
+test("auth register with business_type both grants buyer and wholesaler memberships", { skip: !hasDb }, async () => {
+  const uniqueEmail = `both-${Date.now()}@example.com`;
+  const register = await request("/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email: uniqueEmail,
+      password: "Password123!",
+      full_name: "Hybrid Owner",
+      business_name: "Hybrid Trading",
+      business_type: "both",
+    }),
+  });
+
+  assert.equal(register.status, 201);
+  assert.match(register.setCookie, /linko_session=/);
+  assert.equal(register.body.memberships.length, 2);
+  assert.equal(register.body.memberships[0].business_type, "both");
+  const roles = register.body.memberships.map((m) => m.role).sort();
+  assert.deepEqual(roles, ["buyer", "wholesaler"]);
+
+  const cookie = register.setCookie.split(";")[0];
+  const me = await request("/api/auth/me", {
+    headers: { Cookie: cookie },
+  });
+
+  assert.equal(me.status, 200);
+  const meRoles = me.body.memberships.map((m) => m.role).sort();
+  assert.deepEqual(meRoles, ["buyer", "wholesaler"]);
+
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+  await pool.query("DELETE FROM users WHERE email = $1", [uniqueEmail]);
+  await pool.end();
+});
+
 test("auth register rejects duplicate email", { skip: !hasDb }, async () => {
   const uniqueEmail = `duplicate-${Date.now()}@example.com`;
   const firstRegister = await request("/api/auth/register", {
@@ -464,7 +500,7 @@ test("auth register rejects public privileged role business types without creati
     });
 
     assert.equal(register.status, 400);
-    assert.match(register.body.error.message, /business_type must be buyer or wholesaler/i);
+    assert.match(register.body.error.message, /business_type must be buyer, wholesaler, or both/i);
     assert.equal(register.setCookie, null);
 
     const login = await request("/api/auth/login", {
