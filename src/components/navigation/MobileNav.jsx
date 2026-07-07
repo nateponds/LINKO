@@ -6,7 +6,7 @@ const items = [
   { name: "Home", link: "/", Icon: Store, end: true, roles: ["buyer", "wholesaler", "platform_admin"] },
   { name: "Nearby", link: "/matching", Icon: MapPin, roles: ["buyer", "platform_admin"] },
   { name: "Orders", link: "/orders", Icon: ClipboardList, roles: ["buyer", "wholesaler", "platform_admin"] },
-  { name: "Inventory", link: "/inventory", Icon: Boxes, roles: ["buyer", "wholesaler", "platform_admin"] },
+  { name: "Inventory", link: "/inventory", Icon: Boxes, roles: ["wholesaler", "platform_admin"] },
   { name: "Logistics", link: "/logistics", Icon: Truck, roles: ["wholesaler", "logistics_coordinator", "courier", "platform_admin"] },
   { name: "Dashboard", link: "/dashboard", Icon: LayoutDashboard, roles: [] },
 ];
