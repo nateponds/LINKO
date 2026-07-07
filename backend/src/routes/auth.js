@@ -126,7 +126,7 @@ router.post("/login", async (req, res, next) => {
 
   try {
     const result = await getPool().query(
-      "SELECT user_id, password_hash FROM users WHERE email = $1",
+      "SELECT user_id, password_hash, is_active FROM users WHERE email = $1",
       [email],
     );
 
@@ -137,6 +137,12 @@ router.post("/login", async (req, res, next) => {
     const user = result.rows[0];
     const isValidPassword = await verifyPassword(password, user.password_hash);
     if (!isValidPassword) {
+      throw createHttpError(401, "Invalid email or password");
+    }
+
+    // Deactivated accounts are indistinguishable from bad credentials on
+    // purpose -- do not reveal that the email exists but is disabled.
+    if (user.is_active === false) {
       throw createHttpError(401, "Invalid email or password");
     }
 

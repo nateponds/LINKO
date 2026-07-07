@@ -58,6 +58,9 @@ export default function WaitlistPage() {
             <span className="waitlist-sub">
               {waitingCount} customer{waitingCount === 1 ? "" : "s"} waiting on restock
             </span>
+            <p className="page-demo-note">
+              Demo data — not yet connected to the live backend.
+            </p>
           </div>
           <div className="search-bar">
             <input

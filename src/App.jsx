@@ -18,6 +18,7 @@ import MatchingPage from "./pages/MatchingPage";
 import BecomeSupplierPage from "./pages/BecomeSupplierPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import AdminDashboardPage from "./pages/AdminDashboardPage";
 
 const TITLES = [
   ["/register", "Register"],
@@ -30,6 +31,7 @@ const TITLES = [
   ["/waitlist", "Wait List"],
   ["/orders", "Orders"],
   ["/logistics", "Logistics"],
+  ["/admin", "Admin"],
   ["/suppliers/", "Supplier"],
 ];
 
@@ -92,6 +94,10 @@ function AppRoutes() {
         <Route path="/logistics/:parcelId" element={<ParcelDetailPage />} />
         <Route path="/logistics/book" element={<Navigate to="/logistics" replace />} />
         <Route path="/courier" element={<CourierDashboardPage />} />
+      </Route>
+
+      <Route element={<ProtectedRoute roles={ROLE_ACCESS.admin} />}>
+        <Route path="/admin" element={<AdminDashboardPage />} />
       </Route>
 
       <Route path="*" element={<UnknownRouteRedirect />} />
