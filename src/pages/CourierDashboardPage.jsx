@@ -2,13 +2,11 @@ import { useEffect, useState } from "react";
 import { Search, MapPin, Package } from "lucide-react";
 import { Link } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
-import { useAuth } from "../auth/AuthProvider";
 import { apiGet, apiSend } from "../lib/api";
 import { statusClass, shortDate } from "../lib/format";
 import "./LogisticsPage.css";
 
 export default function CourierDashboardPage() {
-  const { user } = useAuth();
   const [parcels, setParcels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -96,8 +94,16 @@ export default function CourierDashboardPage() {
                       <span>{p.weight_kg} kg • ETA: {shortDate(p.estimated_delivery_date)}</span>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      {p.current_status !== 'Delivered' && (
-                        <button 
+                      {p.current_status === 'Order Created' && (
+                        <button
+                          onClick={(e) => handleQuickAction(p.parcel_id, 'Picked Up', e)}
+                          style={{ padding: '0.5rem 1rem', borderRadius: '4px', border: '1px solid var(--brand-600)', background: 'white', color: 'var(--brand-600)', cursor: 'pointer', flex: 1 }}
+                        >
+                          Pick Up
+                        </button>
+                      )}
+                      {['Picked Up', 'In Transit'].includes(p.current_status) && (
+                        <button
                           onClick={(e) => handleQuickAction(p.parcel_id, 'Out for Delivery', e)}
                           style={{ padding: '0.5rem 1rem', borderRadius: '4px', border: '1px solid var(--brand-600)', background: 'white', color: 'var(--brand-600)', cursor: 'pointer', flex: 1 }}
                         >
@@ -105,7 +111,7 @@ export default function CourierDashboardPage() {
                         </button>
                       )}
                       {p.current_status === 'Out for Delivery' && (
-                        <button 
+                        <button
                           onClick={(e) => handleQuickAction(p.parcel_id, 'Delivered', e)}
                           style={{ padding: '0.5rem 1rem', borderRadius: '4px', border: 'none', background: 'var(--brand-600)', color: 'white', cursor: 'pointer', flex: 1 }}
                         >
