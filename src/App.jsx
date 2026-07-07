@@ -75,10 +75,13 @@ function AppRoutes() {
         <Route path="/" element={<SupplierDiscoveryPage />} />
         <Route path="/suppliers" element={<SupplierDiscoveryPage />} />
         <Route path="/suppliers/:supplierId" element={<SupplierProfilePage />} />
-        <Route path="/inventory" element={<InventoryPage />} />
         <Route path="/invoices" element={<InvoicePage />} />
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/become-a-supplier" element={<BecomeSupplierPage />} />
+      </Route>
+
+      <Route element={<ProtectedRoute roles={ROLE_ACCESS.inventory} />}>
+        <Route path="/inventory" element={<InventoryPage />} />
       </Route>
 
       <Route element={<ProtectedRoute roles={ROLE_ACCESS.matching} />}>
