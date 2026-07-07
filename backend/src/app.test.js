@@ -971,10 +971,21 @@ test("order status transitions and ownership are enforced", { skip: !hasDb }, as
     });
     assert.equal(buyerAccept.status, 403);
 
-    const skipped = await request(`/api/orders/${orderId}/status`, {
+    // Wholesalers can never set delivered -- that's the courier's scan
+    // (docs/delivery-status-logistics.md) -- so this 403s before transition
+    // validity is even considered.
+    const wholesalerDelivers = await request(`/api/orders/${orderId}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Cookie: wholesalerCookie },
       body: JSON.stringify({ status: "delivered" }),
+    });
+    assert.equal(wholesalerDelivers.status, 403);
+
+    // A permitted actor skipping ahead is still an invalid transition.
+    const skipped = await request(`/api/orders/${orderId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: wholesalerCookie },
+      body: JSON.stringify({ status: "shipped" }),
     });
     assert.equal(skipped.status, 400);
 
@@ -1039,27 +1050,15 @@ test("accepting an order rejects insufficient stock without generating an invoic
   }
 });
 
-test("platform admin can view but cannot mutate order status", { skip: !hasDb }, async () => {
+test("platform admin can view all orders and override order status", { skip: !hasDb }, async () => {
   const buyerCookie = await loginAs("buyer@linko.test");
   const adminCookie = await loginAs("admin@linko.test");
   const { createPool } = await import("./db.js");
   const pool = createPool();
   let orderId;
   let productId;
-  let adminMembershipAdded = false;
 
   try {
-    const harborId = await getBusinessIdByName(pool, "Cebu Fresh Wholesale");
-    await pool.query(
-      `INSERT INTO business_memberships (user_id, business_id, role)
-       SELECT user_id, $1, 'wholesaler'
-         FROM users
-        WHERE email = 'admin@linko.test'
-       ON CONFLICT (user_id, business_id, role) DO NOTHING`,
-      [harborId],
-    );
-    adminMembershipAdded = true;
-
     productId = await createTestProduct(pool, { stock_quantity: 4, unit_price: 30 });
     const created = await postJson("/api/orders", buyerCookie, {
       tier_id: 1, items: [{ product_id: productId, quantity: 2 }],
@@ -1071,17 +1070,27 @@ test("platform admin can view but cannot mutate order status", { skip: !hasDb },
     assert.equal(adminList.status, 200);
     assert.ok(adminList.body.some((order) => order.order_id === orderId));
 
+    // Admin override (docs/delivery-status-logistics.md): valid transitions
+    // succeed with full side effects...
     const adminAccept = await request(`/api/orders/${orderId}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Cookie: adminCookie },
       body: JSON.stringify({ status: "accepted" }),
     });
-    assert.equal(adminAccept.status, 403);
-    assert.equal(await getProductStock(pool, productId), 4);
+    assert.equal(adminAccept.status, 200);
+    assert.equal(await getProductStock(pool, productId), 2);
 
     const invoices = await request("/api/invoices", { headers: { Cookie: adminCookie } });
     assert.equal(invoices.status, 200);
-    assert.ok(!invoices.body.some((row) => row.order_id === orderId));
+    assert.ok(invoices.body.some((row) => row.order_id === orderId));
+
+    // ...but invalid skips are still rejected.
+    const adminSkip = await request(`/api/orders/${orderId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: adminCookie },
+      body: JSON.stringify({ status: "delivered" }),
+    });
+    assert.equal(adminSkip.status, 400);
   } finally {
     if (orderId) {
       await pool.query("DELETE FROM order_items WHERE order_id = $1", [orderId]);
@@ -1089,14 +1098,6 @@ test("platform admin can view but cannot mutate order status", { skip: !hasDb },
     }
     if (productId) {
       await pool.query("DELETE FROM products WHERE product_id = $1", [productId]);
-    }
-    if (adminMembershipAdded) {
-      await pool.query(
-        `DELETE FROM business_memberships
-          WHERE user_id = (SELECT user_id FROM users WHERE email = 'admin@linko.test')
-            AND business_id = (SELECT business_id FROM businesses WHERE business_name = 'Cebu Fresh Wholesale')
-            AND role = 'wholesaler'`,
-      );
     }
     await pool.end();
   }
