@@ -240,7 +240,7 @@ function Topbar({ showSearch = false }) {
                   <Link to="/dashboard" onClick={() => setOpenPanel(null)}>
                     <LayoutDashboard size={15} /> Dashboard
                   </Link>
-                  {hasAnyRole(["buyer", "wholesaler", "platform_admin"]) && (
+                  {hasAnyRole(["wholesaler", "platform_admin"]) && (
                     <Link to="/inventory" onClick={() => setOpenPanel(null)}>
                       <Boxes size={15} /> Inventory
                     </Link>
