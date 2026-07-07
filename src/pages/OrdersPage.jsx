@@ -190,9 +190,9 @@ export default function OrdersPage() {
       actions.push({ label: "Preparing", nextStatus: "preparing" });
     } else if (status === "preparing") {
       actions.push({ label: "Ship", nextStatus: "shipped" });
-    } else if (status === "shipped") {
-      actions.push({ label: "Deliver", nextStatus: "delivered" });
     }
+    // Past "shipped" the courier owns the parcel; delivery is confirmed by
+    // their tracking scan, not the wholesaler.
 
     return actions;
   }
