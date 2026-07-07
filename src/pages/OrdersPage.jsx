@@ -45,7 +45,7 @@ function itemCount(order) {
 }
 
 export default function OrdersPage() {
-  const { memberships, user } = useAuth();
+  const { memberships, activeMembership, user } = useAuth();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -151,16 +151,26 @@ export default function OrdersPage() {
     if (user?.global_role === "platform_admin") {
       return actions;
     }
-    const ownsBuyerSide = memberships.some(
-      (membership) =>
-        membership.role === "buyer" &&
-        membership.business_id === order.buyer_business_id,
-    );
-    const ownsWholesalerSide = memberships.some(
-      (membership) =>
-        membership.role === "wholesaler" &&
-        membership.business_id === order.wholesaler_business_id,
-    );
+    // Honor the selected business when it matches an order side; otherwise fall
+    // back to scanning all memberships (covers single-business users and cases
+    // where the active business is unrelated to this order).
+    const matchesActive = (role, businessId) =>
+      activeMembership?.role === role &&
+      activeMembership?.business_id === businessId;
+    const ownsBuyerSide =
+      matchesActive("buyer", order.buyer_business_id) ||
+      memberships.some(
+        (membership) =>
+          membership.role === "buyer" &&
+          membership.business_id === order.buyer_business_id,
+      );
+    const ownsWholesalerSide =
+      matchesActive("wholesaler", order.wholesaler_business_id) ||
+      memberships.some(
+        (membership) =>
+          membership.role === "wholesaler" &&
+          membership.business_id === order.wholesaler_business_id,
+      );
 
     if (status === "pending") {
       if (ownsWholesalerSide) {
@@ -228,7 +238,7 @@ export default function OrdersPage() {
             <div className="page-empty">Loading orders...</div>
           ) : error ? (
             <div className="page-empty">
-              Could not load orders: {error}. Backend is not running bruh
+              Could not load orders: {error}
             </div>
           ) : visibleOrders.length === 0 ? (
             <div className="page-empty">No orders match your search.</div>

@@ -151,8 +151,7 @@ export default function BookParcelPage() {
 
         {loadError ? (
           <div className="page-empty">
-            Could not load booking data: {loadError}. Backend is not running
-            bruh
+            Could not load booking data: {loadError}
           </div>
         ) : (
           <form className="book-form" onSubmit={handleSubmit}>

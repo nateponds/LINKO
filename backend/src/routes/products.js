@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { query } from "../db.js";
 import { requireAnyRole, requireAuth } from "../middleware/auth.js";
+import { getActiveMembership } from "../middleware/ownership.js";
 
 const router = Router();
 
@@ -67,26 +68,23 @@ async function findProduct(productId) {
 }
 
 // The wholesaler business the caller owns products under. Returns:
-//   { businessId }              -> exactly one wholesaler membership
+//   businessId (number)         -> the active wholesaler membership
+//   null                        -> platform_admin with no wholesaler membership
+//                                  (caller must then name business_id in body)
 //   throws 403                  -> no wholesaler membership (and not admin)
-//   throws 400                  -> more than one (unsupported yet)
-// platform_admin with no wholesaler membership resolves to null so the caller
-// can require an explicit business_id from the body instead.
-function resolveWholesalerBusiness(auth) {
-  const wholesalerMemberships = auth.memberships.filter(
-    (m) => m.role === "wholesaler",
-  );
-
-  if (wholesalerMemberships.length === 1) {
-    return wholesalerMemberships[0].business_id;
+//   throws 400                  -> multiple wholesaler memberships and no
+//                                  X-Active-Business header to disambiguate
+// Multi-business users select which business via the X-Active-Business header
+// (validated in getActiveMembership); single-membership behavior is unchanged.
+function resolveWholesalerBusiness(req) {
+  const hasWholesaler = req.auth.memberships.some((m) => m.role === "wholesaler");
+  if (!hasWholesaler) {
+    if (req.auth.user.global_role === "platform_admin") {
+      return null;
+    }
+    throw createHttpError(403, "You must belong to a wholesaler business to manage products");
   }
-  if (wholesalerMemberships.length > 1) {
-    throw createHttpError(400, "multiple wholesaler businesses not supported yet");
-  }
-  if (auth.user.global_role === "platform_admin") {
-    return null;
-  }
-  throw createHttpError(403, "You must belong to a wholesaler business to manage products");
+  return getActiveMembership(req, ["wholesaler"]).business_id;
 }
 
 const isAdmin = (auth) => auth.user.global_role === "platform_admin";
@@ -188,7 +186,7 @@ router.post(
       }
 
       // ---- Resolve the owning business ----
-      const ownedBusinessId = resolveWholesalerBusiness(req.auth);
+      const ownedBusinessId = resolveWholesalerBusiness(req);
       let businessId = ownedBusinessId;
 
       if (ownedBusinessId === null) {
@@ -321,7 +319,8 @@ router.patch(
       if (updates.length) {
         params.push(req.params.id);
         await query(
-          `UPDATE products SET ${updates.join(", ")} WHERE product_id = $${params.length}`,
+          `UPDATE products SET ${updates.join(", ")}, updated_at = CURRENT_TIMESTAMP
+            WHERE product_id = $${params.length}`,
           params,
         );
       }

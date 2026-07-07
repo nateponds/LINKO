@@ -7,6 +7,7 @@ export const ROLE_ACCESS = {
   invoices: ["buyer", "wholesaler", "platform_admin"],
   logistics: ["wholesaler", "logistics_coordinator", "courier", "platform_admin"],
   courier: ["courier"],
+  admin: ["platform_admin"],
 };
 
 export const APP_NAV_ITEMS = [
@@ -16,9 +17,9 @@ export const APP_NAV_ITEMS = [
   { name: "My Products", link: "/inventory", roles: ROLE_ACCESS.inventory },
   { name: "Orders", link: "/orders", roles: ROLE_ACCESS.orders },
   { name: "Invoices", link: "/invoices", roles: ROLE_ACCESS.invoices },
-  { name: "Wait List", link: "/waitlist", roles: ROLE_ACCESS.marketplace },
   { name: "Logistics", link: "/logistics", roles: ROLE_ACCESS.logistics },
   { name: "Courier Dashboard", link: "/courier", roles: ROLE_ACCESS.courier },
+  { name: "Admin", link: "/admin", roles: ROLE_ACCESS.admin },
 ];
 
 export function hasAccess(user, memberships, roles = []) {
