@@ -2,6 +2,7 @@ import { Router } from "express";
 import { getPool, query } from "../db.js";
 import { requireAnyRole, requireAuth } from "../middleware/auth.js";
 import { getActiveMembership } from "../middleware/ownership.js";
+import { notifyBusiness } from "../services/notify.js";
 
 const router = Router();
 
@@ -400,6 +401,13 @@ router.post(
         );
       }
 
+      await notifyBusiness(
+        client,
+        wholesalerBusinessId,
+        "New Order",
+        `You have received a new order #${orderId}.`,
+      );
+
       await client.query("COMMIT");
       const order = await fetchOneOrder(orderId);
       res.status(201).json(order);
@@ -491,6 +499,29 @@ router.patch(
             );
           }
         }
+      }
+
+      const statusNotifications = {
+        accepted: [order.buyer_business_id, "Order Accepted", "success"],
+        shipped: [order.buyer_business_id, "Order Shipped", "info"],
+        delivered: [order.buyer_business_id, "Order Delivered", "success"],
+        cancelled: [
+          canBuyerCancel(req.auth, order)
+            ? order.wholesaler_business_id
+            : order.buyer_business_id,
+          "Order Cancelled",
+          "warning",
+        ],
+      };
+      if (statusNotifications[status]) {
+        const [businessId, title, type] = statusNotifications[status];
+        await notifyBusiness(
+          client,
+          businessId,
+          title,
+          `Order #${orderId} is now ${status}.`,
+          type,
+        );
       }
 
       await client.query("COMMIT");
