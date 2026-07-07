@@ -65,6 +65,7 @@ export default function ParcelDetailPage() {
         setNotFound(!parcelData);
         setBranches(Array.isArray(branchData) ? branchData : []);
         setCouriers(Array.isArray(courierData) ? courierData : []);
+        if (parcelData) setFormStatus(parcelData.current_status ?? "In Transit");
       } catch (err) {
         if (cancelled) return;
         setError(err.message);
@@ -166,9 +167,9 @@ export default function ParcelDetailPage() {
               </div>
 
               {hasAnyRole(["logistics_coordinator", "platform_admin", "courier"]) && (
-                <div className="update-status-form" style={{ padding: '1.5rem', background: 'var(--gray-50)', borderRadius: '8px', marginBottom: '1.5rem' }}>
+                <div className="update-status-form" style={{ padding: '1.5rem', background: '#f9f9f9', borderRadius: '14px', marginBottom: '1.5rem', border: 'none' }}>
                   <h3 style={{ margin: '0 0 1rem 0', fontSize: '1rem' }}>Update Tracking</h3>
-                  {updateError && <p style={{ color: 'var(--red-600)', marginBottom: '1rem' }}>{updateError}</p>}
+                  {updateError && <p style={{ color: '#c0392b', marginBottom: '1rem' }}>{updateError}</p>}
                   
                   <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
                     <label style={{ flex: '1 1 150px' }}>
@@ -176,7 +177,7 @@ export default function ParcelDetailPage() {
                       <select 
                         value={formStatus} 
                         onChange={e => setFormStatus(e.target.value)}
-                        style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--gray-300)' }}
+                        style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--color-muted)' }}
                       >
                         <option value="Order Created">Order Created</option>
                         <option value="Picked Up">Picked Up</option>
@@ -193,7 +194,7 @@ export default function ParcelDetailPage() {
                       <select 
                         value={formBranch} 
                         onChange={e => setFormBranch(e.target.value)}
-                        style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--gray-300)' }}
+                        style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--color-muted)' }}
                       >
                         <option value="">-- None --</option>
                         {branches.map(b => <option key={b.branch_id} value={b.branch_id}>{b.branch_name}</option>)}
@@ -205,7 +206,7 @@ export default function ParcelDetailPage() {
                       <select 
                         value={formCourier} 
                         onChange={e => setFormCourier(e.target.value)}
-                        style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--gray-300)' }}
+                        style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--color-muted)' }}
                       >
                         <option value="">-- None --</option>
                         {couriers.map(c => <option key={c.courier_id} value={c.courier_id}>{c.full_name}</option>)}
@@ -220,7 +221,7 @@ export default function ParcelDetailPage() {
                       value={formRemarks} 
                       onChange={e => setFormRemarks(e.target.value)}
                       placeholder="Optional remarks"
-                      style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--gray-300)' }}
+                      style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--color-muted)' }}
                     />
                   </label>
                   
@@ -238,6 +239,7 @@ export default function ParcelDetailPage() {
                         // reload
                         const data = await apiGet(`/api/parcels/${parcelId}`);
                         setParcel(data);
+                        setFormStatus(data.current_status ?? formStatus);
                         setFormRemarks("");
                       } catch(err) {
                         setUpdateError(err.message);
@@ -246,7 +248,7 @@ export default function ParcelDetailPage() {
                       }
                     }}
                     disabled={updating}
-                    style={{ background: 'var(--brand-600)', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '4px', cursor: 'pointer' }}
+                    style={{ background: 'var(--color-primary)', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}
                   >
                     {updating ? "Saving..." : "Log Update"}
                   </button>
