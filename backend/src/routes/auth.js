@@ -11,7 +11,7 @@ import { getPool } from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
 
 const router = Router();
-const REGISTRATION_BUSINESS_TYPES = new Set(["buyer", "wholesaler"]);
+const REGISTRATION_BUSINESS_TYPES = new Set(["buyer", "wholesaler", "both"]);
 
 function createHttpError(statusCode, message) {
   const error = new Error(message);
@@ -48,7 +48,7 @@ router.post("/register", async (req, res, next) => {
   }
 
   if (!REGISTRATION_BUSINESS_TYPES.has(businessType)) {
-    return next(createHttpError(400, "business_type must be buyer or wholesaler"));
+    return next(createHttpError(400, "business_type must be buyer, wholesaler, or both"));
   }
 
   const pool = getPool();
@@ -88,10 +88,14 @@ router.post("/register", async (req, res, next) => {
       [userResult.rows[0].user_id, businessResult.rows[0].business_id],
     );
 
-    await client.query(
-      "INSERT INTO business_memberships (user_id, business_id, role) VALUES ($1, $2, $3)",
-      [userResult.rows[0].user_id, businessResult.rows[0].business_id, businessType],
-    );
+    const membershipRoles =
+      businessType === "both" ? ["buyer", "wholesaler"] : [businessType];
+    for (const role of membershipRoles) {
+      await client.query(
+        "INSERT INTO business_memberships (user_id, business_id, role) VALUES ($1, $2, $3)",
+        [userResult.rows[0].user_id, businessResult.rows[0].business_id, role],
+      );
+    }
 
     const token = await createSession(userResult.rows[0].user_id, client);
     await client.query("COMMIT");
@@ -99,14 +103,12 @@ router.post("/register", async (req, res, next) => {
     res.setHeader("Set-Cookie", serializeSessionCookie(token));
     return res.status(201).json({
       user: userResult.rows[0],
-      memberships: [
-        {
-          business_id: businessResult.rows[0].business_id,
-          business_name: businessResult.rows[0].business_name,
-          business_type: businessResult.rows[0].business_type,
-          role: businessType,
-        },
-      ],
+      memberships: membershipRoles.map((role) => ({
+        business_id: businessResult.rows[0].business_id,
+        business_name: businessResult.rows[0].business_name,
+        business_type: businessResult.rows[0].business_type,
+        role,
+      })),
     });
   } catch (error) {
     await client.query("ROLLBACK");
