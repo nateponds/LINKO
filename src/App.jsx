@@ -8,7 +8,6 @@ import SupplierProfilePage from "./pages/SupplierProfilePage";
 import InventoryPage from "./pages/InventoryPage";
 import InvoicePage from "./pages/InvoicePage";
 import DashboardPage from "./pages/DashboardPage";
-import WaitlistPage from "./pages/WaitlistPage";
 import OrdersPage from "./pages/OrdersPage";
 import LogisticsPage from "./pages/LogisticsPage";
 import LogisticsManagementPage from "./pages/LogisticsManagementPage";
@@ -28,7 +27,6 @@ const TITLES = [
   ["/inventory", "My Products"],
   ["/invoices", "Invoice Tracking"],
   ["/dashboard", "Dashboard"],
-  ["/waitlist", "Wait List"],
   ["/orders", "Orders"],
   ["/logistics", "Logistics"],
   ["/admin", "Admin"],
@@ -79,7 +77,6 @@ function AppRoutes() {
         <Route path="/suppliers/:supplierId" element={<SupplierProfilePage />} />
         <Route path="/inventory" element={<InventoryPage />} />
         <Route path="/invoices" element={<InvoicePage />} />
-        <Route path="/waitlist" element={<WaitlistPage />} />
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/become-a-supplier" element={<BecomeSupplierPage />} />
       </Route>
