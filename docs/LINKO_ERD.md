@@ -49,6 +49,7 @@ erDiagram
 
     PARCELS {
         VARCHAR parcel_id PK
+        INT order_id FK
         INT sender_id FK
         INT receiver_id FK
         INT tier_id FK
@@ -182,9 +183,10 @@ Riders/drivers who physically scan and move parcels, including on line-haul legs
 | ------------------ | ------------ | ----------------------- | --------------------------------- |
 | courier_id         | SERIAL       | PK                      |                                   |
 | full_name          | VARCHAR(100) | NOT NULL                |                                   |
-| phone_number       | VARCHAR(20)  | NOT NULL                |                                   |
+| phone_number       | VARCHAR(20)  | NULLABLE (mig. 009)     | unknown at account provisioning   |
 | vehicle_type       | VARCHAR(30)  |                         | e.g. 'motorcycle', 'van', 'truck' |
 | assigned_branch_id | INT          | FK → BRANCHES, NULLABLE | home base                         |
+| user_id            | INT          | FK → USERS, NULLABLE (mig. 008) | login account driving this courier's app access |
 
 ---
 
@@ -195,6 +197,7 @@ Master record per package: weight, dimensions, cost, journey distance. Status an
 | Column                  | Type          | Constraints                  | Notes                                                                         |
 | ----------------------- | ------------- | ---------------------------- | ----------------------------------------------------------------------------- |
 | parcel_id               | VARCHAR(20)   | PK                           | alphanumeric tracking number, e.g. 'LNK-10023456'                             |
+| order_id                | INT           | FK → ORDERS, NULLABLE (mig. 009) | marketplace order that spawned this parcel; NULL for standalone bookings. A courier's 'Delivered' scan completes the linked order (`docs/delivery-status-logistics.md`) |
 | sender_id               | INT           | FK → CUSTOMERS, NOT NULL     |                                                                               |
 | receiver_id             | INT           | FK → CUSTOMERS, NOT NULL     |                                                                               |
 | tier_id                 | INT           | FK → SERVICE_TIERS, NOT NULL |                                                                               |

@@ -210,7 +210,7 @@ Order status lifecycle is server-enforced:
 
 `pending → accepted | cancelled`, `accepted → preparing`, `preparing → shipped`, `shipped → delivered`.
 
-Invalid skips/backwards transitions return `400`. Buyers may cancel only their own pending orders. Wholesalers may accept/reject and advance only incoming orders for their business. Platform admins can view all orders and invoices.
+Invalid skips/backwards transitions return `400`. Buyers may cancel only their own pending orders. Wholesalers may accept/reject and advance only incoming orders for their business **up to `shipped`** — `shipped → delivered` happens automatically when a courier logs a `Delivered` tracking scan on the linked parcel (see §3.6 and `docs/delivery-status-logistics.md`); wholesalers requesting `delivered` get `403`. Platform admins can view all orders and invoices and may perform any valid transition as a manual override.
 
 **Order JSON shape:**
 
@@ -294,7 +294,7 @@ Returns `201` + the created order.
 
 ### 2c.4 `PATCH /api/orders/:id/status`
 
-Roles: `buyer` or `wholesaler`. Platform admins can view all orders but do not mutate order status in Milestone 3.
+Roles: `buyer`, `wholesaler`, or `platform_admin` (admin acts as a manual override for stuck/legacy orders).
 
 **Body:**
 
@@ -303,6 +303,8 @@ Roles: `buyer` or `wholesaler`. Platform admins can view all orders but do not m
 ```
 
 Accepting an order decrements each product's `stock_quantity` in the same transaction and generates exactly one invoice. If any line lacks enough stock, the request returns `400` and neither stock nor invoices change. Rejecting an order uses status `cancelled`.
+
+Marking an order `shipped` auto-creates a parcel (with `order_id` set, migration 009) plus its payment row and an `'Order Created'` tracking log; the parcel then appears in the courier pickup pool (§3.1).
 
 Returns the updated order.
 
@@ -340,11 +342,11 @@ Returns one visible invoice with item rows. Missing, non-numeric, or not-owned i
 
 ## 3. Logistics Domain (course deliverable — Sprint 2-CD)
 
-Exposes the CIS 2104 courier subsystem (migrations 002/003) for the demo UI. Decoupled bounded context — no joins to marketplace tables. Money and measurement fields are JSON numbers. `current_status` is always derived from the latest `tracking_logs` row, never stored on the parcel (see `docs/LINKO_ERD.md`).
+Exposes the CIS 2104 courier subsystem (migrations 002/003) for the demo UI. Money and measurement fields are JSON numbers. `current_status` is always derived from the latest `tracking_logs` row, never stored on the parcel (see `docs/LINKO_ERD.md`). Since migration 009 a parcel may carry a nullable `order_id` linking it to the marketplace order that spawned it — a deliberate, documented boundary crossing (`docs/delivery-status-logistics.md`).
 
 ### 3.1 `GET /api/parcels`
 
-List parcels with derived current status, most recently scanned first.
+List parcels with derived current status, most recently scanned first. Row visibility by role: coordinators/admins see all; wholesalers see parcels their businesses send or receive; couriers see parcels whose latest tracking log carries their `courier_id` **plus the unassigned pickup pool** (latest log has no courier).
 
 **Response Body (`200 OK`):**
 
@@ -478,3 +480,21 @@ Businesses with their addresses — feeds the book-a-parcel form's sender/receiv
   }
 ]
 ```
+
+### 3.6 `POST /api/parcels/:id/tracking`
+
+Roles: `courier`, `logistics_coordinator`, `platform_admin`. Appends a tracking scan; the parcel's `current_status` becomes this scan.
+
+**Request Body:**
+
+```json
+{ "status_update": "Picked Up", "remarks": "optional", "branch_id": null, "courier_id": null }
+```
+
+`status_update` ∈ `Order Created | Picked Up | In Transit | Out for Delivery | Delivered | Returned | Cancelled`; anything else → `400`.
+
+Courier identity is server-side: a courier caller's scan is stamped with their own linked `couriers.user_id` row and any body `courier_id` is ignored (a courier without a linked row gets `403`). Coordinators/admins may pass an explicit `courier_id` (or none). A courier's first scan on a pool parcel (`Picked Up`) is the claim that assigns it to them.
+
+Side effect: a `Delivered` scan on a parcel with an `order_id` flips that order from `shipped` to `delivered` in the same transaction and notifies the buyer ("Order Delivered").
+
+**Response Body (`201 Created`):** the inserted `tracking_logs` row.
