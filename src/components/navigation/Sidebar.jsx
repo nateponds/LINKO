@@ -2,15 +2,14 @@ import { useEffect } from "react";
 import { X } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../../auth/AuthProvider";
-import { APP_NAV_ITEMS, formatRoleLabel, getPrimaryMembership } from "../../auth/roleAccess";
+import { APP_NAV_ITEMS, formatRoleLabel } from "../../auth/roleAccess";
 
 function Sidebar({ isOpen, onClose, onLogout }) {
-  const { user, memberships, hasAnyRole } = useAuth();
-  const primaryMembership = getPrimaryMembership(memberships);
+  const { user, activeMembership, hasAnyRole } = useAuth();
   const displayName = user?.full_name || user?.email || "LINKO User";
-  const displayBusiness = primaryMembership?.business_name || "No business assigned";
+  const displayBusiness = activeMembership?.business_name || "No business assigned";
   const displayRole = formatRoleLabel(
-    user?.global_role === "platform_admin" ? user.global_role : primaryMembership?.role,
+    user?.global_role === "platform_admin" ? user.global_role : activeMembership?.role,
   );
   const menuItems = APP_NAV_ITEMS.filter((item) => hasAnyRole(item.roles));
 

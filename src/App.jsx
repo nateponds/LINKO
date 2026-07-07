@@ -8,7 +8,6 @@ import SupplierProfilePage from "./pages/SupplierProfilePage";
 import InventoryPage from "./pages/InventoryPage";
 import InvoicePage from "./pages/InvoicePage";
 import DashboardPage from "./pages/DashboardPage";
-import WaitlistPage from "./pages/WaitlistPage";
 import OrdersPage from "./pages/OrdersPage";
 import LogisticsPage from "./pages/LogisticsPage";
 import LogisticsManagementPage from "./pages/LogisticsManagementPage";
@@ -18,6 +17,7 @@ import MatchingPage from "./pages/MatchingPage";
 import BecomeSupplierPage from "./pages/BecomeSupplierPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import AdminDashboardPage from "./pages/AdminDashboardPage";
 
 const TITLES = [
   ["/register", "Register"],
@@ -27,9 +27,9 @@ const TITLES = [
   ["/inventory", "My Products"],
   ["/invoices", "Invoice Tracking"],
   ["/dashboard", "Dashboard"],
-  ["/waitlist", "Wait List"],
   ["/orders", "Orders"],
   ["/logistics", "Logistics"],
+  ["/admin", "Admin"],
   ["/suppliers/", "Supplier"],
 ];
 
@@ -77,7 +77,6 @@ function AppRoutes() {
         <Route path="/suppliers/:supplierId" element={<SupplierProfilePage />} />
         <Route path="/inventory" element={<InventoryPage />} />
         <Route path="/invoices" element={<InvoicePage />} />
-        <Route path="/waitlist" element={<WaitlistPage />} />
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/become-a-supplier" element={<BecomeSupplierPage />} />
       </Route>
@@ -92,6 +91,10 @@ function AppRoutes() {
         <Route path="/logistics/:parcelId" element={<ParcelDetailPage />} />
         <Route path="/logistics/book" element={<Navigate to="/logistics" replace />} />
         <Route path="/courier" element={<CourierDashboardPage />} />
+      </Route>
+
+      <Route element={<ProtectedRoute roles={ROLE_ACCESS.admin} />}>
+        <Route path="/admin" element={<AdminDashboardPage />} />
       </Route>
 
       <Route path="*" element={<UnknownRouteRedirect />} />

@@ -167,7 +167,7 @@ test("unknown parcel returns 404", { skip: !hasDb }, async () => {
 test("booking a parcel creates payment, commission, and first log", { skip: !hasDb }, async () => {
   const { createPool: createPoolPatch } = await import("./db.js");
   const patchPool = createPoolPatch();
-  const harborId = await getBusinessIdByName(patchPool, "Harbor Bulk Trading");
+  const harborId = await getBusinessIdByName(patchPool, "Cebu Fresh Wholesale");
   const sunriseId = await getBusinessIdByName(patchPool, "Sunrise Retail Cooperative");
   const harborAddr = (await patchPool.query("SELECT address_id FROM addresses WHERE business_id = $1 LIMIT 1", [harborId])).rows[0].address_id;
   const sunriseAddr = (await patchPool.query("SELECT address_id FROM addresses WHERE business_id = $1 LIMIT 1", [sunriseId])).rows[0].address_id;
@@ -286,8 +286,8 @@ test("buyer session can access suppliers", { skip: !hasDb }, async () => {
   assert.equal(response.status, 200);
   assert.ok(Array.isArray(response.body));
   // Only wholesaler/both businesses appear, each with a product_count.
-  const harbor = response.body.find((s) => s.business_name === "Harbor Bulk Trading");
-  assert.ok(harbor, "Harbor Bulk Trading should be listed as a supplier");
+  const harbor = response.body.find((s) => s.business_name === "Cebu Fresh Wholesale");
+  assert.ok(harbor, "Cebu Fresh Wholesale should be listed as a supplier");
   assert.equal(typeof harbor.product_count, "number");
   assert.ok("city_municipality" in harbor && "is_verified" in harbor);
 });
@@ -543,7 +543,7 @@ test("wholesaler creates, reads, patches, and deletes a product", { skip: !hasDb
   assert.equal(created.body.product_name, "Test Marketplace Product");
   assert.equal(created.body.unit_price, "250.50");
   assert.equal(created.body.stock_status, "low_stock");
-  assert.equal(created.body.business_name, "Harbor Bulk Trading");
+  assert.equal(created.body.business_name, "Cebu Fresh Wholesale");
   const productId = created.body.product_id;
 
   const list = await request("/api/products?business_id=" + created.body.business_id, {
@@ -639,7 +639,7 @@ test("platform admin manages products across businesses", { skip: !hasDb }, asyn
 
   // Resolve Harbor's business_id by name (SERIAL, never hardcoded).
   const harbor = await pool.query(
-    "SELECT business_id FROM businesses WHERE business_name = 'Harbor Bulk Trading'",
+    "SELECT business_id FROM businesses WHERE business_name = 'Cebu Fresh Wholesale'",
   );
   const harborId = harbor.rows[0].business_id;
 
@@ -763,7 +763,7 @@ async function getProductStock(pool, productId) {
 }
 
 async function createTestProduct(pool, overrides = {}) {
-  const harborId = await getBusinessIdByName(pool, "Harbor Bulk Trading");
+  const harborId = await getBusinessIdByName(pool, "Cebu Fresh Wholesale");
   const product = await pool.query(
     `INSERT INTO products
        (business_id, product_name, sku, unit_price, stock_quantity)
@@ -819,7 +819,7 @@ test("buyer creates an order and buyer and wholesaler can see their own sides", 
     });
     assert.equal(created.status, 201);
     assert.equal(created.body.status, "pending");
-    assert.equal(created.body.wholesaler_business_name, "Harbor Bulk Trading");
+    assert.equal(created.body.wholesaler_business_name, "Cebu Fresh Wholesale");
     assert.equal(created.body.buyer_business_name, "Sunrise Retail Cooperative");
     assert.equal(created.body.total, "401.00");
     assert.equal(created.body.items.length, 2);
@@ -1013,7 +1013,7 @@ test("platform admin can view but cannot mutate order status", { skip: !hasDb },
   let adminMembershipAdded = false;
 
   try {
-    const harborId = await getBusinessIdByName(pool, "Harbor Bulk Trading");
+    const harborId = await getBusinessIdByName(pool, "Cebu Fresh Wholesale");
     await pool.query(
       `INSERT INTO business_memberships (user_id, business_id, role)
        SELECT user_id, $1, 'wholesaler'
@@ -1058,7 +1058,7 @@ test("platform admin can view but cannot mutate order status", { skip: !hasDb },
       await pool.query(
         `DELETE FROM business_memberships
           WHERE user_id = (SELECT user_id FROM users WHERE email = 'admin@linko.test')
-            AND business_id = (SELECT business_id FROM businesses WHERE business_name = 'Harbor Bulk Trading')
+            AND business_id = (SELECT business_id FROM businesses WHERE business_name = 'Cebu Fresh Wholesale')
             AND role = 'wholesaler'`,
       );
     }

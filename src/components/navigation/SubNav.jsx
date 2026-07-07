@@ -6,24 +6,24 @@ import { apiGet } from "../../lib/api";
 /* Deterministic placeholder image per category name. Categories not listed
    fall back to a generic food image so the carousel always renders. */
 const CATEGORY_IMAGES = {
-  Pork: "https://loremflickr.com/160/160/pork,meat",
-  Beef: "https://loremflickr.com/160/160/beef,meat",
-  Chicken: "https://loremflickr.com/160/160/chicken,meat",
-  Chips: "https://loremflickr.com/160/160/potato,chips",
-  Fish: "https://loremflickr.com/160/160/fish,seafood",
-  Shellfish: "https://loremflickr.com/160/160/shellfish,seafood",
-  Produce: "https://loremflickr.com/160/160/produce,vegetables",
-  Bakery: "https://loremflickr.com/160/160/bakery,bread",
-  Dairy: "https://loremflickr.com/160/160/dairy,milk",
-  Frozen: "https://loremflickr.com/160/160/frozen,food",
-  Packaging: "https://loremflickr.com/160/160/food,packaging",
-  Beverages: "https://loremflickr.com/160/160/beverages,drinks",
+  Pork: "https://images.unsplash.com/photo-1602491453631-e2a5690cd108?auto=format&fit=crop&q=80&w=160",
+  Beef: "https://images.unsplash.com/photo-1603048297172-c92544798d5e?auto=format&fit=crop&q=80&w=160",
+  Chicken: "https://images.unsplash.com/photo-1587595431973-160d0d94add1?auto=format&fit=crop&q=80&w=160",
+  Chips: "https://images.unsplash.com/photo-1566478989037-eec170784d0b?auto=format&fit=crop&q=80&w=160",
+  Fish: "https://images.unsplash.com/photo-1615141982883-c7ad0e69fd62?auto=format&fit=crop&q=80&w=160",
+  Shellfish: "https://images.unsplash.com/photo-1565680018434-b513d5e5fd47?auto=format&fit=crop&q=80&w=160",
+  Produce: "https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&q=80&w=160",
+  Bakery: "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=160",
+  Dairy: "https://images.unsplash.com/photo-1628088062854-d1870b4553da?auto=format&fit=crop&q=80&w=160",
+  Frozen: "https://images.unsplash.com/photo-1571168128452-527027d11822?auto=format&fit=crop&q=80&w=160",
+  Packaging: "https://images.unsplash.com/photo-1607344645866-009c320b63e0?auto=format&fit=crop&q=80&w=160",
+  Beverages: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&q=80&w=160",
 };
 
 function imageFor(name) {
   return (
     CATEGORY_IMAGES[name] ??
-    `https://loremflickr.com/160/160/${encodeURIComponent(name.toLowerCase())},food`
+    "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&q=80&w=160"
   );
 }
 
