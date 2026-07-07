@@ -277,7 +277,7 @@ export default function SupplierProfilePage() {
           <div className="profile-info">
             <button className="circle-btn">
               <img
-                src="https://loremflickr.com/160/160/store"
+                src="https://images.unsplash.com/photo-1534723452862-4c874018d66d?auto=format&fit=crop&q=80&w=160"
                 alt={`${supplier?.business_name ?? "Supplier"} profile photo`}
               />
             </button>
@@ -435,7 +435,7 @@ export default function SupplierProfilePage() {
                         <img
                           src={
                             product.image_url ??
-                            "https://loremflickr.com/400/300/food,product"
+                            "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=400"
                           }
                           alt={product.product_name}
                         />
