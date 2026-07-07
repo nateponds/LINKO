@@ -6,8 +6,9 @@ import ordersRouter from "./routes/orders.js";
 import productsRouter from "./routes/products.js";
 import suppliersRouter from "./routes/suppliers.js";
 import dashboardRouter from "./routes/dashboard.js";
+import adminRouter from "./routes/admin.js";
 import { errorHandler } from "./middleware/errorHandler.js";
-import { requireAnyRole, requireAuth } from "./middleware/auth.js";
+import { requireAnyRole, requireAuth, requireGlobalRole } from "./middleware/auth.js";
 
 export function createApp() {
   const app = express();
@@ -46,6 +47,15 @@ export function createApp() {
 
   // Dashboard and notifications
   app.use("/api", dashboardRouter);
+
+  // Platform-admin management console (Milestone 6). Owns /api/admin/* and is
+  // gated globally here so the router itself can assume an authenticated admin.
+  app.use(
+    "/api/admin",
+    requireAuth,
+    requireGlobalRole("platform_admin"),
+    adminRouter,
+  );
 
   // Course-deliverable logistics subsystem (Sprint 2-CD). Owns several
   // top-level paths (/api/parcels, /api/service-tiers, /api/customers), so

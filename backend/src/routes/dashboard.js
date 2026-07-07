@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getPool, query } from "../db.js";
+import { query } from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
 
 const router = Router();
@@ -91,9 +91,9 @@ router.get("/dashboard", requireAuth, async (req, res, next) => {
 router.get("/notifications", requireAuth, async (req, res, next) => {
   try {
     const { rows } = await query(
-      `SELECT * FROM notifications 
-        WHERE user_id = $1 
-        ORDER BY created_at DESC 
+      `SELECT * FROM notifications
+        WHERE user_id = $1 AND is_read = FALSE
+        ORDER BY created_at DESC
         LIMIT 50`,
       [req.auth.user.user_id]
     );

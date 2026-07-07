@@ -65,6 +65,9 @@ export default function MatchingPage() {
             We rank wholesalers by proximity to your business and show why each
             one matched. Category, MOQ, and lead-time filters are coming later.
           </p>
+          <p className="page-demo-note">
+            Demo data — not yet connected to the live backend.
+          </p>
         </div>
 
         <div className="matching-form">
