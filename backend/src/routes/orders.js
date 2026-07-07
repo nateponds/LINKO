@@ -178,6 +178,12 @@ function orderVisibility(auth) {
     clauses.push(`o.wholesaler_business_id = ANY($${params.length}::int[])`);
   }
 
+  // No buyer/wholesaler membership (e.g. courier, coordinator): empty clause
+  // list would render "WHERE " and break the SQL.
+  if (!clauses.length) {
+    return { where: "WHERE FALSE", params: [] };
+  }
+
   return { where: `WHERE ${clauses.join(" OR ")}`, params };
 }
 
@@ -216,9 +222,13 @@ function assertTransitionAllowed(auth, order, nextStatus) {
     cancelled: [],
   };
 
+  // Delivery is confirmed by the courier's tracking scan (see
+  // docs/delivery-status-logistics.md), never by the wholesaler.
+  // platform_admin keeps a manual override for stuck or legacy orders.
   const canUpdate =
+    isAdmin(auth) ||
     (nextStatus === "cancelled" && canBuyerCancel(auth, order)) ||
-    canWholesalerManage(auth, order);
+    (canWholesalerManage(auth, order) && nextStatus !== "delivered");
 
   if (!canUpdate) {
     throw createHttpError(403, "You cannot update this order status");
@@ -472,12 +482,13 @@ router.patch(
           if (originAddress.rows.length > 0 && destAddress.rows.length > 0) {
             const parcelId = `LKO-${Date.now().toString().slice(-8)}`;
             await client.query(
-              `INSERT INTO parcels (parcel_id, sender_id, receiver_id, tier_id,
+              `INSERT INTO parcels (parcel_id, order_id, sender_id, receiver_id, tier_id,
                                    origin_address_id, destination_address_id,
                                    weight_kg, total_distance_km, estimated_delivery_date)
-               VALUES ($1, $2, $3, $4, $5, $6, 10.0, 15.0, CURRENT_DATE + 5)`,
+               VALUES ($1, $2, $3, $4, $5, $6, $7, 10.0, 15.0, CURRENT_DATE + 5)`,
               [
                 parcelId,
+                orderId,
                 order.wholesaler_business_id,
                 order.buyer_business_id,
                 order.tier_id,
@@ -628,6 +639,12 @@ function invoiceVisibility(auth) {
   if (wholesalerIds.length) {
     params.push(wholesalerIds);
     clauses.push(`o.wholesaler_business_id = ANY($${params.length}::int[])`);
+  }
+
+  // Same guard as orderVisibility: membership-less callers get no rows, not
+  // broken SQL.
+  if (!clauses.length) {
+    return { where: "WHERE FALSE", params: [] };
   }
 
   return { where: `WHERE ${clauses.join(" OR ")}`, params };
