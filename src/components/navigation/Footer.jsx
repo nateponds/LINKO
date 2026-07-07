@@ -10,7 +10,7 @@ function Footer() {
   );
   const operationsLinks = APP_NAV_ITEMS.filter(
     (item) =>
-      ["/dashboard", "/inventory", "/waitlist", "/logistics"].includes(item.link) &&
+      ["/dashboard", "/inventory", "/logistics"].includes(item.link) &&
       hasAnyRole(item.roles),
   );
 

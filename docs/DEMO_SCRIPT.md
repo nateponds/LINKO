@@ -137,7 +137,7 @@ Routes referenced below all exist in `src/App.jsx` and are protected by
 | --- | --- | --- |
 | `/` , `/suppliers`, `/suppliers/:id` | buyer, wholesaler, admin | 1 |
 | `/matching` | buyer, admin | 1 |
-| `/orders`, `/invoices`, `/waitlist` | buyer, wholesaler, admin | 1, 2 |
+| `/orders`, `/invoices` | buyer, wholesaler, admin | 1, 2 |
 | `/inventory` | wholesaler, admin | 2 |
 | `/logistics`, `/logistics/management`, `/logistics/:parcelId` | wholesaler, logistics_coordinator, courier, admin | 3, 4 |
 | `/courier` | courier | 4 |
