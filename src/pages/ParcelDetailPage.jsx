@@ -94,6 +94,7 @@ export default function ParcelDetailPage() {
     ? couriers.filter((courier) => courier.assigned_branch_id === Number(formBranch))
     : couriers;
   const statusOptions = selectableTrackingStatuses(parcel?.current_status, canUpdateAssignment);
+  const canLogTrackingUpdate = canUpdateAssignment || statusOptions.length > 0;
 
   async function handleTrackingSubmit() {
     if (updating) return;
@@ -204,66 +205,71 @@ export default function ParcelDetailPage() {
 
               {hasAnyRole(["logistics_coordinator", "platform_admin", "courier"]) && (
                 <div className="update-status-form">
-                  <h3>Update Tracking</h3>
+                  <h3>Log Delivery Event</h3>
                   {updateError && <p className="form-error">{updateError}</p>}
-                  
-                  <div className="update-status-grid">
-                    <label>
-                      <span>Status</span>
-                      <select 
-                        value={formStatus} 
-                        onChange={e => setFormStatus(e.target.value)}
+                  {canLogTrackingUpdate ? (
+                    <>
+                      <div className="update-status-grid">
+                        <label>
+                          <span>Delivery status</span>
+                          <select
+                            value={formStatus}
+                            onChange={e => setFormStatus(e.target.value)}
+                          >
+                            {statusOptions.map((status) => (
+                              <option key={status} value={status}>{status}</option>
+                            ))}
+                          </select>
+                        </label>
+
+                        {canUpdateAssignment && (
+                          <>
+                            <label>
+                              <span>Log at Branch</span>
+                              <select
+                                value={formBranch}
+                                onChange={e => setFormBranch(e.target.value)}
+                              >
+                                <option value="">-- None --</option>
+                                {branches.map(b => <option key={b.branch_id} value={b.branch_id}>{b.branch_name}</option>)}
+                              </select>
+                            </label>
+
+                            <label>
+                              <span>Assign Courier</span>
+                              <select
+                                value={formCourier}
+                                onChange={e => setFormCourier(e.target.value)}
+                              >
+                                <option value="">-- None --</option>
+                                {filteredCouriers.map(c => <option key={c.courier_id} value={c.courier_id}>{c.full_name}</option>)}
+                              </select>
+                            </label>
+                          </>
+                        )}
+                      </div>
+
+                      <label className="update-remarks">
+                        <span>Remarks</span>
+                        <input
+                          type="text"
+                          value={formRemarks}
+                          onChange={e => setFormRemarks(e.target.value)}
+                          placeholder="Delivery notes or return reason"
+                        />
+                      </label>
+
+                      <button
+                        onClick={handleTrackingSubmit}
+                        disabled={updating}
+                        className="update-submit"
                       >
-                        {statusOptions.map((status) => (
-                          <option key={status} value={status}>{status}</option>
-                        ))}
-                      </select>
-                    </label>
-
-                    {canUpdateAssignment && (
-                      <>
-                        <label>
-                          <span>Log at Branch</span>
-                          <select
-                            value={formBranch}
-                            onChange={e => setFormBranch(e.target.value)}
-                          >
-                            <option value="">-- None --</option>
-                            {branches.map(b => <option key={b.branch_id} value={b.branch_id}>{b.branch_name}</option>)}
-                          </select>
-                        </label>
-
-                        <label>
-                          <span>Assign Courier</span>
-                          <select
-                            value={formCourier}
-                            onChange={e => setFormCourier(e.target.value)}
-                          >
-                            <option value="">-- None --</option>
-                            {filteredCouriers.map(c => <option key={c.courier_id} value={c.courier_id}>{c.full_name}</option>)}
-                          </select>
-                        </label>
-                      </>
-                    )}
-                  </div>
-                  
-                  <label className="update-remarks">
-                    <span>Remarks</span>
-                    <input 
-                      type="text" 
-                      value={formRemarks} 
-                      onChange={e => setFormRemarks(e.target.value)}
-                      placeholder="Optional remarks"
-                    />
-                  </label>
-                  
-                  <button 
-                    onClick={handleTrackingSubmit}
-                    disabled={updating}
-                    className="update-submit"
-                  >
-                    {updating ? "Saving..." : "Log Update"}
-                  </button>
+                        {updating ? "Saving..." : "Log Event"}
+                      </button>
+                    </>
+                  ) : (
+                    <p className="form-note">This parcel has reached a final courier outcome.</p>
+                  )}
                 </div>
               )}
 

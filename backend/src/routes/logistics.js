@@ -18,6 +18,16 @@ const TRACKING_STATUS_RANK = {
   Returned: 4,
   Cancelled: 4,
 };
+const VALID_TRACKING_STATUSES = [
+  "Order Created",
+  "Picked Up",
+  "In Transit",
+  "Out for Delivery",
+  "Delivered",
+  "Returned",
+  "Cancelled",
+];
+const COURIER_TRACKING_STATUSES = new Set(VALID_TRACKING_STATUSES.filter((status) => status !== "Cancelled"));
 const TERMINAL_TRACKING_STATUSES = new Set(["Delivered", "Returned", "Cancelled"]);
 
 // Course-deliverable routes (Sprint 2-CD): expose the 002/003 logistics
@@ -33,13 +43,31 @@ function asClientError(error) {
   return error;
 }
 
-function isBackwardCourierStatus(currentStatus, nextStatus) {
-  if (!currentStatus) return false;
-  if (TERMINAL_TRACKING_STATUSES.has(currentStatus)) {
-    return nextStatus !== currentStatus;
+export function canCourierSubmitTrackingStatus(currentStatus, nextStatus) {
+  if (!COURIER_TRACKING_STATUSES.has(nextStatus)) {
+    return {
+      allowed: false,
+      message: "Couriers cannot cancel parcels; use Returned for failed delivery outcomes.",
+    };
   }
 
-  return TRACKING_STATUS_RANK[nextStatus] < TRACKING_STATUS_RANK[currentStatus];
+  if (!currentStatus) return { allowed: true };
+
+  if (TERMINAL_TRACKING_STATUSES.has(currentStatus)) {
+    return {
+      allowed: false,
+      message: `Courier cannot update terminal parcel status ${currentStatus}`,
+    };
+  }
+
+  if (TRACKING_STATUS_RANK[nextStatus] < TRACKING_STATUS_RANK[currentStatus]) {
+    return {
+      allowed: false,
+      message: `Courier cannot move backward from ${currentStatus} to ${nextStatus}`,
+    };
+  }
+
+  return { allowed: true };
 }
 
 // Current status lives in tracking_logs (latest row by scanned_at), never on
@@ -462,12 +490,7 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
   const parcelId = req.params.id;
   const { status_update, remarks, branch_id, courier_id } = req.body ?? {};
 
-  const validStatuses = [
-    'Order Created', 'Picked Up', 'In Transit',
-    'Out for Delivery', 'Delivered', 'Returned', 'Cancelled'
-  ];
-
-  if (!validStatuses.includes(status_update)) {
+  if (!VALID_TRACKING_STATUSES.includes(status_update)) {
     return res.status(400).json({
       error: { message: "Invalid status_update" },
     });
@@ -510,10 +533,12 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
         [parcelId],
       );
 
-      if (isBackwardCourierStatus(current.rows[0]?.status_update, status_update)) {
-        const error = new Error(
-          `Courier cannot move backward from ${current.rows[0].status_update} to ${status_update}`,
-        );
+      const courierStatusRule = canCourierSubmitTrackingStatus(
+        current.rows[0]?.status_update,
+        status_update,
+      );
+      if (!courierStatusRule.allowed) {
+        const error = new Error(courierStatusRule.message);
         error.statusCode = 400;
         throw error;
       }
