@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
 import { peso, shortDate, statusClass } from "../lib/format";
+import { trackingLocationText } from "../lib/trackingTimeline";
 import { useAuth } from "../auth/AuthProvider";
 import { apiGet, apiSend } from "../lib/api";
 import "./LogisticsPage.css";
@@ -271,23 +272,27 @@ export default function ParcelDetailPage() {
               <div className="timeline-block">
                 <span className="timeline-heading">Tracking History</span>
                 <ol className="timeline">
-                  {timeline.map((step, i) => (
-                    <li
-                      key={step.scanned_at + step.status_update}
-                      className={`tl-step done ${i === 0 ? "current" : ""}`}
-                    >
-                      <span className="tl-dot" />
-                      <div className="tl-content">
-                        <span className="tl-title">{step.status_update}</span>
-                        <span className="tl-meta">
-                          {longDate(step.scanned_at)}
-                          {step.branch_name ? ` — at ${step.branch_name}` : ""}
-                          {step.courier_name ? ` · ${step.courier_name}` : ""}
-                        </span>
-                        {step.remarks && <span className="tl-remarks">{step.remarks}</span>}
-                      </div>
-                    </li>
-                  ))}
+                  {timeline.map((step, i) => {
+                    const locationText = trackingLocationText(step, parcel);
+
+                    return (
+                      <li
+                        key={step.scanned_at + step.status_update}
+                        className={`tl-step done ${i === 0 ? "current" : ""}`}
+                      >
+                        <span className="tl-dot" />
+                        <div className="tl-content">
+                          <span className="tl-title">{step.status_update}</span>
+                          <span className="tl-meta">
+                            {longDate(step.scanned_at)}
+                            {locationText ? ` - ${locationText}` : ""}
+                            {step.courier_name ? ` - ${step.courier_name}` : ""}
+                          </span>
+                          {step.remarks && <span className="tl-remarks">{step.remarks}</span>}
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ol>
               </div>
             </section>

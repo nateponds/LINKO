@@ -109,7 +109,7 @@ erDiagram
     PARCELS ||--|| COMMISSIONS : "1 to 1 (LINKO's cut from wholesaler)"
     COMMISSION_BRACKETS ||--o{ COMMISSIONS : "1 to 0..*"
     PARCELS ||--|{ TRACKING_LOGS : "1 to 1..*"
-    BRANCHES |o--o{ TRACKING_LOGS : "0..1 to 0..* (nullable, line-haul)"
+    BRANCHES |o--o{ TRACKING_LOGS : "0..1 to 0..* (nullable handling branch)"
     BRANCHES ||--o{ COURIERS : "1 to 0..* (home base)"
     COURIERS |o--o{ TRACKING_LOGS : "0..1 to 0..* (nullable, system scans)"
 ```
@@ -263,7 +263,7 @@ Append-only history of every scan/status change. `scanned_at` carries per-event 
 | ------------- | ----------- | ------------------------- | ---------------------------------------------------------------------------------------------------- |
 | log_id        | SERIAL      | PK                        |                                                                                                      |
 | parcel_id     | VARCHAR(20) | FK → PARCELS, NOT NULL    |                                                                                                      |
-| branch_id     | INT         | FK → BRANCHES, NULLABLE   | null = in-transit / line-haul, not at a hub                                                          |
+| branch_id     | INT         | FK → BRANCHES, NULLABLE   | handling/dispatch branch for the event; null = branch not recorded or manually unresolved             |
 | courier_id    | INT         | FK → COURIERS, NULLABLE   | null = automated/system scan                                                                         |
 | status_update | VARCHAR(50) | NOT NULL, CHECK IN (...)  | enum: 'Order Created','Picked Up','In Transit','Out for Delivery','Delivered','Returned','Cancelled' |
 | remarks       | TEXT        |                           | e.g. 'Sorted for local dispatch'                                                                     |
@@ -304,7 +304,7 @@ Both inputs are frozen at ship time, so no drift — a view is the honest shape;
 | PARCELS       | COMMISSIONS   | 1 to 1        | one LINKO commission per parcel, charged to sender (`parcel_id` UNIQUE) |
 | COMMISSION_BRACKETS | COMMISSIONS | 1 to 0..\* | bracket applied; fee frozen into `amount`                         |
 | PARCELS       | TRACKING_LOGS | 1 to 1..\*    | every parcel gets at least one log row on creation                |
-| BRANCHES      | TRACKING_LOGS | 0..1 to 0..\* | nullable — line-haul scans have no branch                         |
+| BRANCHES      | TRACKING_LOGS | 0..1 to 0..\* | nullable handling branch for tracking events                       |
 | BRANCHES      | COURIERS      | 1 to 0..\*    | courier's home base                                               |
 | COURIERS      | TRACKING_LOGS | 0..1 to 0..\* | nullable — system/automated scans have no courier                 |
 
