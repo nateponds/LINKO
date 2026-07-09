@@ -497,6 +497,8 @@ Roles: `courier`, `logistics_coordinator`, `platform_admin`. Appends a tracking 
 
 Courier identity is server-side: a courier caller's scan is stamped with their own linked `couriers.user_id` row and assigned handling branch, and any body `courier_id` / `branch_id` is ignored (a courier without a linked row gets `403`). Coordinators/admins may pass an explicit `courier_id` and `branch_id` (or none). If no branch is supplied, the API carries forward the latest non-null branch for that parcel; if no courier is supplied by a coordinator/admin, the scan deliberately unassigns the parcel back to that branch pool. A courier's first scan on a pool parcel (`Picked Up`) is the claim that assigns it to them.
 
+Courier-role updates are forward-only. A courier cannot append an earlier lifecycle phase than the parcel's current status, and terminal statuses (`Delivered`, `Returned`, `Cancelled`) cannot be changed by a courier. Coordinators/admins may still override status history for operational corrections.
+
 Side effect: a `Delivered` scan on a parcel with an `order_id` flips that order from `shipped` to `delivered` in the same transaction and notifies the buyer ("Order Delivered").
 
 **Response Body (`201 Created`):** the inserted `tracking_logs` row.

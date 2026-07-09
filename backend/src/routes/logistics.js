@@ -9,6 +9,17 @@ import { notifyBusiness } from "../services/notify.js";
 
 const router = Router();
 
+const TRACKING_STATUS_RANK = {
+  "Order Created": 0,
+  "Picked Up": 1,
+  "In Transit": 2,
+  "Out for Delivery": 3,
+  Delivered: 4,
+  Returned: 4,
+  Cancelled: 4,
+};
+const TERMINAL_TRACKING_STATUSES = new Set(["Delivered", "Returned", "Cancelled"]);
+
 // Course-deliverable routes (Sprint 2-CD): expose the 002/003 logistics
 // subsystem for the demo UI. Shapes documented in docs/API_CONTRACTS.md.
 
@@ -20,6 +31,15 @@ function asClientError(error) {
     error.statusCode = 400;
   }
   return error;
+}
+
+function isBackwardCourierStatus(currentStatus, nextStatus) {
+  if (!currentStatus) return false;
+  if (TERMINAL_TRACKING_STATUSES.has(currentStatus)) {
+    return nextStatus !== currentStatus;
+  }
+
+  return TRACKING_STATUS_RANK[nextStatus] < TRACKING_STATUS_RANK[currentStatus];
 }
 
 // Current status lives in tracking_logs (latest row by scanned_at), never on
@@ -479,6 +499,25 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
   const client = await getPool().connect();
   try {
     await client.query("BEGIN");
+
+    if (!isPrivileged) {
+      const current = await client.query(
+        `SELECT status_update
+           FROM tracking_logs
+          WHERE parcel_id = $1
+          ORDER BY scanned_at DESC, log_id DESC
+          LIMIT 1`,
+        [parcelId],
+      );
+
+      if (isBackwardCourierStatus(current.rows[0]?.status_update, status_update)) {
+        const error = new Error(
+          `Courier cannot move backward from ${current.rows[0].status_update} to ${status_update}`,
+        );
+        error.statusCode = 400;
+        throw error;
+      }
+    }
 
     if (effectiveBranchId === null) {
       const carried = await client.query(
