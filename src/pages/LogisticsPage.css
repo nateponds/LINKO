@@ -423,6 +423,12 @@
     font-weight: 600;
   }
 
+  .form-note {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    margin: 0;
+  }
+
   .book-actions {
     display: flex;
     justify-content: flex-end;

@@ -8,7 +8,6 @@ test("selectableTrackingStatuses hides completed phases from couriers", () => {
     "Out for Delivery",
     "Delivered",
     "Returned",
-    "Cancelled",
   ]);
 });
 
@@ -25,5 +24,13 @@ test("selectableTrackingStatuses keeps all statuses available to privileged user
 });
 
 test("selectableTrackingStatuses locks terminal statuses for couriers", () => {
-  assert.deepEqual(selectableTrackingStatuses("Delivered", false), ["Delivered"]);
+  assert.deepEqual(selectableTrackingStatuses("Delivered", false), []);
+  assert.deepEqual(selectableTrackingStatuses("Returned", false), []);
+  assert.deepEqual(selectableTrackingStatuses("Cancelled", false), []);
+});
+
+test("selectableTrackingStatuses never offers Cancelled to couriers", () => {
+  for (const status of [null, "Order Created", "Picked Up", "In Transit", "Out for Delivery"]) {
+    assert.equal(selectableTrackingStatuses(status, false).includes("Cancelled"), false);
+  }
 });
