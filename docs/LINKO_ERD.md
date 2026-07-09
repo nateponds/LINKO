@@ -265,7 +265,7 @@ Append-only history of every scan/status change. `scanned_at` carries per-event 
 | parcel_id     | VARCHAR(20) | FK → PARCELS, NOT NULL    |                                                                                                      |
 | branch_id     | INT         | FK → BRANCHES, NULLABLE   | handling/dispatch branch for the event; null = branch not recorded or manually unresolved             |
 | courier_id    | INT         | FK → COURIERS, NULLABLE   | null = automated/system scan                                                                         |
-| status_update | VARCHAR(50) | NOT NULL, CHECK IN (...)  | enum: 'Order Created','Picked Up','In Transit','Out for Delivery','Delivered','Returned','Cancelled' |
+| status_update | VARCHAR(50) | NOT NULL, CHECK IN (...)  | enum: 'Order Created','Picked Up','In Transit','Out for Delivery','Delivered','Returned','Cancelled'; `Cancelled` is temporary coordinator/admin override only, not a courier-submitted delivery state |
 | remarks       | TEXT        |                           | e.g. 'Sorted for local dispatch'                                                                     |
 | scanned_at    | TIMESTAMP   | DEFAULT CURRENT_TIMESTAMP | per-event timestamp                                                                                  |
 
