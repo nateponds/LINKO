@@ -46,7 +46,6 @@ const peso = (n) => `₱${n.toLocaleString("en-PH")}`;
 export default function DashboardPage() {
   const [range, setRange] = useState("7d");
   const [dashboardData, setDashboardData] = useState(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,8 +56,6 @@ export default function DashboardPage() {
         setDashboardData(data);
       } catch (e) {
         console.error(e);
-      } finally {
-        if (!cancelled) setLoading(false);
       }
     }
     load();
