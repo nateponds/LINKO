@@ -17,14 +17,40 @@ The product is designed for small and growing businesses that need practical too
 
 ---
 
+## Checkpoint Implementation Focus: Courier/Parcel Tracking
+
+LINKO's first checkpoint-ready module is the **Courier/Parcel Tracking** workflow described in [docs/course-deliverable.md](./docs/course-deliverable.md). This fits the marketplace concept as the fulfillment layer that handles what happens after a buyer, wholesaler, or business needs a package moved: sender and receiver details, package weight, shipping fee calculation, current delivery status, and a tracking history from pickup through delivery.
+
+### Required Core Tables
+
+| Course requirement | Implemented as | Where it appears |
+| --- | --- | --- |
+| `Service_Tiers` | `service_tiers` | Delivery speed, estimated days, base fee, and per-kg/per-km rates used for shipping fee calculation. |
+| `Customers` | `businesses` + `addresses` | Shared sender/receiver records with contact details and locations. |
+| `Branches` | `branches` | Physical logistics hubs where parcels are processed. |
+| `Parcels` | `parcels` | Master package record with sender, receiver, weight, dimensions, service tier, fee, and delivery estimate. |
+| `Tracking_Logs` | `tracking_logs` | Scan/status history for every parcel movement or status update. |
+
+### Submission Evidence
+
+- Database implementation: [backend/migrations/002_logistics_schema.sql](./backend/migrations/002_logistics_schema.sql), [backend/migrations/003_linko_schema.sql](./backend/migrations/003_linko_schema.sql), and later logistics/auth integration migrations.
+- ERD and table explanations: [docs/LINKO_ERD.md](./docs/LINKO_ERD.md).
+- Course requirement summary: [docs/course-deliverable.md](./docs/course-deliverable.md).
+- Demo walkthrough: [docs/DEMO_SCRIPT.md](./docs/DEMO_SCRIPT.md), especially the Logistics Coordinator and Courier journeys.
+- Backend routes and tests: [backend/src/routes/logistics.js](./backend/src/routes/logistics.js), [backend/src/app.test.js](./backend/src/app.test.js), [backend/src/logistics-workflow.test.js](./backend/src/logistics-workflow.test.js), and [backend/src/ownership.test.js](./backend/src/ownership.test.js).
+
+> **Implementation note:** LINKO derives each parcel's current status from the latest `tracking_logs` row. This keeps the tracking history as the source of truth while the UI still shows the current status for each parcel.
+
+---
+
 ## Product Direction
 
 LINKO is being built around four near-term pillars:
 
-1. **Wholesaler Discovery**: Helping buyers looking for supply partners.
-2. **Inventory Visibility**: Tools for businesses tracking products, stock levels, warehouses, and movement history.
-3. **Proximity-Based Matching**: Starts simple, local, and explainable.
-4. **Deferred Logistics Coordination**: Shipment status, dispatch visibility, and fulfillment timelines.
+1. **Courier/Parcel Tracking**: The checkpoint-ready operational core, covering parcels, service tiers, branches, tracking logs, and delivery status.
+2. **Wholesaler Discovery**: Helping buyers looking for supply partners.
+3. **Inventory Visibility**: Tools for businesses tracking products, stock levels, warehouses, and movement history.
+4. **Proximity-Based Matching**: Starts simple, local, and explainable.
 
 *(Note: The current scope focuses exclusively on direct buyer-wholesaler interactions. We do not model the full upstream/downstream manufacturer or distributor chains yet).*
 
@@ -37,11 +63,12 @@ This repository contains the web application, backend scaffold, and planning doc
 **Tech Stack & Architecture**
 - **Frontend**: React 19, Vite 8, plain JSX
 - **Backend**: Node.js, Express 5, PostgreSQL, and a custom migration runner
-- **API Scaffold**: `/health`, `/api/inventory`, and `/api/suppliers`
-- **Database Foundation**: Users, auth, businesses, warehouses, products, inventory items, orders, invoices, full logistics (parcels/tracking), commissions, and supplier profiles
+- **Checkpoint API Focus**: `/api/parcels`, `/api/service-tiers`, `/api/branches`, `/api/couriers`, and `/api/parcels/:id/tracking`
+- **Marketplace Expansion Areas**: `/api/inventory`, `/api/suppliers`, `/api/products`, `/api/orders`, and `/api/invoices`
+- **Database Foundation**: Users, auth, businesses/customers, addresses, service tiers, branches, couriers, parcels, tracking logs, payments, commissions, warehouses, products, inventory items, orders, invoices, and supplier profiles
 
 > [!NOTE]
-> **Status:** The project is in active development. Some UI files are scaffolds, and several backend routes are intentionally placeholder endpoints while the team finalizes product flow and data contracts.
+> **Status:** The courier/parcel tracking core is implemented and test-covered. Marketplace discovery, inventory, orders, and supplier workflows are layered around it and continue to expand.
 
 ---
 
@@ -80,6 +107,9 @@ npm start
 
 Start here if you are evaluating, contributing to, or extending the project:
 
+- **[Course Deliverable](./docs/course-deliverable.md)**: Checkpoint summary of the courier/parcel tracking requirements.
+- **[LINKO ERD](./docs/LINKO_ERD.md)**: Database design for the logistics foundation and integrated LINKO marketplace schema.
+- **[Demo Script](./docs/DEMO_SCRIPT.md)**: Role-based live demo checklist for grading.
 - **[ROADMAP.md](./ROADMAP.md)**: Explains product direction and development phases.
 - **[Glossary](./docs/glossary.md)**: Defines canonical product language.
 - **[API Contracts](./docs/API_CONTRACTS.md)**: Defines current frontend/backend payload expectations.
