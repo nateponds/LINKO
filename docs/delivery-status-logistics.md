@@ -54,8 +54,10 @@ carrier-event-driven. The seller never marks an order delivered.
    is removed. `platform_admin` gains a transition override (support/escape
    hatch for stuck or legacy orders, e.g. parcels created before `order_id`
    existed).
-4. **Branch-scoped pickup pool.** `parcels` stay stateless: current branch and
-   courier assignment are derived from the latest `tracking_logs` row.
+4. **Branch-scoped pickup pool.** `parcels` stay stateless: current handling
+   branch and courier assignment are derived from the latest `tracking_logs`
+   row. A branch on a tracking log means the dispatch/handling branch, not
+   necessarily the parcel's physical scan location.
    Couriers see any parcel they have ever handled plus the unassigned pool for
    their assigned branch (`latest.courier_id IS NULL` and `latest.branch_id`
    matches `couriers.assigned_branch_id`, including NULL-to-NULL for branchless
@@ -67,14 +69,18 @@ carrier-event-driven. The seller never marks an order delivered.
    case-insensitively against branch address city; no match leaves
    `branch_id = NULL` for manual coordinator assignment. New tracking logs
    carry forward the latest non-NULL `branch_id` when no branch is supplied.
-   Coordinator/admin logs that omit `courier_id` deliberately unassign the
-   parcel back to the effective branch pool; `courier_id` is not carried
-   forward.
+   Existing null branch rows are backfilled by migration 012 from origin city
+   or courier home branch. Coordinator/admin logs that omit `courier_id`
+   deliberately unassign the parcel back to the effective branch pool;
+   `courier_id` is not carried forward.
 6. **Courier identity is server-side.** On `POST /api/parcels/:id/tracking`,
    a courier-role caller has `courier_id` and their assigned branch stamped
    from their own linked `couriers` row; client-supplied `courier_id` and
    `branch_id` are ignored for couriers (no spoofing). Coordinators/admins may
    pass explicit assignment fields. This also fixes the vanishing-parcel bug.
+   The parcel detail timeline labels branch events as "handled by" the branch,
+   omits branch wording for `Out for Delivery`, and shows `Delivered` against
+   the destination address instead of saying the parcel was delivered at a hub.
 7. **Only `Delivered` maps back to the order.** When a courier logs
    `Delivered` on a parcel with an `order_id`, the order flips to `delivered`
    and the buyer gets an "Order Delivered" notification. `Returned` /
