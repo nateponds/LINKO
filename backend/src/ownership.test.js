@@ -40,6 +40,81 @@ async function getBusinessIdByName(pool, name) {
   return rows[0].business_id;
 }
 
+async function getAddressIdForBusiness(pool, businessName) {
+  const businessId = await getBusinessIdByName(pool, businessName);
+  const { rows } = await pool.query(
+    "SELECT address_id FROM addresses WHERE business_id = $1 ORDER BY address_id LIMIT 1",
+    [businessId],
+  );
+  assert.ok(rows[0], `expected business ${businessName} to have an address`);
+  return rows[0].address_id;
+}
+
+async function createParcel(pool, overrides = {}) {
+  const senderId =
+    overrides.senderId ?? (await getBusinessIdByName(pool, "Cebu Fresh Wholesale"));
+  const receiverId =
+    overrides.receiverId ?? (await getBusinessIdByName(pool, "Sunrise Retail Cooperative"));
+  const originAddressId =
+    overrides.originAddressId ?? (await getAddressIdForBusiness(pool, "Cebu Fresh Wholesale"));
+  const destinationAddressId =
+    overrides.destinationAddressId ??
+    (await getAddressIdForBusiness(pool, "Sunrise Retail Cooperative"));
+  const parcelId =
+    overrides.parcelId ?? `TST-${Date.now().toString().slice(-8)}-${Math.random().toString(36).slice(2, 5)}`;
+
+  await pool.query(
+    `INSERT INTO parcels (parcel_id, sender_id, receiver_id, tier_id,
+                          origin_address_id, destination_address_id, weight_kg)
+     VALUES ($1, $2, $3, 1, $4, $5, 1.0)`,
+    [parcelId, senderId, receiverId, originAddressId, destinationAddressId],
+  );
+  return parcelId;
+}
+
+async function createNullBranchCourier(pool) {
+  const { hashPassword } = await import("./auth/passwords.js");
+  const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const email = `nullbranch-${stamp}@linko.test`;
+  const password = "Password123!";
+  const passwordHash = await hashPassword(password);
+  const userId = (
+    await pool.query(
+      `INSERT INTO users (username, email, full_name, password_hash, role)
+       VALUES ($1, $2, 'Null Branch Courier', $3, 'staff')
+       RETURNING user_id`,
+      [`nullbranch_${stamp}`, email, passwordHash],
+    )
+  ).rows[0].user_id;
+  const businessId = (
+    await pool.query(
+      `INSERT INTO businesses (business_name, business_type, contact_number)
+       VALUES ($1, 'individual', '+639170008888')
+       RETURNING business_id`,
+      [`Null Branch Courier ${stamp}`],
+    )
+  ).rows[0].business_id;
+
+  await pool.query("INSERT INTO user_businesses (user_id, business_id) VALUES ($1, $2)", [
+    userId,
+    businessId,
+  ]);
+  await pool.query(
+    "INSERT INTO business_memberships (user_id, business_id, role) VALUES ($1, $2, 'courier')",
+    [userId, businessId],
+  );
+  const courierId = (
+    await pool.query(
+      `INSERT INTO couriers (full_name, phone_number, vehicle_type, assigned_branch_id, user_id)
+       VALUES ('Null Branch Courier', '+639170008888', 'motorcycle', NULL, $1)
+       RETURNING courier_id`,
+      [userId],
+    )
+  ).rows[0].courier_id;
+
+  return { businessId, courierId, email, password, userId };
+}
+
 // ---------------------------------------------------------------------------
 // Unauthenticated logistics reference reads are now gated (were open).
 // ---------------------------------------------------------------------------
@@ -146,7 +221,191 @@ test("logistics coordinator can read any parcel", { skip: !hasDb }, async () => 
     assert.equal(detail.body.parcel_id, parcelId);
     // Internal ownership-check fields must not leak into the response.
     assert.ok(!("sender_id" in detail.body));
-    assert.ok(!("latest_courier_id" in detail.body));
+    assert.ok("latest_courier_id" in detail.body);
+    assert.ok("latest_branch_id" in detail.body);
+  } finally {
+    if (parcelId) {
+      await pool.query("DELETE FROM parcels WHERE parcel_id = $1", [parcelId]);
+    }
+    await pool.end();
+  }
+});
+
+test("courier pickup pool is scoped to their assigned branch", { skip: !hasDb }, async () => {
+  const courierCookie = await loginAs("courier@linko.test");
+  const courier2Cookie = await loginAs("courier2@linko.test");
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+  let parcelId;
+  try {
+    parcelId = await createParcel(pool);
+    await pool.query(
+      `INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id, courier_id)
+       VALUES ($1, 'Order Created', 'Branch scoped test', 1, NULL)`,
+      [parcelId],
+    );
+
+    const branchCourierList = await request("/api/parcels", { headers: { Cookie: courierCookie } });
+    assert.equal(branchCourierList.status, 200);
+    assert.ok(branchCourierList.body.some((parcel) => parcel.parcel_id === parcelId));
+
+    const otherCourierList = await request("/api/parcels", { headers: { Cookie: courier2Cookie } });
+    assert.equal(otherCourierList.status, 200);
+    assert.ok(!otherCourierList.body.some((parcel) => parcel.parcel_id === parcelId));
+
+    const visibleDetail = await request(`/api/parcels/${parcelId}`, {
+      headers: { Cookie: courierCookie },
+    });
+    assert.equal(visibleDetail.status, 200);
+    assert.equal(visibleDetail.body.latest_branch_id, 1);
+    assert.equal(visibleDetail.body.latest_courier_id, null);
+
+    const hiddenDetail = await request(`/api/parcels/${parcelId}`, {
+      headers: { Cookie: courier2Cookie },
+    });
+    assert.equal(hiddenDetail.status, 404);
+  } finally {
+    if (parcelId) {
+      await pool.query("DELETE FROM parcels WHERE parcel_id = $1", [parcelId]);
+    }
+    await pool.end();
+  }
+});
+
+test("branchless pool is visible only to a null-branch courier", { skip: !hasDb }, async () => {
+  const branchCourierCookie = await loginAs("courier@linko.test");
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+  let parcelId;
+  let nullCourier;
+  try {
+    nullCourier = await createNullBranchCourier(pool);
+    const nullBranchCookie = await loginAs(nullCourier.email, nullCourier.password);
+    parcelId = await createParcel(pool);
+    await pool.query(
+      `INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id, courier_id)
+       VALUES ($1, 'Order Created', 'Branchless pool test', NULL, NULL)`,
+      [parcelId],
+    );
+
+    const branchCourierList = await request("/api/parcels", {
+      headers: { Cookie: branchCourierCookie },
+    });
+    assert.ok(!branchCourierList.body.some((parcel) => parcel.parcel_id === parcelId));
+
+    const nullCourierList = await request("/api/parcels", {
+      headers: { Cookie: nullBranchCookie },
+    });
+    assert.ok(nullCourierList.body.some((parcel) => parcel.parcel_id === parcelId));
+  } finally {
+    if (parcelId) {
+      await pool.query("DELETE FROM parcels WHERE parcel_id = $1", [parcelId]);
+    }
+    if (nullCourier) {
+      await pool.query("DELETE FROM couriers WHERE courier_id = $1", [nullCourier.courierId]);
+      await pool.query("DELETE FROM business_memberships WHERE user_id = $1", [nullCourier.userId]);
+      await pool.query("DELETE FROM auth_sessions WHERE user_id = $1", [nullCourier.userId]);
+      await pool.query("DELETE FROM user_businesses WHERE user_id = $1", [nullCourier.userId]);
+      await pool.query("DELETE FROM businesses WHERE business_id = $1", [nullCourier.businessId]);
+      await pool.query("DELETE FROM users WHERE user_id = $1", [nullCourier.userId]);
+    }
+    await pool.end();
+  }
+});
+
+test("courier history survives reassignment and unassign returns parcel to branch pool", { skip: !hasDb }, async () => {
+  const courierCookie = await loginAs("courier@linko.test");
+  const courier2Cookie = await loginAs("courier2@linko.test");
+  const logisticsCookie = await loginAs("logistics@linko.test");
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+  let parcelId;
+  try {
+    parcelId = await createParcel(pool);
+    await pool.query(
+      `INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id, courier_id)
+       VALUES ($1, 'Order Created', 'Starts in Cebu pool', 1, NULL)`,
+      [parcelId],
+    );
+
+    const pickedUp = await request(`/api/parcels/${parcelId}/tracking`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: courierCookie },
+      body: JSON.stringify({ status_update: "Picked Up" }),
+    });
+    assert.equal(pickedUp.status, 201);
+    assert.equal(pickedUp.body.courier_id, 1);
+    assert.equal(pickedUp.body.branch_id, 1);
+
+    const reassigned = await request(`/api/parcels/${parcelId}/tracking`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: logisticsCookie },
+      body: JSON.stringify({ status_update: "In Transit", branch_id: 2, courier_id: 2 }),
+    });
+    assert.equal(reassigned.status, 201);
+
+    const courierAList = await request("/api/parcels", { headers: { Cookie: courierCookie } });
+    assert.ok(courierAList.body.some((parcel) => parcel.parcel_id === parcelId));
+    const courierADetail = await request(`/api/parcels/${parcelId}`, {
+      headers: { Cookie: courierCookie },
+    });
+    assert.equal(courierADetail.status, 200);
+
+    const courierBList = await request("/api/parcels", { headers: { Cookie: courier2Cookie } });
+    assert.ok(courierBList.body.some((parcel) => parcel.parcel_id === parcelId));
+
+    const unassigned = await request(`/api/parcels/${parcelId}/tracking`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: logisticsCookie },
+      body: JSON.stringify({ status_update: "In Transit", branch_id: 2 }),
+    });
+    assert.equal(unassigned.status, 201);
+    assert.equal(unassigned.body.branch_id, 2);
+    assert.equal(unassigned.body.courier_id, null);
+
+    const branchPoolList = await request("/api/parcels", { headers: { Cookie: courier2Cookie } });
+    const pooled = branchPoolList.body.find((parcel) => parcel.parcel_id === parcelId);
+    assert.ok(pooled);
+    assert.equal(pooled.latest_courier_id, null);
+  } finally {
+    if (parcelId) {
+      await pool.query("DELETE FROM parcels WHERE parcel_id = $1", [parcelId]);
+    }
+    await pool.end();
+  }
+});
+
+test("tracking updates carry forward branch and couriers cannot spoof branch", { skip: !hasDb }, async () => {
+  const courierCookie = await loginAs("courier@linko.test");
+  const logisticsCookie = await loginAs("logistics@linko.test");
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+  let parcelId;
+  try {
+    parcelId = await createParcel(pool);
+    await pool.query(
+      `INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id, courier_id)
+       VALUES ($1, 'Order Created', 'Starts in Mandaue pool', 2, NULL)`,
+      [parcelId],
+    );
+
+    const coordinatorRemark = await request(`/api/parcels/${parcelId}/tracking`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: logisticsCookie },
+      body: JSON.stringify({ status_update: "In Transit", remarks: "No assignment fields" }),
+    });
+    assert.equal(coordinatorRemark.status, 201);
+    assert.equal(coordinatorRemark.body.branch_id, 2);
+    assert.equal(coordinatorRemark.body.courier_id, null);
+
+    const courierScan = await request(`/api/parcels/${parcelId}/tracking`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: courierCookie },
+      body: JSON.stringify({ status_update: "Picked Up", branch_id: 2 }),
+    });
+    assert.equal(courierScan.status, 201);
+    assert.equal(courierScan.body.courier_id, 1);
+    assert.equal(courierScan.body.branch_id, 1);
   } finally {
     if (parcelId) {
       await pool.query("DELETE FROM parcels WHERE parcel_id = $1", [parcelId]);
