@@ -83,12 +83,15 @@ carrier-event-driven. The seller never marks an order delivered.
    the destination address instead of saying the parcel was delivered at a hub.
    Courier-role status updates are forward-only: once a parcel reaches a later
    phase such as `Out for Delivery`, couriers cannot log an earlier phase such
-   as `Picked Up`. `Delivered`, `Returned`, and `Cancelled` are terminal for
-   courier updates. Coordinators/admins retain override ability for corrections.
+   as `Picked Up`. Couriers may log normal delivery movement through
+   `Delivered` or `Returned`, and those two outcomes end courier updates.
+   `Cancelled` is not a courier field action; it remains temporarily available
+   only to coordinators/admins as an operational correction.
 7. **Only `Delivered` maps back to the order.** When a courier logs
    `Delivered` on a parcel with an `order_id`, the order flips to `delivered`
-   and the buyer gets an "Order Delivered" notification. `Returned` /
-   `Cancelled` stay parcel-side (no order mapping) - deferred.
+   and the buyer gets an "Order Delivered" notification. `Returned` stays
+   parcel-side for now, and coordinator/admin-only `Cancelled` remains an
+   exceptional parcel correction (no order mapping) - deferred.
 8. **Courier user provisioning.** Admin "create courier user" also inserts a
    linked `couriers` row (same transaction). Existing unlinked demo accounts
    get a one-off `UPDATE couriers SET user_id = ...` relink.
@@ -106,8 +109,10 @@ carrier-event-driven. The seller never marks an order delivered.
 
 ## Out of scope (deferred)
 
-- `Returned`/`Cancelled` tracking -> order status mapping (restock/refund
-  semantics not built).
+- `Returned` tracking -> order status mapping (restock/refund semantics not
+  built).
+- Full removal of parcel `Cancelled` after replacement correction/refund
+  workflows exist.
 - Third-party carrier integration - product-scope delivery model per
   `ROADMAP.md` is unchanged; this workflow serves the course-deliverable demo
   surface.
