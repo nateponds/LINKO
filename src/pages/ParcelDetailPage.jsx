@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
 import { peso, shortDate, statusClass } from "../lib/format";
 import { trackingLocationText } from "../lib/trackingTimeline";
+import { selectableTrackingStatuses } from "../lib/statusWorkflow";
 import { useAuth } from "../auth/AuthProvider";
 import { apiGet, apiSend } from "../lib/api";
 import "./LogisticsPage.css";
@@ -92,6 +93,7 @@ export default function ParcelDetailPage() {
   const filteredCouriers = formBranch
     ? couriers.filter((courier) => courier.assigned_branch_id === Number(formBranch))
     : couriers;
+  const statusOptions = selectableTrackingStatuses(parcel?.current_status, canUpdateAssignment);
 
   async function handleTrackingSubmit() {
     if (updating) return;
@@ -212,13 +214,9 @@ export default function ParcelDetailPage() {
                         value={formStatus} 
                         onChange={e => setFormStatus(e.target.value)}
                       >
-                        <option value="Order Created">Order Created</option>
-                        <option value="Picked Up">Picked Up</option>
-                        <option value="In Transit">In Transit</option>
-                        <option value="Out for Delivery">Out for Delivery</option>
-                        <option value="Delivered">Delivered</option>
-                        <option value="Returned">Returned</option>
-                        <option value="Cancelled">Cancelled</option>
+                        {statusOptions.map((status) => (
+                          <option key={status} value={status}>{status}</option>
+                        ))}
                       </select>
                     </label>
 
