@@ -1,17 +1,53 @@
 # LINKO Roadmap
 
+## Checkpoint Implementation Focus
+
+The first checkpoint-ready slice of LINKO is the **Courier/Parcel Tracking** workflow documented in [docs/course-deliverable.md](./docs/course-deliverable.md). It serves as the platform's fulfillment foundation: once buyers, wholesalers, or businesses create operational demand, LINKO can represent the package, sender, receiver, service tier, route events, and delivery status.
+
+The implemented system covers the required lifecycle:
+
+- Logs sender and receiver information through shared business/customer and address records.
+- Stores package weight, dimensions, declared value, service tier, and calculated shipping fee.
+- Tracks delivery status through scan events from pickup to delivery.
+- Shows a current parcel status in the app by deriving it from the latest tracking log.
+
+Required core tables are implemented as:
+
+| Course table | Implemented table(s) | Purpose |
+| --- | --- | --- |
+| `Service_Tiers` | `service_tiers` | Delivery speeds and base/per-weight/per-distance pricing. |
+| `Customers` | `businesses`, `addresses` | Shared sender/receiver identity and contact/location details. |
+| `Branches` | `branches` | Logistics hubs and warehouse-like processing locations. |
+| `Parcels` | `parcels` | Package master record, including sender, receiver, weight, dimensions, fee, and delivery estimate. |
+| `Tracking_Logs` | `tracking_logs` | Real-time parcel scan and status history. |
+
+Implementation evidence lives in the logistics migrations, ERD, backend routes, tests, seed data, and live demo:
+
+- `backend/migrations/002_logistics_schema.sql`
+- `backend/migrations/003_linko_schema.sql`
+- `docs/LINKO_ERD.md`
+- `backend/src/routes/logistics.js`
+- `backend/src/logistics-workflow.test.js`
+- `docs/DEMO_SCRIPT.md`
+
+Implementation note: LINKO derives each parcel's current status from the latest `tracking_logs` row. This keeps the tracking history as the source of truth while the UI still shows the current status for each parcel.
+
+---
+
 ## Purpose
 
-LINKO is a supply chain management platform for MSMEs that centralizes supplier discovery, logistics coordination, shipment visibility, and inventory-related workflows. The goal is to help growing businesses manage stock, coordinate fulfillment, discover reliable wholesalers, build ongoing buyer-wholesaler relationships, and make supply-chain decisions with better visibility.
+LINKO is a supply chain management platform for MSMEs that centralizes logistics coordination, shipment visibility, supplier discovery, and inventory-related workflows. The first implemented foundation is courier/parcel tracking; the marketplace, supplier discovery, ordering, and inventory concepts build on top of that operational base.
 
 This roadmap is the central planning document for the project. It defines the product direction, major development phases, milestones, and feature goals.
 
 ## Product Vision
 
-LINKO should become a practical operating platform for small and medium businesses that need clearer inventory control, easier supplier discovery, and smoother coordination between buyers, warehouses, wholesalers, and logistics partners.
+LINKO should become a practical operating platform for small and medium businesses that need smoother coordination between buyers, warehouses, wholesalers, and logistics partners, with clearer inventory control and easier supplier discovery added around those core operations.
 
 The platform should eventually support:
 
+- Courier/parcel lifecycle tracking from pickup to delivery.
+- Service-tier based shipping fee calculation.
 - Real-time inventory visibility across warehouses and stock locations.
 - Wholesaler profiles for discovery and comparison.
 - Matching workflows between MSMEs, buyers, wholesalers, and service providers.
@@ -39,6 +75,9 @@ Other user groups include:
 - Platform administrators managing users, listings, verification, and marketplace quality.
 
 ## Core Product Domains
+
+### Courier/Parcel Tracking
+Manage service tiers, sender/receiver records, branches, parcels, delivery status, and tracking logs from pickup through delivery.
 
 ### Inventory
 Track products, stock levels, categories, SKUs, movement history, reorder thresholds, and warehouse availability.
@@ -69,10 +108,11 @@ Goal: Establish the project direction and basic development setup.
 
 ## Phase 1: Backend API & Database Foundation [Done]
 
-Goal: Establish the robust PostgreSQL database and Express API to support the marketplace.
+Goal: Establish the robust PostgreSQL database and Express API for courier/parcel tracking first, while leaving room for the marketplace modules that follow.
 
 Core features:
-- PostgreSQL schemas for Users, Businesses, Warehouses, Products, and Inventory.
+- PostgreSQL schemas for service tiers, businesses/customers, addresses, branches, parcels, tracking logs, users, warehouses, products, and inventory.
+- Courier/parcel tracking tables and relationships required for the checkpoint.
 - Inventory tracking APIs.
 - Wholesaler profile foundations.
 
@@ -90,6 +130,7 @@ Core features:
 Goal: Connect discovery and matching to real business and fulfillment workflows.
 
 Core features:
+- Courier/parcel lifecycle from booking through tracking updates.
 - Complete order and invoice tracking.
 - Native logistics schemas (parcels, couriers, branches, tracking logs).
 - Automated shipping fee calculation via service tiers.
