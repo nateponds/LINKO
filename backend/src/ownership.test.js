@@ -401,11 +401,63 @@ test("tracking updates carry forward branch and couriers cannot spoof branch", {
     const courierScan = await request(`/api/parcels/${parcelId}/tracking`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Cookie: courierCookie },
-      body: JSON.stringify({ status_update: "Picked Up", branch_id: 2 }),
+      body: JSON.stringify({ status_update: "In Transit", branch_id: 2 }),
     });
     assert.equal(courierScan.status, 201);
     assert.equal(courierScan.body.courier_id, 1);
     assert.equal(courierScan.body.branch_id, 1);
+  } finally {
+    if (parcelId) {
+      await pool.query("DELETE FROM parcels WHERE parcel_id = $1", [parcelId]);
+    }
+    await pool.end();
+  }
+});
+
+test("courier cannot backtrack a parcel status", { skip: !hasDb }, async () => {
+  const courierCookie = await loginAs("courier@linko.test");
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+  let parcelId;
+  try {
+    parcelId = await createParcel(pool);
+    await pool.query(
+      `INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id, courier_id)
+       VALUES ($1, 'Order Created', 'Starts in Cebu pool', 1, NULL)`,
+      [parcelId],
+    );
+
+    const pickedUp = await request(`/api/parcels/${parcelId}/tracking`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: courierCookie },
+      body: JSON.stringify({ status_update: "Picked Up" }),
+    });
+    assert.equal(pickedUp.status, 201);
+
+    const outForDelivery = await request(`/api/parcels/${parcelId}/tracking`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: courierCookie },
+      body: JSON.stringify({ status_update: "Out for Delivery" }),
+    });
+    assert.equal(outForDelivery.status, 201);
+
+    const backtrack = await request(`/api/parcels/${parcelId}/tracking`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: courierCookie },
+      body: JSON.stringify({ status_update: "Picked Up" }),
+    });
+    assert.equal(backtrack.status, 400);
+    assert.match(backtrack.body.error.message, /cannot move backward/i);
+
+    const latest = await pool.query(
+      `SELECT status_update
+         FROM tracking_logs
+        WHERE parcel_id = $1
+        ORDER BY scanned_at DESC, log_id DESC
+        LIMIT 1`,
+      [parcelId],
+    );
+    assert.equal(latest.rows[0].status_update, "Out for Delivery");
   } finally {
     if (parcelId) {
       await pool.query("DELETE FROM parcels WHERE parcel_id = $1", [parcelId]);

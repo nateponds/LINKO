@@ -81,6 +81,10 @@ carrier-event-driven. The seller never marks an order delivered.
    The parcel detail timeline labels branch events as "handled by" the branch,
    omits branch wording for `Out for Delivery`, and shows `Delivered` against
    the destination address instead of saying the parcel was delivered at a hub.
+   Courier-role status updates are forward-only: once a parcel reaches a later
+   phase such as `Out for Delivery`, couriers cannot log an earlier phase such
+   as `Picked Up`. `Delivered`, `Returned`, and `Cancelled` are terminal for
+   courier updates. Coordinators/admins retain override ability for corrections.
 7. **Only `Delivered` maps back to the order.** When a courier logs
    `Delivered` on a parcel with an `order_id`, the order flips to `delivered`
    and the buyer gets an "Order Delivered" notification. `Returned` /
