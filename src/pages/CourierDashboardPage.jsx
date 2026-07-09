@@ -124,12 +124,20 @@ export default function CourierDashboardPage() {
             </button>
           )}
           {p.current_status === "Out for Delivery" && (
-            <button
-              className="courier-action-primary"
-              onClick={(e) => handleQuickAction(p.parcel_id, "Delivered", e)}
-            >
-              Mark Delivered
-            </button>
+            <>
+              <button
+                className="courier-action"
+                onClick={(e) => handleQuickAction(p.parcel_id, "Returned", e)}
+              >
+                Mark Returned
+              </button>
+              <button
+                className="courier-action-primary"
+                onClick={(e) => handleQuickAction(p.parcel_id, "Delivered", e)}
+              >
+                Mark Delivered
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -142,7 +150,7 @@ export default function CourierDashboardPage() {
         <div className="page-head courier-page-head">
           <div className="page-head-intro">
             <h1>Courier Dashboard</h1>
-            <p className="page-head-subtitle">Manage your deliveries and pickups</p>
+            <p className="page-head-subtitle">Manage pickups, delivery progress, and returns</p>
           </div>
           <div className="search-bar courier-search-bar">
             <input
