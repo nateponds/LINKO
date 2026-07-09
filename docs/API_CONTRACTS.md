@@ -346,7 +346,7 @@ Exposes the CIS 2104 courier subsystem (migrations 002/003) for the demo UI. Mon
 
 ### 3.1 `GET /api/parcels`
 
-List parcels with derived current status, most recently scanned first. Row visibility by role: coordinators/admins see all; wholesalers see parcels their businesses send or receive; couriers see parcels whose latest tracking log carries their `courier_id` **plus the unassigned pickup pool** (latest log has no courier).
+List parcels with derived current status, most recently scanned first. Row visibility by role: coordinators/admins see all; wholesalers see parcels their businesses send or receive; couriers see parcels they have handled plus the unassigned pickup pool for their assigned handling branch (latest log has no courier and its `branch_id` matches the courier's `assigned_branch_id`, including NULL-to-NULL for branchless couriers).
 
 **Response Body (`200 OK`):**
 
@@ -368,7 +368,7 @@ List parcels with derived current status, most recently scanned first. Row visib
 
 ### 3.2 `GET /api/parcels/:id`
 
-Parcel detail with full tracking timeline (oldest first). `404` if unknown.
+Parcel detail with full tracking timeline (oldest first). `404` if unknown. `branch_name` on each tracking history row is the dispatch/handling branch for that event. The UI should not treat it as a literal physical "at this hub" location for every status.
 
 **Response Body (`200 OK`):**
 
@@ -400,6 +400,8 @@ Parcel detail with full tracking timeline (oldest first). `404` if unknown.
   "estimated_delivery_date": "2026-07-01",
   "payment": { "method": "Prepaid", "payment_status": "Paid", "amount": 2685.9, "paid_at": "2026-06-26T15:47:21.662Z" },
   "current_status": "Delivered",
+  "latest_courier_id": 1,
+  "latest_branch_id": 1,
   "tracking_history": [
     {
       "status_update": "Order Created",
@@ -491,9 +493,9 @@ Roles: `courier`, `logistics_coordinator`, `platform_admin`. Appends a tracking 
 { "status_update": "Picked Up", "remarks": "optional", "branch_id": null, "courier_id": null }
 ```
 
-`status_update` ∈ `Order Created | Picked Up | In Transit | Out for Delivery | Delivered | Returned | Cancelled`; anything else → `400`.
+`status_update` is one of `Order Created | Picked Up | In Transit | Out for Delivery | Delivered | Returned | Cancelled`; anything else returns `400`.
 
-Courier identity is server-side: a courier caller's scan is stamped with their own linked `couriers.user_id` row and any body `courier_id` is ignored (a courier without a linked row gets `403`). Coordinators/admins may pass an explicit `courier_id` (or none). A courier's first scan on a pool parcel (`Picked Up`) is the claim that assigns it to them.
+Courier identity is server-side: a courier caller's scan is stamped with their own linked `couriers.user_id` row and assigned handling branch, and any body `courier_id` / `branch_id` is ignored (a courier without a linked row gets `403`). Coordinators/admins may pass an explicit `courier_id` and `branch_id` (or none). If no branch is supplied, the API carries forward the latest non-null branch for that parcel; if no courier is supplied by a coordinator/admin, the scan deliberately unassigns the parcel back to that branch pool. A courier's first scan on a pool parcel (`Picked Up`) is the claim that assigns it to them.
 
 Side effect: a `Delivered` scan on a parcel with an `order_id` flips that order from `shipped` to `delivered` in the same transaction and notifies the buyer ("Order Delivered").
 
