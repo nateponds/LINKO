@@ -63,6 +63,88 @@ acting for. It does not select or suppress a role.
   - logistics coordinator: logistics workspace (`/logistics`)
   - platform admin: admin dashboard (`/admin`)
 
+## Implementation decisions
+
+Resolved during pre-implementation review. These bind the build; the sections
+above state *what*, this states *where and how*.
+
+### Membership shape
+
+The backend continues to emit flat `[{business_id, business_name, role}]`
+membership rows (one row per business-role pair; a `both` business yields two
+rows sharing a `business_id`). No `/auth/me`, login, or register payload
+contract changes.
+
+The frontend groups these into `businesses`
+(`[{business_id, business_name, roles: [...]}]`) in `AuthProvider`, memoized.
+`roles` is sorted by a fixed rank so combined labels are stable:
+
+```js
+const ROLE_ORDER = { buyer: 0, wholesaler: 1, logistics_coordinator: 2, courier: 3 };
+```
+
+`AuthProvider` also derives `activeRoles` = the roles of the grouped active
+business — the single source for every capability check.
+
+### Backend authorization
+
+- `getActiveMembership`'s multi-business `400` gate counts **distinct
+  `business_id`**, not membership rows. A one-business user with several roles
+  (e.g. `both`) resolves automatically; only genuinely ambiguous multi-business
+  callers with no header get `400`. No new helper; the single-row return is
+  kept because no caller reads `.role` off it (all three read `.business_id`).
+- Parcel visibility (`parcelScope` in `routes/logistics.js`) resolves the
+  active business and filters `memberships` to that business before
+  classifying. A wholesaler business that is not the active selection grants no
+  parcel-list rows. The multi-business `400` propagates from `parcelScope`
+  through Express 5's async error forwarding to the central `errorHandler`; the
+  list/detail handlers need no manual `catch`.
+- The same `parcelScope` choke point serves both `/parcels` (list) and
+  `/parcels/:id` (single-parcel tracking), so buyer-only single-parcel reads
+  remain scoped to the active buyer business.
+
+### Frontend capability and navigation
+
+- `hasAnyRole` (and the underlying `hasAccess`) evaluate against `activeRoles`
+  plus global platform-admin, never the full cross-business membership set.
+  All navigation, route guards, footer, mobile nav, and per-page action gates
+  already route through `hasAnyRole`, so this is a single-point change.
+- The business switcher renders one option per grouped business, labelled with
+  the combined role list, and is shown only when `businesses.length > 1`.
+- On a business switch, the routed subtree is remounted via
+  `key={activeBusinessId}` on the element wrapping `<Outlet>`. This clears all
+  business-scoped local component state and re-fires every page's mount fetch
+  against the new active-business header — no per-page cache audit. `api.js`
+  already writes the new selection to `localStorage` synchronously before the
+  state change that triggers the remount, so the refetch reads the new header.
+- Login and register always redirect to the mapped default for the active
+  context. A business switch redirects **only** when the current route is no
+  longer authorized for the active roles; an authorized route is left in place.
+  When marketplace and operational roles coexist, the marketplace target wins.
+  Redirect map:
+  - buyer / wholesaler / buyer + wholesaler: `/`
+  - courier: `/courier`
+  - logistics coordinator: `/logistics`
+  - platform admin: `/admin`
+- `OrdersPage` action gating is rewritten to test
+  `activeBusinessId === order.<side>_business_id` combined with
+  `activeRoles.includes(<role>)`. The prior fallback that scanned all
+  memberships is removed — it leaked capabilities from unselected businesses.
+- `getPrimaryMembership` in `roleAccess.js` is dead and is deleted.
+
+### Tests
+
+Backend (`node --test`), on the authorization boundary:
+
+- A one-business `both` caller resolves without `400` and can create as their
+  business.
+- Active buyer + wholesaler business lists wholesaler parcels (non-empty).
+- Active buyer-only context returns an empty parcel list.
+- A multi-business caller with no `X-Active-Business` gets `400` on `/parcels`.
+
+Frontend behavior (switcher, combined labels, cache-clear on switch, redirect
+mapping) is verified by manual demo — no frontend test runner is configured.
+
 ## Demo and documentation correction
 
 Update `docs/DEMO_SCRIPT.md` during implementation. It currently treats the
