@@ -164,6 +164,20 @@ test("unknown parcel returns 404", { skip: !hasDb }, async () => {
   assert.equal(response.status, 404);
 });
 
+test("parcel detail resolves equal tracking timestamps by insertion order", { skip: !hasDb }, async () => {
+  const cookie = await loginAs("logistics@linko.test");
+  const detail = await request("/api/parcels/LKO-00000003", {
+    headers: { Cookie: cookie },
+  });
+
+  assert.equal(detail.status, 200);
+  assert.equal(detail.body.current_status, "Returned");
+  assert.deepEqual(
+    detail.body.tracking_history.slice(-2).map((entry) => entry.status_update),
+    ["Out for Delivery", "Returned"],
+  );
+});
+
 test("booking a parcel creates payment, commission, and first log", { skip: !hasDb }, async () => {
   const { createPool: createPoolPatch } = await import("./db.js");
   const patchPool = createPoolPatch();
