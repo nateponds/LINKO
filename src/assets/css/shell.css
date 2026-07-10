@@ -46,7 +46,7 @@
     justify-content: space-between;
     padding: 15px 20px;
     gap: 20px;
-    border-bottom: 4px solid var(--color-accent);
+    /* border-bottom: 4px solid var(--color-accent); */
   }
 
   .logo {
@@ -73,9 +73,18 @@
     align-items: center;
     background: white;
     border: 2px solid rgba(152, 216, 104, 0.7);
-    padding: 5px;
+    /* padding: 5px; */
     border-radius: 4px;
     min-width: 0;
+
+    border-radius: 999px;
+    position: relative;
+    /* align-items: stretch; */
+    overflow: hidden;
+
+    /* padding-right: 1rem; */
+    background: rgba(128, 128, 128, 0.079);
+    border: 1px solid rgba(0, 0, 0, 0.097);
   }
 
   .search input {
@@ -85,10 +94,11 @@
     outline: none;
     min-width: 0;
     padding: 7px 8px;
+    padding-left: 1rem;
   }
 
   .icon-btn {
-    align-items: center;
+    /* align-items: center;
     background: transparent;
     border: none;
     border-radius: 4px;
@@ -97,7 +107,15 @@
     display: inline-flex;
     height: 32px;
     justify-content: center;
-    width: 32px;
+    width: 32px; */
+
+    border: none;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-weight: bold;
+    padding: 1.5rem 1rem;
   }
 
   .icon-btn.go {
@@ -122,7 +140,9 @@
     display: inline-flex;
     justify-content: center;
     position: relative;
-    transition: background 0.15s ease, transform 0.15s ease;
+    transition:
+      background 0.15s ease,
+      transform 0.15s ease;
   }
 
   .icon-action:hover {
