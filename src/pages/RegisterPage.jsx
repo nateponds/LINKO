@@ -1,14 +1,9 @@
 import { useState } from "react";
-import { Handshake, MapPin, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
+import AuthVisualPanel from "../components/ui/AuthVisualPanel";
 import "./LoginPage.css";
-
-const HIGHLIGHTS = [
-  { Icon: MapPin, text: "Wholesalers matched to your location" },
-  { Icon: Handshake, text: "Direct buyer-wholesaler connections" },
-  { Icon: ShieldCheck, text: "Verified supplier profiles" },
-];
 
 const INITIAL_FORM = {
   full_name: "",
@@ -22,6 +17,7 @@ export default function RegisterPage() {
   const { user, register: authRegister, hasAnyRole } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState(INITIAL_FORM);
+  const [showPassword, setShowPassword] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -50,7 +46,7 @@ export default function RegisterPage() {
       const roles = payload.memberships?.map((m) => m.role) || [];
       const isBuyer = roles.includes("buyer");
       const hasOtherRoles = roles.some(r => r !== "buyer") || payload.user.global_role === "platform_admin";
-      
+
       const defaultPath = (isBuyer && !hasOtherRoles) ? "/" : "/dashboard";
       navigate(defaultPath, { replace: true });
     } catch (error) {
@@ -61,103 +57,103 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="login-page">
-      <div className="login-card">
-        <div className="login-brand">
-          <div className="logo">
-            LINK<span className="logo-accent">O</span>
-          </div>
-          <p className="brand-tagline">
-            The marketplace connecting MSMEs with trusted wholesalers.
-          </p>
-          <ul className="brand-points">
-            {HIGHLIGHTS.map(({ Icon, text }) => (
-              <li key={text}>
-                <Icon size={16} /> {text}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="login-form-side">
-          <div className="auth-page-header">
-            <h1>Create account</h1>
-            <p>Set up your buyer, wholesaler, or hybrid workspace.</p>
+    <div className="auth-page">
+      <div className="auth-card">
+        <div className="auth-form-panel">
+          <div className="auth-topbar">
+            <Link to="/" className="auth-back-link">Back</Link>
+            <div className="auth-brand-mark">
+              LINK<span>O</span>
+            </div>
           </div>
 
-          <form onSubmit={handleSubmit}>
-            <label>
-              Full name
-              <input
-                type="text"
-                required
-                autoComplete="name"
-                placeholder="Your full name"
-                value={form.full_name}
-                onChange={(event) => setField("full_name", event.target.value)}
-              />
-            </label>
+          <div className="auth-form-body">
+            <h1 className="auth-heading">Sign Up</h1>
 
-            <label>
-              Email
-              <input
-                type="email"
-                required
-                autoComplete="email"
-                placeholder="you@business.com"
-                value={form.email}
-                onChange={(event) => setField("email", event.target.value)}
-              />
-            </label>
+            <form onSubmit={handleSubmit} noValidate>
+              <label className="auth-field">
+                <span className="sr-only">Full name</span>
+                <input
+                  type="text"
+                  required
+                  autoComplete="name"
+                  placeholder="Full name"
+                  value={form.full_name}
+                  onChange={(event) => setField("full_name", event.target.value)}
+                />
+              </label>
 
-            <label>
-              Password
-              <input
-                type="password"
-                required
-                minLength={8}
-                autoComplete="new-password"
-                placeholder="At least 8 characters"
-                value={form.password}
-                onChange={(event) => setField("password", event.target.value)}
-              />
-            </label>
+              <label className="auth-field">
+                <span className="sr-only">Email</span>
+                <input
+                  type="email"
+                  required
+                  autoComplete="email"
+                  placeholder="Email"
+                  value={form.email}
+                  onChange={(event) => setField("email", event.target.value)}
+                />
+              </label>
 
-            <label>
-              Business name
-              <input
-                type="text"
-                required
-                autoComplete="organization"
-                placeholder="e.g. Linko Trading Co."
-                value={form.business_name}
-                onChange={(event) => setField("business_name", event.target.value)}
-              />
-            </label>
+              <label className="auth-field">
+                <span className="sr-only">Password</span>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                  placeholder="Password (at least 8 characters)"
+                  value={form.password}
+                  onChange={(event) => setField("password", event.target.value)}
+                />
+                <button
+                  type="button"
+                  className="auth-visibility-toggle"
+                  onClick={() => setShowPassword((current) => !current)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </label>
 
-            <label>
-              Business type
-              <select
-                value={form.business_type}
-                onChange={(event) => setField("business_type", event.target.value)}
-              >
-                <option value="buyer">Buyer</option>
-                <option value="wholesaler">Wholesaler</option>
-                <option value="both">Both (Buyer &amp; Wholesaler)</option>
-              </select>
-            </label>
+              <label className="auth-field">
+                <span className="sr-only">Business name</span>
+                <input
+                  type="text"
+                  required
+                  autoComplete="organization"
+                  placeholder="Business name"
+                  value={form.business_name}
+                  onChange={(event) => setField("business_name", event.target.value)}
+                />
+              </label>
 
-            {submitError && <p className="auth-error">{submitError}</p>}
+              <label className="auth-field">
+                <span className="sr-only">Business type</span>
+                <select
+                  value={form.business_type}
+                  onChange={(event) => setField("business_type", event.target.value)}
+                >
+                  <option value="buyer">Buyer</option>
+                  <option value="wholesaler">Wholesaler</option>
+                  <option value="both">Both (Buyer &amp; Wholesaler)</option>
+                </select>
+              </label>
 
-            <button type="submit" className="btn-primary" disabled={submitting}>
-              {submitting ? "Creating account..." : "Create account"}
-            </button>
-          </form>
+              {submitError && <p className="auth-error">{submitError}</p>}
 
-          <p className="auth-alt">
-            Already have an account? <Link to="/login">Log in</Link>
-          </p>
+              <button type="submit" className="auth-submit" disabled={submitting}>
+                {submitting ? "Creating account..." : "Sign Up"}
+              </button>
+            </form>
+
+            <p className="auth-alt">
+              Already have an account? <Link to="/login">Log in</Link>
+            </p>
+          </div>
         </div>
+
+        <AuthVisualPanel />
       </div>
     </div>
   );
