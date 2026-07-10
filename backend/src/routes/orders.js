@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getPool, query } from "../db.js";
+import { getPool, query, nextParcelId } from "../db.js";
 import { requireAnyRole, requireAuth } from "../middleware/auth.js";
 import { getActiveMembership } from "../middleware/ownership.js";
 import { notifyBusiness } from "../services/notify.js";
@@ -513,7 +513,7 @@ router.patch(
           );
 
           if (originAddress.rows.length > 0 && destAddress.rows.length > 0) {
-            const parcelId = `LKO-${Date.now().toString().slice(-8)}`;
+            const parcelId = await nextParcelId(client);
             await client.query(
               `INSERT INTO parcels (parcel_id, order_id, sender_id, receiver_id, tier_id,
                                    origin_address_id, destination_address_id,
