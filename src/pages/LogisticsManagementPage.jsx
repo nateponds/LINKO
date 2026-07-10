@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import AppLayout from "../layouts/AppLayout";
 import { apiGet, apiSend } from "../lib/api";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 
 export default function LogisticsManagementPage() {
   const [branches, setBranches] = useState([]);
@@ -58,6 +58,16 @@ export default function LogisticsManagementPage() {
       cancelled = true;
     };
   }, []);
+
+  const handleDelete = async (kind, id, name) => {
+    if (!window.confirm(`Delete ${kind} "${name}"?`)) return;
+    try {
+      await apiSend(`/api/${kind === "branch" ? "branches" : "couriers"}/${id}`, { method: "DELETE" });
+      await refreshData();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
 
   const handleAddBranch = async (e) => {
     e.preventDefault();
@@ -121,9 +131,15 @@ export default function LogisticsManagementPage() {
               </div>
               <ul className="logistics-list">
                 {branches.map(b => (
-                  <li key={b.branch_id}>
-                    <strong>{b.branch_name}</strong> - {b.contact_number}<br/>
-                    <small>{b.city_municipality}, {b.province}</small>
+                  <li key={b.branch_id} className="logistics-list-row">
+                    <div>
+                      <strong>{b.branch_name}</strong> - {b.contact_number}<br/>
+                      <small>{b.city_municipality}, {b.province}</small>
+                    </div>
+                    <button type="button" className="logistics-delete-btn" title="Delete branch"
+                      onClick={() => handleDelete("branch", b.branch_id, b.branch_name)}>
+                      <Trash2 size={16} />
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -149,9 +165,15 @@ export default function LogisticsManagementPage() {
               </div>
               <ul className="logistics-list">
                 {couriers.map(c => (
-                  <li key={c.courier_id}>
-                    <strong>{c.full_name}</strong> - {c.phone_number}<br/>
-                    <small>{c.vehicle_type} • Branch: {branches.find(b => b.branch_id === c.assigned_branch_id)?.branch_name || 'None'}</small>
+                  <li key={c.courier_id} className="logistics-list-row">
+                    <div>
+                      <strong>{c.full_name}</strong> - {c.phone_number}<br/>
+                      <small>{c.vehicle_type} • Branch: {branches.find(b => b.branch_id === c.assigned_branch_id)?.branch_name || 'None'}</small>
+                    </div>
+                    <button type="button" className="logistics-delete-btn" title="Delete courier"
+                      onClick={() => handleDelete("courier", c.courier_id, c.full_name)}>
+                      <Trash2 size={16} />
+                    </button>
                   </li>
                 ))}
               </ul>
