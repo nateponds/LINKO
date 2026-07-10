@@ -73,14 +73,18 @@ or UI decisions around money, inventory, and delivery exceptions.
   - logistics coordinator
   - wholesaler
   - platform admin
-- [ ] Define how `Returned` parcel tracking affects order status.
+- [x] Define how `Returned` parcel tracking affects order status — resolved in
+      `docs/delivery-status-logistics.md`: failed delivery maps a linked shipped
+      order to terminal `returned` and notifies both businesses.
 - [ ] Decide whether orders need new statuses beyond `delivered` and
       `cancelled`, such as `return_requested` or `refunded`.
 - [ ] Define refund ownership:
   - who approves
   - who pays
   - how invoices are displayed
-  - whether commission is reversed
+  - whether commission is reversed — resolved for this scope: no reversal;
+    commissions/remittances remain DB-layer-only and scope-frozen per
+    `docs/course-deliverable.md`
 - [ ] Define inventory behavior for returned goods:
   - no restock
   - manual restock

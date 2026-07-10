@@ -208,9 +208,9 @@ All endpoints require authentication (`401` unauthenticated). Roles: `buyer`, `w
 
 Order status lifecycle is server-enforced:
 
-`pending → accepted | cancelled`, `accepted → preparing`, `preparing → shipped`, `shipped → delivered`.
+`pending → accepted | cancelled`, `accepted → preparing`, `preparing → shipped`, `shipped → delivered | returned`.
 
-Invalid skips/backwards transitions return `400`. Buyers may cancel only their own pending orders. Wholesalers may accept/reject and advance only incoming orders for their business **up to `shipped`** — `shipped → delivered` happens automatically when a courier logs a `Delivered` tracking scan on the linked parcel (see §3.6 and `docs/delivery-status-logistics.md`); wholesalers requesting `delivered` get `403`. Platform admins can view all orders and invoices and may perform any valid transition as a manual override.
+Invalid skips/backwards transitions return `400`. Buyers may cancel only their own pending orders. Wholesalers may accept/reject and advance only incoming orders for their business **up to `shipped`**. The terminal `delivered` and `returned` outcomes are tracking-driven: an authorized `Delivered` or `Returned` scan on the linked parcel performs the corresponding order transition (see §3.6 and `docs/delivery-status-logistics.md`). Wholesalers requesting either outcome get `403`. Platform admins can view all orders and invoices and may perform either valid transition as a manual override; a manual `returned` override notifies both businesses with generic failed-delivery wording.
 
 **Order JSON shape:**
 
@@ -304,7 +304,7 @@ Roles: `buyer`, `wholesaler`, or `platform_admin` (admin acts as a manual overri
 
 Accepting an order decrements each product's `stock_quantity` in the same transaction and generates exactly one invoice. If any line lacks enough stock, the request returns `400` and neither stock nor invoices change. Rejecting an order uses status `cancelled`.
 
-Marking an order `shipped` auto-creates a parcel (with `order_id` set, migration 009) plus its payment row and an `'Order Created'` tracking log; the parcel then appears in the courier pickup pool (§3.1).
+Marking an order `shipped` auto-creates a parcel (with `order_id` set, migration 009) plus its payment row and an `'Order Created'` tracking log; the parcel then appears in the courier pickup pool (§3.1). Marketplace checkout does not collect physical package weight or route distance, so this bridge snapshots the frozen order-item subtotal into `parcels.declared_value` and uses the selected service tier's quoted `base_fee` as `parcels.shipping_fee`. The payment trigger therefore produces the same goods-plus-tier total as the accepted invoice. Standalone `POST /api/parcels` bookings continue to use the full weight-and-distance shipping formula.
 
 Returns the updated order.
 
@@ -499,6 +499,6 @@ Courier identity is server-side: a courier caller's scan is stamped with their o
 
 Courier-role updates are forward-only across `Order Created → Picked Up → In Transit → Out for Delivery → Delivered/Returned`. A courier cannot append an earlier lifecycle phase, cannot submit `Cancelled`, and cannot append any update after `Delivered` or `Returned`. Coordinators/admins may still override status history for operational corrections, including temporary `Cancelled` parcel logs.
 
-Side effect: a `Delivered` scan on a parcel with an `order_id` flips that order from `shipped` to `delivered` in the same transaction and notifies the buyer ("Order Delivered").
+Side effects on a parcel with an `order_id` are transactional and apply to courier, coordinator, and admin tracking updates. A `Delivered` scan flips a linked order from `shipped` to terminal `delivered` and notifies the buyer ("Order Delivered"). A `Returned` scan flips a linked order from `shipped` to terminal `returned` and sends warning notifications to both buyer and wholesaler. When tracking remarks are present, both returned-order messages include them. If the linked order is not `shipped`, the order update and notifications are silently skipped.
 
 **Response Body (`201 Created`):** the inserted `tracking_logs` row.
