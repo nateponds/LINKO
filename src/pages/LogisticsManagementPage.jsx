@@ -61,11 +61,13 @@ export default function LogisticsManagementPage() {
 
   const handleDelete = async (kind, id, name) => {
     if (!window.confirm(`Delete ${kind} "${name}"?`)) return;
+    const setScopedError = kind === "branch" ? setBranchError : setCourierError;
+    setScopedError(null);
     try {
       await apiSend(`/api/${kind === "branch" ? "branches" : "couriers"}/${id}`, { method: "DELETE" });
       await refreshData();
     } catch (err) {
-      setError(err.message);
+      setScopedError(err.message);
     }
   };
 
