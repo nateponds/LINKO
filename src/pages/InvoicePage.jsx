@@ -12,6 +12,7 @@ const STATUS_LABELS = {
   preparing: "Preparing",
   shipped: "Shipped",
   delivered: "Delivered",
+  returned: "Returned",
   cancelled: "Cancelled",
   canceled: "Cancelled",
   rejected: "Rejected",
@@ -46,6 +47,7 @@ function timelineFor(invoice) {
   const status = normalizeStatus(invoice?.order_status);
 
   if (
+    status === "returned" ||
     status === "cancelled" ||
     status === "canceled" ||
     status === "rejected"
@@ -53,7 +55,10 @@ function timelineFor(invoice) {
     return [
       {
         title: statusLabel(invoice.order_status),
-        meta: `Order ${statusLabel(invoice.order_status).toLowerCase()} after invoice issuance`,
+        meta:
+          status === "returned"
+            ? "Delivery failed; order returned to sender"
+            : `Order ${statusLabel(invoice.order_status).toLowerCase()} after invoice issuance`,
         state: "current",
       },
       {
