@@ -174,7 +174,11 @@ Riders/drivers for parcel movement.
 - `user_id` (INT FK -> users, links rider to user account)
 
 ### `parcels`
-Master package record. `shipping_fee` is populated by trigger using `service_tiers`.
+Master package record. Standalone logistics bookings have `shipping_fee`
+populated by the tier-pricing trigger. Marketplace-generated parcels explicitly
+snapshot the order-item subtotal into `declared_value` and the selected tier's
+quoted `base_fee` into `shipping_fee`, because marketplace checkout does not
+collect physical package weight or route distance.
 - `parcel_id` (VARCHAR 20 PRIMARY KEY)
 - `sender_id` (INT FK -> businesses)
 - `receiver_id` (INT FK -> businesses)

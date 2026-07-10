@@ -304,7 +304,7 @@ Roles: `buyer`, `wholesaler`, or `platform_admin` (admin acts as a manual overri
 
 Accepting an order decrements each product's `stock_quantity` in the same transaction and generates exactly one invoice. If any line lacks enough stock, the request returns `400` and neither stock nor invoices change. Rejecting an order uses status `cancelled`.
 
-Marking an order `shipped` auto-creates a parcel (with `order_id` set, migration 009) plus its payment row and an `'Order Created'` tracking log; the parcel then appears in the courier pickup pool (§3.1).
+Marking an order `shipped` auto-creates a parcel (with `order_id` set, migration 009) plus its payment row and an `'Order Created'` tracking log; the parcel then appears in the courier pickup pool (§3.1). Marketplace checkout does not collect physical package weight or route distance, so this bridge snapshots the frozen order-item subtotal into `parcels.declared_value` and uses the selected service tier's quoted `base_fee` as `parcels.shipping_fee`. The payment trigger therefore produces the same goods-plus-tier total as the accepted invoice. Standalone `POST /api/parcels` bookings continue to use the full weight-and-distance shipping formula.
 
 Returns the updated order.
 
