@@ -180,8 +180,8 @@ INSERT INTO branches (branch_name, address_id, contact_number) VALUES
 -- 8. COURIERS (2) — one per branch, linked to user accounts
 -- ---------------------------------------------------------------------------
 INSERT INTO couriers (full_name, phone_number, vehicle_type, assigned_branch_id, user_id) VALUES
-  ('Cory Courier',  '+639170000004', 'motorcycle', 1, 4),   -- 1  courier_demo, Cebu hub
-  ('Carlo Courier', '+639170000009', 'van',        2, 9);   -- 2  courier2_demo, Mandaue hub
+  ('Cory Courier',  '+639170000004', 'Motorcycle', 1, 4),   -- 1  courier_demo, Cebu hub
+  ('Carlo Courier', '+639170000009', 'Van',        2, 9);   -- 2  courier2_demo, Mandaue hub
 
 -- ---------------------------------------------------------------------------
 -- 9. ORDERS (5) — spread across statuses
@@ -244,6 +244,11 @@ INSERT INTO parcels (parcel_id, order_id, sender_id, receiver_id, tier_id,
   ('LKO-00000001', 3, 2, 8, 1, 2, 10, 8.50, '40x30x25 cm', NULL, 10380.00, 50.00,  NOW()::date + 3),   -- shipped order 3
   ('LKO-00000002', 4, 7, 1, 3, 8, 1,  4.20, '30x25x20 cm', NULL,  3960.00, 150.00, NOW()::date - 5),   -- delivered order 4 (clean journey)
   ('LKO-00000003', 5, 7, 6, 2, 8, 7,  5.50, '35x25x20 cm', NULL,  2800.00, 90.00,  NOW()::date - 2);   -- returned order 5 (failed journey)
+
+-- Advance the parcel-ID sequence past the hardcoded LKO- seeds so the next
+-- app-minted nextParcelId() does not collide with parcels_pkey (migration 016
+-- setval runs before this seed, so it cannot see these rows).
+SELECT setval('parcel_id_seq', 3, true);
 
 -- ---------------------------------------------------------------------------
 -- 13. TRACKING_LOGS — realistic progression
