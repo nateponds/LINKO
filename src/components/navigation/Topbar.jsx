@@ -32,19 +32,21 @@ function Topbar({ showSearch = false }) {
   const navigate = useNavigate();
   const {
     user,
-    memberships,
+    businesses,
     activeBusinessId,
-    activeMembership,
+    activeBusiness,
+    activeRoles,
     setActiveBusiness,
     logout,
     hasAnyRole,
   } = useAuth();
   const qParam = searchParams.get("q") ?? "";
   const displayName = user?.full_name || user?.email || "LINKO User";
-  const displayBusiness = activeMembership?.business_name || "No business assigned";
-  const displayRole = formatRoleLabel(
-    user?.global_role === "platform_admin" ? user.global_role : activeMembership?.role,
-  );
+  const displayBusiness = activeBusiness?.business_name || "No business assigned";
+  const displayRole =
+    user?.global_role === "platform_admin"
+      ? formatRoleLabel("platform_admin")
+      : activeRoles.map(formatRoleLabel).join(", ") || "Member";
   const avatarLetter = displayName.charAt(0).toUpperCase();
 
   function submitSearch(event) {
@@ -126,7 +128,7 @@ function Topbar({ showSearch = false }) {
       <div className="topbar">
         <span>
           Signed in as <strong>{displayName}</strong>
-          {memberships.length > 1 ? (
+          {businesses.length > 1 ? (
             <>
               {" - "}
               <select
@@ -135,12 +137,12 @@ function Topbar({ showSearch = false }) {
                 value={activeBusinessId ?? ""}
                 onChange={(event) => setActiveBusiness(event.target.value)}
               >
-                {memberships.map((membership) => (
+                {businesses.map((business) => (
                   <option
-                    key={membership.business_id}
-                    value={membership.business_id}
+                    key={business.business_id}
+                    value={business.business_id}
                   >
-                    {membership.business_name} ({formatRoleLabel(membership.role)})
+                    {business.business_name} ({business.roles.map(formatRoleLabel).join(", ")})
                   </option>
                 ))}
               </select>

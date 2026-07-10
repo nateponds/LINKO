@@ -60,10 +60,14 @@ export function getActiveMembership(req, roles) {
     return membership;
   }
 
-  if (matches.length === 1) {
+  // Gate on distinct businesses, not membership rows: a single business with
+  // several roles (e.g. a buyer+wholesaler `both`) resolves automatically. Only
+  // a genuinely ambiguous multi-business caller with no header gets 400.
+  const distinctBusinessIds = new Set(matches.map((m) => m.business_id));
+  if (distinctBusinessIds.size === 1) {
     return matches[0];
   }
-  if (matches.length > 1) {
+  if (distinctBusinessIds.size > 1) {
     throw createHttpError(400, "Multiple businesses available; select one via X-Active-Business");
   }
 
@@ -72,6 +76,28 @@ export function getActiveMembership(req, roles) {
     403,
     label ? `You must belong to a ${label} business` : "You must belong to a business",
   );
+}
+
+// Resolves the id of the business the caller is acting as, independent of role.
+//   - X-Active-Business header if present (validated against memberships).
+//   - Else the caller's single distinct business.
+//   - Else (multiple distinct businesses, no header) throws 400.
+// Returns null only when the caller has no memberships at all.
+export function resolveActiveBusinessId(req) {
+  const headerBusinessId = readActiveBusinessHeader(req);
+  if (headerBusinessId !== null) {
+    return headerBusinessId;
+  }
+  const distinctBusinessIds = new Set(
+    req.auth.memberships.map((m) => m.business_id),
+  );
+  if (distinctBusinessIds.size === 1) {
+    return [...distinctBusinessIds][0];
+  }
+  if (distinctBusinessIds.size > 1) {
+    throw createHttpError(400, "Multiple businesses available; select one via X-Active-Business");
+  }
+  return null;
 }
 
 // True when the caller is a platform admin or a member of `businessId`.
