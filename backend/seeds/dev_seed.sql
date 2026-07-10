@@ -39,6 +39,23 @@ ALTER SEQUENCE tracking_logs_log_id_seq RESTART WITH 1;
 ALTER SEQUENCE payments_payment_id_seq RESTART WITH 1;
 ALTER SEQUENCE notifications_notification_id_seq RESTART WITH 1;
 
+-- A fresh schema contains no delivery tiers. Keep the stable IDs used by the
+-- demo orders and parcels, while making this safe to re-run.
+INSERT INTO service_tiers
+  (tier_id, tier_name, base_fee, base_rate_per_kg, rate_per_km, estimated_days)
+VALUES
+  (1, 'Standard', 50.00, 20.00, 2.00, 5),
+  (2, 'Express', 90.00, 30.00, 3.00, 2),
+  (3, 'Next-Day', 150.00, 40.00, 4.00, 1)
+ON CONFLICT (tier_id) DO UPDATE SET
+  tier_name = EXCLUDED.tier_name,
+  base_fee = EXCLUDED.base_fee,
+  base_rate_per_kg = EXCLUDED.base_rate_per_kg,
+  rate_per_km = EXCLUDED.rate_per_km,
+  estimated_days = EXCLUDED.estimated_days;
+
+SELECT setval('service_tiers_tier_id_seq', 3, true);
+
 -- Shared password hash for all demo accounts — plaintext is "password"
 -- Hash: scrypt(ln=14,r=8,p=1)
 
