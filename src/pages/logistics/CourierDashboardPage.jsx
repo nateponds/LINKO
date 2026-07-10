@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Search, MapPin, Package } from "lucide-react";
 import { Link } from "react-router-dom";
-import AppLayout from "../layouts/AppLayout";
-import { apiGet, apiSend } from "../lib/api";
-import { statusClass, shortDate } from "../lib/format";
-import "./LogisticsPage.css";
+import AppLayout from "../../layouts/AppLayout";
+import { apiGet, apiSend } from "../../lib/api";
+import { statusClass, shortDate } from "../../lib/format";
+import "./logistics.css";
 
 const TERMINAL_STATUSES = ["Delivered", "Returned", "Cancelled"];
 
