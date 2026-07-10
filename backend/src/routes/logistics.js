@@ -106,12 +106,6 @@ router.use(
   requireAnyRole(["buyer", "wholesaler", "logistics_coordinator", "courier", "platform_admin"]),
 );
 
-router.use(
-  "/businesses",
-  requireAuth,
-  requireAnyRole(["wholesaler", "logistics_coordinator", "courier", "platform_admin"]),
-);
-
 // Branches and couriers are logistics reference data. Reads (GET) were
 // previously UNAUTHENTICATED; gate the whole path so only logistics-adjacent
 // roles may read. Writes add their own tighter role guard per-route below.
@@ -453,28 +447,6 @@ router.get("/service-tiers", async (_req, res) => {
            rate_per_km::float8, estimated_days
       FROM service_tiers
      ORDER BY tier_id`);
-
-  res.json(rows);
-});
-
-// Businesses with their addresses -- the book-a-parcel form needs both to
-// fill sender/receiver and origin/destination selects.
-router.get("/businesses", async (_req, res) => {
-  const { rows } = await query(`
-    SELECT b.business_id, b.business_name, b.contact_number, b.business_type,
-           COALESCE(json_agg(json_build_object(
-                      'address_id', a.address_id,
-                      'province', a.province,
-                      'city_municipality', a.city_municipality,
-                      'barangay', a.barangay,
-                      'street_address', a.street_address,
-                      'postal_code', a.postal_code)
-                    ORDER BY a.address_id)
-                    FILTER (WHERE a.address_id IS NOT NULL), '[]') AS addresses
-      FROM businesses b
-      LEFT JOIN addresses a ON a.business_id = b.business_id
-     GROUP BY b.business_id
-     ORDER BY b.business_id`);
 
   res.json(rows);
 });

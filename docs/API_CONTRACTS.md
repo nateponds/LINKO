@@ -457,31 +457,9 @@ Book a parcel. The database fills `shipping_fee` (tier pricing trigger), `paymen
 ]
 ```
 
-### 3.5 `GET /api/businesses`
+### 3.5 (removed)
 
-Businesses with their addresses — feeds the book-a-parcel form's sender/receiver and origin/destination selects.
-
-```json
-[
-  {
-    "business_id": 1,
-    "full_name": "John's Pork",
-    "phone_number": "0917-555-0101",
-    "email": "orders@johnspork.ph",
-    "business_type": "msme",
-    "addresses": [
-      {
-        "address_id": 1,
-        "province": "Cebu",
-        "city_municipality": "Cebu City",
-        "barangay": "Mabolo",
-        "street_address": "12 Pork Ave",
-        "postal_code": "6000"
-      }
-    ]
-  }
-]
-```
+`GET /api/businesses` was deleted with the standalone booking surface (Sprint 8); it fed only the retired book-a-parcel form. Section number retained so later references (§3.6) stay stable.
 
 ### 3.6 `POST /api/parcels/:id/tracking`
 
