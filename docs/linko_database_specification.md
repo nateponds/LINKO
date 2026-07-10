@@ -122,7 +122,7 @@ Marketplace orders between buyers and wholesalers.
 - `buyer_business_id` (INT FK -> businesses)
 - `wholesaler_business_id` (INT FK -> businesses)
 - `tier_id` (INT FK -> service_tiers)
-- `status` (VARCHAR 20, check: pending, accepted, preparing, shipped, delivered, cancelled)
+- `status` (VARCHAR 20, check: pending, accepted, preparing, shipped, delivered, cancelled, returned)
 - `created_by` (INT FK -> users)
 - `created_at` (TIMESTAMP)
 - `updated_at` (TIMESTAMP)
