@@ -1,8 +1,8 @@
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, MoreVertical } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiGet } from "../../lib/api";
-import { imageForCategory } from "../../lib/categoryImages";
+import { iconForCategory } from "../../lib/categoryIcons";
 
 function SubNav() {
   const containerRef = useRef(null);
@@ -58,42 +58,54 @@ function SubNav() {
   }
 
   return (
-    <>
-      <nav className="sub-nav-wrapper">
-        <button
-          className="nav-arrow"
-          type="button"
-          onClick={() => scrollNav(-1)}
-          disabled={!canScrollBack}
-          aria-label="Scroll categories backward"
-        >
-          <ArrowLeft size={20} />
-        </button>
+    <nav className="sub-nav-wrapper">
+      <button
+        className="nav-arrow"
+        type="button"
+        onClick={() => scrollNav(-1)}
+        disabled={!canScrollBack}
+        aria-label="Scroll categories backward"
+      >
+        <ArrowLeft size={20} />
+      </button>
 
-        <div className="circle-container" ref={containerRef} onScroll={updateScrollButtons}>
-          {categories.map((item) => (
-            <Link
-              className="circle-btn"
-              to={`/?category=${encodeURIComponent(item.category_name)}`}
-              key={item.category_id}
-            >
-              <img src={imageForCategory(item.category_name, 160)} alt="" aria-hidden="true" />
-              <span>{item.category_name}</span>
-            </Link>
-          ))}
-        </div>
+      <div className="category-row" ref={containerRef} onScroll={updateScrollButtons}>
+        {categories.map((item, index) => {
+          const Icon = iconForCategory(item.category_name);
+          return (
+            <div className="category-item-wrap" key={item.category_id}>
+              <Link
+                className="category-pill"
+                to={`/?category=${encodeURIComponent(item.category_name)}`}
+              >
+                <span className="category-icon-circle">
+                  <Icon size={24} strokeWidth={1.75} />
+                </span>
+                <span className="category-text">
+                  <span className="category-name">{item.category_name}</span>
+                  <span className="category-count">
+                    {item.product_count ?? 0} Product{item.product_count === 1 ? "" : "s"}
+                  </span>
+                </span>
+              </Link>
+              {index < categories.length - 1 && (
+                <MoreVertical size={16} className="category-divider" aria-hidden="true" />
+              )}
+            </div>
+          );
+        })}
+      </div>
 
-        <button
-          className="nav-arrow"
-          type="button"
-          onClick={() => scrollNav(1)}
-          disabled={!canScrollNext}
-          aria-label="Scroll categories forward"
-        >
-          <ArrowRight size={20} />
-        </button>
-      </nav>
-    </>
+      <button
+        className="nav-arrow"
+        type="button"
+        onClick={() => scrollNav(1)}
+        disabled={!canScrollNext}
+        aria-label="Scroll categories forward"
+      >
+        <ArrowRight size={20} />
+      </button>
+    </nav>
   );
 }
 
