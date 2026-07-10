@@ -219,10 +219,11 @@ INSERT INTO invoices (order_id, invoice_number, total, issued_at) VALUES
 INSERT INTO parcels (parcel_id, order_id, sender_id, receiver_id, tier_id,
                      origin_address_id, destination_address_id,
                      weight_kg, dimensions, total_distance_km,
+                     declared_value, shipping_fee,
                      estimated_delivery_date) VALUES
-  ('LKO-00000001', 3, 2, 8, 1, 2, 10, 8.50, '40x30x25 cm', 6.2,  NOW()::date + 3),   -- shipped order 3
-  ('LKO-00000002', 4, 7, 1, 3, 8, 1,  4.20, '30x25x20 cm', 8.7,  NOW()::date - 5),   -- delivered order 4
-  ('LKO-00000003', 5, 7, 6, 2, 8, 7,  5.50, '35x25x20 cm', 14.3, NOW()::date - 2);   -- returned order 5
+  ('LKO-00000001', 3, 2, 8, 1, 2, 10, 8.50, '40x30x25 cm', 6.2,  10380.00, 50.00,  NOW()::date + 3),   -- shipped order 3
+  ('LKO-00000002', 4, 7, 1, 3, 8, 1,  4.20, '30x25x20 cm', 8.7,   3960.00, 150.00, NOW()::date - 5),   -- delivered order 4
+  ('LKO-00000003', 5, 7, 6, 2, 8, 7,  5.50, '35x25x20 cm', 14.3,  2800.00, 90.00,  NOW()::date - 2);   -- returned order 5
 
 -- ---------------------------------------------------------------------------
 -- 13. TRACKING_LOGS — realistic progression
