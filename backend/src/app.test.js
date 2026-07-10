@@ -38,6 +38,39 @@ async function loginAs(email, password = "Password123!") {
   return response.setCookie.split(";")[0];
 }
 
+// Full teardown for a self-registered account. /api/auth/register creates a
+// user AND a business; deleting only the user orphans the business (nothing
+// FK-references it back), which leaks a businesses row per test run. Resolve
+// the business via user_businesses first, then delete FK-safe.
+async function deleteRegisteredUser(email) {
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+  try {
+    const { rows } = await pool.query(
+      "SELECT user_id FROM users WHERE email = $1",
+      [email],
+    );
+    if (!rows.length) {
+      return;
+    }
+    const userId = rows[0].user_id;
+    const { rows: bizRows } = await pool.query(
+      "SELECT business_id FROM user_businesses WHERE user_id = $1",
+      [userId],
+    );
+    const businessIds = bizRows.map((r) => r.business_id);
+    await pool.query("DELETE FROM business_memberships WHERE user_id = $1", [userId]);
+    await pool.query("DELETE FROM user_businesses WHERE user_id = $1", [userId]);
+    await pool.query("DELETE FROM auth_sessions WHERE user_id = $1", [userId]);
+    await pool.query("DELETE FROM users WHERE user_id = $1", [userId]);
+    if (businessIds.length) {
+      await pool.query("DELETE FROM businesses WHERE business_id = ANY($1)", [businessIds]);
+    }
+  } finally {
+    await pool.end();
+  }
+}
+
 test("health route reports ok", async () => {
   const response = await request("/health");
 
@@ -420,10 +453,7 @@ test("auth register creates account, membership, and session", { skip: !hasDb },
   assert.equal(me.status, 200);
   assert.equal(me.body.user.email, uniqueEmail);
 
-  const { createPool } = await import("./db.js");
-  const pool = createPool();
-  await pool.query("DELETE FROM users WHERE email = $1", [uniqueEmail]);
-  await pool.end();
+  await deleteRegisteredUser(uniqueEmail);
 });
 
 test("auth register with business_type both grants buyer and wholesaler memberships", { skip: !hasDb }, async () => {
@@ -456,10 +486,7 @@ test("auth register with business_type both grants buyer and wholesaler membersh
   const meRoles = me.body.memberships.map((m) => m.role).sort();
   assert.deepEqual(meRoles, ["buyer", "wholesaler"]);
 
-  const { createPool } = await import("./db.js");
-  const pool = createPool();
-  await pool.query("DELETE FROM users WHERE email = $1", [uniqueEmail]);
-  await pool.end();
+  await deleteRegisteredUser(uniqueEmail);
 });
 
 test("auth register rejects duplicate email", { skip: !hasDb }, async () => {
@@ -494,10 +521,7 @@ test("auth register rejects duplicate email", { skip: !hasDb }, async () => {
   assert.match(secondRegister.body.error.message, /email already registered/i);
   assert.equal(secondRegister.setCookie, null);
 
-  const { createPool } = await import("./db.js");
-  const pool = createPool();
-  await pool.query("DELETE FROM users WHERE email = $1", [uniqueEmail]);
-  await pool.end();
+  await deleteRegisteredUser(uniqueEmail);
 });
 
 test("auth register rejects public privileged role business types without creating sessions", { skip: !hasDb }, async () => {
