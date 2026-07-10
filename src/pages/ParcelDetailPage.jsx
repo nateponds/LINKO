@@ -3,6 +3,8 @@ import { ArrowLeft } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
 import { peso, shortDate, statusClass } from "../lib/format";
+import { trackingLocationText } from "../lib/trackingTimeline";
+import { selectableTrackingStatuses } from "../lib/statusWorkflow";
 import { useAuth } from "../auth/AuthProvider";
 import { apiGet, apiSend } from "../lib/api";
 import "./LogisticsPage.css";
@@ -46,6 +48,7 @@ export default function ParcelDetailPage() {
   const [formBranch, setFormBranch] = useState("");
   const [formCourier, setFormCourier] = useState("");
   const [formRemarks, setFormRemarks] = useState("");
+  const canUpdateAssignment = hasAnyRole(["logistics_coordinator", "platform_admin"]);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,7 +68,11 @@ export default function ParcelDetailPage() {
         setNotFound(!parcelData);
         setBranches(Array.isArray(branchData) ? branchData : []);
         setCouriers(Array.isArray(courierData) ? courierData : []);
-        if (parcelData) setFormStatus(parcelData.current_status ?? "In Transit");
+        if (parcelData) {
+          setFormStatus(parcelData.current_status ?? "In Transit");
+          setFormBranch(parcelData.latest_branch_id ? String(parcelData.latest_branch_id) : "");
+          setFormCourier(parcelData.latest_courier_id ? String(parcelData.latest_courier_id) : "");
+        }
       } catch (err) {
         if (cancelled) return;
         setError(err.message);
@@ -83,6 +90,36 @@ export default function ParcelDetailPage() {
 
   // Newest first for display; the API sends the history oldest first.
   const timeline = parcel?.tracking_history ? [...parcel.tracking_history].reverse() : [];
+  const filteredCouriers = formBranch
+    ? couriers.filter((courier) => courier.assigned_branch_id === Number(formBranch))
+    : couriers;
+  const statusOptions = selectableTrackingStatuses(parcel?.current_status, canUpdateAssignment);
+  const canLogTrackingUpdate = canUpdateAssignment || statusOptions.length > 0;
+
+  async function handleTrackingSubmit() {
+    if (updating) return;
+    setUpdating(true);
+    setUpdateError(null);
+    try {
+      const body = { status_update: formStatus, remarks: formRemarks };
+      if (canUpdateAssignment) {
+        if (formBranch) body.branch_id = Number(formBranch);
+        if (formCourier) body.courier_id = Number(formCourier);
+      }
+
+      await apiSend(`/api/parcels/${parcelId}/tracking`, { body });
+      const data = await apiGet(`/api/parcels/${parcelId}`);
+      setParcel(data);
+      setFormStatus(data.current_status ?? formStatus);
+      setFormBranch(data.latest_branch_id ? String(data.latest_branch_id) : "");
+      setFormCourier(data.latest_courier_id ? String(data.latest_courier_id) : "");
+      setFormRemarks("");
+    } catch(err) {
+      setUpdateError(err.message);
+    } finally {
+      setUpdating(false);
+    }
+  }
 
   return (
     <AppLayout>
@@ -167,114 +204,99 @@ export default function ParcelDetailPage() {
               </div>
 
               {hasAnyRole(["logistics_coordinator", "platform_admin", "courier"]) && (
-                <div className="update-status-form" style={{ padding: '1.5rem', background: '#f9f9f9', borderRadius: '14px', marginBottom: '1.5rem', border: 'none' }}>
-                  <h3 style={{ margin: '0 0 1rem 0', fontSize: '1rem' }}>Update Tracking</h3>
-                  {updateError && <p style={{ color: '#c0392b', marginBottom: '1rem' }}>{updateError}</p>}
-                  
-                  <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-                    <label style={{ flex: '1 1 150px' }}>
-                      <div style={{ fontSize: '0.875rem', marginBottom: '0.25rem' }}>Status</div>
-                      <select 
-                        value={formStatus} 
-                        onChange={e => setFormStatus(e.target.value)}
-                        style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--color-muted)' }}
-                      >
-                        <option value="Order Created">Order Created</option>
-                        <option value="Picked Up">Picked Up</option>
-                        <option value="In Transit">In Transit</option>
-                        <option value="Out for Delivery">Out for Delivery</option>
-                        <option value="Delivered">Delivered</option>
-                        <option value="Returned">Returned</option>
-                        <option value="Cancelled">Cancelled</option>
-                      </select>
-                    </label>
+                <div className="update-status-form">
+                  <h3>Log Delivery Event</h3>
+                  {updateError && <p className="form-error">{updateError}</p>}
+                  {canLogTrackingUpdate ? (
+                    <>
+                      <div className="update-status-grid">
+                        <label>
+                          <span>Delivery status</span>
+                          <select
+                            value={formStatus}
+                            onChange={e => setFormStatus(e.target.value)}
+                          >
+                            {statusOptions.map((status) => (
+                              <option key={status} value={status}>{status}</option>
+                            ))}
+                          </select>
+                        </label>
 
-                    <label style={{ flex: '1 1 150px' }}>
-                      <div style={{ fontSize: '0.875rem', marginBottom: '0.25rem' }}>Log at Branch</div>
-                      <select 
-                        value={formBranch} 
-                        onChange={e => setFormBranch(e.target.value)}
-                        style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--color-muted)' }}
-                      >
-                        <option value="">-- None --</option>
-                        {branches.map(b => <option key={b.branch_id} value={b.branch_id}>{b.branch_name}</option>)}
-                      </select>
-                    </label>
+                        {canUpdateAssignment && (
+                          <>
+                            <label>
+                              <span>Log at Branch</span>
+                              <select
+                                value={formBranch}
+                                onChange={e => setFormBranch(e.target.value)}
+                              >
+                                <option value="">-- None --</option>
+                                {branches.map(b => <option key={b.branch_id} value={b.branch_id}>{b.branch_name}</option>)}
+                              </select>
+                            </label>
 
-                    <label style={{ flex: '1 1 150px' }}>
-                      <div style={{ fontSize: '0.875rem', marginBottom: '0.25rem' }}>Assign Courier</div>
-                      <select 
-                        value={formCourier} 
-                        onChange={e => setFormCourier(e.target.value)}
-                        style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--color-muted)' }}
+                            <label>
+                              <span>Assign Courier</span>
+                              <select
+                                value={formCourier}
+                                onChange={e => setFormCourier(e.target.value)}
+                              >
+                                <option value="">-- None --</option>
+                                {filteredCouriers.map(c => <option key={c.courier_id} value={c.courier_id}>{c.full_name}</option>)}
+                              </select>
+                            </label>
+                          </>
+                        )}
+                      </div>
+
+                      <label className="update-remarks">
+                        <span>Remarks</span>
+                        <input
+                          type="text"
+                          value={formRemarks}
+                          onChange={e => setFormRemarks(e.target.value)}
+                          placeholder="Delivery notes or return reason"
+                        />
+                      </label>
+
+                      <button
+                        onClick={handleTrackingSubmit}
+                        disabled={updating}
+                        className="update-submit"
                       >
-                        <option value="">-- None --</option>
-                        {couriers.map(c => <option key={c.courier_id} value={c.courier_id}>{c.full_name}</option>)}
-                      </select>
-                    </label>
-                  </div>
-                  
-                  <label style={{ display: 'block', marginBottom: '1rem' }}>
-                    <div style={{ fontSize: '0.875rem', marginBottom: '0.25rem' }}>Remarks</div>
-                    <input 
-                      type="text" 
-                      value={formRemarks} 
-                      onChange={e => setFormRemarks(e.target.value)}
-                      placeholder="Optional remarks"
-                      style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--color-muted)' }}
-                    />
-                  </label>
-                  
-                  <button 
-                    onClick={async () => {
-                      if (updating) return;
-                      setUpdating(true);
-                      setUpdateError(null);
-                      try {
-                        const body = { status_update: formStatus, remarks: formRemarks };
-                        if (formBranch) body.branch_id = Number(formBranch);
-                        if (formCourier) body.courier_id = Number(formCourier);
-                        
-                        await apiSend(`/api/parcels/${parcelId}/tracking`, { body });
-                        // reload
-                        const data = await apiGet(`/api/parcels/${parcelId}`);
-                        setParcel(data);
-                        setFormStatus(data.current_status ?? formStatus);
-                        setFormRemarks("");
-                      } catch(err) {
-                        setUpdateError(err.message);
-                      } finally {
-                        setUpdating(false);
-                      }
-                    }}
-                    disabled={updating}
-                    style={{ background: 'var(--color-primary)', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}
-                  >
-                    {updating ? "Saving..." : "Log Update"}
-                  </button>
+                        {updating ? "Saving..." : "Log Event"}
+                      </button>
+                    </>
+                  ) : (
+                    <p className="form-note">This parcel has reached a final courier outcome.</p>
+                  )}
                 </div>
               )}
 
               <div className="timeline-block">
                 <span className="timeline-heading">Tracking History</span>
                 <ol className="timeline">
-                  {timeline.map((step, i) => (
-                    <li
-                      key={step.scanned_at + step.status_update}
-                      className={`tl-step done ${i === 0 ? "current" : ""}`}
-                    >
-                      <span className="tl-dot" />
-                      <div className="tl-content">
-                        <span className="tl-title">{step.status_update}</span>
-                        <span className="tl-meta">
-                          {longDate(step.scanned_at)}
-                          {step.branch_name ? ` — at ${step.branch_name}` : ""}
-                          {step.courier_name ? ` · ${step.courier_name}` : ""}
-                        </span>
-                        {step.remarks && <span className="tl-remarks">{step.remarks}</span>}
-                      </div>
-                    </li>
-                  ))}
+                  {timeline.map((step, i) => {
+                    const locationText = trackingLocationText(step, parcel);
+
+                    return (
+                      <li
+                        key={step.scanned_at + step.status_update}
+                        className={`tl-step done ${i === 0 ? "current" : ""}`}
+                      >
+                        <span className="tl-dot" />
+                        <div className="tl-content">
+                          <span className="tl-title">{step.status_update}</span>
+                          <span className="tl-meta">
+                            {longDate(step.scanned_at)}
+                            {locationText ? ` - ${locationText}` : ""}
+                            {step.courier_name ? ` - ${step.courier_name}` : ""}
+                          </span>
+                          {step.remarks && <span className="tl-remarks">{step.remarks}</span>}
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ol>
               </div>
             </section>
