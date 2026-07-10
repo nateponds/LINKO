@@ -70,7 +70,7 @@ and soft-delete semantics (migration 015) that can strand live parcels.
 
 ## Sprint 8: Logistics Workflow Integrity & Buyer Visibility
 
-**Status:** Committed
+**Status:** Done
 **Priority:** High
 **Goal:** Make the graded demo path honest end to end — real weights, moving
 payment status, evidence-bearing terminal scans, and delivery visibility for
@@ -80,25 +80,25 @@ Depends on nothing in Sprint 7; the two ship as separate reviewable PRs.
 
 ### Tasks
 
-- [ ] Ship-time weight entry: the wholesaler provides `weight_kg` (and optional
+- [x] Ship-time weight entry: the wholesaler provides `weight_kg` (and optional
       `dimensions`) when marking an order `shipped` — replaces the hardcoded
       10.0 kg / 15.0 km placeholders, so the commission bracket freezes from a
       real weight. `shipping_fee` stays the frozen checkout quote (per commit
       `ce24e68`; defend in report as "fee quoted at checkout, weight recorded
       at handoff"). Distance becomes `NULL`; ETA derives from the tier's
       `estimated_days`, not `CURRENT_DATE + 5`.
-- [ ] Method-honest payment lifecycle (gate stays unenforced per
+- [x] Method-honest payment lifecycle (gate stays unenforced per
       `docs/course-deliverable.md`): `Prepaid`/`Online` → `Paid` + `paid_at`
       at booking; `COD` → `Paid` on the `Delivered` scan, `Failed` on
       `Returned`. All inside the existing transactions.
-- [ ] Remarks-as-POD: courier `Delivered` and `Returned` scans require
+- [x] Remarks-as-POD: courier `Delivered` and `Returned` scans require
       non-empty remarks (`400` otherwise) — "Received by <name>" / failure
       reason. Parcel detail labels the field per selected status; courier
       dashboard quick actions for those two statuses prompt for remarks
       instead of sending a canned string (absorbs Sprint 4's "quick actions
       match status rules" task). Signature/photo POD and attempt/retry cycles
       stay deferred with RMA.
-- [ ] Buyer tracking modal (absorbs Sprint 4's buyer-visibility task): buyers
+- [x] Buyer tracking modal (absorbs Sprint 4's buyer-visibility task): buyers
       get a read-only tracking view for their own deliveries without entering
       the logistics workspace — no Logistics nav, no parcel list.
   - `GET /api/orders/:id` exposes `parcel_id` (LEFT JOIN parcels).
@@ -108,19 +108,19 @@ Depends on nothing in Sprint 7; the two ship as separate reviewable PRs.
   - Orders UI: "Track parcel" on shipped/delivered/returned orders opens a
     modal rendering the tracking timeline (reuse the parcel-detail timeline
     pieces).
-- [ ] Delete the dead standalone booking surface: `BookParcelPage.jsx`
+- [x] Delete the dead standalone booking surface: `BookParcelPage.jsx`
       (unrouted, calls the removed `/api/customers`), the `/logistics/book`
       redirect, `GET /api/businesses` (feeds nothing else), and API_CONTRACTS
       §3.5. `POST /api/parcels` stays as the API-level demo of the pricing/
       commission triggers.
-- [ ] Update the demo script and seed data for one clean delivery journey and
+- [x] Update the demo script and seed data for one clean delivery journey and
       one failed-delivery journey, exercising the new surface end to end:
       ship-time weight entry, payment status transitions, POD remarks, buyer
       tracking modal, coordinator correction (salvaged from retired Sprint 4).
-- [ ] Update docs: API_CONTRACTS (§3.6 POD rule + buyer scope, orders
+- [x] Update docs: API_CONTRACTS (§3.6 POD rule + buyer scope, orders
       `parcel_id`, §3.5 removal) and delivery-status-logistics.md (courier
       write scope, POD, payment lifecycle, buyer modal).
-- [ ] Tests: buyer sees own parcel via its order and `404`s on others';
+- [x] Tests: buyer sees own parcel via its order and `404`s on others';
       remarks enforcement on terminal courier scans; payment transitions per
       method; shipped order carries the entered weight.
 
