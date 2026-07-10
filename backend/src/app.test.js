@@ -1220,9 +1220,12 @@ test("Returned tracking updates a shipped order and notifies both businesses", {
         buyerAddress.rows[0].address_id,
       ],
     );
+    // branch_id must match the acting courier's assigned branch (1, Cebu) --
+    // courier write-scope requires a non-null branch match, no NULL-to-NULL
+    // pool visibility (Sprint 7 anti-leak contract change).
     await pool.query(
-      `INSERT INTO tracking_logs (parcel_id, status_update, remarks)
-       VALUES ($1, 'Out for Delivery', 'Courier attempted delivery')`,
+      `INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id)
+       VALUES ($1, 'Out for Delivery', 'Courier attempted delivery', 1)`,
       [parcelId],
     );
 
