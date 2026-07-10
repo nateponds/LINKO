@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import AppLayout from "../layouts/AppLayout";
-import { peso } from "../lib/format";
-import "./LogisticsPage.css";
+import AppLayout from "../../layouts/AppLayout";
+import { peso } from "../../lib/format";
+import "./logistics.css";
 
 /* Book-a-parcel form (Sprint 2-CD). POSTs to /api/parcels; the database
    triggers compute the shipping fee, payment total, and commission. The

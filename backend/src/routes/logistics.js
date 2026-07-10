@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { query, getPool } from "../db.js";
+import { query, getPool, nextParcelId } from "../db.js";
 import { requireAnyRole, requireAuth } from "../middleware/auth.js";
 import {
   getActiveMembership,
@@ -8,6 +8,27 @@ import {
 import { notifyBusiness } from "../services/notify.js";
 
 const router = Router();
+
+const TRACKING_STATUS_RANK = {
+  "Order Created": 0,
+  "Picked Up": 1,
+  "In Transit": 2,
+  "Out for Delivery": 3,
+  Delivered: 4,
+  Returned: 4,
+  Cancelled: 4,
+};
+const VALID_TRACKING_STATUSES = [
+  "Order Created",
+  "Picked Up",
+  "In Transit",
+  "Out for Delivery",
+  "Delivered",
+  "Returned",
+  "Cancelled",
+];
+const COURIER_TRACKING_STATUSES = new Set(VALID_TRACKING_STATUSES.filter((status) => status !== "Cancelled"));
+const TERMINAL_TRACKING_STATUSES = new Set(["Delivered", "Returned", "Cancelled"]);
 
 // Course-deliverable routes (Sprint 2-CD): expose the 002/003 logistics
 // subsystem for the demo UI. Shapes documented in docs/API_CONTRACTS.md.
@@ -22,16 +43,56 @@ function asClientError(error) {
   return error;
 }
 
+export function canCourierSubmitTrackingStatus(currentStatus, nextStatus) {
+  if (!COURIER_TRACKING_STATUSES.has(nextStatus)) {
+    return {
+      allowed: false,
+      message: "Couriers cannot cancel parcels; use Returned for failed delivery outcomes.",
+    };
+  }
+
+  if (!currentStatus) return { allowed: true };
+
+  if (TERMINAL_TRACKING_STATUSES.has(currentStatus)) {
+    return {
+      allowed: false,
+      message: `Courier cannot update terminal parcel status ${currentStatus}`,
+    };
+  }
+
+  if (TRACKING_STATUS_RANK[nextStatus] < TRACKING_STATUS_RANK[currentStatus]) {
+    return {
+      allowed: false,
+      message: `Courier cannot move backward from ${currentStatus} to ${nextStatus}`,
+    };
+  }
+
+  return { allowed: true };
+}
+
 // Current status lives in tracking_logs (latest row by scanned_at), never on
 // parcels -- see docs/LINKO_ERD.md design notes.
 const LATEST_LOG = `
   LEFT JOIN LATERAL (
-    SELECT status_update, scanned_at, courier_id
+    SELECT status_update, scanned_at, courier_id, branch_id
       FROM tracking_logs tl
      WHERE tl.parcel_id = p.parcel_id
-     ORDER BY tl.scanned_at DESC
+     ORDER BY tl.scanned_at DESC, tl.log_id DESC
      LIMIT 1
   ) latest ON TRUE`;
+
+async function findBranchIdByCity(client, cityMunicipality) {
+  if (!cityMunicipality) return null;
+  const { rows } = await client.query(
+    `SELECT b.branch_id
+       FROM branches b
+       JOIN addresses a ON a.address_id = b.address_id
+      WHERE LOWER(a.city_municipality) = LOWER($1)
+      LIMIT 1`,
+    [cityMunicipality],
+  );
+  return rows[0]?.branch_id ?? null;
+}
 
 router.use(
   "/parcels",
@@ -69,7 +130,7 @@ router.use(
 // Row-level parcel visibility for the current caller:
 //   { all: true }              -> logistics_coordinator or platform_admin
 //   { businessIds: [...] }     -> wholesaler: parcels they send OR receive
-//   { courierId: <id|null> }   -> courier: only parcels they are assigned to
+//   { courierId, courierBranchId } -> courier: history plus branch pickup pool
 // Resolved once per request; used to build the WHERE clause in the house style.
 async function parcelScope(req) {
   const { user, memberships } = req.auth;
@@ -85,10 +146,13 @@ async function parcelScope(req) {
   }
 
   const { rows } = await query(
-    "SELECT courier_id FROM couriers WHERE user_id = $1",
+    "SELECT courier_id, assigned_branch_id FROM couriers WHERE user_id = $1 AND is_active",
     [user.user_id],
   );
-  return { courierId: rows[0]?.courier_id ?? null };
+  return {
+    courierId: rows[0]?.courier_id ?? null,
+    courierBranchId: rows[0]?.assigned_branch_id ?? null,
+  };
 }
 
 router.get("/parcels", async (req, res) => {
@@ -102,11 +166,30 @@ router.get("/parcels", async (req, res) => {
     filterClause = `WHERE (p.sender_id = ANY($${params.length}::int[])
                        OR p.receiver_id = ANY($${params.length}::int[]))`;
   } else if (scope.courierId !== undefined && !scope.all) {
-    // Courier sees their own parcels plus the unassigned pickup pool (latest
-    // log has no courier) -- docs/delivery-status-logistics.md. An unlinked
-    // courier account (courierId null) still sees the pool but cannot claim.
+    // Courier sees parcels they have handled plus their branch's unassigned
+    // pickup pool -- docs/delivery-status-logistics.md. A courier with no
+    // assigned branch sees handling history only; see Sprint 7
+    // anti-leak/pool-strictness contract below.
     params.push(scope.courierId);
-    filterClause = `WHERE (latest.courier_id = $${params.length} OR latest.courier_id IS NULL)`;
+    const courierParam = params.length;
+    const historyClause = `EXISTS (SELECT 1 FROM tracking_logs h
+               WHERE h.parcel_id = p.parcel_id AND h.courier_id = $${courierParam})`;
+
+    if (scope.courierBranchId !== null) {
+      params.push(scope.courierBranchId);
+      const branchParam = params.length;
+      filterClause = `WHERE (
+        ${historyClause}
+        OR (latest.courier_id IS NULL
+            AND latest.branch_id = $${branchParam})
+      )`;
+    } else {
+      // No assigned branch -> no pool clause at all: a null-branch courier
+      // sees only parcels present in their own handling history, never any
+      // pickup pool (including branchless-latest-log parcels). See Sprint 7
+      // anti-leak/pool-strictness contract.
+      filterClause = `WHERE (${historyClause})`;
+    }
   }
 
   const { rows } = await query(`
@@ -118,7 +201,8 @@ router.get("/parcels", async (req, res) => {
            p.shipping_fee::float8,
            p.estimated_delivery_date,
            latest.status_update AS current_status,
-           latest.scanned_at    AS last_scanned_at
+           latest.scanned_at    AS last_scanned_at,
+           latest.courier_id    AS latest_courier_id
       FROM parcels p
       JOIN businesses s      ON s.business_id = p.sender_id
       JOIN businesses r      ON r.business_id = p.receiver_id
@@ -155,13 +239,14 @@ router.get("/parcels/:id", async (req, res) => {
                              'amount', pay.amount, 'paid_at', pay.paid_at) AS payment,
            latest.status_update AS current_status,
            latest.courier_id AS latest_courier_id,
+           latest.branch_id AS latest_branch_id,
            (SELECT json_agg(json_build_object(
                       'status_update', tl.status_update,
                       'branch_name', b.branch_name,
                       'courier_name', c.full_name,
                       'remarks', tl.remarks,
                       'scanned_at', tl.scanned_at)
-                    ORDER BY tl.scanned_at)
+                    ORDER BY tl.scanned_at, tl.log_id)
               FROM tracking_logs tl
               LEFT JOIN branches b ON b.branch_id = tl.branch_id
               LEFT JOIN couriers c ON c.courier_id = tl.courier_id
@@ -188,14 +273,32 @@ router.get("/parcels/:id", async (req, res) => {
   // a 404 (not 403) so parcel existence is not leaked -- matches the not-found
   // response above.
   const parcel = rows[0];
+  let courierHistoryVisible = false;
+  if (scope.courierId !== undefined && scope.courierId !== null) {
+    const history = await query(
+      `SELECT EXISTS (
+         SELECT 1 FROM tracking_logs h
+          WHERE h.parcel_id = $1 AND h.courier_id = $2
+       ) AS visible`,
+      [parcel.parcel_id, scope.courierId],
+    );
+    courierHistoryVisible = history.rows[0].visible;
+  }
+
+  const courierPoolVisible =
+    scope.courierId !== undefined &&
+    parcel.latest_courier_id === null &&
+    parcel.latest_branch_id !== null &&
+    scope.courierBranchId !== null &&
+    parcel.latest_branch_id === scope.courierBranchId;
+
   const visible =
     scope.all ||
     (scope.businessIds &&
       (scope.businessIds.includes(parcel.sender_id) ||
         scope.businessIds.includes(parcel.receiver_id))) ||
-    (scope.courierId !== undefined &&
-      (parcel.latest_courier_id === null ||
-        (scope.courierId !== null && parcel.latest_courier_id === scope.courierId)));
+    courierHistoryVisible ||
+    courierPoolVisible;
 
   if (!visible) {
     return res.status(404).json({
@@ -206,7 +309,6 @@ router.get("/parcels/:id", async (req, res) => {
   // Strip the internal-only fields used for the ownership check.
   delete parcel.sender_id;
   delete parcel.receiver_id;
-  delete parcel.latest_courier_id;
 
   res.json(parcel);
 });
@@ -281,16 +383,14 @@ router.post(
     effectiveSenderId = ownBusinessId;
   }
 
-  // ponytail: timestamp-derived tracking number, unique enough for the course
-  // demo; swap for a sequence if bookings ever go concurrent.
-  const parcelId = `LKO-${Date.now().toString().slice(-8)}`;
-
   // One transaction: parcel + payment + first tracking log all appear or
   // none do. The 003 triggers fill shipping_fee, payments.amount, and the
   // commission row along the way.
   const client = await getPool().connect();
   try {
     await client.query("BEGIN");
+
+    const parcelId = await nextParcelId(client);
 
     const { rows } = await client.query(
       `
@@ -321,10 +421,19 @@ router.post(
       [parcelId, payment_method],
     );
 
+    const originAddress = await client.query(
+      "SELECT city_municipality FROM addresses WHERE address_id = $1",
+      [origin_address_id],
+    );
+    const originBranchId = await findBranchIdByCity(
+      client,
+      originAddress.rows[0]?.city_municipality,
+    );
+
     await client.query(
-      `INSERT INTO tracking_logs (parcel_id, status_update, remarks)
-       VALUES ($1, 'Order Created', 'Booking confirmed')`,
-      [parcelId],
+      `INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id)
+       VALUES ($1, 'Order Created', 'Booking confirmed', $2)`,
+      [parcelId, originBranchId],
     );
 
     await client.query("COMMIT");
@@ -376,6 +485,7 @@ router.get("/branches", async (_req, res) => {
            a.province, a.city_municipality, a.barangay, a.street_address
       FROM branches b
       JOIN addresses a ON a.address_id = b.address_id
+     WHERE b.is_active
      ORDER BY b.branch_id`);
   res.json(rows);
 });
@@ -384,6 +494,7 @@ router.get("/couriers", async (_req, res) => {
   const { rows } = await query(`
     SELECT courier_id, full_name, phone_number, vehicle_type, assigned_branch_id
       FROM couriers
+     WHERE is_active
      ORDER BY full_name`);
   res.json(rows);
 });
@@ -392,35 +503,32 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
   const parcelId = req.params.id;
   const { status_update, remarks, branch_id, courier_id } = req.body ?? {};
 
-  const validStatuses = [
-    'Order Created', 'Picked Up', 'In Transit',
-    'Out for Delivery', 'Delivered', 'Returned', 'Cancelled'
-  ];
-
-  if (!validStatuses.includes(status_update)) {
+  if (!VALID_TRACKING_STATUSES.includes(status_update)) {
     return res.status(400).json({
       error: { message: "Invalid status_update" },
     });
   }
 
-  // Couriers act as themselves: stamp courier_id from their linked couriers
-  // row and ignore any client-supplied value (no spoofing, and the scan keeps
-  // the parcel in their list). Coordinators/admins may assign explicitly.
+  // Couriers act as themselves: stamp courier_id and home branch from their
+  // linked couriers row and ignore client-supplied values (no spoofing).
+  // Coordinators/admins may assign explicitly.
   let effectiveCourierId = courier_id || null;
+  let effectiveBranchId = branch_id || null;
   const isPrivileged =
     isPlatformAdmin(req.auth.user) ||
     req.auth.memberships.some((m) => m.role === "logistics_coordinator");
   if (!isPrivileged) {
     const { rows } = await query(
-      "SELECT courier_id FROM couriers WHERE user_id = $1",
+      "SELECT courier_id, assigned_branch_id FROM couriers WHERE user_id = $1 AND is_active",
       [req.auth.user.user_id],
     );
     if (!rows.length) {
       return res.status(403).json({
-        error: { message: "Your account is not linked to a courier profile" },
+        error: { message: "Your account is not linked to an active courier profile" },
       });
     }
     effectiveCourierId = rows[0].courier_id;
+    effectiveBranchId = rows[0].assigned_branch_id ?? null;
   }
 
   // Transaction: the scan and its order side effect commit together.
@@ -428,15 +536,110 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
   try {
     await client.query("BEGIN");
 
+    const lock = await client.query(
+      "SELECT parcel_id FROM parcels WHERE parcel_id = $1 FOR UPDATE",
+      [parcelId],
+    );
+    if (lock.rowCount === 0) {
+      const error = new Error(`Parcel ${parcelId} not found`);
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // Coordinators/admins may assign branch_id/courier_id explicitly from the
+    // body (unlike the courier path below, which is server-stamped) -- so
+    // those client-supplied references need their own active check.
+    if (isPrivileged) {
+      if (effectiveBranchId !== null) {
+        const activeBranch = await client.query(
+          "SELECT 1 FROM branches WHERE branch_id = $1 AND is_active",
+          [effectiveBranchId],
+        );
+        if (!activeBranch.rowCount) {
+          const error = new Error("branch_id must reference an active branch");
+          error.statusCode = 400;
+          throw error;
+        }
+      }
+      if (effectiveCourierId !== null) {
+        const activeCourier = await client.query(
+          "SELECT 1 FROM couriers WHERE courier_id = $1 AND is_active",
+          [effectiveCourierId],
+        );
+        if (!activeCourier.rowCount) {
+          const error = new Error("courier_id must reference an active courier");
+          error.statusCode = 400;
+          throw error;
+        }
+      }
+    }
+
+    if (!isPrivileged) {
+      const current = await client.query(
+        `SELECT status_update, courier_id, branch_id
+           FROM tracking_logs
+          WHERE parcel_id = $1
+          ORDER BY scanned_at DESC, log_id DESC
+          LIMIT 1`,
+        [parcelId],
+      );
+
+      const courierStatusRule = canCourierSubmitTrackingStatus(
+        current.rows[0]?.status_update,
+        status_update,
+      );
+      if (!courierStatusRule.allowed) {
+        const error = new Error(courierStatusRule.message);
+        error.statusCode = 400;
+        throw error;
+      }
+
+      // Write scope mirrors the anti-leak GET: history on this parcel, or an
+      // unassigned branch-pool match by strict equality (no NULL-to-NULL match).
+      const history = await client.query(
+        `SELECT EXISTS (
+           SELECT 1 FROM tracking_logs h
+            WHERE h.parcel_id = $1 AND h.courier_id = $2
+         ) AS visible`,
+        [parcelId, effectiveCourierId],
+      );
+      const latest = current.rows[0];
+      const inBranchPool =
+        !!latest &&
+        latest.courier_id === null &&
+        latest.branch_id !== null &&
+        effectiveBranchId !== null &&
+        latest.branch_id === effectiveBranchId;
+      if (!history.rows[0].visible && !inBranchPool) {
+        const error = new Error(`Parcel ${parcelId} not found`);
+        error.statusCode = 404;
+        throw error;
+      }
+    }
+
+    if (effectiveBranchId === null) {
+      const carried = await client.query(
+        `SELECT branch_id
+           FROM tracking_logs
+          WHERE parcel_id = $1 AND branch_id IS NOT NULL
+          ORDER BY scanned_at DESC, log_id DESC
+          LIMIT 1`,
+        [parcelId],
+      );
+      effectiveBranchId = carried.rows[0]?.branch_id ?? null;
+    }
+
+    // Coordinator/admin logs without courier_id deliberately unassign the
+    // parcel back to the effective branch pool; courier_id is not carried.
     const { rows } = await client.query(
       `INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id, courier_id)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [parcelId, status_update, remarks || null, branch_id || null, effectiveCourierId]
+      [parcelId, status_update, remarks || null, effectiveBranchId, effectiveCourierId]
     );
 
-    // A Delivered scan completes the linked marketplace order and tells the
-    // buyer -- the wholesaler's job ended at 'shipped'
+    // Terminal delivery scans complete the linked marketplace order -- the
+    // wholesaler's fulfillment control ended at 'shipped'
     // (docs/delivery-status-logistics.md).
     if (status_update === "Delivered") {
       const { rows: orderRows } = await client.query(
@@ -456,6 +659,47 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
           "Order Delivered",
           `Order #${orderRows[0].order_id} is now delivered.`,
           "success",
+        );
+      }
+    }
+
+    if (status_update === "Returned") {
+      const { rows: orderRows } = await client.query(
+        `UPDATE orders o
+            SET status = 'returned', updated_at = CURRENT_TIMESTAMP
+           FROM parcels p
+          WHERE p.parcel_id = $1
+            AND o.order_id = p.order_id
+            AND o.status = 'shipped'
+        RETURNING o.order_id, o.buyer_business_id, o.wholesaler_business_id`,
+        [parcelId],
+      );
+      if (orderRows.length) {
+        const order = orderRows[0];
+        const returnReason =
+          typeof remarks === "string"
+            ? remarks.trim().replace(/[.]+$/, "")
+            : "";
+        const buyerMessage = returnReason
+          ? `Delivery failed: ${returnReason}. Order #${order.order_id} returned to sender.`
+          : `Delivery failed — order #${order.order_id} returned to sender.`;
+        const wholesalerMessage = returnReason
+          ? `Parcel for order #${order.order_id} is returning to you. Delivery failed: ${returnReason}.`
+          : `Parcel for order #${order.order_id} is returning to you.`;
+
+        await notifyBusiness(
+          client,
+          order.buyer_business_id,
+          "Delivery Failed — Order Returned",
+          buyerMessage,
+          "warning",
+        );
+        await notifyBusiness(
+          client,
+          order.wholesaler_business_id,
+          "Parcel Returning to Sender",
+          wholesalerMessage,
+          "warning",
         );
       }
     }
@@ -499,6 +743,17 @@ router.post("/branches", requireAnyRole(["logistics_coordinator", "platform_admi
 router.post("/couriers", requireAnyRole(["logistics_coordinator", "platform_admin"]), async (req, res, next) => {
   try {
     const { full_name, phone_number, vehicle_type, assigned_branch_id } = req.body;
+    if (assigned_branch_id) {
+      const active = await query(
+        "SELECT 1 FROM branches WHERE branch_id = $1 AND is_active",
+        [assigned_branch_id],
+      );
+      if (!active.rowCount) {
+        return res.status(400).json({
+          error: { message: "assigned_branch_id must reference an active branch" },
+        });
+      }
+    }
     const { rows } = await query(
       `INSERT INTO couriers (full_name, phone_number, vehicle_type, assigned_branch_id)
        VALUES ($1, $2, $3, $4) RETURNING *`,
@@ -506,6 +761,75 @@ router.post("/couriers", requireAnyRole(["logistics_coordinator", "platform_admi
     );
     res.status(201).json(rows[0]);
   } catch(e) {
+    next(asClientError(e));
+  }
+});
+
+// Soft delete: hide from management lists but keep parcel history intact
+// (tracking_logs still reference the row). Deleting a branch also unassigns
+// its couriers so the courier list does not point at a hidden branch.
+router.delete("/branches/:id", requireAnyRole(["logistics_coordinator", "platform_admin"]), async (req, res, next) => {
+  const client = await getPool().connect();
+  try {
+    await client.query("BEGIN");
+
+    // A branch cannot be deactivated while its unassigned pickup pool is
+    // holding live parcels -- those parcels would resolve to no courier's
+    // scope (courierBranchId no longer matches an active branch) and become
+    // effectively stranded.
+    const stranded = await client.query(
+      `
+      SELECT COUNT(*) AS count
+        FROM parcels p
+        ${LATEST_LOG}
+       WHERE latest.branch_id = $1
+         AND latest.courier_id IS NULL
+         AND latest.status_update <> ALL($2::text[])`,
+      [req.params.id, [...TERMINAL_TRACKING_STATUSES]],
+    );
+    const strandedCount = Number(stranded.rows[0].count);
+    if (strandedCount > 0) {
+      await client.query("ROLLBACK").catch(() => {});
+      return res.status(409).json({
+        error: {
+          message: `Cannot deactivate branch: ${strandedCount} live parcel(s) in its unassigned pool; reassign them first`,
+        },
+      });
+    }
+
+    const { rowCount } = await client.query(
+      "UPDATE branches SET is_active = false WHERE branch_id = $1 AND is_active",
+      [req.params.id]
+    );
+    if (!rowCount) {
+      await client.query("ROLLBACK").catch(() => {});
+      return res.status(404).json({ error: { message: `Branch ${req.params.id} not found` } });
+    }
+    await client.query(
+      "UPDATE couriers SET assigned_branch_id = NULL WHERE assigned_branch_id = $1",
+      [req.params.id]
+    );
+    await client.query("COMMIT");
+    res.status(204).end();
+  } catch (e) {
+    await client.query("ROLLBACK").catch(() => {});
+    next(asClientError(e));
+  } finally {
+    client.release();
+  }
+});
+
+router.delete("/couriers/:id", requireAnyRole(["logistics_coordinator", "platform_admin"]), async (req, res, next) => {
+  try {
+    const { rowCount } = await query(
+      "UPDATE couriers SET is_active = false WHERE courier_id = $1 AND is_active",
+      [req.params.id]
+    );
+    if (!rowCount) {
+      return res.status(404).json({ error: { message: `Courier ${req.params.id} not found` } });
+    }
+    res.status(204).end();
+  } catch (e) {
     next(asClientError(e));
   }
 });
