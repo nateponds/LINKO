@@ -272,7 +272,7 @@ test("courier pickup pool is scoped to their assigned branch", { skip: !hasDb },
   }
 });
 
-test("branchless pool is visible only to a null-branch courier", { skip: !hasDb }, async () => {
+test("branchless pool is invisible to a null-branch courier", { skip: !hasDb }, async () => {
   const branchCourierCookie = await loginAs("courier@linko.test");
   const { createPool } = await import("./db.js");
   const pool = createPool();
@@ -293,10 +293,13 @@ test("branchless pool is visible only to a null-branch courier", { skip: !hasDb 
     });
     assert.ok(!branchCourierList.body.some((parcel) => parcel.parcel_id === parcelId));
 
+    // Sprint 7 anti-leak/pool-strictness: a courier with no assigned branch
+    // gets no pool clause at all, so a branchless-latest-log parcel is never
+    // visible to them -- only parcels in their own handling history are.
     const nullCourierList = await request("/api/parcels", {
       headers: { Cookie: nullBranchCookie },
     });
-    assert.ok(nullCourierList.body.some((parcel) => parcel.parcel_id === parcelId));
+    assert.ok(!nullCourierList.body.some((parcel) => parcel.parcel_id === parcelId));
   } finally {
     if (parcelId) {
       await pool.query("DELETE FROM parcels WHERE parcel_id = $1", [parcelId]);
@@ -383,9 +386,12 @@ test("tracking updates carry forward branch and couriers cannot spoof branch", {
   let parcelId;
   try {
     parcelId = await createParcel(pool);
+    // Pool branch is 1 (Cebu) so courier@ (assigned branch 1) is actually in
+    // scope to act on this parcel -- Sprint 7 anti-leak contract requires a
+    // real non-null branch match, no NULL-to-NULL or cross-branch access.
     await pool.query(
       `INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id, courier_id)
-       VALUES ($1, 'Order Created', 'Starts in Mandaue pool', 2, NULL)`,
+       VALUES ($1, 'Order Created', 'Starts in Cebu pool', 1, NULL)`,
       [parcelId],
     );
 
@@ -395,9 +401,11 @@ test("tracking updates carry forward branch and couriers cannot spoof branch", {
       body: JSON.stringify({ status_update: "In Transit", remarks: "No assignment fields" }),
     });
     assert.equal(coordinatorRemark.status, 201);
-    assert.equal(coordinatorRemark.body.branch_id, 2);
+    assert.equal(coordinatorRemark.body.branch_id, 1);
     assert.equal(coordinatorRemark.body.courier_id, null);
 
+    // Courier claims a spoofed branch_id (2) in the body; the server must
+    // ignore it and stamp their own actual assigned branch (1) instead.
     const courierScan = await request(`/api/parcels/${parcelId}/tracking`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Cookie: courierCookie },
