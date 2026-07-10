@@ -15,16 +15,8 @@ import {
 import { useParams } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
 import { apiGet, apiSend } from "../lib/api";
-import { peso } from "../lib/format";
+import { peso, stockBadge } from "../lib/format";
 import "./SupplierProfilePage.css";
-
-function stockBadge(status) {
-  if (status === "out_of_stock")
-    return { label: "Out of Stock", cls: "out-of-stock" };
-  if (status === "low_stock")
-    return { label: "Low on Stock", cls: "low-on-stock" };
-  return { label: "In Stock", cls: "in-stock" };
-}
 
 function stockLimit(product) {
   const stock = Number(product?.stock_quantity);
