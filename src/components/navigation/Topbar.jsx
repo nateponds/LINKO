@@ -13,6 +13,9 @@ import {
   TriangleAlert,
   User,
 } from "lucide-react";
+import { BiMenuAltLeft } from "react-icons/bi";
+import { GoChevronDown } from "react-icons/go";
+
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../auth/AuthProvider";
 import { formatRoleLabel } from "../../auth/roleAccess";
@@ -28,6 +31,7 @@ function Topbar({ showSearch = false }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [openPanel, setOpenPanel] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const {
@@ -112,6 +116,30 @@ function Topbar({ showSearch = false }) {
     };
   }, [user]);
 
+  useEffect(() => {
+    let cancelled = false;
+    async function loadCategories() {
+      try {
+        const { apiGet } = await import("../../lib/api.js");
+        const data = await apiGet("/api/categories");
+        if (!cancelled && Array.isArray(data)) {
+          setCategories(data);
+        }
+      } catch {
+        // ignore; the dropdown just shows "All Categories" with no entries
+      }
+    }
+    loadCategories();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function selectCategory(name) {
+    setOpenPanel(null);
+    navigate(name ? `/?category=${encodeURIComponent(name)}` : "/");
+  }
+
   async function markAsRead(id) {
     try {
       const { apiSend } = await import("../../lib/api.js");
@@ -163,6 +191,46 @@ function Topbar({ showSearch = false }) {
         <Link to="/" className="logo">
           LINK<span className="logo-accent">O</span>
         </Link>
+
+        <div className="dropdown-anchor">
+          <button
+            type="button"
+            className="category-dropdown"
+            aria-haspopup="true"
+            aria-expanded={openPanel === "categories"}
+            onClick={(event) => togglePanel(event, "categories")}
+          >
+            <BiMenuAltLeft size={24} className="bi-menu" /> All Categories{" "}
+            <GoChevronDown />
+          </button>
+          {openPanel === "categories" && (
+            <div
+              className="dropdown-panel category-dropdown-panel"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="dropdown-head">Browse Categories</div>
+              <nav className="dropdown-menu category-dropdown-menu">
+                <button type="button" onClick={() => selectCategory(null)}>
+                  All Categories
+                </button>
+                {categories.map((category) => (
+                  <button
+                    type="button"
+                    key={category.category_id}
+                    onClick={() => selectCategory(category.category_name)}
+                  >
+                    {category.category_name}
+                    {typeof category.product_count === "number" && (
+                      <span className="category-dropdown-count">
+                        {category.product_count}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </nav>
+            </div>
+          )}
+        </div>
         {showSearch && (
           <form className="search" onSubmit={submitSearch} role="search">
             <input
