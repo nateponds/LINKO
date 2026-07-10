@@ -41,9 +41,12 @@ function Topbar({ showSearch = false }) {
   } = useAuth();
   const qParam = searchParams.get("q") ?? "";
   const displayName = user?.full_name || user?.email || "LINKO User";
-  const displayBusiness = activeMembership?.business_name || "No business assigned";
+  const displayBusiness =
+    activeMembership?.business_name || "No business assigned";
   const displayRole = formatRoleLabel(
-    user?.global_role === "platform_admin" ? user.global_role : activeMembership?.role,
+    user?.global_role === "platform_admin"
+      ? user.global_role
+      : activeMembership?.role,
   );
   const avatarLetter = displayName.charAt(0).toUpperCase();
 
@@ -97,7 +100,10 @@ function Topbar({ showSearch = false }) {
         // ignore
       }
     }
-    if (!user) return () => { cancelled = true; };
+    if (!user)
+      return () => {
+        cancelled = true;
+      };
     loadNotifs();
     const intervalId = setInterval(loadNotifs, 30000);
     return () => {
@@ -140,13 +146,16 @@ function Topbar({ showSearch = false }) {
                     key={membership.business_id}
                     value={membership.business_id}
                   >
-                    {membership.business_name} ({formatRoleLabel(membership.role)})
+                    {membership.business_name} (
+                    {formatRoleLabel(membership.role)})
                   </option>
                 ))}
               </select>
             </>
+          ) : displayBusiness ? (
+            ` - ${displayBusiness}`
           ) : (
-            displayBusiness ? ` - ${displayBusiness}` : ""
+            ""
           )}
         </span>
       </div>
@@ -164,7 +173,7 @@ function Topbar({ showSearch = false }) {
               key={qParam}
             />
             <button type="submit" className="icon-btn go" title="Search">
-              <Search size={16} />
+              Search <Search size={16} />
             </button>
           </form>
         )}
@@ -178,25 +187,44 @@ function Topbar({ showSearch = false }) {
               onClick={(event) => togglePanel(event, "notifications")}
             >
               <Bell size={16} />
-              {notifications.length > 0 && <span className="notif-badge">{notifications.length}</span>}
+              {notifications.length > 0 && (
+                <span className="notif-badge">{notifications.length}</span>
+              )}
             </button>
             {openPanel === "notifications" && (
-              <div className="dropdown-panel" onClick={(event) => event.stopPropagation()}>
+              <div
+                className="dropdown-panel"
+                onClick={(event) => event.stopPropagation()}
+              >
                 <div className="dropdown-head">Notifications</div>
                 <ul className="notif-list">
                   {notifications.length === 0 ? (
-                    <li style={{ padding: '1rem', textAlign: 'center', color: '#666' }}>No new notifications</li>
+                    <li
+                      style={{
+                        padding: "1rem",
+                        textAlign: "center",
+                        color: "#666",
+                      }}
+                    >
+                      No new notifications
+                    </li>
                   ) : (
                     notifications.map((n) => {
                       const Icon = getIconForType(n.type);
                       return (
-                        <li key={n.notification_id} onClick={() => markAsRead(n.notification_id)} style={{ cursor: 'pointer' }}>
+                        <li
+                          key={n.notification_id}
+                          onClick={() => markAsRead(n.notification_id)}
+                          style={{ cursor: "pointer" }}
+                        >
                           <span className="notif-icon">
                             <Icon size={16} />
                           </span>
                           <div>
                             <span className="notif-text">{n.message}</span>
-                            <span className="notif-time">{new Date(n.created_at).toLocaleDateString()}</span>
+                            <span className="notif-time">
+                              {new Date(n.created_at).toLocaleDateString()}
+                            </span>
                           </div>
                         </li>
                       );
@@ -227,7 +255,10 @@ function Topbar({ showSearch = false }) {
               <User size={16} />
             </button>
             {openPanel === "profile" && (
-              <div className="dropdown-panel" onClick={(event) => event.stopPropagation()}>
+              <div
+                className="dropdown-panel"
+                onClick={(event) => event.stopPropagation()}
+              >
                 <div className="profile-head">
                   <span className="profile-avatar">{avatarLetter}</span>
                   <div>
@@ -253,7 +284,11 @@ function Topbar({ showSearch = false }) {
                   <button type="button">
                     <Settings size={15} /> Settings
                   </button>
-                  <button type="button" className="danger" onClick={handleLogout}>
+                  <button
+                    type="button"
+                    className="danger"
+                    onClick={handleLogout}
+                  >
                     <LogOut size={15} /> Logout
                   </button>
                 </nav>
