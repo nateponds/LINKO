@@ -1,8 +1,10 @@
 # LINKO Demo Script
 
-A guided walkthrough for evaluating LINKO. It runs **five role journeys** end to end and
+A guided walkthrough for evaluating LINKO. It runs **seven role journeys** end to end and
 calls out exactly what to observe at each step — especially **role-based access control
-(RBAC)** and **row-level ownership**, the two properties the platform is graded on.
+(RBAC)** and **row-level ownership**, the two properties the platform is graded on, plus the
+Sprint 8 workflow-integrity beats (honest ship-time weight, method-honest payment status,
+proof-of-delivery remarks, and buyer delivery visibility).
 
 ## Before you start
 
@@ -53,7 +55,12 @@ Routes referenced below all exist in `src/App.jsx` and are protected by
 3. Go to **Orders** (`/orders`). Here you see orders **placed to you** as the seller.
 4. Open the **Pending** order (from Sunrise Retail) and use the action to **Accept** it.
    The status advances to *Accepted* (optimistic refetch updates the row).
-5. Advance the order toward fulfillment (e.g. *Preparing* → *Shipped*) using the row action.
+5. Advance to *Preparing*, then click **Ship**. A **Ship order** modal opens and asks for the
+   parcel's **weight (kg)** — this is required; submitting without it is rejected. Enter a real
+   weight (e.g. `8.5`) and optional dimensions, then confirm. This is the honest-weight beat:
+   the commission bracket freezes from the weight recorded **at handoff**, while the shipping
+   fee stays the quote frozen at checkout. Shipping auto-creates the parcel (distance is left
+   `NULL` — checkout never measured a route).
 6. Confirm an invoice/shipment is associated with the progressed order (visible via the
    order detail and, for parcels, the logistics surface).
 
@@ -61,6 +68,8 @@ Routes referenced below all exist in `src/App.jsx` and are protected by
 - The wholesaler's inventory and orders are **scoped to their business only** — they cannot
   see the other wholesaler's products.
 - Only the **wholesaler** (not the buyer) can accept/advance an order they own.
+- **Weight is recorded at the physical handoff**, not guessed at checkout — the ship action
+  cannot proceed without it.
 
 ---
 
@@ -92,20 +101,72 @@ Routes referenced below all exist in `src/App.jsx` and are protected by
 1. Land on **Courier Dashboard** (`/courier`) — a courier-only route.
 2. Confirm you see **only parcels assigned to you** (not the whole network) — this is the
    ownership scope that distinguishes a courier from a coordinator.
-3. Use a **quick action** on an assigned parcel to record the next status
-   (e.g. *Picked Up* → *In Transit* → *Out for Delivery*).
+3. Use a **quick action** on an assigned parcel to record the next non-terminal status
+   (e.g. *Picked Up* → *In Transit* → *Out for Delivery*). These stay one-tap.
 4. Open the parcel detail (`/logistics/:parcelId`) to see the tracking history update.
-5. Record **Delivered** on the final parcel and confirm it moves to the delivered state.
-6. Re-open the parcel to confirm the full tracking chain is present.
+5. Record **Delivered** on the final parcel. The quick action now **prompts for proof of
+   delivery** ("received by (name)") — a terminal scan without remarks is rejected (`400`).
+   Enter a name and confirm it moves to the delivered state. The parcel detail form labels the
+   remarks field per status ("Received by" for Delivered, "Failure reason" for Returned) and
+   requires it for those two. For a **failed delivery**, recording **Returned** likewise
+   prompts for a failure reason.
+6. Re-open the parcel to confirm the full tracking chain is present and the POD/failure remark
+   shows on the terminal event.
 
 **Grader should observe:**
 - A courier is **scoped to assigned parcels only** (row-level ownership) — they cannot
   view or update parcels assigned to another courier.
 - Status updates append to the tracking log with the courier/branch recorded.
+- **Terminal courier scans carry evidence** — Delivered/Returned require remarks
+  (proof of delivery / failure reason); the API enforces it (`400` without).
 
 ---
 
-## Journey 5 — Platform admin: user and business management
+## Journey 5 — Buyer: track a delivery from the order screen
+
+**Log in as** `buyer@linko.test` (Sunrise Retail Cooperative).
+
+1. Go to **Orders** (`/orders`). On a **shipped / delivered / returned** order, a
+   **Track parcel** action appears in the row.
+2. Click it. A read-only **tracking modal** opens showing the parcel number, current status,
+   and the full tracking timeline (handled-by-branch and delivered-to-destination lines
+   included). The buyer answers "where is my order?" **without ever entering the logistics
+   workspace**.
+3. Confirm the buyer has **no** Logistics nav item and cannot reach `/logistics` — the modal
+   is their only delivery visibility.
+4. *(Optional, mixed-role check)* Log in as `both@linko.test`, switch the top-bar business to
+   the buyer role, and confirm the buyer-side parcel is visible via its order's Track modal —
+   while the operator parcel **list** stays empty for the buyer role.
+
+**Grader should observe:**
+- A buyer reads exactly **one parcel — their own delivery** — via `GET /api/parcels/:id`
+  (visible because they are the receiver). An unrelated parcel returns **404**.
+- The parcel **list** is operator-only: a buyer-only session sees an empty list. Buyer
+  visibility does not leak the network or grant logistics workspace access.
+
+---
+
+## Journey 6 — Coordinator correction (operational escape hatch)
+
+**Log in as** `logistics@linko.test` (LINKO Logistics Hub).
+
+1. Open a parcel and record a terminal event (e.g. **Delivered**) **without** remarks. Unlike
+   the courier path, the coordinator/admin **is allowed** to log it — this is the deliberate
+   correction escape hatch for fixing operational mistakes.
+2. Note the COD payment behavior: on a **COD** parcel, a **Delivered** scan settles the payment
+   to *Paid*; a **Returned** scan marks it *Failed*. A coordinator correction after a terminal
+   scan does **not** rewrite an already-settled payment (the update is guarded on `Pending`).
+
+**Grader should observe:**
+- POD remarks are enforced for **courier** scans but **not** coordinators/admins — preserving
+  the correction path (documented in `docs/API_CONTRACTS.md §3.6`).
+- **Payment status moves honestly by method**: Prepaid/Online settle at booking; COD settles
+  on delivery and fails on return. The payment→dispatch gate stays **modeled, not enforced**
+  (course-deliverable scope).
+
+---
+
+## Journey 7 — Platform admin: user and business management
 
 **Log in as** `admin@linko.test` (LINKO Platform).
 
@@ -137,11 +198,14 @@ Routes referenced below all exist in `src/App.jsx` and are protected by
 | --- | --- | --- |
 | `/` , `/suppliers`, `/suppliers/:id` | buyer, wholesaler, admin | 1 |
 | `/matching` | buyer, admin | 1 |
-| `/orders`, `/invoices` | buyer, wholesaler, admin | 1, 2 |
+| `/orders`, `/invoices` | buyer, wholesaler, admin | 1, 2, 5 |
 | `/inventory` | wholesaler, admin | 2 |
-| `/logistics`, `/logistics/management`, `/logistics/:parcelId` | wholesaler, logistics_coordinator, courier, admin | 3, 4 |
+| `/logistics`, `/logistics/management`, `/logistics/:parcelId` | wholesaler, logistics_coordinator, courier, admin | 3, 4, 6 |
 | `/courier` | courier | 4 |
-| `/admin` | platform_admin | 5 |
+| `/admin` | platform_admin | 7 |
+
+The buyer's **Track parcel** modal (Journey 5) reads `GET /api/parcels/:id` directly — buyers
+have **no** logistics route access; the modal is the only delivery-visibility surface for them.
 
 Any attempt to reach a route outside a role's access redirects away (see
 `ProtectedRoute` + `UnknownRouteRedirect` in `src/App.jsx`).
