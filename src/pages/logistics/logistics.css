@@ -214,6 +214,69 @@
     color: var(--color-primary-dark);
   }
 
+  .update-status-form {
+    padding: 1.5rem;
+    background: #f9f9f9;
+    border-radius: 12px;
+    margin-bottom: 1.5rem;
+  }
+
+  .update-status-form h3 {
+    margin: 0 0 1rem;
+    font-size: 1rem;
+    color: var(--color-primary-dark);
+  }
+
+  .update-status-grid {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .update-status-grid label,
+  .update-remarks {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.875rem;
+    color: var(--color-muted);
+    font-weight: 600;
+  }
+
+  .update-status-grid label {
+    flex: 1 1 150px;
+  }
+
+  .update-remarks {
+    margin-bottom: 1rem;
+  }
+
+  .update-status-form select,
+  .update-status-form input {
+    width: 100%;
+    padding: 0.5rem;
+    border-radius: 4px;
+    border: 1px solid var(--color-muted);
+    background: white;
+    color: var(--color-text);
+  }
+
+  .update-submit {
+    background: var(--color-primary);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  .update-submit:disabled {
+    opacity: 0.65;
+    cursor: default;
+  }
+
   .timeline-block {
     padding-top: 20px;
   }
@@ -360,6 +423,12 @@
     font-weight: 600;
   }
 
+  .form-note {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    margin: 0;
+  }
+
   .book-actions {
     display: flex;
     justify-content: flex-end;
@@ -412,6 +481,45 @@
     display: flex;
     flex-direction: column;
     gap: 1rem;
+  }
+
+  .courier-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .courier-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .courier-section-head h2 {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--color-primary-dark);
+  }
+
+  .courier-section-head span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 28px;
+    border-radius: 14px;
+    background: var(--color-primary-soft);
+    color: var(--color-primary-dark);
+    font-weight: 700;
+  }
+
+  .courier-section-empty {
+    padding: 0.9rem 1rem;
+    border-radius: 8px;
+    background: white;
+    color: var(--color-muted);
+    font-size: 0.9rem;
   }
 
   .parcel-card-link {

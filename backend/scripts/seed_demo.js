@@ -2,7 +2,7 @@
 //
 // Idempotent RESET: dev_seed.sql already wipes the transactional tables in
 // reverse-FK order (TRUNCATE ... CASCADE) and restarts sequences before
-// re-inserting the 4 demo accounts and their sample data, so re-running this
+// re-inserting the demo accounts and their sample data, so re-running this
 // script yields the same clean state every time.
 //
 // Safety: refuses to run when NODE_ENV === "production" unless --force is
@@ -53,7 +53,7 @@ try {
   const accounts = await pool.query(
     `SELECT email, global_role
        FROM users
-      WHERE email IN ('buyer@linko.test','wholesaler@linko.test','logistics@linko.test','admin@linko.test')
+      WHERE email IN ('buyer@linko.test','wholesaler@linko.test','logistics@linko.test','courier@linko.test','admin@linko.test')
       ORDER BY email`,
   );
   console.log("\nDemo login accounts (password: Password123!):");
