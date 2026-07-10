@@ -135,6 +135,42 @@ Depends on nothing in Sprint 7; the two ship as separate reviewable PRs.
 
 ---
 
+## Sprint 8 Follow-up: Mixed-Role Active Business Context
+
+**Status:** Planned
+**Priority:** High
+**Goal:** Make business selection and mixed-role authorization consistent across
+the frontend and API without reopening the completed Sprint 8 delivery scope.
+
+Implementation decisions and acceptance details are fixed in
+[`SPRINT_8_ACTIVE_BUSINESS_GUIDE.md`](./SPRINT_8_ACTIVE_BUSINESS_GUIDE.md).
+This is committed follow-up work, not backlog work.
+
+### Tasks
+
+- [ ] Resolve active context by unique business, with all memberships for the
+      selected business active together.
+- [ ] Align the switcher, route guards, API scoping, and parcel-list behavior
+      with the guide.
+- [ ] Persist and restore the last valid business selection, then clear stale
+      data and refresh when the user switches businesses.
+- [ ] Correct the Sprint 8 demo script's role-switching misconception and add
+      mixed-role/multi-business verification steps.
+- [ ] Add backend and frontend tests for the guide's selection, capability,
+      redirect, and isolation rules.
+
+### Acceptance Criteria
+
+- The active selector chooses a business, never one membership role within it.
+- A selected business receives the additive capabilities of all its roles;
+  memberships belonging to other businesses remain inactive.
+- Multi-business requests cannot silently fall back to an arbitrary business.
+- Switching businesses cannot leave data or navigation from the previous
+  context on screen.
+- The demo script describes and demonstrates the implemented model accurately.
+
+---
+
 ## Execution Rules
 
 - Keep future sprints small, reviewable, and tied to the active product model.
