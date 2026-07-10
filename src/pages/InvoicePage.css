@@ -406,6 +406,7 @@
     color: var(--color-accent-dark);
   }
 
+  .status.returned,
   .status.cancelled,
   .status.rejected {
     background: #fdeaea;
