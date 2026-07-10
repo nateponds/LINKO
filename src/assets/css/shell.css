@@ -682,9 +682,96 @@
     color: rgba(255, 255, 255, 0.6);
   }
 
+  /* Logistics Management page */
+  .logistics-page {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .logistics-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 420px));
+    gap: 2rem;
+  }
+
+  .logistics-form-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    border: 1px solid var(--color-primary-soft);
+    margin-bottom: 1rem;
+  }
+
+  .logistics-form-card form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .logistics-form-card input,
+  .logistics-form-card select {
+    padding: 0.5rem;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    font: inherit;
+  }
+
+  .logistics-form-card button[type="submit"] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.6rem;
+    background: var(--color-primary);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .logistics-form-card button[type="submit"]:hover:not(:disabled) {
+    background: var(--color-primary-dark);
+  }
+
+  .logistics-form-card button[type="submit"]:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .logistics-form-error {
+    margin: 0;
+    color: #c0392b;
+    font-size: 0.85rem;
+  }
+
+  .logistics-list {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .logistics-list li {
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--color-primary-soft);
+  }
+
+  .logistics-list small {
+    color: var(--color-muted);
+  }
+
   @media (max-width: 700px) {
     .app-layout {
       padding-bottom: 64px;
+    }
+
+    .logistics-grid {
+      grid-template-columns: minmax(0, 1fr);
     }
 
     .mobile-nav {
