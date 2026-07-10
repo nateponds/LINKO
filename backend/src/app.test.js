@@ -122,14 +122,16 @@ test("unauthenticated parcel list is rejected", { skip: !hasDb }, async () => {
   assert.match(response.body.error.message, /authentication required/i);
 });
 
-test("buyer session cannot access parcel list", { skip: !hasDb }, async () => {
+// Sprint 8: buyers pass the /parcels gate for single-parcel tracking reads,
+// but the list is operator-only — a buyer-only session enumerates nothing.
+test("buyer session gets an empty parcel list", { skip: !hasDb }, async () => {
   const cookie = await loginAs("buyer@linko.test");
   const response = await request("/api/parcels", {
     headers: { Cookie: cookie },
   });
 
-  assert.equal(response.status, 403);
-  assert.match(response.body.error.message, /forbidden/i);
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.body, []);
 });
 
 test("logistics session can access parcel list", { skip: !hasDb }, async () => {
@@ -1119,7 +1121,7 @@ test("platform admin can view all orders and override order status", { skip: !ha
     const adminShipped = await request(`/api/orders/${orderId}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Cookie: adminCookie },
-      body: JSON.stringify({ status: "shipped" }),
+      body: JSON.stringify({ status: "shipped", weight_kg: 4.2 }),
     });
     assert.equal(adminShipped.status, 200);
 
