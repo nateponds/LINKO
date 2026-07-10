@@ -28,10 +28,14 @@ flow that shipped with Milestone 3.
 Wholesaler:  pending -> accepted -> preparing -> shipped   (stops here)
                                                   |
                                                   v  parcel auto-created (order_id set)
-Courier:     [branch pickup pool] -> Picked Up -> ... -> Out for Delivery -> Delivered
-                                                                                  |
-                                                                                  v
-Order:                                                                        delivered (automatic)
+Courier:     [branch pickup pool] -> Picked Up -> ... -> Out for Delivery
+                                                               |        |
+                                                               v        v
+                                                          Delivered  Returned
+                                                               |        |
+                                                               v        v
+Order:                                                    delivered  returned
+                                                         (automatic) (automatic)
 ```
 
 This mirrors the industry-standard split (Shopify/Amazon/OMS): the seller
@@ -46,14 +50,15 @@ carrier-event-driven. The seller never marks an order delivered.
    documented crossing of the course-deliverable / marketplace boundary: the
    boundary was already crossed by `parcels.sender_id/receiver_id -> businesses`
    and by `orders.js` inserting parcels at `shipped`.
-2. **Status vocabulary unchanged.** `shipped` keeps its name (no `packaged`
-   rename). Order statuses stay: `pending, accepted, preparing, shipped,
-   delivered, cancelled`.
-3. **Wholesaler control ends at `shipped`.** The `shipped -> delivered`
-   transition is removed from wholesalers; the "Mark Delivered" wholesaler UI
-   is removed. `platform_admin` gains a transition override (support/escape
-   hatch for stuck or legacy orders, e.g. parcels created before `order_id`
-   existed).
+2. **Order status vocabulary.** `shipped` keeps its name (no `packaged`
+   rename). Order statuses are: `pending, accepted, preparing, shipped,
+   delivered, cancelled, returned`. `returned` is the terminal failed-delivery
+   outcome; it is not a post-delivery buyer return or RMA state.
+3. **Wholesaler control ends at `shipped`.** The `shipped -> delivered` and
+   `shipped -> returned` transitions are unavailable to wholesalers; both
+   outcomes are driven by parcel tracking. `platform_admin` keeps a manual
+   transition override as a support/escape hatch for stuck or legacy orders,
+   such as parcels created before `order_id` existed.
 4. **Branch-scoped pickup pool.** `parcels` stay stateless: current handling
    branch and courier assignment are derived from the latest `tracking_logs`
    row. A branch on a tracking log means the dispatch/handling branch, not
@@ -87,11 +92,13 @@ carrier-event-driven. The seller never marks an order delivered.
    `Delivered` or `Returned`, and those two outcomes end courier updates.
    `Cancelled` is not a courier field action; it remains temporarily available
    only to coordinators/admins as an operational correction.
-7. **Only `Delivered` maps back to the order.** When a courier logs
-   `Delivered` on a parcel with an `order_id`, the order flips to `delivered`
-   and the buyer gets an "Order Delivered" notification. `Returned` stays
-   parcel-side for now, and coordinator/admin-only `Cancelled` remains an
-   exceptional parcel correction (no order mapping) - deferred.
+7. **Terminal delivery outcomes map back to the order.** When an authorized
+   tracking actor logs `Delivered` or `Returned` on a parcel with an `order_id`,
+   a linked `shipped` order flips to `delivered` or `returned` in the same
+   transaction. `Delivered` notifies the buyer. `Returned` notifies both the
+   buyer and wholesaler with warning messages and includes the tracking remarks
+   when present. Coordinator/admin-only parcel `Cancelled` remains an
+   exceptional correction and does not map to an order status.
 8. **Courier user provisioning.** Admin "create courier user" also inserts a
    linked `couriers` row (same transaction). Existing unlinked demo accounts
    get a one-off `UPDATE couriers SET user_id = ...` relink.
@@ -109,8 +116,9 @@ carrier-event-driven. The seller never marks an order delivered.
 
 ## Out of scope (deferred)
 
-- `Returned` tracking -> order status mapping (restock/refund semantics not
-  built).
+- Post-delivery buyer returns (RMA) remain separate from failed delivery. An
+  RMA requires a new reverse parcel plus refund semantics and is not represented
+  by the failed-delivery `Returned -> returned` mapping built here.
 - Full removal of parcel `Cancelled` after replacement correction/refund
   workflows exist.
 - Third-party carrier integration - product-scope delivery model per

@@ -230,18 +230,21 @@ function assertTransitionAllowed(auth, order, nextStatus) {
     pending: ["accepted", "cancelled"],
     accepted: ["preparing"],
     preparing: ["shipped"],
-    shipped: ["delivered"],
+    shipped: ["delivered", "returned"],
     delivered: [],
     cancelled: [],
+    returned: [],
   };
 
-  // Delivery is confirmed by the courier's tracking scan (see
+  // Delivery outcomes are confirmed by parcel tracking (see
   // docs/delivery-status-logistics.md), never by the wholesaler.
   // platform_admin keeps a manual override for stuck or legacy orders.
   const canUpdate =
     isAdmin(auth) ||
     (nextStatus === "cancelled" && canBuyerCancel(auth, order)) ||
-    (canWholesalerManage(auth, order) && nextStatus !== "delivered");
+    (canWholesalerManage(auth, order) &&
+      nextStatus !== "delivered" &&
+      nextStatus !== "returned");
 
   if (!canUpdate) {
     throw createHttpError(403, "You cannot update this order status");
@@ -453,7 +456,15 @@ router.patch(
     try {
       const orderId = parsePositiveId(req.params.id, "Order");
       const { status } = req.body ?? {};
-      const validStatuses = ["pending", "accepted", "preparing", "shipped", "delivered", "cancelled"];
+      const validStatuses = [
+        "pending",
+        "accepted",
+        "preparing",
+        "shipped",
+        "delivered",
+        "cancelled",
+        "returned",
+      ];
       if (!validStatuses.includes(status)) {
         throw createHttpError(400, "status is required and must be a valid order status");
       }
@@ -483,6 +494,15 @@ router.patch(
         );
 
         if (status === "shipped") {
+          const pricing = await client.query(
+            `SELECT COALESCE(SUM(oi.quantity * oi.unit_price_snapshot), 0) AS declared_value,
+                    COALESCE(MAX(st.base_fee), 0) AS shipping_fee
+               FROM orders o
+               LEFT JOIN order_items oi ON oi.order_id = o.order_id
+               LEFT JOIN service_tiers st ON st.tier_id = o.tier_id
+              WHERE o.order_id = $1`,
+            [orderId],
+          );
           const originAddress = await client.query(
             "SELECT address_id, city_municipality FROM addresses WHERE business_id = $1 LIMIT 1",
             [order.wholesaler_business_id]
@@ -497,8 +517,9 @@ router.patch(
             await client.query(
               `INSERT INTO parcels (parcel_id, order_id, sender_id, receiver_id, tier_id,
                                    origin_address_id, destination_address_id,
-                                   weight_kg, total_distance_km, estimated_delivery_date)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, 10.0, 15.0, CURRENT_DATE + 5)`,
+                                   weight_kg, total_distance_km, declared_value,
+                                   shipping_fee, estimated_delivery_date)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, 10.0, 15.0, $8, $9, CURRENT_DATE + 5)`,
               [
                 parcelId,
                 orderId,
@@ -507,6 +528,8 @@ router.patch(
                 order.tier_id,
                 originAddress.rows[0].address_id,
                 destAddress.rows[0].address_id,
+                pricing.rows[0].declared_value,
+                pricing.rows[0].shipping_fee,
               ]
             );
 
@@ -528,27 +551,44 @@ router.patch(
         }
       }
 
-      const statusNotifications = {
-        accepted: [order.buyer_business_id, "Order Accepted", "success"],
-        shipped: [order.buyer_business_id, "Order Shipped", "info"],
-        delivered: [order.buyer_business_id, "Order Delivered", "success"],
-        cancelled: [
-          canBuyerCancel(req.auth, order)
-            ? order.wholesaler_business_id
-            : order.buyer_business_id,
-          "Order Cancelled",
-          "warning",
-        ],
-      };
-      if (statusNotifications[status]) {
-        const [businessId, title, type] = statusNotifications[status];
+      if (status === "returned") {
         await notifyBusiness(
           client,
-          businessId,
-          title,
-          `Order #${orderId} is now ${status}.`,
-          type,
+          order.buyer_business_id,
+          "Delivery Failed — Order Returned",
+          `Delivery failed — order #${orderId} returned to sender.`,
+          "warning",
         );
+        await notifyBusiness(
+          client,
+          order.wholesaler_business_id,
+          "Parcel Returning to Sender",
+          `Parcel for order #${orderId} is returning to you.`,
+          "warning",
+        );
+      } else {
+        const statusNotifications = {
+          accepted: [order.buyer_business_id, "Order Accepted", "success"],
+          shipped: [order.buyer_business_id, "Order Shipped", "info"],
+          delivered: [order.buyer_business_id, "Order Delivered", "success"],
+          cancelled: [
+            canBuyerCancel(req.auth, order)
+              ? order.wholesaler_business_id
+              : order.buyer_business_id,
+            "Order Cancelled",
+            "warning",
+          ],
+        };
+        if (statusNotifications[status]) {
+          const [businessId, title, type] = statusNotifications[status];
+          await notifyBusiness(
+            client,
+            businessId,
+            title,
+            `Order #${orderId} is now ${status}.`,
+            type,
+          );
+        }
       }
 
       await client.query("COMMIT");
