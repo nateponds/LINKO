@@ -77,7 +77,7 @@ const LATEST_LOG = `
     SELECT status_update, scanned_at, courier_id, branch_id
       FROM tracking_logs tl
      WHERE tl.parcel_id = p.parcel_id
-     ORDER BY tl.scanned_at DESC
+     ORDER BY tl.scanned_at DESC, tl.log_id DESC
      LIMIT 1
   ) latest ON TRUE`;
 
@@ -235,7 +235,7 @@ router.get("/parcels/:id", async (req, res) => {
                       'courier_name', c.full_name,
                       'remarks', tl.remarks,
                       'scanned_at', tl.scanned_at)
-                    ORDER BY tl.scanned_at)
+                    ORDER BY tl.scanned_at, tl.log_id)
               FROM tracking_logs tl
               LEFT JOIN branches b ON b.branch_id = tl.branch_id
               LEFT JOIN couriers c ON c.courier_id = tl.courier_id
@@ -549,7 +549,7 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
         `SELECT branch_id
            FROM tracking_logs
           WHERE parcel_id = $1 AND branch_id IS NOT NULL
-          ORDER BY scanned_at DESC
+          ORDER BY scanned_at DESC, log_id DESC
           LIMIT 1`,
         [parcelId],
       );
