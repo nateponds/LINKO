@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import AppLayout from "../layouts/AppLayout";
-import { useAuth } from "../auth/AuthProvider";
 import { apiGet, apiSend } from "../lib/api";
 import { Plus } from "lucide-react";
 
@@ -18,23 +17,42 @@ export default function LogisticsManagementPage() {
     full_name: "", phone_number: "", vehicle_type: "", assigned_branch_id: ""
   });
 
-  const loadData = async () => {
+  const fetchData = async () => Promise.all([
+    apiGet("/api/branches"),
+    apiGet("/api/couriers")
+  ]);
+
+  const refreshData = async () => {
     try {
-      const [b, c] = await Promise.all([
-        apiGet("/api/branches"),
-        apiGet("/api/couriers")
-      ]);
+      const [b, c] = await fetchData();
       setBranches(b);
       setCouriers(c);
     } catch (err) {
       setError(err.message);
-    } finally {
-      setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadData();
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const [b, c] = await fetchData();
+        if (cancelled) return;
+        setBranches(b);
+        setCouriers(c);
+      } catch (err) {
+        if (!cancelled) setError(err.message);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleAddBranch = async (e) => {
@@ -42,7 +60,7 @@ export default function LogisticsManagementPage() {
     try {
       await apiSend("/api/branches", { body: newBranch });
       setNewBranch({ branch_name: "", contact_number: "", province: "", city_municipality: "", barangay: "", street_address: "", postal_code: "" });
-      loadData();
+      refreshData();
     } catch (err) {
       alert("Failed to add branch: " + err.message);
     }
@@ -57,7 +75,7 @@ export default function LogisticsManagementPage() {
       
       await apiSend("/api/couriers", { body: payload });
       setNewCourier({ full_name: "", phone_number: "", vehicle_type: "", assigned_branch_id: "" });
-      loadData();
+      refreshData();
     } catch (err) {
       alert("Failed to add courier: " + err.message);
     }
