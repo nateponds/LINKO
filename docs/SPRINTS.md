@@ -6,257 +6,132 @@ work that still needs product, design, implementation, or release attention.
 
 ---
 
-## Sprint 1: Courier Tracking Status Semantics
+<!-- Sprint numbering is stable: numbers are never reused. Sprint 1 (courier
+     tracking status semantics) completed and lives in git history. Sprints 2-6
+     were never committed and were compressed into docs/BACKLOG.md entries on
+     2026-07-10 (returns planning, coordinator exceptions, Cancelled
+     deprecation, release readiness, logistics UI polish) — this file holds
+     committed work only. -->
 
-**Status:** Complete
+## Sprint 7: Logistics Correctness & Authz
+
+**Status:** Committed
 **Priority:** High
-**Goal:** Keep parcel tracking statuses honest from the courier point of view.
+**Goal:** Close the correctness and authorization holes in the graded parcel
+tracking subsystem found by the 2026-07-10 logistics audit.
 
-`Cancelled` should not be a normal courier field action. Buyers cancel orders
-only before shipment; after shipment, the correct language is return, refund,
-failed delivery, or coordinator/admin correction.
+These are defects, not features: booking IDs that collide by design, a courier
+write path that ignores the read-side visibility rules, an unlocked claim race,
+and soft-delete semantics (migration 015) that can strand live parcels.
 
 ### Tasks
 
-- [x] Remove `Cancelled` from courier-facing status dropdowns.
-- [x] Reject courier-submitted `Cancelled` tracking updates in the backend.
-- [x] Keep `Cancelled` temporarily available to logistics coordinators and
-      platform admins as an operational override.
-- [x] Keep courier status updates forward-only:
-  - `Order Created`
-  - `Picked Up`
-  - `In Transit`
-  - `Out for Delivery`
-  - `Delivered`
-  - `Returned`
-- [x] Treat `Delivered` and `Returned` as terminal courier outcomes.
-- [x] Add or update tests proving couriers cannot:
-  - backtrack to an earlier phase
-  - cancel an in-flight parcel
-  - change a terminal parcel status
-- [x] Update parcel detail and courier dashboard UI copy where needed.
-- [x] Update API, ERD, and logistics docs to mark parcel `Cancelled` as
-      coordinator/admin-only and temporary.
+- [ ] Replace timestamp-derived parcel IDs (`LKO-` + `Date.now()` slice, wraps
+      every ~28h → PK collision → user-facing 400) with a Postgres sequence:
+      `'LKO-' || lpad(nextval, 8, '0')`. One shared helper replaces both
+      generation sites (`routes/logistics.js` booking, `routes/orders.js`
+      ship-time auto-create).
+- [ ] Enforce courier write scope on `POST /api/parcels/:id/tracking`: a
+      courier may scan only parcels in their handling history or the
+      unassigned pool of their assigned branch — the same rule as read
+      visibility. Out of scope → `404` (matches read-side anti-leak
+      behavior). Handoffs keep going through coordinator unassign
+      (`docs/delivery-status-logistics.md` decision 5).
+- [ ] Lock the parcel (`SELECT … FOR UPDATE`) inside the tracking-scan
+      transaction so the pool-claim race and the forward-only status check are
+      serialized (two couriers can currently both claim the same parcel).
+- [ ] Finish soft-delete semantics (015):
+  - Block branch deactivation while non-terminal unassigned parcels sit in its
+    pool: `409` with the live-parcel count; reassign first.
+  - Filter `is_active` in `parcelScope` and the courier stamp lookup so a
+    deactivated courier loses list/scan access immediately.
+  - Validate coordinator-supplied `branch_id` / `courier_id` (and courier
+    creation's `assigned_branch_id`) against active rows.
+  - Replace the `branch_name` UNIQUE constraint with a partial unique index
+    `WHERE is_active` so a deactivated branch's name can be reused.
+- [ ] Add missing constraints/indexes: unique partial index on
+      `couriers.user_id`, index on `tracking_logs(courier_id)` (courier scope
+      runs an EXISTS against it per parcel).
+- [ ] Localize Logistics Management delete errors — a failed delete currently
+      replaces the whole page with the error text.
+- [ ] Tests: cross-branch courier scan rejected, concurrent claim yields one
+      winner, branch delete blocked while pool is live, deactivated courier
+      gets `403`, sequential parcel IDs never collide.
 
 ### Acceptance Criteria
 
-- A courier cannot select or submit `Cancelled` for a parcel.
-- A courier cannot move a parcel backward in the lifecycle.
-- Coordinators/admins can still correct exceptional cases.
-- Tests cover both frontend status-option behavior and backend enforcement.
-- Product language clearly separates order cancellation from parcel return.
+- A courier cannot write to any parcel they cannot see.
+- Booking and shipping never fail from parcel-ID collision.
+- Deactivating reference data never strands an in-flight parcel and never
+  leaves a hidden actor with API access.
+- Every rule above is backend-enforced and test-covered (per execution rules).
 
 ---
 
-## Sprint 2: Returns And Refunds Planning
+## Sprint 8: Logistics Workflow Integrity & Buyer Visibility
 
-**Status:** Planned, planning-only
+**Status:** Committed
 **Priority:** High
-**Goal:** Define what happens after shipment when the buyer cannot simply
-cancel anymore.
+**Goal:** Make the graded demo path honest end to end — real weights, moving
+payment status, evidence-bearing terminal scans, and delivery visibility for
+the buyer — and delete the dead booking surface.
 
-This sprint is intentionally planning-only. The goal is to prevent rushed schema
-or UI decisions around money, inventory, and delivery exceptions.
-
-### Tasks
-
-- [ ] Define return/refund terminology:
-  - returned parcel
-  - failed delivery
-  - refund requested
-  - refund approved
-  - refund rejected
-  - replacement or resend
-- [ ] Decide who can initiate each post-shipment issue:
-  - buyer
-  - courier
-  - logistics coordinator
-  - wholesaler
-  - platform admin
-- [x] Define how `Returned` parcel tracking affects order status — resolved in
-      `docs/delivery-status-logistics.md`: failed delivery maps a linked shipped
-      order to terminal `returned` and notifies both businesses.
-- [ ] Decide whether orders need new statuses beyond `delivered` and
-      `cancelled`, such as `return_requested` or `refunded`.
-- [ ] Define refund ownership:
-  - who approves
-  - who pays
-  - how invoices are displayed
-  - whether commission is reversed — resolved for this scope: no reversal;
-    commissions/remittances remain DB-layer-only and scope-frozen per
-    `docs/course-deliverable.md`
-- [ ] Define inventory behavior for returned goods:
-  - no restock
-  - manual restock
-  - automatic restock only after inspection
-- [ ] Write the proposed API and schema changes before implementation.
-- [ ] Add the final plan to active docs before coding begins.
-
-### Acceptance Criteria
-
-- The team can explain the difference between cancellation, return, and refund.
-- No implementation starts until order, invoice, payment, inventory, and
-  notification effects are written down.
-- The plan preserves buyer-wholesaler marketplace framing.
-- The plan avoids making couriers responsible for financial decisions.
-
----
-
-## Sprint 3: Logistics Coordinator Exception Handling
-
-**Status:** Planned
-**Priority:** Medium
-**Goal:** Give logistics coordinators a clear workspace for parcels that need
-human intervention.
-
-Coordinator work should focus on exceptions and corrections, not pretending that
-couriers can resolve every operational issue from the field.
+Depends on nothing in Sprint 7; the two ship as separate reviewable PRs.
 
 ### Tasks
 
-- [ ] Add or improve coordinator visibility for exception parcels:
-  - returned
-  - branchless
-  - unassigned
-  - stalled in one status
-  - manually cancelled or voided
-- [ ] Add clear coordinator/admin-only correction paths.
-- [ ] Require remarks when a coordinator/admin uses exceptional statuses.
-- [ ] Show who made each exceptional tracking update.
-- [ ] Decide whether a correction should be a normal tracking log row or a
-      separate audit event.
-- [ ] Add filters for exception states on logistics pages.
-- [ ] Add tests for coordinator override behavior and courier restrictions.
+- [ ] Ship-time weight entry: the wholesaler provides `weight_kg` (and optional
+      `dimensions`) when marking an order `shipped` — replaces the hardcoded
+      10.0 kg / 15.0 km placeholders, so the commission bracket freezes from a
+      real weight. `shipping_fee` stays the frozen checkout quote (per commit
+      `ce24e68`; defend in report as "fee quoted at checkout, weight recorded
+      at handoff"). Distance becomes `NULL`; ETA derives from the tier's
+      `estimated_days`, not `CURRENT_DATE + 5`.
+- [ ] Method-honest payment lifecycle (gate stays unenforced per
+      `docs/course-deliverable.md`): `Prepaid`/`Online` → `Paid` + `paid_at`
+      at booking; `COD` → `Paid` on the `Delivered` scan, `Failed` on
+      `Returned`. All inside the existing transactions.
+- [ ] Remarks-as-POD: courier `Delivered` and `Returned` scans require
+      non-empty remarks (`400` otherwise) — "Received by <name>" / failure
+      reason. Parcel detail labels the field per selected status; courier
+      dashboard quick actions for those two statuses prompt for remarks
+      instead of sending a canned string (absorbs Sprint 4's "quick actions
+      match status rules" task). Signature/photo POD and attempt/retry cycles
+      stay deferred with RMA.
+- [ ] Buyer tracking modal (absorbs Sprint 4's buyer-visibility task): buyers
+      get a read-only tracking view for their own deliveries without entering
+      the logistics workspace — no Logistics nav, no parcel list.
+  - `GET /api/orders/:id` exposes `parcel_id` (LEFT JOIN parcels).
+  - `GET /api/parcels/:id` gains a buyer scope: visible when `receiver_id`
+    is one of the caller's buyer businesses. List stays operator-only; the
+    tracking write route is untouched.
+  - Orders UI: "Track parcel" on shipped/delivered/returned orders opens a
+    modal rendering the tracking timeline (reuse the parcel-detail timeline
+    pieces).
+- [ ] Delete the dead standalone booking surface: `BookParcelPage.jsx`
+      (unrouted, calls the removed `/api/customers`), the `/logistics/book`
+      redirect, `GET /api/businesses` (feeds nothing else), and API_CONTRACTS
+      §3.5. `POST /api/parcels` stays as the API-level demo of the pricing/
+      commission triggers.
+- [ ] Update the demo script and seed data for one clean delivery journey and
+      one failed-delivery journey, exercising the new surface end to end:
+      ship-time weight entry, payment status transitions, POD remarks, buyer
+      tracking modal, coordinator correction (salvaged from retired Sprint 4).
+- [ ] Update docs: API_CONTRACTS (§3.6 POD rule + buyer scope, orders
+      `parcel_id`, §3.5 removal) and delivery-status-logistics.md (courier
+      write scope, POD, payment lifecycle, buyer modal).
+- [ ] Tests: buyer sees own parcel via its order and `404`s on others';
+      remarks enforcement on terminal courier scans; payment transitions per
+      method; shipped order carries the entered weight.
 
 ### Acceptance Criteria
 
-- Couriers handle normal delivery movement.
-- Coordinators handle abnormal logistics states.
-- Exceptional changes are visible and auditable.
-- Manual correction does not weaken courier role restrictions.
-
----
-
-## Sprint 4: Delivery Visibility And Demo Polish
-
-**Status:** Planned
-**Priority:** Medium
-**Goal:** Make parcel tracking understandable to buyers, wholesalers, couriers,
-and reviewers.
-
-The demo should show a clean story: buyer places order, wholesaler ships,
-courier delivers or returns, and exceptional cases are handled by logistics.
-
-### Tasks
-
-- [ ] Update buyer order detail to explain delivery state without exposing the
-      logistics workspace.
-- [ ] Update invoice and order views to link tracking information clearly.
-- [ ] Make courier dashboard quick actions match the same status rules as the
-      parcel detail update form.
-- [ ] Review timeline labels:
-  - branch means handling branch
-  - delivered means destination
-  - returned means failed or reversed delivery path
-- [ ] Add empty/error states for no assigned parcels, no branch pool, and
-      terminal parcel history.
-- [ ] Update demo script around:
-  - pending order cancellation
-  - shipped order delivery
-  - returned parcel as post-shipment issue
-  - coordinator/admin correction
-- [ ] Update seeded demo data if needed to show one clean delivery journey and
-      one exception journey.
-
-### Acceptance Criteria
-
-- Users do not confuse order cancellation with parcel cancellation.
-- Couriers see only viable next actions.
-- Buyers can understand what happened without seeing internal-only controls.
+- The marketplace demo path (the only live booking path) shows real recorded
+  weight, a payment status that moves, and terminal scans that carry evidence.
+- A buyer can answer "where is my order?" from the order screen alone, and
+  cannot reach operator surfaces.
+- No dead logistics code or stale contract sections remain.
 - Demo data supports the planned story without manual database edits.
-
----
-
-## Sprint 5: Parcel `Cancelled` Deprecation Plan
-
-**Status:** Planned
-**Priority:** Medium
-**Goal:** Remove `Cancelled` from parcel tracking entirely once replacement
-workflows exist.
-
-For now, `Cancelled` may remain in the database constraint as a temporary
-admin/coordinator escape hatch. Long term, parcel tracking should use delivery
-states, while order cancellation and financial reversal live in the order,
-payment, refund, or support workflow.
-
-### Tasks
-
-- [ ] Inventory every code path, seed row, test, and doc reference to parcel
-      tracking `Cancelled`.
-- [ ] Decide the replacement for each use:
-  - order `cancelled`
-  - parcel `Returned`
-  - coordinator void/correction
-  - future refund state
-- [ ] Write a migration plan for removing `Cancelled` from the
-      `tracking_logs.status_update` check constraint.
-- [ ] Decide how to preserve historical rows if any production data uses
-      parcel `Cancelled`.
-- [ ] Remove `Cancelled` from parcel tracking API validation after migration.
-- [ ] Remove `Cancelled` from active parcel tracking docs and ERD.
-- [ ] Keep order `cancelled` intact for pre-shipment cancellation/rejection.
-
-### Acceptance Criteria
-
-- Parcel tracking no longer has a normal `Cancelled` status.
-- Order cancellation remains available before shipment.
-- Historical data is either migrated or explicitly preserved.
-- Tests prove couriers, coordinators, and admins use the intended replacement
-  statuses.
-
----
-
-## Sprint 6: Deployment And Release Readiness
-
-**Status:** Planned
-**Priority:** Medium
-**Goal:** Prepare LINKO for reliable staging and production deployment.
-
-This sprint stays last because release work should verify the product rules
-above rather than race ahead of unfinished workflow decisions.
-
-### Tasks
-
-- [ ] Confirm environment variable requirements for frontend, backend, staging,
-      and production.
-- [ ] Confirm staging and production database migration flow.
-- [ ] Add deployment-safe seed strategy.
-- [ ] Verify staging deployment:
-  - frontend on port `8086`
-  - backend on port `3003`
-  - staging Postgres on port `5433`
-- [ ] Verify production deployment:
-  - frontend on port `8085`
-  - backend on port `3002`
-  - production Postgres on port `5432`
-- [ ] Add health checks for backend and database connectivity.
-- [ ] Add safer error logging.
-- [ ] Add final lint, build, migration, and backend test checklist.
-- [ ] Review security basics:
-  - session cookie flags
-  - password hashing
-  - auth route validation
-  - role checks
-  - ownership checks
-  - production secrets
-
-### Acceptance Criteria
-
-- Staging deploy works end to end.
-- Production deploy works end to end.
-- Migrations can be applied safely.
-- Demo accounts and production data strategy are separated.
-- Final verification checklist is documented and repeatable.
 
 ---
 
@@ -267,6 +142,9 @@ above rather than race ahead of unfinished workflow decisions.
 - Do not reintroduce guest app access.
 - Do not allow public registration for logistics, courier, or platform admin.
 - Do not build buyer-facing standalone parcel booking.
+- Buyers get read-only delivery visibility scoped to their own orders (Sprint 8
+  modal); never logistics workspace access or a similar account surface to
+  courier/coordinator dashboards.
 - Keep buyer-wholesaler marketplace framing as the primary LINKO workflow.
 - Treat logistics as fulfillment after an order exists.
 - Treat buyer cancellation as pre-shipment order behavior.
