@@ -48,10 +48,27 @@ export default function CourierDashboardPage() {
 
   const handleQuickAction = async (parcelId, statusUpdate, e) => {
     e.preventDefault(); // Prevent navigating to detail page
+
+    // Terminal scans are evidence-bearing (Sprint 8): collect the proof of
+    // delivery / failure reason instead of a canned string. Non-terminal
+    // quick actions stay one-tap and send no remarks.
+    const body = { status_update: statusUpdate };
+    if (statusUpdate === "Delivered" || statusUpdate === "Returned") {
+      const remarks = window.prompt(
+        statusUpdate === "Delivered"
+          ? "Proof of delivery — received by (name):"
+          : "Failure reason for the return:",
+      );
+      if (remarks === null) return; // cancelled
+      if (!remarks.trim()) {
+        alert(`${statusUpdate} scans require remarks.`);
+        return;
+      }
+      body.remarks = remarks.trim();
+    }
+
     try {
-      await apiSend(`/api/parcels/${parcelId}/tracking`, {
-        body: { status_update: statusUpdate, remarks: "Quick action from dashboard" },
-      });
+      await apiSend(`/api/parcels/${parcelId}/tracking`, { body });
       refreshParcels();
     } catch (err) {
       alert("Failed to update status: " + err.message);

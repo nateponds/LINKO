@@ -46,8 +46,10 @@ content on first login:
 - **9 businesses** (one per user) spanning buyer, wholesaler, both, logistics, and courier types.
 - **13 wholesale products** across two wholesalers plus the "both" business.
 - **2 warehouses**, **2 branches** (Cebu + Mandaue hubs), and **2 couriers**.
-- **4 orders** spread across statuses (`pending`, `accepted`, `shipped`, `delivered`)
-  with order items, **3 invoices**, **2 parcels**, and a realistic **tracking-log** history.
+- **5 orders** spread across statuses (`pending`, `accepted`, `shipped`, `delivered`,
+  `returned`) with order items, **4 invoices**, **3 parcels**, and a realistic
+  **tracking-log** history — including one clean delivery journey (COD collected on delivery)
+  and one failed-delivery journey (COD failed on return).
 
 ## Admin-created accounts (logistics / courier)
 
