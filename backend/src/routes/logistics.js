@@ -77,7 +77,7 @@ const LATEST_LOG = `
     SELECT status_update, scanned_at, courier_id, branch_id
       FROM tracking_logs tl
      WHERE tl.parcel_id = p.parcel_id
-     ORDER BY tl.scanned_at DESC
+     ORDER BY tl.scanned_at DESC, tl.log_id DESC
      LIMIT 1
   ) latest ON TRUE`;
 
@@ -235,7 +235,7 @@ router.get("/parcels/:id", async (req, res) => {
                       'courier_name', c.full_name,
                       'remarks', tl.remarks,
                       'scanned_at', tl.scanned_at)
-                    ORDER BY tl.scanned_at)
+                    ORDER BY tl.scanned_at, tl.log_id)
               FROM tracking_logs tl
               LEFT JOIN branches b ON b.branch_id = tl.branch_id
               LEFT JOIN couriers c ON c.courier_id = tl.courier_id
@@ -549,7 +549,7 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
         `SELECT branch_id
            FROM tracking_logs
           WHERE parcel_id = $1 AND branch_id IS NOT NULL
-          ORDER BY scanned_at DESC
+          ORDER BY scanned_at DESC, log_id DESC
           LIMIT 1`,
         [parcelId],
       );
@@ -565,8 +565,8 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
       [parcelId, status_update, remarks || null, effectiveBranchId, effectiveCourierId]
     );
 
-    // A Delivered scan completes the linked marketplace order and tells the
-    // buyer -- the wholesaler's job ended at 'shipped'
+    // Terminal delivery scans complete the linked marketplace order -- the
+    // wholesaler's fulfillment control ended at 'shipped'
     // (docs/delivery-status-logistics.md).
     if (status_update === "Delivered") {
       const { rows: orderRows } = await client.query(
@@ -586,6 +586,47 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
           "Order Delivered",
           `Order #${orderRows[0].order_id} is now delivered.`,
           "success",
+        );
+      }
+    }
+
+    if (status_update === "Returned") {
+      const { rows: orderRows } = await client.query(
+        `UPDATE orders o
+            SET status = 'returned', updated_at = CURRENT_TIMESTAMP
+           FROM parcels p
+          WHERE p.parcel_id = $1
+            AND o.order_id = p.order_id
+            AND o.status = 'shipped'
+        RETURNING o.order_id, o.buyer_business_id, o.wholesaler_business_id`,
+        [parcelId],
+      );
+      if (orderRows.length) {
+        const order = orderRows[0];
+        const returnReason =
+          typeof remarks === "string"
+            ? remarks.trim().replace(/[.]+$/, "")
+            : "";
+        const buyerMessage = returnReason
+          ? `Delivery failed: ${returnReason}. Order #${order.order_id} returned to sender.`
+          : `Delivery failed — order #${order.order_id} returned to sender.`;
+        const wholesalerMessage = returnReason
+          ? `Parcel for order #${order.order_id} is returning to you. Delivery failed: ${returnReason}.`
+          : `Parcel for order #${order.order_id} is returning to you.`;
+
+        await notifyBusiness(
+          client,
+          order.buyer_business_id,
+          "Delivery Failed — Order Returned",
+          buyerMessage,
+          "warning",
+        );
+        await notifyBusiness(
+          client,
+          order.wholesaler_business_id,
+          "Parcel Returning to Sender",
+          wholesalerMessage,
+          "warning",
         );
       }
     }

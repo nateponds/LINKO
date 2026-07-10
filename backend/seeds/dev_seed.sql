@@ -167,7 +167,7 @@ INSERT INTO couriers (full_name, phone_number, vehicle_type, assigned_branch_id,
   ('Carlo Courier', '+639170000009', 'van',        2, 9);   -- 2  courier2_demo, Mandaue hub
 
 -- ---------------------------------------------------------------------------
--- 9. ORDERS (4) — spread across statuses
+-- 9. ORDERS (5) — spread across statuses
 --    Buyer 1 (business 1) orders from Wholesaler (business 2)
 --    Buyer 2 (business 6) orders from Wholesaler 2 (business 7)
 --    "Both" user (business 8) acting as buyer orders from Wholesaler (business 2)
@@ -177,7 +177,8 @@ INSERT INTO orders (buyer_business_id, wholesaler_business_id, tier_id, status, 
   (1, 2, 1, 'pending',   1, NOW() - INTERVAL '2 days',  NOW() - INTERVAL '2 days'),   -- 1  pending
   (6, 7, 2, 'accepted',  6, NOW() - INTERVAL '4 days',  NOW() - INTERVAL '3 days'),   -- 2  accepted
   (8, 2, 1, 'shipped',   8, NOW() - INTERVAL '6 days',  NOW() - INTERVAL '4 days'),   -- 3  shipped
-  (1, 7, 3, 'delivered', 1, NOW() - INTERVAL '10 days', NOW() - INTERVAL '7 days');   -- 4  delivered
+  (1, 7, 3, 'delivered', 1, NOW() - INTERVAL '10 days', NOW() - INTERVAL '7 days'),   -- 4  delivered
+  (6, 7, 2, 'returned',  6, NOW() - INTERVAL '8 days',  NOW() - INTERVAL '2 days');   -- 5  failed delivery
 
 -- ---------------------------------------------------------------------------
 -- 10. ORDER_ITEMS — varying quantities per order
@@ -197,26 +198,32 @@ INSERT INTO order_items (order_id, product_id, quantity, unit_price_snapshot) VA
 
   -- Order 4 (delivered): 2 items
   (4, 8,  3, 1020.00),                    -- 3x Carabao Milk crate = 3,060
-  (4, 11, 1,  900.00);                    -- 1x Paper Bags bundle = 900
+  (4, 11, 1,  900.00),                    -- 1x Paper Bags bundle = 900
+
+  -- Order 5 (returned after failed delivery): 1 item
+  (5, 9, 2, 1400.00);                     -- 2x Lumpia Shanghai bulk pack = 2,800
 
 -- ---------------------------------------------------------------------------
--- 11. INVOICES (3) — for accepted, shipped, delivered orders
+-- 11. INVOICES (4) — for accepted, shipped, delivered, returned orders
 --     total = SUM(qty * unit_price_snapshot) + service_tier base_fee
 -- ---------------------------------------------------------------------------
 INSERT INTO invoices (order_id, invoice_number, total, issued_at) VALUES
   (2, 'INV-2-001', 5460.00,  NOW() - INTERVAL '3 days'),   -- accepted: 2250+3120+90(express fee)
   (3, 'INV-3-001', 10430.00, NOW() - INTERVAL '4 days'),   -- shipped:  4680+3300+2400+50(standard fee)
-  (4, 'INV-4-001', 4110.00,  NOW() - INTERVAL '7 days');   -- delivered: 3060+900+150(next-day fee)
+  (4, 'INV-4-001', 4110.00,  NOW() - INTERVAL '7 days'),   -- delivered: 3060+900+150(next-day fee)
+  (5, 'INV-5-001', 2890.00,  NOW() - INTERVAL '6 days');   -- returned:  2800+90(express fee)
 
 -- ---------------------------------------------------------------------------
--- 12. PARCELS (2) — for shipped and delivered orders
+-- 12. PARCELS (3) — for shipped, delivered, and returned orders
 -- ---------------------------------------------------------------------------
-INSERT INTO parcels (parcel_id, sender_id, receiver_id, tier_id,
+INSERT INTO parcels (parcel_id, order_id, sender_id, receiver_id, tier_id,
                      origin_address_id, destination_address_id,
                      weight_kg, dimensions, total_distance_km,
+                     declared_value, shipping_fee,
                      estimated_delivery_date) VALUES
-  ('LKO-00000001', 2, 8, 1, 2, 10, 8.50,  '40x30x25 cm', 6.2,  NOW()::date + 3),   -- shipped order 3
-  ('LKO-00000002', 7, 1, 3, 8, 1,  4.20,  '30x25x20 cm', 8.7,  NOW()::date - 5);   -- delivered order 4
+  ('LKO-00000001', 3, 2, 8, 1, 2, 10, 8.50, '40x30x25 cm', 6.2,  10380.00, 50.00,  NOW()::date + 3),   -- shipped order 3
+  ('LKO-00000002', 4, 7, 1, 3, 8, 1,  4.20, '30x25x20 cm', 8.7,   3960.00, 150.00, NOW()::date - 5),   -- delivered order 4
+  ('LKO-00000003', 5, 7, 6, 2, 8, 7,  5.50, '35x25x20 cm', 14.3,  2800.00, 90.00,  NOW()::date - 2);   -- returned order 5
 
 -- ---------------------------------------------------------------------------
 -- 13. TRACKING_LOGS — realistic progression
@@ -232,12 +239,28 @@ INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id, courier
   ('LKO-00000002', 'Picked Up',         'Picked up from Mandaue Agri warehouse',2,    2,   NOW() - INTERVAL '8 days'),
   ('LKO-00000002', 'In Transit',        'Line-haul Mandaue → Cebu hub',          2,    2,   NOW() - INTERVAL '8 days'),
   ('LKO-00000002', 'Out for Delivery',  'Last mile to Sunrise Retail',            1,    1,   NOW() - INTERVAL '7 days'),
-  ('LKO-00000002', 'Delivered',         'Received by staff at Lahug office',      1,    1,   NOW() - INTERVAL '7 days');
+  ('LKO-00000002', 'Delivered',         'Received by staff at Lahug office',      1,    1,   NOW() - INTERVAL '7 days'),
+
+  -- Parcel LKO-00000003 (failed delivery): full chain ending in Returned
+  ('LKO-00000003', 'Order Created',     'Auto-generated from marketplace order', 2,    NULL, NOW() - INTERVAL '6 days'),
+  ('LKO-00000003', 'Picked Up',         'Picked up from Mandaue Agri warehouse', 2,    2,   NOW() - INTERVAL '5 days'),
+  ('LKO-00000003', 'In Transit',        'Line-haul to Davao destination',         2,    2,   NOW() - INTERVAL '4 days'),
+  ('LKO-00000003', 'Out for Delivery',  'Last-mile delivery attempt',             2,    2,   NOW() - INTERVAL '2 days'),
+  ('LKO-00000003', 'Returned',          'Receiver refused delivery',              2,    2,   NOW() - INTERVAL '2 days');
 
 -- ---------------------------------------------------------------------------
--- 14. PAYMENTS — none (system-generated)
+-- 14. PAYMENTS — demo status variety only; no workflow behavior implied
 -- ---------------------------------------------------------------------------
--- Intentionally empty. Payments are created via the auto-parcel flow.
+INSERT INTO payments (parcel_id, method, payment_status, amount, paid_at) VALUES
+  ('LKO-00000001', 'Online',  'Paid',     NULL, NOW() - INTERVAL '4 days'),
+  ('LKO-00000002', 'Prepaid', 'Refunded', NULL, NOW() - INTERVAL '9 days'),
+  ('LKO-00000003', 'COD',     'Failed',   NULL, NULL);
+
+-- Commission rows are created by the parcel trigger. Seed a couple as
+-- collected for report/demo variety; this does not add collection workflow.
+UPDATE commissions
+   SET status = 'Collected', settled_at = NOW() - INTERVAL '1 day'
+ WHERE parcel_id IN ('LKO-00000001', 'LKO-00000002');
 
 -- ---------------------------------------------------------------------------
 -- 15. NOTIFICATIONS — none (system-generated)
