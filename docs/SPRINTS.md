@@ -1,167 +1,153 @@
-# LINKO Sprint And Milestone Plan
+# LINKO Sprint Plan
 
-This file is the active delivery plan fo\n\n---
-
-## Milestone 4: Logistics From Orders
-
-**Status:** Implemented  
-**Priority:** High  
-**Goal:** Replace standalone parcel booking with shipments created from real accepted orders.
-
-### Tasks
-
-- [x] Remove or permanently disable standalone buyer-facing parcel booking.
-- [x] Add shipment creation from accepted orders.
-- [x] Link shipments to:
-  - order
-  - buyer business
-  - wholesaler business
-  - logistics coordinator
-  - courier
-- [x] Add logistics coordinator workflow:
-  - view shipments needing assignment
-  - assign courier
-  - update service tier
-  - update route/status
-- [x] Add courier workflow:
-  - view assigned shipments
-  - update pickup status
-  - update in-transit status
-  - mark delivered
-- [x] Add buyer delivery visibility through Orders and Invoices.
-- [x] Keep Logistics page restricted to wholesaler, logistics coordinator, courier, and platform admin.
-- [x] Add tests for shipment creation, assignment, courier access, and buyer visibility.
-
-### Acceptance Criteria
-
-- Shipments are created from orders, not arbitrary public forms.
-- Buyers track delivery from Orders or Invoices.
-- Buyers cannot open the Logistics workspace.
-- Couriers see only assigned shipments.
-- Logistics coordinators can coordinate shipments.
-- Wholesalers can see shipment status for their fulfilled orders.
-
-## Milestone 5: Ownership, Multi-Business Context, And Security
-
-**Status:** Implemented  
-**Priority:** High  
-**Goal:** Move beyond broad role checks into correct data ownership and business context behavior.
-
-> Verified 2026-07-06: backend suite green locally, build+lint clean.
-
-### Tasks
-
-- [x] Add active business context for users with multiple businesses.
-- [x] Add business switcher to the app shell.
-- [x] Enforce row-level ownership in backend services:
-  - products
-  - inventory
-  - orders
-  - invoices
-  - shipments
-  - supplier profiles
-- [x] Add platform admin bypass where appropriate.
-- [x] Add authorization helper tests for all ownership patterns.
-- [x] Add CSRF protection or a documented same-site cookie mitigation plan. (same-site mitigation documented in docs/DEPLOYMENT.md §security)
-- [x] Improve input validation across auth, products, orders, invoices, and shipments.
-- [x] Add audit-friendly timestamps and created/updated metadata where missing.
-
-### Acceptance Criteria
-
-- A user with multiple businesses can choose which business they are acting as.
-- Users cannot access another business's private data.
-- Platform admin access is intentional and tested.
-- Authorization rules are centralized enough to maintain safely.
+This file is the active forward-looking delivery plan. Completed historical
+milestones live in git history and release notes; this file should only describe
+work that still needs product, design, implementation, or release attention.
 
 ---
 
-## Milestone 6: Admin, Demo Readiness, And Course Polish
+<!-- Sprint numbering is stable: numbers are never reused. Sprint 1 (courier
+     tracking status semantics) completed and lives in git history. Sprints 2-6
+     were never committed and were compressed into docs/BACKLOG.md entries on
+     2026-07-10 (returns planning, coordinator exceptions, Cancelled
+     deprecation, release readiness, logistics UI polish) — this file holds
+     committed work only. -->
 
-**Status:** Implemented  
-**Priority:** Medium  
-**Goal:** Make LINKO credible for professor review, demo walkthroughs, and team grading.
+## Sprint 7: Logistics Correctness & Authz
+
+**Status:** Done
+**Priority:** High
+**Goal:** Close the correctness and authorization holes in the graded parcel
+tracking subsystem found by the 2026-07-10 logistics audit.
+
+These are defects, not features: booking IDs that collide by design, a courier
+write path that ignores the read-side visibility rules, an unlocked claim race,
+and soft-delete semantics (migration 015) that can strand live parcels.
 
 ### Tasks
 
-- [x] Add platform admin dashboard.
-- [x] Add admin user management:
-  - list users
-  - create logistics/courier/admin users
-  - deactivate users
-  - view business memberships
-- [x] Add admin business management:
-  - list businesses
-  - inspect business owners
-  - manage verification/status fields if needed
-- [x] Add seed/reset demo data script for consistent grading demos.
-- [x] Add clear demo account documentation.
-- [x] Improve empty states across the app.
-- [x] Improve user-facing error messages.
-- [x] Remove or label remaining mock/demo-only data.
-- [x] Prepare a professor demo script:
-  - buyer journey
-  - wholesaler journey
-  - logistics coordinator journey
-  - courier journey
-  - platform admin journey
+- [x] Replace timestamp-derived parcel IDs (`LKO-` + `Date.now()` slice, wraps
+      every ~28h → PK collision → user-facing 400) with a Postgres sequence:
+      `'LKO-' || lpad(nextval, 8, '0')`. One shared helper replaces both
+      generation sites (`routes/logistics.js` booking, `routes/orders.js`
+      ship-time auto-create).
+- [x] Enforce courier write scope on `POST /api/parcels/:id/tracking`: a
+      courier may scan only parcels in their handling history or the
+      unassigned pool of their assigned branch — the same rule as read
+      visibility. Out of scope → `404` (matches read-side anti-leak
+      behavior). Handoffs keep going through coordinator unassign
+      (`docs/delivery-status-logistics.md` decision 5).
+- [x] Lock the parcel (`SELECT … FOR UPDATE`) inside the tracking-scan
+      transaction so the pool-claim race and the forward-only status check are
+      serialized (two couriers can currently both claim the same parcel).
+- [x] Finish soft-delete semantics (015):
+  - Block branch deactivation while non-terminal unassigned parcels sit in its
+    pool: `409` with the live-parcel count; reassign first.
+  - Filter `is_active` in `parcelScope` and the courier stamp lookup so a
+    deactivated courier loses list/scan access immediately.
+  - Validate coordinator-supplied `branch_id` / `courier_id` (and courier
+    creation's `assigned_branch_id`) against active rows.
+  - Replace the `branch_name` UNIQUE constraint with a partial unique index
+    `WHERE is_active` so a deactivated branch's name can be reused.
+- [x] Add missing constraints/indexes: unique partial index on
+      `couriers.user_id`, index on `tracking_logs(courier_id)` (courier scope
+      runs an EXISTS against it per parcel).
+- [x] Localize Logistics Management delete errors — a failed delete currently
+      replaces the whole page with the error text.
+- [x] Tests: cross-branch courier scan rejected, concurrent claim yields one
+      winner, branch delete blocked while pool is live, deactivated courier
+      gets `403`, sequential parcel IDs never collide.
 
 ### Acceptance Criteria
 
-- The app demonstrates real accounts, businesses, orders, invoices, and logistics.
-- Demo data can be reset consistently.
-- Professor can see authentication and RBAC clearly.
-- Remaining unfinished areas are intentionally scoped, not accidental.
+- A courier cannot write to any parcel they cannot see.
+- Booking and shipping never fail from parcel-ID collision.
+- Deactivating reference data never strands an in-flight parcel and never
+  leaves a hidden actor with API access.
+- Every rule above is backend-enforced and test-covered (per execution rules).
 
 ---
 
-## Milestone 7: Deployment And Production Readiness
+## Sprint 8: Logistics Workflow Integrity & Buyer Visibility
 
-**Status:** Planned  
-**Priority:** Medium  
-**Goal:** Prepare LINKO for reliable staging and production deployment.
+**Status:** Committed
+**Priority:** High
+**Goal:** Make the graded demo path honest end to end — real weights, moving
+payment status, evidence-bearing terminal scans, and delivery visibility for
+the buyer — and delete the dead booking surface.
+
+Depends on nothing in Sprint 7; the two ship as separate reviewable PRs.
 
 ### Tasks
 
-- [ ] Confirm environment variable requirements for frontend, backend, staging, and production.
-- [ ] Confirm staging and production database migration flow.
-- [ ] Add deployment-safe seed strategy.
-- [ ] Verify staging deployment:
-  - frontend on port `8086`
-  - backend on port `3003`
-  - staging Postgres on port `5433`
-- [ ] Verify production deployment:
-  - frontend on port `8085`
-  - backend on port `3002`
-  - production Postgres on port `5432`
-- [ ] Add health checks for backend and database connectivity.
-- [ ] Add safer error logging.
-- [ ] Add final lint, build, migration, and backend test checklist.
-- [ ] Review security basics:
-  - session cookie flags
-  - password hashing
-  - auth route validation
-  - role checks
-  - ownership checks
-  - production secrets
+- [ ] Ship-time weight entry: the wholesaler provides `weight_kg` (and optional
+      `dimensions`) when marking an order `shipped` — replaces the hardcoded
+      10.0 kg / 15.0 km placeholders, so the commission bracket freezes from a
+      real weight. `shipping_fee` stays the frozen checkout quote (per commit
+      `ce24e68`; defend in report as "fee quoted at checkout, weight recorded
+      at handoff"). Distance becomes `NULL`; ETA derives from the tier's
+      `estimated_days`, not `CURRENT_DATE + 5`.
+- [ ] Method-honest payment lifecycle (gate stays unenforced per
+      `docs/course-deliverable.md`): `Prepaid`/`Online` → `Paid` + `paid_at`
+      at booking; `COD` → `Paid` on the `Delivered` scan, `Failed` on
+      `Returned`. All inside the existing transactions.
+- [ ] Remarks-as-POD: courier `Delivered` and `Returned` scans require
+      non-empty remarks (`400` otherwise) — "Received by <name>" / failure
+      reason. Parcel detail labels the field per selected status; courier
+      dashboard quick actions for those two statuses prompt for remarks
+      instead of sending a canned string (absorbs Sprint 4's "quick actions
+      match status rules" task). Signature/photo POD and attempt/retry cycles
+      stay deferred with RMA.
+- [ ] Buyer tracking modal (absorbs Sprint 4's buyer-visibility task): buyers
+      get a read-only tracking view for their own deliveries without entering
+      the logistics workspace — no Logistics nav, no parcel list.
+  - `GET /api/orders/:id` exposes `parcel_id` (LEFT JOIN parcels).
+  - `GET /api/parcels/:id` gains a buyer scope: visible when `receiver_id`
+    is one of the caller's buyer businesses. List stays operator-only; the
+    tracking write route is untouched.
+  - Orders UI: "Track parcel" on shipped/delivered/returned orders opens a
+    modal rendering the tracking timeline (reuse the parcel-detail timeline
+    pieces).
+- [ ] Delete the dead standalone booking surface: `BookParcelPage.jsx`
+      (unrouted, calls the removed `/api/customers`), the `/logistics/book`
+      redirect, `GET /api/businesses` (feeds nothing else), and API_CONTRACTS
+      §3.5. `POST /api/parcels` stays as the API-level demo of the pricing/
+      commission triggers.
+- [ ] Update the demo script and seed data for one clean delivery journey and
+      one failed-delivery journey, exercising the new surface end to end:
+      ship-time weight entry, payment status transitions, POD remarks, buyer
+      tracking modal, coordinator correction (salvaged from retired Sprint 4).
+- [ ] Update docs: API_CONTRACTS (§3.6 POD rule + buyer scope, orders
+      `parcel_id`, §3.5 removal) and delivery-status-logistics.md (courier
+      write scope, POD, payment lifecycle, buyer modal).
+- [ ] Tests: buyer sees own parcel via its order and `404`s on others';
+      remarks enforcement on terminal courier scans; payment transitions per
+      method; shipped order carries the entered weight.
 
 ### Acceptance Criteria
 
-- Staging deploy works end to end.
-- Production deploy works end to end.
-- Migrations can be applied safely.
-- Demo accounts and production data strategy are separated.
-- Final verification checklist is documented and repeatable.
+- The marketplace demo path (the only live booking path) shows real recorded
+  weight, a payment status that moves, and terminal scans that carry evidence.
+- A buyer can answer "where is my order?" from the order screen alone, and
+  cannot reach operator surfaces.
+- No dead logistics code or stale contract sections remain.
+- Demo data supports the planned story without manual database edits.
 
 ---
 
 ## Execution Rules
 
-- Keep implementation milestones small and reviewable.
-- Prefer backend-enforced authorization over frontend-only hiding.
+- Keep future sprints small, reviewable, and tied to the active product model.
+- Prefer backend-enforced workflow rules over frontend-only hiding.
 - Do not reintroduce guest app access.
 - Do not allow public registration for logistics, courier, or platform admin.
 - Do not build buyer-facing standalone parcel booking.
-- Do not hardcode marketplace products once Milestone 2 starts.
+- Buyers get read-only delivery visibility scoped to their own orders (Sprint 8
+  modal); never logistics workspace access or a similar account surface to
+  courier/coordinator dashboards.
 - Keep buyer-wholesaler marketplace framing as the primary LINKO workflow.
 - Treat logistics as fulfillment after an order exists.
-- Add tests when changing auth, ownership, order, invoice, product, or logistics behavior.
+- Treat buyer cancellation as pre-shipment order behavior.
+- Treat post-shipment buyer issues as returns/refunds, not cancellation.
+- Add tests when changing auth, ownership, orders, invoices, products,
+  logistics, tracking status rules, or money movement.

@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Search, PackagePlus } from "lucide-react";
 import { Link } from "react-router-dom";
-import AppLayout from "../layouts/AppLayout";
-import { useAuth } from "../auth/AuthProvider";
-import { peso, shortDate, statusClass } from "../lib/format";
-import "./LogisticsPage.css";
+import AppLayout from "../../layouts/AppLayout";
+import { useAuth } from "../../auth/AuthProvider";
+import { peso, shortDate, statusClass } from "../../lib/format";
+import "./logistics.css";
 
 /* Course-deliverable demo surface (Sprint 2-CD): parcel list backed by
    GET /api/parcels — the first page wired to the live backend. */
