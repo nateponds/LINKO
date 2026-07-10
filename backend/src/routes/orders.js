@@ -230,18 +230,21 @@ function assertTransitionAllowed(auth, order, nextStatus) {
     pending: ["accepted", "cancelled"],
     accepted: ["preparing"],
     preparing: ["shipped"],
-    shipped: ["delivered"],
+    shipped: ["delivered", "returned"],
     delivered: [],
     cancelled: [],
+    returned: [],
   };
 
-  // Delivery is confirmed by the courier's tracking scan (see
+  // Delivery outcomes are confirmed by parcel tracking (see
   // docs/delivery-status-logistics.md), never by the wholesaler.
   // platform_admin keeps a manual override for stuck or legacy orders.
   const canUpdate =
     isAdmin(auth) ||
     (nextStatus === "cancelled" && canBuyerCancel(auth, order)) ||
-    (canWholesalerManage(auth, order) && nextStatus !== "delivered");
+    (canWholesalerManage(auth, order) &&
+      nextStatus !== "delivered" &&
+      nextStatus !== "returned");
 
   if (!canUpdate) {
     throw createHttpError(403, "You cannot update this order status");
@@ -453,7 +456,15 @@ router.patch(
     try {
       const orderId = parsePositiveId(req.params.id, "Order");
       const { status } = req.body ?? {};
-      const validStatuses = ["pending", "accepted", "preparing", "shipped", "delivered", "cancelled"];
+      const validStatuses = [
+        "pending",
+        "accepted",
+        "preparing",
+        "shipped",
+        "delivered",
+        "cancelled",
+        "returned",
+      ];
       if (!validStatuses.includes(status)) {
         throw createHttpError(400, "status is required and must be a valid order status");
       }
@@ -528,27 +539,44 @@ router.patch(
         }
       }
 
-      const statusNotifications = {
-        accepted: [order.buyer_business_id, "Order Accepted", "success"],
-        shipped: [order.buyer_business_id, "Order Shipped", "info"],
-        delivered: [order.buyer_business_id, "Order Delivered", "success"],
-        cancelled: [
-          canBuyerCancel(req.auth, order)
-            ? order.wholesaler_business_id
-            : order.buyer_business_id,
-          "Order Cancelled",
-          "warning",
-        ],
-      };
-      if (statusNotifications[status]) {
-        const [businessId, title, type] = statusNotifications[status];
+      if (status === "returned") {
         await notifyBusiness(
           client,
-          businessId,
-          title,
-          `Order #${orderId} is now ${status}.`,
-          type,
+          order.buyer_business_id,
+          "Delivery Failed — Order Returned",
+          `Delivery failed — order #${orderId} returned to sender.`,
+          "warning",
         );
+        await notifyBusiness(
+          client,
+          order.wholesaler_business_id,
+          "Parcel Returning to Sender",
+          `Parcel for order #${orderId} is returning to you.`,
+          "warning",
+        );
+      } else {
+        const statusNotifications = {
+          accepted: [order.buyer_business_id, "Order Accepted", "success"],
+          shipped: [order.buyer_business_id, "Order Shipped", "info"],
+          delivered: [order.buyer_business_id, "Order Delivered", "success"],
+          cancelled: [
+            canBuyerCancel(req.auth, order)
+              ? order.wholesaler_business_id
+              : order.buyer_business_id,
+            "Order Cancelled",
+            "warning",
+          ],
+        };
+        if (statusNotifications[status]) {
+          const [businessId, title, type] = statusNotifications[status];
+          await notifyBusiness(
+            client,
+            businessId,
+            title,
+            `Order #${orderId} is now ${status}.`,
+            type,
+          );
+        }
       }
 
       await client.query("COMMIT");

@@ -619,6 +619,7 @@
     color: #9a7b12;
   }
 
+  .status.returned,
   .status.cancelled,
   .status.out-of-stock {
     background: #fdeaea;

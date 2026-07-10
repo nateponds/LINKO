@@ -1054,6 +1054,7 @@ test("accepting an order rejects insufficient stock without generating an invoic
 
 test("platform admin can view all orders and override order status", { skip: !hasDb }, async () => {
   const buyerCookie = await loginAs("buyer@linko.test");
+  const wholesalerCookie = await loginAs("wholesaler@linko.test");
   const adminCookie = await loginAs("admin@linko.test");
   const { createPool } = await import("./db.js");
   const pool = createPool();
@@ -1093,13 +1094,181 @@ test("platform admin can view all orders and override order status", { skip: !ha
       body: JSON.stringify({ status: "delivered" }),
     });
     assert.equal(adminSkip.status, 400);
+
+    const adminPreparing = await request(`/api/orders/${orderId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: adminCookie },
+      body: JSON.stringify({ status: "preparing" }),
+    });
+    assert.equal(adminPreparing.status, 200);
+
+    const adminShipped = await request(`/api/orders/${orderId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: adminCookie },
+      body: JSON.stringify({ status: "shipped" }),
+    });
+    assert.equal(adminShipped.status, 200);
+
+    const wholesalerReturns = await request(`/api/orders/${orderId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: wholesalerCookie },
+      body: JSON.stringify({ status: "returned" }),
+    });
+    assert.equal(wholesalerReturns.status, 403);
+
+    const adminReturns = await request(`/api/orders/${orderId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: adminCookie },
+      body: JSON.stringify({ status: "returned" }),
+    });
+    assert.equal(adminReturns.status, 200);
+    assert.equal(adminReturns.body.status, "returned");
+
+    const returnNotifications = await pool.query(
+      `SELECT title, message, type
+         FROM notifications
+        WHERE message LIKE $1
+          AND title IN ('Delivery Failed — Order Returned', 'Parcel Returning to Sender')`,
+      [`%order #${orderId}%`],
+    );
+    assert.equal(returnNotifications.rows.length, 2);
+    assert.ok(returnNotifications.rows.every((row) => row.type === "warning"));
+
+    const adminReopensReturned = await request(`/api/orders/${orderId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: adminCookie },
+      body: JSON.stringify({ status: "delivered" }),
+    });
+    assert.equal(adminReopensReturned.status, 400);
   } finally {
     if (orderId) {
+      await pool.query("DELETE FROM notifications WHERE message LIKE $1", [
+        `%order #${orderId}%`,
+      ]);
+      await pool.query("DELETE FROM parcels WHERE order_id = $1", [orderId]);
       await pool.query("DELETE FROM order_items WHERE order_id = $1", [orderId]);
       await pool.query("DELETE FROM orders WHERE order_id = $1", [orderId]);
     }
     if (productId) {
       await pool.query("DELETE FROM products WHERE product_id = $1", [productId]);
+    }
+    await pool.end();
+  }
+});
+
+test("Returned tracking updates a shipped order and notifies both businesses", { skip: !hasDb }, async () => {
+  const courierCookie = await loginAs("courier@linko.test");
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+  let orderId;
+  let parcelId;
+
+  try {
+    const buyerBusinessId = await getBusinessIdByName(
+      pool,
+      "Sunrise Retail Cooperative",
+    );
+    const wholesalerBusinessId = await getBusinessIdByName(
+      pool,
+      "Cebu Fresh Wholesale",
+    );
+    const buyerAddress = await pool.query(
+      "SELECT address_id FROM addresses WHERE business_id = $1 LIMIT 1",
+      [buyerBusinessId],
+    );
+    const wholesalerAddress = await pool.query(
+      "SELECT address_id FROM addresses WHERE business_id = $1 LIMIT 1",
+      [wholesalerBusinessId],
+    );
+
+    const order = await pool.query(
+      `INSERT INTO orders
+         (buyer_business_id, wholesaler_business_id, status, tier_id)
+       VALUES ($1, $2, 'shipped', 1)
+       RETURNING order_id`,
+      [buyerBusinessId, wholesalerBusinessId],
+    );
+    orderId = order.rows[0].order_id;
+    parcelId = `RTN-${Date.now()}`;
+
+    await pool.query(
+      `INSERT INTO parcels
+         (parcel_id, order_id, sender_id, receiver_id, tier_id,
+          origin_address_id, destination_address_id, weight_kg,
+          total_distance_km, estimated_delivery_date)
+       VALUES ($1, $2, $3, $4, 1, $5, $6, 2, 10, CURRENT_DATE + 1)`,
+      [
+        parcelId,
+        orderId,
+        wholesalerBusinessId,
+        buyerBusinessId,
+        wholesalerAddress.rows[0].address_id,
+        buyerAddress.rows[0].address_id,
+      ],
+    );
+    await pool.query(
+      `INSERT INTO tracking_logs (parcel_id, status_update, remarks)
+       VALUES ($1, 'Out for Delivery', 'Courier attempted delivery')`,
+      [parcelId],
+    );
+
+    const returned = await request(`/api/parcels/${parcelId}/tracking`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: courierCookie },
+      body: JSON.stringify({
+        status_update: "Returned",
+        remarks: "Receiver refused delivery",
+      }),
+    });
+    assert.equal(returned.status, 201);
+    assert.equal(returned.body.status_update, "Returned");
+
+    const updatedOrder = await pool.query(
+      "SELECT status FROM orders WHERE order_id = $1",
+      [orderId],
+    );
+    assert.equal(updatedOrder.rows[0].status, "returned");
+
+    const returnNotifications = await pool.query(
+      `SELECT n.title, n.message, n.type, bm.business_id
+         FROM notifications n
+         JOIN business_memberships bm ON bm.user_id = n.user_id
+        WHERE n.message ILIKE $1
+          AND n.title IN ('Delivery Failed — Order Returned', 'Parcel Returning to Sender')`,
+      [`%order #${orderId}%`],
+    );
+    assert.ok(
+      returnNotifications.rows.some(
+        (row) =>
+          row.business_id === buyerBusinessId &&
+          row.title === "Delivery Failed — Order Returned",
+      ),
+    );
+    assert.ok(
+      returnNotifications.rows.some(
+        (row) =>
+          row.business_id === wholesalerBusinessId &&
+          row.title === "Parcel Returning to Sender",
+      ),
+    );
+    assert.ok(
+      returnNotifications.rows.every(
+        (row) =>
+          row.type === "warning" &&
+          row.message.includes("Receiver refused delivery"),
+      ),
+    );
+  } finally {
+    if (orderId) {
+      await pool.query("DELETE FROM notifications WHERE message LIKE $1", [
+        `%order #${orderId}%`,
+      ]);
+    }
+    if (parcelId) {
+      await pool.query("DELETE FROM parcels WHERE parcel_id = $1", [parcelId]);
+    }
+    if (orderId) {
+      await pool.query("DELETE FROM orders WHERE order_id = $1", [orderId]);
     }
     await pool.end();
   }
