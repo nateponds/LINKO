@@ -474,6 +474,7 @@ router.get("/branches", async (_req, res) => {
            a.province, a.city_municipality, a.barangay, a.street_address
       FROM branches b
       JOIN addresses a ON a.address_id = b.address_id
+     WHERE b.is_active
      ORDER BY b.branch_id`);
   res.json(rows);
 });
@@ -482,6 +483,7 @@ router.get("/couriers", async (_req, res) => {
   const { rows } = await query(`
     SELECT courier_id, full_name, phone_number, vehicle_type, assigned_branch_id
       FROM couriers
+     WHERE is_active
      ORDER BY full_name`);
   res.json(rows);
 });
@@ -677,6 +679,50 @@ router.post("/couriers", requireAnyRole(["logistics_coordinator", "platform_admi
     );
     res.status(201).json(rows[0]);
   } catch(e) {
+    next(asClientError(e));
+  }
+});
+
+// Soft delete: hide from management lists but keep parcel history intact
+// (tracking_logs still reference the row). Deleting a branch also unassigns
+// its couriers so the courier list does not point at a hidden branch.
+router.delete("/branches/:id", requireAnyRole(["logistics_coordinator", "platform_admin"]), async (req, res, next) => {
+  const client = await getPool().connect();
+  try {
+    await client.query("BEGIN");
+    const { rowCount } = await client.query(
+      "UPDATE branches SET is_active = false WHERE branch_id = $1 AND is_active",
+      [req.params.id]
+    );
+    if (!rowCount) {
+      await client.query("ROLLBACK").catch(() => {});
+      return res.status(404).json({ error: { message: `Branch ${req.params.id} not found` } });
+    }
+    await client.query(
+      "UPDATE couriers SET assigned_branch_id = NULL WHERE assigned_branch_id = $1",
+      [req.params.id]
+    );
+    await client.query("COMMIT");
+    res.status(204).end();
+  } catch (e) {
+    await client.query("ROLLBACK").catch(() => {});
+    next(asClientError(e));
+  } finally {
+    client.release();
+  }
+});
+
+router.delete("/couriers/:id", requireAnyRole(["logistics_coordinator", "platform_admin"]), async (req, res, next) => {
+  try {
+    const { rowCount } = await query(
+      "UPDATE couriers SET is_active = false WHERE courier_id = $1 AND is_active",
+      [req.params.id]
+    );
+    if (!rowCount) {
+      return res.status(404).json({ error: { message: `Courier ${req.params.id} not found` } });
+    }
+    res.status(204).end();
+  } catch (e) {
     next(asClientError(e));
   }
 });
