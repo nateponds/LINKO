@@ -74,7 +74,7 @@ SELECT DISTINCT ON (t.parcel_id)
 FROM tracking_logs t
 LEFT JOIN branches b  ON b.branch_id  = t.branch_id
 LEFT JOIN couriers co ON co.courier_id = t.courier_id
-ORDER BY t.parcel_id, t.scanned_at DESC;
+ORDER BY t.parcel_id, t.scanned_at DESC, t.log_id DESC;
 
 
 -- ----------------------------------------------------------------------------
@@ -93,7 +93,7 @@ FROM tracking_logs t
 LEFT JOIN branches b  ON b.branch_id  = t.branch_id
 LEFT JOIN couriers co ON co.courier_id = t.courier_id
 WHERE t.parcel_id = 'LNK-10000001'   -- <-- swap: try ...010 (stuck), ...005 (returned)
-ORDER BY t.scanned_at;
+ORDER BY t.scanned_at, t.log_id;
 
 
 -- ----------------------------------------------------------------------------
@@ -234,6 +234,6 @@ JOIN payments pay ON pay.parcel_id = r.parcel_id
 JOIN businesses s ON s.business_id = r.wholesaler_id
 WHERE (SELECT t.status_update FROM tracking_logs t
         WHERE t.parcel_id = r.parcel_id
-        ORDER BY t.scanned_at DESC LIMIT 1) = 'Delivered'
+        ORDER BY t.scanned_at DESC, t.log_id DESC LIMIT 1) = 'Delivered'
 ORDER BY r.parcel_id
 LIMIT 10;
