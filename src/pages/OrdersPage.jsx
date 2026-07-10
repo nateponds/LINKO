@@ -14,6 +14,7 @@ const STATUS_TABS = [
   "Preparing",
   "Shipped",
   "Delivered",
+  "Returned",
   "Cancelled",
 ];
 
@@ -23,6 +24,7 @@ const STATUS_LABELS = {
   preparing: "Preparing",
   shipped: "Shipped",
   delivered: "Delivered",
+  returned: "Returned",
   cancelled: "Cancelled",
   canceled: "Cancelled",
 };

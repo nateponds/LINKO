@@ -8,6 +8,10 @@ export default function LogisticsManagementPage() {
   const [couriers, setCouriers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [submittingBranch, setSubmittingBranch] = useState(false);
+  const [submittingCourier, setSubmittingCourier] = useState(false);
+  const [branchError, setBranchError] = useState(null);
+  const [courierError, setCourierError] = useState(null);
 
   // Form states
   const [newBranch, setNewBranch] = useState({
@@ -57,60 +61,69 @@ export default function LogisticsManagementPage() {
 
   const handleAddBranch = async (e) => {
     e.preventDefault();
+    setSubmittingBranch(true);
+    setBranchError(null);
     try {
       await apiSend("/api/branches", { body: newBranch });
       setNewBranch({ branch_name: "", contact_number: "", province: "", city_municipality: "", barangay: "", street_address: "", postal_code: "" });
-      refreshData();
+      await refreshData();
     } catch (err) {
-      alert("Failed to add branch: " + err.message);
+      setBranchError(err.message);
+    } finally {
+      setSubmittingBranch(false);
     }
   };
 
   const handleAddCourier = async (e) => {
     e.preventDefault();
+    setSubmittingCourier(true);
+    setCourierError(null);
     try {
       const payload = { ...newCourier };
       if (!payload.assigned_branch_id) delete payload.assigned_branch_id;
       else payload.assigned_branch_id = Number(payload.assigned_branch_id);
-      
+
       await apiSend("/api/couriers", { body: payload });
       setNewCourier({ full_name: "", phone_number: "", vehicle_type: "", assigned_branch_id: "" });
-      refreshData();
+      await refreshData();
     } catch (err) {
-      alert("Failed to add courier: " + err.message);
+      setCourierError(err.message);
+    } finally {
+      setSubmittingCourier(false);
     }
   };
 
   return (
     <AppLayout>
-      <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
+      <div className="logistics-page">
         <h1 style={{ marginBottom: '2rem' }}>Logistics Management</h1>
-        
+
         {loading ? <p>Loading...</p> : error ? <p style={{color: 'red'}}>{error}</p> : (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-            
+          <div className="logistics-grid">
+
             {/* Branches Section */}
             <div>
               <h2>Branches</h2>
-              <div style={{ background: 'white', padding: '1.5rem', borderRadius: '8px', border: '1px solid var(--gray-200)', marginBottom: '1rem' }}>
-                <form onSubmit={handleAddBranch} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <input type="text" placeholder="Branch Name" required value={newBranch.branch_name} onChange={e => setNewBranch({...newBranch, branch_name: e.target.value})} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }} />
-                  <input type="text" placeholder="Contact Number" required value={newBranch.contact_number} onChange={e => setNewBranch({...newBranch, contact_number: e.target.value})} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }} />
-                  <input type="text" placeholder="Province" required value={newBranch.province} onChange={e => setNewBranch({...newBranch, province: e.target.value})} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }} />
-                  <input type="text" placeholder="City" required value={newBranch.city_municipality} onChange={e => setNewBranch({...newBranch, city_municipality: e.target.value})} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }} />
-                  <input type="text" placeholder="Barangay" value={newBranch.barangay} onChange={e => setNewBranch({...newBranch, barangay: e.target.value})} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }} />
-                  <input type="text" placeholder="Street Address" value={newBranch.street_address} onChange={e => setNewBranch({...newBranch, street_address: e.target.value})} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }} />
-                  <input type="text" placeholder="Postal Code" value={newBranch.postal_code} onChange={e => setNewBranch({...newBranch, postal_code: e.target.value})} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }} />
-                  <button type="submit" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.5rem', background: 'var(--brand-600)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-                    <Plus size={16} /> Add Branch
+              <div className="logistics-form-card">
+                <form onSubmit={handleAddBranch}>
+                  <input type="text" placeholder="Branch Name" required value={newBranch.branch_name} onChange={e => setNewBranch({...newBranch, branch_name: e.target.value})} />
+                  <input type="text" placeholder="Contact Number" required value={newBranch.contact_number} onChange={e => setNewBranch({...newBranch, contact_number: e.target.value})} />
+                  <input type="text" placeholder="Province" required value={newBranch.province} onChange={e => setNewBranch({...newBranch, province: e.target.value})} />
+                  <input type="text" placeholder="City" required value={newBranch.city_municipality} onChange={e => setNewBranch({...newBranch, city_municipality: e.target.value})} />
+                  <input type="text" placeholder="Barangay" value={newBranch.barangay} onChange={e => setNewBranch({...newBranch, barangay: e.target.value})} />
+                  <input type="text" placeholder="Street Address" value={newBranch.street_address} onChange={e => setNewBranch({...newBranch, street_address: e.target.value})} />
+                  <input type="text" placeholder="Postal Code" value={newBranch.postal_code} onChange={e => setNewBranch({...newBranch, postal_code: e.target.value})} />
+                  <button type="submit" disabled={submittingBranch}>
+                    <Plus size={16} /> {submittingBranch ? "Adding…" : "Add Branch"}
                   </button>
+                  {branchError && <p className="logistics-form-error">{branchError}</p>}
                 </form>
               </div>
-              <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <ul className="logistics-list">
                 {branches.map(b => (
-                  <li key={b.branch_id} style={{ background: 'white', padding: '1rem', borderRadius: '8px', border: '1px solid var(--gray-200)' }}>
+                  <li key={b.branch_id}>
                     <strong>{b.branch_name}</strong> - {b.contact_number}<br/>
-                    <small style={{ color: 'var(--gray-500)' }}>{b.city_municipality}, {b.province}</small>
+                    <small>{b.city_municipality}, {b.province}</small>
                   </li>
                 ))}
               </ul>
@@ -119,30 +132,31 @@ export default function LogisticsManagementPage() {
             {/* Couriers Section */}
             <div>
               <h2>Couriers</h2>
-              <div style={{ background: 'white', padding: '1.5rem', borderRadius: '8px', border: '1px solid var(--gray-200)', marginBottom: '1rem' }}>
-                <form onSubmit={handleAddCourier} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <input type="text" placeholder="Full Name" required value={newCourier.full_name} onChange={e => setNewCourier({...newCourier, full_name: e.target.value})} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }} />
-                  <input type="text" placeholder="Phone Number" required value={newCourier.phone_number} onChange={e => setNewCourier({...newCourier, phone_number: e.target.value})} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }} />
-                  <input type="text" placeholder="Vehicle Type (e.g. Van, Motorcycle)" value={newCourier.vehicle_type} onChange={e => setNewCourier({...newCourier, vehicle_type: e.target.value})} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }} />
-                  <select value={newCourier.assigned_branch_id} onChange={e => setNewCourier({...newCourier, assigned_branch_id: e.target.value})} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}>
+              <div className="logistics-form-card">
+                <form onSubmit={handleAddCourier}>
+                  <input type="text" placeholder="Full Name" required value={newCourier.full_name} onChange={e => setNewCourier({...newCourier, full_name: e.target.value})} />
+                  <input type="text" placeholder="Phone Number" required value={newCourier.phone_number} onChange={e => setNewCourier({...newCourier, phone_number: e.target.value})} />
+                  <input type="text" placeholder="Vehicle Type (e.g. Van, Motorcycle)" value={newCourier.vehicle_type} onChange={e => setNewCourier({...newCourier, vehicle_type: e.target.value})} />
+                  <select value={newCourier.assigned_branch_id} onChange={e => setNewCourier({...newCourier, assigned_branch_id: e.target.value})}>
                     <option value="">-- Assign to Branch (Optional) --</option>
                     {branches.map(b => <option key={b.branch_id} value={b.branch_id}>{b.branch_name}</option>)}
                   </select>
-                  <button type="submit" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.5rem', background: 'var(--brand-600)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-                    <Plus size={16} /> Add Courier
+                  <button type="submit" disabled={submittingCourier}>
+                    <Plus size={16} /> {submittingCourier ? "Adding…" : "Add Courier"}
                   </button>
+                  {courierError && <p className="logistics-form-error">{courierError}</p>}
                 </form>
               </div>
-              <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <ul className="logistics-list">
                 {couriers.map(c => (
-                  <li key={c.courier_id} style={{ background: 'white', padding: '1rem', borderRadius: '8px', border: '1px solid var(--gray-200)' }}>
+                  <li key={c.courier_id}>
                     <strong>{c.full_name}</strong> - {c.phone_number}<br/>
-                    <small style={{ color: 'var(--gray-500)' }}>{c.vehicle_type} • Branch: {branches.find(b => b.branch_id === c.assigned_branch_id)?.branch_name || 'None'}</small>
+                    <small>{c.vehicle_type} • Branch: {branches.find(b => b.branch_id === c.assigned_branch_id)?.branch_name || 'None'}</small>
                   </li>
                 ))}
               </ul>
             </div>
-            
+
           </div>
         )}
       </div>

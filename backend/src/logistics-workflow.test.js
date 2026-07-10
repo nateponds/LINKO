@@ -42,15 +42,27 @@ test("courier picks up from the pool and delivering the parcel completes the ord
     const courierCookie = await loginAs("courier@linko.test");
 
     const seedRefs = await pool.query(
-      `SELECT p.product_id, (SELECT MIN(tier_id) FROM service_tiers) AS tier_id
+      `SELECT p.product_id, p.unit_price::float8,
+              st.tier_id, st.base_fee::float8
          FROM products p
          JOIN business_memberships m ON m.business_id = p.business_id AND m.role = 'wholesaler'
          JOIN users u ON u.user_id = m.user_id
+         CROSS JOIN LATERAL (
+           SELECT tier_id, base_fee
+             FROM service_tiers
+            ORDER BY tier_id
+            LIMIT 1
+         ) st
         WHERE u.email = 'wholesaler@linko.test' AND p.is_active = TRUE
         LIMIT 1`,
     );
     assert.ok(seedRefs.rows[0], "expected a seeded wholesaler product");
-    const { product_id: productId, tier_id: tierId } = seedRefs.rows[0];
+    const {
+      product_id: productId,
+      unit_price: goodsSubtotal,
+      tier_id: tierId,
+      base_fee: quotedShippingFee,
+    } = seedRefs.rows[0];
 
     const created = await request("/api/orders", {
       method: "POST",
@@ -71,11 +83,23 @@ test("courier picks up from the pool and delivering the parcel completes the ord
 
     // Shipping auto-created a parcel linked back to the order.
     const parcelRow = await pool.query(
-      "SELECT parcel_id FROM parcels WHERE order_id = $1",
+      `SELECT p.parcel_id,
+              p.declared_value::float8,
+              p.shipping_fee::float8,
+              pay.amount::float8 AS payment_total
+         FROM parcels p
+         JOIN payments pay ON pay.parcel_id = p.parcel_id
+        WHERE p.order_id = $1`,
       [orderId],
     );
     assert.ok(parcelRow.rows[0], "shipping should create a parcel with order_id set");
     const parcelId = parcelRow.rows[0].parcel_id;
+    assert.equal(parcelRow.rows[0].declared_value, goodsSubtotal);
+    assert.equal(parcelRow.rows[0].shipping_fee, quotedShippingFee);
+    assert.equal(
+      parcelRow.rows[0].payment_total,
+      goodsSubtotal + quotedShippingFee,
+    );
 
     // Delivery is the courier's call now, not the wholesaler's.
     const wholesalerDelivers = await request(`/api/orders/${orderId}/status`, {
