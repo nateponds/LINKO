@@ -101,3 +101,73 @@ Businesses set payment terms with suppliers (Accounts Payable) to optimize cash 
 `Credit & Risk Management`
 For B2B (Business-to-Business)transactions, terms are directly tied to evaluating a buyer’s creditworthiness to ensure the seller minimizes bad debt.
 **(will discuss more once approved)**
+
+---
+
+## Returns & Refunds Planning
+
+Status: Deferred (was SPRINTS.md Sprint 2, retired 2026-07-10)
+Suggested by: @nateponds
+Date added: 2026-07-10
+Area: Product / Backend
+Priority: Medium
+Related docs: `delivery-status-logistics.md`, `course-deliverable.md`
+
+Description:
+Planning-only work for post-shipment buyer issues: return/refund terminology, who initiates each issue, whether orders need statuses beyond `delivered`/`cancelled` (e.g. `return_requested`, `refunded`), refund ownership and invoice display, and restock behavior for returned goods. Already resolved elsewhere: failed-delivery `Returned` maps a shipped order to terminal `returned` (`delivery-status-logistics.md`); commission reversal is out — commissions/remittances are scope-frozen DB-layer-only (`course-deliverable.md`). No implementation before the remaining effects on orders, invoices, payments, inventory, and notifications are written down.
+
+---
+
+## Logistics Coordinator Exception Workspace
+
+Status: Deferred (was SPRINTS.md Sprint 3, retired 2026-07-10)
+Suggested by: @nateponds
+Date added: 2026-07-10
+Area: Frontend / Backend
+Priority: Low
+Related docs: `delivery-status-logistics.md`
+
+Description:
+Coordinator visibility and filters for exception parcels (returned, branchless, unassigned, stalled, manually cancelled), remarks required on coordinator/admin exceptional statuses, and showing who made each exceptional update (tracking logs do not record the acting user today — only the assigned courier). Decide whether corrections stay normal tracking rows or become audit events. Courier-side restrictions and write-scope enforcement moved to Sprints 7–8.
+
+---
+
+## Parcel `Cancelled` Deprecation
+
+Status: Deferred, blocked on Returns & Refunds Planning (was SPRINTS.md Sprint 5, retired 2026-07-10)
+Suggested by: @nateponds
+Date added: 2026-07-10
+Area: Backend
+Priority: Low
+Related docs: `delivery-status-logistics.md`, `LINKO_ERD.md`
+
+Description:
+Remove `Cancelled` from parcel tracking once replacement correction/refund workflows exist: inventory every reference, pick replacements (order `cancelled`, parcel `Returned`, coordinator void, future refund state), migrate the `tracking_logs.status_update` CHECK constraint, preserve historical rows. Until then it stays a coordinator/admin-only escape hatch.
+
+---
+
+## Release Readiness
+
+Status: Deferred (was SPRINTS.md Sprint 6, retired 2026-07-10)
+Suggested by: @nateponds
+Date added: 2026-07-10
+Area: Ops
+Priority: Medium
+Related docs: `CLAUDE.md` (branching & deployment)
+
+Description:
+Staging and production deploys are live and verified. Remaining: confirm env-var requirements per environment, confirm the migration flow against both databases, deployment-safe seed strategy (demo accounts vs production data), extend `/health` with database connectivity, safer error logging, a repeatable pre-release checklist (lint, build, migrate, backend tests), and a security-basics review (cookie flags, hashing, auth validation, role/ownership checks, secrets).
+
+---
+
+## Logistics UI Polish
+
+Status: Deferred (was SPRINTS.md Sprint 4 leftovers, retired 2026-07-10)
+Suggested by: @nateponds
+Date added: 2026-07-10
+Area: Frontend
+Priority: Low
+Related docs: `delivery-status-logistics.md`
+
+Description:
+Link tracking info from invoice and order views beyond the Sprint 8 buyer modal, and add empty/error states for no assigned parcels, no branch pool, and terminal parcel history. Timeline label review shipped with the delivery-status work; buyer visibility, quick-action status rules, and demo script/seeds moved to Sprint 8.
