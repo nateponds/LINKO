@@ -494,6 +494,15 @@ router.patch(
         );
 
         if (status === "shipped") {
+          const pricing = await client.query(
+            `SELECT COALESCE(SUM(oi.quantity * oi.unit_price_snapshot), 0) AS declared_value,
+                    COALESCE(MAX(st.base_fee), 0) AS shipping_fee
+               FROM orders o
+               LEFT JOIN order_items oi ON oi.order_id = o.order_id
+               LEFT JOIN service_tiers st ON st.tier_id = o.tier_id
+              WHERE o.order_id = $1`,
+            [orderId],
+          );
           const originAddress = await client.query(
             "SELECT address_id, city_municipality FROM addresses WHERE business_id = $1 LIMIT 1",
             [order.wholesaler_business_id]
@@ -508,8 +517,9 @@ router.patch(
             await client.query(
               `INSERT INTO parcels (parcel_id, order_id, sender_id, receiver_id, tier_id,
                                    origin_address_id, destination_address_id,
-                                   weight_kg, total_distance_km, estimated_delivery_date)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, 10.0, 15.0, CURRENT_DATE + 5)`,
+                                   weight_kg, total_distance_km, declared_value,
+                                   shipping_fee, estimated_delivery_date)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, 10.0, 15.0, $8, $9, CURRENT_DATE + 5)`,
               [
                 parcelId,
                 orderId,
@@ -518,6 +528,8 @@ router.patch(
                 order.tier_id,
                 originAddress.rows[0].address_id,
                 destAddress.rows[0].address_id,
+                pricing.rows[0].declared_value,
+                pricing.rows[0].shipping_fee,
               ]
             );
 
