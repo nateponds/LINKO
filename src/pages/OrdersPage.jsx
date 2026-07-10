@@ -3,9 +3,14 @@ import { Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import AppLayout from "../layouts/AppLayout";
+import TrackingTimeline from "../features/logistics/TrackingTimeline";
 import { apiGet, apiSend } from "../lib/api";
 import { peso, shortDate, statusClass } from "../lib/format";
 import "./OrdersPage.css";
+
+// Buyers can watch a parcel from these order states; earlier states have no
+// parcel yet, and there is nothing to track once it is fully wound down.
+const TRACKABLE_STATUSES = new Set(["shipped", "delivered", "returned"]);
 
 const STATUS_TABS = [
   "All",
@@ -54,6 +59,17 @@ export default function OrdersPage() {
   const [updatingId, setUpdatingId] = useState(null);
   const [statusFilter, setStatusFilter] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Ship-order modal (wholesaler enters weight at handoff).
+  const [shipOrder, setShipOrder] = useState(null);
+  const [shipWeight, setShipWeight] = useState("");
+  const [shipDimensions, setShipDimensions] = useState("");
+  const [shipError, setShipError] = useState(null);
+
+  // Buyer parcel-tracking modal.
+  const [trackParcel, setTrackParcel] = useState(null);
+  const [trackLoading, setTrackLoading] = useState(false);
+  const [trackError, setTrackError] = useState(null);
 
   const loadOrders = useCallback(async () => {
     setLoading(true);
@@ -124,14 +140,14 @@ export default function OrdersPage() {
     });
   }, [orders, searchTerm, statusFilter]);
 
-  async function updateOrderStatus(orderId, nextStatus) {
+  async function updateOrderStatus(orderId, nextStatus, extra = {}) {
     setUpdatingId(orderId);
     setError(null);
 
     try {
       const updatedOrder = await apiSend(`/api/orders/${orderId}/status`, {
         method: "PATCH",
-        body: { status: nextStatus },
+        body: { status: nextStatus, ...extra },
       });
 
       setOrders((currentOrders) =>
@@ -147,9 +163,48 @@ export default function OrdersPage() {
     }
   }
 
+  async function confirmShip() {
+    const weight = Number(shipWeight);
+    if (!(weight > 0)) {
+      setShipError("Enter a weight in kilograms greater than 0.");
+      return;
+    }
+    const orderId = shipOrder.order_id;
+    setShipError(null);
+    setShipOrder(null);
+    setShipWeight("");
+    setShipDimensions("");
+    await updateOrderStatus(orderId, "shipped", {
+      weight_kg: weight,
+      ...(shipDimensions.trim() ? { dimensions: shipDimensions.trim() } : {}),
+    });
+  }
+
+  async function openTracking(order) {
+    setTrackParcel({ order_id: order.order_id, parcel: null });
+    setTrackLoading(true);
+    setTrackError(null);
+    try {
+      const parcel = await apiGet(`/api/parcels/${order.parcel_id}`);
+      setTrackParcel({ order_id: order.order_id, parcel });
+    } catch (caughtError) {
+      setTrackError(caughtError.message);
+    } finally {
+      setTrackLoading(false);
+    }
+  }
+
   function actionsFor(order) {
     const status = normalizeStatus(order.status);
     const actions = [];
+
+    // Buyer parcel tracking is available to whoever can see the order (buyer,
+    // wholesaler, admin) once a parcel exists — a read-only modal, no logistics
+    // workspace access. Operators still have the full parcel detail page.
+    if (order.parcel_id && TRACKABLE_STATUSES.has(status)) {
+      actions.push({ label: "Track parcel", onClick: () => openTracking(order) });
+    }
+
     if (user?.global_role === "platform_admin") {
       return actions;
     }
@@ -191,7 +246,8 @@ export default function OrdersPage() {
     if (status === "accepted") {
       actions.push({ label: "Preparing", nextStatus: "preparing" });
     } else if (status === "preparing") {
-      actions.push({ label: "Ship", nextStatus: "shipped" });
+      // Ship collects the real weight at handoff — open the modal, don't PATCH.
+      actions.push({ label: "Ship", onClick: () => setShipOrder(order) });
     }
     // Past "shipped" the courier owns the parcel; delivery is confirmed by
     // their tracking scan, not the wholesaler.
@@ -301,18 +357,22 @@ export default function OrdersPage() {
                           >
                             {orderActions.map((action) => (
                               <button
-                                key={`${action.label}-${action.nextStatus}`}
+                                key={`${action.label}-${action.nextStatus ?? "fn"}`}
                                 className="track-link action-button"
                                 type="button"
-                                disabled={disabled}
-                                onClick={() =>
-                                  updateOrderStatus(
-                                    order.order_id,
-                                    action.nextStatus,
-                                  )
+                                disabled={disabled && !action.onClick}
+                                onClick={
+                                  action.onClick ??
+                                  (() =>
+                                    updateOrderStatus(
+                                      order.order_id,
+                                      action.nextStatus,
+                                    ))
                                 }
                               >
-                                {disabled ? "Updating" : action.label}
+                                {disabled && !action.onClick
+                                  ? "Updating"
+                                  : action.label}
                               </button>
                             ))}
                           </div>
@@ -327,6 +387,107 @@ export default function OrdersPage() {
             </table>
           )}
         </main>
+
+        {/* Ship order: wholesaler records the parcel weight at handoff. */}
+        <div className={`modal-overlay${shipOrder ? " open" : ""}`}>
+          {shipOrder && (
+            <div className="modal-box">
+              <button
+                className="modal-close"
+                type="button"
+                onClick={() => {
+                  setShipOrder(null);
+                  setShipError(null);
+                }}
+              >
+                ×
+              </button>
+              <h2>Ship order #{shipOrder.order_id}</h2>
+              {shipError && <p className="form-error">{shipError}</p>}
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void confirmShip();
+                }}
+              >
+                <label>
+                  Weight (kg) *
+                  <input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={shipWeight}
+                    onChange={(event) => setShipWeight(event.target.value)}
+                    placeholder="e.g. 7.5"
+                    autoFocus
+                    required
+                  />
+                </label>
+                <label>
+                  Dimensions (optional)
+                  <input
+                    type="text"
+                    value={shipDimensions}
+                    onChange={(event) => setShipDimensions(event.target.value)}
+                    placeholder="e.g. 40x30x20 cm"
+                  />
+                </label>
+                <div className="modal-actions">
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => {
+                      setShipOrder(null);
+                      setShipError(null);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn-primary">
+                    Ship order
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+        </div>
+
+        {/* Buyer parcel tracking: read-only timeline, no logistics workspace. */}
+        <div className={`modal-overlay${trackParcel ? " open" : ""}`}>
+          {trackParcel && (
+            <div className="modal-box">
+              <button
+                className="modal-close"
+                type="button"
+                onClick={() => setTrackParcel(null)}
+              >
+                ×
+              </button>
+              <h2>Track order #{trackParcel.order_id}</h2>
+              {trackLoading ? (
+                <p className="form-note">Loading tracking…</p>
+              ) : trackError ? (
+                <p className="form-error">Could not load tracking: {trackError}</p>
+              ) : trackParcel.parcel ? (
+                <>
+                  <p className="track-parcel-meta">
+                    Parcel #{trackParcel.parcel.parcel_id} ·{" "}
+                    <span
+                      className={`status ${statusClass(
+                        trackParcel.parcel.current_status,
+                      )}`}
+                    >
+                      {trackParcel.parcel.current_status ?? "—"}
+                    </span>
+                  </p>
+                  <TrackingTimeline parcel={trackParcel.parcel} />
+                </>
+              ) : (
+                <p className="form-note">No tracking available.</p>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </AppLayout>
   );
