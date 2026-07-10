@@ -23,3 +23,13 @@ export function getPool() {
 export function query(text, params) {
   return getPool().query(text, params);
 }
+
+// Mint a collision-proof parcel tracking number from the DB sequence
+// (migration 016), scoped to the caller's open transaction so a parcel
+// insert and its ID never disagree on rollback.
+export async function nextParcelId(client) {
+  const { rows } = await client.query(
+    "SELECT 'LKO-' || lpad(nextval('parcel_id_seq')::text, 8, '0') AS id",
+  );
+  return rows[0].id;
+}
