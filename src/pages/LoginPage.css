@@ -13,29 +13,23 @@
 }
 
 .auth-page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
+  height: 100vh;
   background: #ececea;
 
   .auth-card {
     display: grid;
     grid-template-columns: 1fr 1.05fr;
     width: 100%;
-    max-width: 960px;
-    min-height: 640px;
+    height: 100%;
     background: white;
-    border-radius: 16px;
     overflow: hidden;
-    box-shadow: 0 20px 50px rgba(23, 33, 61, 0.2);
   }
 
   .auth-form-panel {
     display: flex;
     flex-direction: column;
-    padding: 32px 40px;
+    padding: 32px 56px;
+    overflow-y: auto;
   }
 
   .auth-topbar {
@@ -81,7 +75,7 @@
 
   .auth-heading {
     margin: 0 0 28px;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--dm-sans);
     font-size: 2.6rem;
     color: var(--color-text);
   }
@@ -98,7 +92,7 @@
     width: 100%;
     height: 48px;
     border: none;
-    border-radius: 8px;
+    border-radius: 3px;
     padding: 0 16px;
     background: rgba(23, 33, 61, 0.06);
     font-size: 0.92rem;
@@ -167,7 +161,7 @@
     font-weight: 700;
     font-size: 0.96rem;
     height: 50px;
-    border-radius: 8px;
+    border-radius: 3px;
     cursor: pointer;
     transition: background 0.15s ease;
   }
@@ -207,7 +201,11 @@
     padding: 32px 40px;
     overflow: hidden;
     color: white;
-    background: linear-gradient(160deg, var(--color-primary), var(--color-primary-dark));
+    background: linear-gradient(
+      160deg,
+      var(--color-primary),
+      var(--color-primary-dark)
+    );
   }
 
   .auth-visual-panel::before,
@@ -215,7 +213,11 @@
     content: "";
     position: absolute;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(152, 216, 104, 0.45), transparent 70%);
+    background: radial-gradient(
+      circle,
+      rgba(152, 216, 104, 0.45),
+      transparent 70%
+    );
     pointer-events: none;
   }
 
@@ -231,7 +233,11 @@
     height: 320px;
     bottom: -140px;
     left: -100px;
-    background: radial-gradient(circle, rgba(217, 227, 251, 0.3), transparent 70%);
+    background: radial-gradient(
+      circle,
+      rgba(217, 227, 251, 0.3),
+      transparent 70%
+    );
   }
 
   .auth-visual-top,
@@ -295,14 +301,20 @@
   }
 
   @media (max-width: 760px) {
+    .auth-page {
+      height: auto;
+      min-height: 100vh;
+    }
+
     .auth-card {
       grid-template-columns: 1fr;
-      max-width: 420px;
-      min-height: 0;
+      height: auto;
+      min-height: 100vh;
     }
 
     .auth-form-panel {
       padding: 24px 28px;
+      overflow-y: visible;
     }
 
     .auth-visual-panel {
