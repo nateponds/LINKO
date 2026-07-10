@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import AppLayout from "../layouts/AppLayout";
-import { apiGet, apiSend } from "../lib/api";
+import AppLayout from "../../layouts/AppLayout";
+import { apiGet, apiSend } from "../../lib/api";
 import { Plus, Trash2 } from "lucide-react";
 
 export default function LogisticsManagementPage() {
