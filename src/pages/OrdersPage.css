@@ -80,7 +80,134 @@
     color: #c0392b;
   }
 
+  .track-parcel-meta {
+    margin: 0 0 8px;
+    font-size: 0.9rem;
+    color: var(--color-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
   @media (max-width: 700px) {
     padding: 20px 16px 40px;
   }
+}
+
+/* Ship + track modals. Overlay/box live outside .orders-page so the fixed
+   overlay is not clipped; mirrors the InventoryPage modal styling. */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(23, 33, 61, 0.45);
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.modal-overlay.open {
+  display: flex;
+}
+
+.modal-overlay .modal-box {
+  background: #fff;
+  border-radius: 12px;
+  border-top: 4px solid var(--color-accent);
+  padding: 28px 30px;
+  width: 100%;
+  max-width: 460px;
+  position: relative;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-overlay .modal-close {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  border: none;
+  background: none;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--color-muted);
+}
+
+.modal-overlay .modal-box h2 {
+  margin: 0 0 18px;
+  color: var(--color-primary-dark);
+  font-size: 1.15rem;
+}
+
+.modal-overlay form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.modal-overlay form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.modal-overlay form input {
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 400;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e6;
+  border-radius: 8px;
+  outline: none;
+}
+
+.modal-overlay form input:focus {
+  border-color: var(--color-primary);
+}
+
+.modal-overlay .modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.modal-overlay .btn-primary {
+  background: var(--color-primary);
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.modal-overlay .btn-secondary {
+  background: #fff;
+  color: var(--color-text);
+  border: 1px solid #cbd5e6;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.modal-overlay .form-error {
+  background: #fdeaea;
+  color: #c0392b;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 0 0 12px;
+}
+
+.modal-overlay .form-note {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  margin: 0;
 }
