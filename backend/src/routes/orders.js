@@ -89,7 +89,8 @@ const ORDER_BASE_SELECT = `
          i.invoice_id,
          i.invoice_number,
          i.total::text AS invoice_total,
-         i.issued_at
+         i.issued_at,
+         (SELECT MAX(pc.parcel_id) FROM parcels pc WHERE pc.order_id = o.order_id) AS parcel_id
     FROM orders o
     JOIN businesses buyer ON buyer.business_id = o.buyer_business_id
     JOIN businesses wholesaler ON wholesaler.business_id = o.wholesaler_business_id
@@ -106,6 +107,7 @@ function orderFromRow(row, items = []) {
     wholesaler_business_name: row.wholesaler_business_name,
     status: row.status,
     tier_id: row.tier_id,
+    parcel_id: row.parcel_id ?? null,
     total: row.total,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -455,7 +457,7 @@ router.patch(
     const client = await pool.connect();
     try {
       const orderId = parsePositiveId(req.params.id, "Order");
-      const { status } = req.body ?? {};
+      const { status, weight_kg, dimensions } = req.body ?? {};
       const validStatuses = [
         "pending",
         "accepted",
@@ -467,6 +469,11 @@ router.patch(
       ];
       if (!validStatuses.includes(status)) {
         throw createHttpError(400, "status is required and must be a valid order status");
+      }
+      // Shipping is the physical handoff: the wholesaler weighs the parcel
+      // here, so the commission bracket freezes from a real measurement.
+      if (status === "shipped" && (Number(weight_kg) <= 0 || Number.isNaN(Number(weight_kg)))) {
+        throw createHttpError(400, "weight_kg must be a number greater than 0");
       }
 
       await client.query("BEGIN");
@@ -517,9 +524,10 @@ router.patch(
             await client.query(
               `INSERT INTO parcels (parcel_id, order_id, sender_id, receiver_id, tier_id,
                                    origin_address_id, destination_address_id,
-                                   weight_kg, total_distance_km, declared_value,
+                                   weight_kg, dimensions, total_distance_km, declared_value,
                                    shipping_fee, estimated_delivery_date)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, 10.0, 15.0, $8, $9, CURRENT_DATE + 5)`,
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULL, $10, $11,
+                       CURRENT_DATE + (SELECT estimated_days FROM service_tiers WHERE tier_id = $5))`,
               [
                 parcelId,
                 orderId,
@@ -528,14 +536,18 @@ router.patch(
                 order.tier_id,
                 originAddress.rows[0].address_id,
                 destAddress.rows[0].address_id,
+                weight_kg,
+                dimensions ?? null,
                 pricing.rows[0].declared_value,
                 pricing.rows[0].shipping_fee,
               ]
             );
 
+            // Marketplace checkout is an online payment: settled at booking.
+            // The dispatch gate stays modeled-not-enforced (course-deliverable).
             await client.query(
-              `INSERT INTO payments (parcel_id, method, payment_status, amount)
-               VALUES ($1, 'Online', 'Pending', NULL)`,
+              `INSERT INTO payments (parcel_id, method, payment_status, amount, paid_at)
+               VALUES ($1, 'Online', 'Paid', NULL, CURRENT_TIMESTAMP)`,
               [parcelId]
             );
 
