@@ -223,12 +223,12 @@ INSERT INTO parcels (parcel_id, sender_id, receiver_id, tier_id,
 -- ---------------------------------------------------------------------------
 INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id, courier_id, scanned_at) VALUES
   -- Parcel LKO-00000001 (shipped/in-transit): 3 events
-  ('LKO-00000001', 'Order Created',  'Auto-generated from marketplace order',   NULL, NULL, NOW() - INTERVAL '4 days'),
+  ('LKO-00000001', 'Order Created',  'Auto-generated from marketplace order',   1,    NULL, NOW() - INTERVAL '4 days'),
   ('LKO-00000001', 'Picked Up',      'Picked up from Cebu Fresh warehouse',     1,    1,   NOW() - INTERVAL '3 days'),
   ('LKO-00000001', 'In Transit',     'En route to Metro Cebu Trading',           1,    1,   NOW() - INTERVAL '2 days'),
 
   -- Parcel LKO-00000002 (delivered): full chain, 5 events
-  ('LKO-00000002', 'Order Created',     'Auto-generated from marketplace order', NULL, NULL, NOW() - INTERVAL '9 days'),
+  ('LKO-00000002', 'Order Created',     'Auto-generated from marketplace order', 2,    NULL, NOW() - INTERVAL '9 days'),
   ('LKO-00000002', 'Picked Up',         'Picked up from Mandaue Agri warehouse',2,    2,   NOW() - INTERVAL '8 days'),
   ('LKO-00000002', 'In Transit',        'Line-haul Mandaue → Cebu hub',          2,    2,   NOW() - INTERVAL '8 days'),
   ('LKO-00000002', 'Out for Delivery',  'Last mile to Sunrise Retail',            1,    1,   NOW() - INTERVAL '7 days'),

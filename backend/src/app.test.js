@@ -204,6 +204,8 @@ test("booking a parcel creates payment, commission, and first log", { skip: !has
   assert.equal(detail.status, 200);
   assert.equal(detail.body.payment.amount, 1182.5);
   assert.equal(detail.body.tracking_history.length, 1);
+  assert.equal(detail.body.latest_branch_id, 1);
+  assert.equal(detail.body.tracking_history[0].branch_name, "LINKO Cebu Central Hub");
 
   // Remove the test booking so repeated runs do not pile up demo data.
   // Payments, logs, and the commission row cascade with the parcel.
