@@ -92,7 +92,6 @@ function AppRoutes() {
         <Route path="/logistics" element={<LogisticsPage />} />
         <Route path="/logistics/management" element={<LogisticsManagementPage />} />
         <Route path="/logistics/:parcelId" element={<ParcelDetailPage />} />
-        <Route path="/logistics/book" element={<Navigate to="/logistics" replace />} />
         <Route path="/courier" element={<CourierDashboardPage />} />
       </Route>
 

@@ -179,7 +179,7 @@ ORDER BY scans_made DESC;
 -- ----------------------------------------------------------------------------
 SELECT
     p.parcel_id,
-    s.full_name AS wholesaler,
+    s.business_name AS wholesaler,
     p.weight_kg,
     cb.min_weight_kg || '-' || COALESCE(cb.max_weight_kg::TEXT, 'no cap') AS bracket,
     c.amount AS commission,
@@ -201,7 +201,7 @@ LIMIT 10;
 --      wholesaler column stored on commissions.
 -- ----------------------------------------------------------------------------
 SELECT
-    s.full_name AS wholesaler,
+    s.business_name AS wholesaler,
     count(*) AS parcels,
     round(sum(c.amount), 2) AS total_commission,
     round(sum(c.amount) FILTER (WHERE c.status = 'Collected'), 2) AS collected,
@@ -209,7 +209,7 @@ SELECT
 FROM commissions c
 JOIN parcels p   ON p.parcel_id   = c.parcel_id
 JOIN businesses s ON s.business_id = p.sender_id
-GROUP BY s.business_id, s.full_name
+GROUP BY s.business_id, s.business_name
 ORDER BY total_commission DESC;
 
 
@@ -222,7 +222,7 @@ ORDER BY total_commission DESC;
 -- ----------------------------------------------------------------------------
 SELECT
     r.parcel_id,
-    s.full_name          AS wholesaler,
+    s.business_name      AS wholesaler,
     r.gross_amount       AS goods_price,   -- buyer pays wholesaler this...
     p.shipping_fee,                        -- ...plus this for delivery
     pay.amount           AS buyer_pays,    -- goods + shipping, set by trigger
