@@ -2,11 +2,12 @@ import { useMemo, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
+import { defaultPathForSession, redirectPathForRoles } from "../auth/roleAccess";
 import AuthVisualPanel from "../components/ui/AuthVisualPanel";
 import "./LoginPage.css";
 
 export default function LoginPage() {
-  const { user, login, hasAnyRole } = useAuth();
+  const { user, login, activeRoles } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
@@ -19,7 +20,7 @@ export default function LoginPage() {
   );
 
   if (user) {
-    const defaultPath = (hasAnyRole(["buyer"]) && !hasAnyRole(["wholesaler", "platform_admin", "logistics_coordinator", "courier"])) ? "/" : "/dashboard";
+    const defaultPath = redirectPathForRoles(activeRoles, user.global_role === "platform_admin");
     return <Navigate to={redirectTo || defaultPath} replace />;
   }
 
@@ -37,11 +38,8 @@ export default function LoginPage() {
         email: form.email.trim(),
         password: form.password,
       });
-      const roles = payload.memberships?.map((m) => m.role) || [];
-      const isBuyer = roles.includes("buyer");
-      const hasOtherRoles = roles.some(r => r !== "buyer") || payload.user.global_role === "platform_admin";
-
-      const defaultPath = (isBuyer && !hasOtherRoles) ? "/" : "/dashboard";
+      const stored = window.localStorage.getItem("linko-active-business");
+      const defaultPath = defaultPathForSession(payload, stored);
       navigate(redirectTo || defaultPath, { replace: true });
     } catch (error) {
       setSubmitError(error.message);
