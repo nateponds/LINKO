@@ -565,8 +565,8 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
       [parcelId, status_update, remarks || null, effectiveBranchId, effectiveCourierId]
     );
 
-    // A Delivered scan completes the linked marketplace order and tells the
-    // buyer -- the wholesaler's job ended at 'shipped'
+    // Terminal delivery scans complete the linked marketplace order -- the
+    // wholesaler's fulfillment control ended at 'shipped'
     // (docs/delivery-status-logistics.md).
     if (status_update === "Delivered") {
       const { rows: orderRows } = await client.query(
@@ -586,6 +586,47 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
           "Order Delivered",
           `Order #${orderRows[0].order_id} is now delivered.`,
           "success",
+        );
+      }
+    }
+
+    if (status_update === "Returned") {
+      const { rows: orderRows } = await client.query(
+        `UPDATE orders o
+            SET status = 'returned', updated_at = CURRENT_TIMESTAMP
+           FROM parcels p
+          WHERE p.parcel_id = $1
+            AND o.order_id = p.order_id
+            AND o.status = 'shipped'
+        RETURNING o.order_id, o.buyer_business_id, o.wholesaler_business_id`,
+        [parcelId],
+      );
+      if (orderRows.length) {
+        const order = orderRows[0];
+        const returnReason =
+          typeof remarks === "string"
+            ? remarks.trim().replace(/[.]+$/, "")
+            : "";
+        const buyerMessage = returnReason
+          ? `Delivery failed: ${returnReason}. Order #${order.order_id} returned to sender.`
+          : `Delivery failed — order #${order.order_id} returned to sender.`;
+        const wholesalerMessage = returnReason
+          ? `Parcel for order #${order.order_id} is returning to you. Delivery failed: ${returnReason}.`
+          : `Parcel for order #${order.order_id} is returning to you.`;
+
+        await notifyBusiness(
+          client,
+          order.buyer_business_id,
+          "Delivery Failed — Order Returned",
+          buyerMessage,
+          "warning",
+        );
+        await notifyBusiness(
+          client,
+          order.wholesaler_business_id,
+          "Parcel Returning to Sender",
+          wholesalerMessage,
+          "warning",
         );
       }
     }
