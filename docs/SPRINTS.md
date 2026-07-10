@@ -15,7 +15,7 @@ work that still needs product, design, implementation, or release attention.
 
 ## Sprint 7: Logistics Correctness & Authz
 
-**Status:** Committed
+**Status:** Done
 **Priority:** High
 **Goal:** Close the correctness and authorization holes in the graded parcel
 tracking subsystem found by the 2026-07-10 logistics audit.
@@ -26,21 +26,21 @@ and soft-delete semantics (migration 015) that can strand live parcels.
 
 ### Tasks
 
-- [ ] Replace timestamp-derived parcel IDs (`LKO-` + `Date.now()` slice, wraps
+- [x] Replace timestamp-derived parcel IDs (`LKO-` + `Date.now()` slice, wraps
       every ~28h → PK collision → user-facing 400) with a Postgres sequence:
       `'LKO-' || lpad(nextval, 8, '0')`. One shared helper replaces both
       generation sites (`routes/logistics.js` booking, `routes/orders.js`
       ship-time auto-create).
-- [ ] Enforce courier write scope on `POST /api/parcels/:id/tracking`: a
+- [x] Enforce courier write scope on `POST /api/parcels/:id/tracking`: a
       courier may scan only parcels in their handling history or the
       unassigned pool of their assigned branch — the same rule as read
       visibility. Out of scope → `404` (matches read-side anti-leak
       behavior). Handoffs keep going through coordinator unassign
       (`docs/delivery-status-logistics.md` decision 5).
-- [ ] Lock the parcel (`SELECT … FOR UPDATE`) inside the tracking-scan
+- [x] Lock the parcel (`SELECT … FOR UPDATE`) inside the tracking-scan
       transaction so the pool-claim race and the forward-only status check are
       serialized (two couriers can currently both claim the same parcel).
-- [ ] Finish soft-delete semantics (015):
+- [x] Finish soft-delete semantics (015):
   - Block branch deactivation while non-terminal unassigned parcels sit in its
     pool: `409` with the live-parcel count; reassign first.
   - Filter `is_active` in `parcelScope` and the courier stamp lookup so a
@@ -49,12 +49,12 @@ and soft-delete semantics (migration 015) that can strand live parcels.
     creation's `assigned_branch_id`) against active rows.
   - Replace the `branch_name` UNIQUE constraint with a partial unique index
     `WHERE is_active` so a deactivated branch's name can be reused.
-- [ ] Add missing constraints/indexes: unique partial index on
+- [x] Add missing constraints/indexes: unique partial index on
       `couriers.user_id`, index on `tracking_logs(courier_id)` (courier scope
       runs an EXISTS against it per parcel).
-- [ ] Localize Logistics Management delete errors — a failed delete currently
+- [x] Localize Logistics Management delete errors — a failed delete currently
       replaces the whole page with the error text.
-- [ ] Tests: cross-branch courier scan rejected, concurrent claim yields one
+- [x] Tests: cross-branch courier scan rejected, concurrent claim yields one
       winner, branch delete blocked while pool is live, deactivated courier
       gets `403`, sequential parcel IDs never collide.
 
