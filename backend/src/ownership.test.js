@@ -477,58 +477,16 @@ test("courier cannot backtrack a parcel status", { skip: !hasDb }, async () => {
 // ---------------------------------------------------------------------------
 // Active-business model: one business per row, additive roles, distinct-
 // business 400 gate. Sprint 8 follow-up (docs/SPRINT_8_ACTIVE_BUSINESS_GUIDE).
+//
+// Sprint 9 (refactor/phaseout-both-role) dropped the "one business is both
+// buyer AND wholesaler" case: register rejects business_type="both", the
+// 017 migration collapses any historical both-role memberships to wholesaler
+// only, and the one_marketplace_role_per_business partial unique index blocks
+// the combination at the schema level. The two former both-caller tests
+// (one-business both resolves without 400; active buyer+wholesaler business
+// lists wholesaler parcels) were removed because the both-caller can no
+// longer be constructed. The two contrast tests below remain meaningful.
 // ---------------------------------------------------------------------------
-
-// A one-business `both` caller (buyer+wholesaler on the SAME business) resolves
-// automatically -- the distinct-business gate counts businesses, not role rows
-// -- and can create a product as that business without an X-Active-Business.
-test("one-business both caller resolves without 400 and creates as their business", { skip: !hasDb }, async () => {
-  const cookie = await loginAs("both@linko.test");
-  const { createPool } = await import("./db.js");
-  const pool = createPool();
-  let productId;
-  try {
-    const ownId = await getBusinessIdByName(pool, "Metro Cebu Trading"); // business 8
-    const created = await request("/api/products", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Cookie: cookie },
-      body: JSON.stringify({
-        product_name: "Both Caller Product",
-        unit_price: 20,
-        sku: `BOTH-${Date.now()}`,
-      }),
-    });
-    assert.equal(created.status, 201);
-    assert.equal(created.body.business_id, ownId);
-    productId = created.body.product_id;
-  } finally {
-    if (productId) {
-      await pool.query("DELETE FROM products WHERE product_id = $1", [productId]);
-    }
-    await pool.end();
-  }
-});
-
-// A buyer+wholesaler business lists wholesaler parcels; buyer capability must
-// not shrink the wholesaler list scope. Business 8 receives LKO-00000001.
-test("active buyer+wholesaler business lists wholesaler parcels", { skip: !hasDb }, async () => {
-  const cookie = await loginAs("both@linko.test");
-  const { createPool } = await import("./db.js");
-  const pool = createPool();
-  try {
-    const ownId = await getBusinessIdByName(pool, "Metro Cebu Trading"); // business 8
-    const list = await request("/api/parcels", { headers: { Cookie: cookie } });
-    assert.equal(list.status, 200);
-    assert.ok(list.body.length > 0, "both business should see its wholesaler parcels");
-    for (const parcel of list.body) {
-      const involves =
-        parcel.sender.business_id === ownId || parcel.receiver.business_id === ownId;
-      assert.ok(involves, "listed parcels must involve the active business");
-    }
-  } finally {
-    await pool.end();
-  }
-});
 
 // A buyer-only active business lists NO parcels (single-parcel receiver reads
 // still work via the detail route; the list is deliberately empty).
