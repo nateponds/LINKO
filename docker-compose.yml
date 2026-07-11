@@ -42,20 +42,10 @@ services:
 
   # =========================================================================
   # PRODUCTION ENVIRONMENT (linko.nateponds.com)
+  # Production uses a managed Supabase Postgres. DATABASE_URL is injected from
+  # the PROD_DATABASE_URL GitHub Actions secret (include ?sslmode=require).
+  # No local prod Postgres container — Supabase is the source of truth.
   # =========================================================================
-  linko-db-production:
-    image: postgres:16
-    container_name: linko-db-production
-    restart: always
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${PROD_DB_PASSWORD:-postgres_prod_pass}
-      POSTGRES_DB: linko_production
-    volumes:
-      - /home/nateponds/linko-data/db-production:/var/lib/postgresql/data
-    ports:
-      - "127.0.0.1:5432:5432"
-
   linko-backend-production:
     build:
       context: ./backend
@@ -63,12 +53,10 @@ services:
     container_name: linko-backend-production
     restart: always
     environment:
-      DATABASE_URL: postgres://postgres:${PROD_DB_PASSWORD:-postgres_prod_pass}@linko-db-production:5432/linko_production
+      DATABASE_URL: ${PROD_DATABASE_URL}
       PORT: 5000
     ports:
       - "127.0.0.1:3002:5000"
-    depends_on:
-      - linko-db-production
 
   linko-frontend-production:
     build:
