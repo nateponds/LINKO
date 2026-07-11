@@ -376,7 +376,7 @@ router.post(
         "buyer or wholesaler",
       );
       if (isAdmin(req.auth)) {
-        await validateBusinessRole(buyerBusinessId, ["buyer", "wholesaler", "both"]);
+        await validateBusinessRole(buyerBusinessId, ["buyer", "wholesaler"]);
       }
 
       const tierResult = await client.query(

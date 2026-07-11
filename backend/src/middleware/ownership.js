@@ -60,10 +60,19 @@ export function getActiveMembership(req, roles) {
     return membership;
   }
 
-  if (matches.length === 1) {
+  // Gate on distinct businesses, not membership rows. Sprint 9 dropped the
+  // both-role combination (a single business can no longer be both buyer and
+  // wholesaler), so in practice every membership row maps to a distinct
+  // business for marketplace roles. The distinct-business count is preserved
+  // here so a multi-business caller (e.g. bizswitch@linko.test with one buyer
+  // business + one wholesaler business) still gets a 400 when no header is
+  // sent. A logistics_coordinator who is also a courier on the same business
+  // also resolves automatically.
+  const distinctBusinessIds = new Set(matches.map((m) => m.business_id));
+  if (distinctBusinessIds.size === 1) {
     return matches[0];
   }
-  if (matches.length > 1) {
+  if (distinctBusinessIds.size > 1) {
     throw createHttpError(400, "Multiple businesses available; select one via X-Active-Business");
   }
 
@@ -72,6 +81,28 @@ export function getActiveMembership(req, roles) {
     403,
     label ? `You must belong to a ${label} business` : "You must belong to a business",
   );
+}
+
+// Resolves the id of the business the caller is acting as, independent of role.
+//   - X-Active-Business header if present (validated against memberships).
+//   - Else the caller's single distinct business.
+//   - Else (multiple distinct businesses, no header) throws 400.
+// Returns null only when the caller has no memberships at all.
+export function resolveActiveBusinessId(req) {
+  const headerBusinessId = readActiveBusinessHeader(req);
+  if (headerBusinessId !== null) {
+    return headerBusinessId;
+  }
+  const distinctBusinessIds = new Set(
+    req.auth.memberships.map((m) => m.business_id),
+  );
+  if (distinctBusinessIds.size === 1) {
+    return [...distinctBusinessIds][0];
+  }
+  if (distinctBusinessIds.size > 1) {
+    throw createHttpError(400, "Multiple businesses available; select one via X-Active-Business");
+  }
+  return null;
 }
 
 // True when the caller is a platform admin or a member of `businessId`.
