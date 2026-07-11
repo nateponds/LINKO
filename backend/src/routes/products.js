@@ -94,7 +94,12 @@ const isAdmin = (auth) => auth.user.global_role === "platform_admin";
 // ---------------------------------------------------------------------------
 router.get("/categories", requireAuth, async (_req, res) => {
   const { rows } = await query(
-    `SELECT category_id, category_name FROM categories ORDER BY category_name`,
+    `SELECT c.category_id,
+            c.category_name,
+            (SELECT COUNT(*)::int FROM products p
+              WHERE p.category_id = c.category_id AND p.is_active = TRUE) AS product_count
+       FROM categories c
+      ORDER BY c.category_name`,
   );
   res.json(rows);
 });
