@@ -17,8 +17,14 @@ export function createPool(connectionString = process.env.DATABASE_URL) {
     connectionString,
   );
 
+  // pg-connection-string parses sslmode from the URL into its own ssl config
+  // (now verify-full semantics), which overrides the ssl object below and
+  // re-triggers SELF_SIGNED_CERT_IN_CHAIN. Strip sslmode so our ssl object is
+  // the single source of truth.
+  const cleanedString = connectionString.replace(/([?&])sslmode=[^&]*&?/g, "$1").replace(/[?&]$/, "");
+
   return new Pool({
-    connectionString,
+    connectionString: cleanedString,
     ssl: wantsSsl ? { rejectUnauthorized: false } : false,
   });
 }
