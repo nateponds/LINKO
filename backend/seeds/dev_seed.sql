@@ -39,6 +39,23 @@ ALTER SEQUENCE tracking_logs_log_id_seq RESTART WITH 1;
 ALTER SEQUENCE payments_payment_id_seq RESTART WITH 1;
 ALTER SEQUENCE notifications_notification_id_seq RESTART WITH 1;
 
+-- A fresh schema contains no delivery tiers. Keep the stable IDs used by the
+-- demo orders and parcels, while making this safe to re-run.
+INSERT INTO service_tiers
+  (tier_id, tier_name, base_fee, base_rate_per_kg, rate_per_km, estimated_days)
+VALUES
+  (1, 'Standard', 50.00, 20.00, 2.00, 5),
+  (2, 'Express', 90.00, 30.00, 3.00, 2),
+  (3, 'Next-Day', 150.00, 40.00, 4.00, 1)
+ON CONFLICT (tier_id) DO UPDATE SET
+  tier_name = EXCLUDED.tier_name,
+  base_fee = EXCLUDED.base_fee,
+  base_rate_per_kg = EXCLUDED.base_rate_per_kg,
+  rate_per_km = EXCLUDED.rate_per_km,
+  estimated_days = EXCLUDED.estimated_days;
+
+SELECT setval('service_tiers_tier_id_seq', 3, true);
+
 -- Shared password hash for all demo accounts — plaintext is "password"
 -- Hash: scrypt(ln=14,r=8,p=1)
 
@@ -163,8 +180,8 @@ INSERT INTO branches (branch_name, address_id, contact_number) VALUES
 -- 8. COURIERS (2) — one per branch, linked to user accounts
 -- ---------------------------------------------------------------------------
 INSERT INTO couriers (full_name, phone_number, vehicle_type, assigned_branch_id, user_id) VALUES
-  ('Cory Courier',  '+639170000004', 'motorcycle', 1, 4),   -- 1  courier_demo, Cebu hub
-  ('Carlo Courier', '+639170000009', 'van',        2, 9);   -- 2  courier2_demo, Mandaue hub
+  ('Cory Courier',  '+639170000004', 'Motorcycle', 1, 4),   -- 1  courier_demo, Cebu hub
+  ('Carlo Courier', '+639170000009', 'Van',        2, 9);   -- 2  courier2_demo, Mandaue hub
 
 -- ---------------------------------------------------------------------------
 -- 9. ORDERS (5) — spread across statuses
@@ -216,14 +233,22 @@ INSERT INTO invoices (order_id, invoice_number, total, issued_at) VALUES
 -- ---------------------------------------------------------------------------
 -- 12. PARCELS (3) — for shipped, delivered, and returned orders
 -- ---------------------------------------------------------------------------
+-- Marketplace parcels carry a real ship-time weight but no route distance
+-- (Sprint 8: checkout never measured it) -> total_distance_km is NULL. The
+-- shipping_fee stays the frozen checkout quote (tier base fee).
 INSERT INTO parcels (parcel_id, order_id, sender_id, receiver_id, tier_id,
                      origin_address_id, destination_address_id,
                      weight_kg, dimensions, total_distance_km,
                      declared_value, shipping_fee,
                      estimated_delivery_date) VALUES
-  ('LKO-00000001', 3, 2, 8, 1, 2, 10, 8.50, '40x30x25 cm', 6.2,  10380.00, 50.00,  NOW()::date + 3),   -- shipped order 3
-  ('LKO-00000002', 4, 7, 1, 3, 8, 1,  4.20, '30x25x20 cm', 8.7,   3960.00, 150.00, NOW()::date - 5),   -- delivered order 4
-  ('LKO-00000003', 5, 7, 6, 2, 8, 7,  5.50, '35x25x20 cm', 14.3,  2800.00, 90.00,  NOW()::date - 2);   -- returned order 5
+  ('LKO-00000001', 3, 2, 8, 1, 2, 10, 8.50, '40x30x25 cm', NULL, 10380.00, 50.00,  NOW()::date + 3),   -- shipped order 3
+  ('LKO-00000002', 4, 7, 1, 3, 8, 1,  4.20, '30x25x20 cm', NULL,  3960.00, 150.00, NOW()::date - 5),   -- delivered order 4 (clean journey)
+  ('LKO-00000003', 5, 7, 6, 2, 8, 7,  5.50, '35x25x20 cm', NULL,  2800.00, 90.00,  NOW()::date - 2);   -- returned order 5 (failed journey)
+
+-- Advance the parcel-ID sequence past the hardcoded LKO- seeds so the next
+-- app-minted nextParcelId() does not collide with parcels_pkey (migration 016
+-- setval runs before this seed, so it cannot see these rows).
+SELECT setval('parcel_id_seq', 3, true);
 
 -- ---------------------------------------------------------------------------
 -- 13. TRACKING_LOGS — realistic progression
@@ -249,12 +274,15 @@ INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id, courier
   ('LKO-00000003', 'Returned',          'Receiver refused delivery',              2,    2,   NOW() - INTERVAL '2 days');
 
 -- ---------------------------------------------------------------------------
--- 14. PAYMENTS — demo status variety only; no workflow behavior implied
+-- 14. PAYMENTS — method-honest, matching live behavior (Sprint 8):
+--     Online/Prepaid settle at booking (Paid + paid_at); COD stays Pending
+--     until the terminal scan, then Paid on Delivered / Failed on Returned.
+--     Clean journey (LKO-2) is a COD parcel collected on delivery.
 -- ---------------------------------------------------------------------------
 INSERT INTO payments (parcel_id, method, payment_status, amount, paid_at) VALUES
-  ('LKO-00000001', 'Online',  'Paid',     NULL, NOW() - INTERVAL '4 days'),
-  ('LKO-00000002', 'Prepaid', 'Refunded', NULL, NOW() - INTERVAL '9 days'),
-  ('LKO-00000003', 'COD',     'Failed',   NULL, NULL);
+  ('LKO-00000001', 'Online', 'Paid',   NULL, NOW() - INTERVAL '4 days'),   -- marketplace ship: online, settled
+  ('LKO-00000002', 'COD',    'Paid',   NULL, NOW() - INTERVAL '7 days'),   -- clean journey: COD collected on Delivered
+  ('LKO-00000003', 'COD',    'Failed', NULL, NULL);                        -- failed journey: COD never collected
 
 -- Commission rows are created by the parcel trigger. Seed a couple as
 -- collected for report/demo variety; this does not add collection workflow.

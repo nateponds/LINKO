@@ -73,10 +73,11 @@ test("courier picks up from the pool and delivering the parcel completes the ord
     orderId = created.body.order_id;
 
     for (const status of ["accepted", "preparing", "shipped"]) {
+      const body = status === "shipped" ? { status, weight_kg: 3.5 } : { status };
       const step = await request(`/api/orders/${orderId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Cookie: wholesalerCookie },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(body),
       });
       assert.equal(step.status, 200, `wholesaler should reach ${status}`);
     }
@@ -139,7 +140,7 @@ test("courier picks up from the pool and delivering the parcel completes the ord
     const delivered = await request(`/api/parcels/${parcelId}/tracking`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Cookie: courierCookie },
-      body: JSON.stringify({ status_update: "Delivered" }),
+      body: JSON.stringify({ status_update: "Delivered", remarks: "Received by test buyer" }),
     });
     assert.equal(delivered.status, 201);
 

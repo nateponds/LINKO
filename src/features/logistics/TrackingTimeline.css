@@ -1,0 +1,85 @@
+/* Tracking history timeline, shared by the operator parcel detail page and the
+   buyer's Track parcel modal. Unscoped (was nested under .logistics-page) so it
+   renders correctly inside the modal on OrdersPage too. */
+.timeline-block {
+  padding-top: 20px;
+}
+
+.timeline-heading {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-muted);
+  margin-bottom: 16px;
+}
+
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tl-step {
+  position: relative;
+  padding: 0 0 22px 26px;
+}
+
+.tl-step::before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 14px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--color-surface);
+}
+
+.tl-step:last-child::before {
+  display: none;
+}
+
+.tl-dot {
+  position: absolute;
+  left: 0;
+  top: 4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  border: 3px solid white;
+  box-shadow: 0 0 0 1px var(--color-surface);
+}
+
+.tl-step.current .tl-dot {
+  background: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+.tl-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tl-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--color-text);
+}
+
+.tl-step.current .tl-title {
+  color: var(--color-primary-dark);
+}
+
+.tl-meta {
+  font-size: 0.82rem;
+  color: var(--color-muted);
+}
+
+.tl-remarks {
+  font-size: 0.82rem;
+  color: var(--color-text);
+  font-style: italic;
+}

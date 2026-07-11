@@ -59,7 +59,7 @@ try {
   console.log("\nDemo login accounts (password: Password123!):");
   console.table(accounts.rows);
 } catch (err) {
-  console.error("Seed failed:", err.message);
+  console.error("Seed failed:", err);
   if (err.position) {
     console.error("SQL error near position:", err.position);
   }
