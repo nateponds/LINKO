@@ -23,6 +23,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+backend/.env
 
 # Local source/reference documents that need explicit review before publishing
 docs/archived/BPMN-process-flow.pdf
