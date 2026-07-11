@@ -13,6 +13,9 @@ import {
   TriangleAlert,
   User,
 } from "lucide-react";
+import { BiMenuAltLeft } from "react-icons/bi";
+import { GoChevronDown } from "react-icons/go";
+
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../auth/AuthProvider";
 import { formatRoleLabel } from "../../auth/roleAccess";
@@ -28,6 +31,7 @@ function Topbar({ showSearch = false }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [openPanel, setOpenPanel] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const {
@@ -99,7 +103,10 @@ function Topbar({ showSearch = false }) {
         // ignore
       }
     }
-    if (!user) return () => { cancelled = true; };
+    if (!user)
+      return () => {
+        cancelled = true;
+      };
     loadNotifs();
     const intervalId = setInterval(loadNotifs, 30000);
     return () => {
@@ -107,6 +114,30 @@ function Topbar({ showSearch = false }) {
       clearInterval(intervalId);
     };
   }, [user]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadCategories() {
+      try {
+        const { apiGet } = await import("../../lib/api.js");
+        const data = await apiGet("/api/categories");
+        if (!cancelled && Array.isArray(data)) {
+          setCategories(data);
+        }
+      } catch {
+        // ignore; the dropdown just shows "All Categories" with no entries
+      }
+    }
+    loadCategories();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function selectCategory(name) {
+    setOpenPanel(null);
+    navigate(name ? `/?category=${encodeURIComponent(name)}` : "/");
+  }
 
   async function markAsRead(id) {
     try {
@@ -147,8 +178,10 @@ function Topbar({ showSearch = false }) {
                 ))}
               </select>
             </>
+          ) : displayBusiness ? (
+            ` - ${displayBusiness}`
           ) : (
-            displayBusiness ? ` - ${displayBusiness}` : ""
+            ""
           )}
         </span>
       </div>
@@ -156,6 +189,46 @@ function Topbar({ showSearch = false }) {
         <Link to="/" className="logo">
           LINK<span className="logo-accent">O</span>
         </Link>
+
+        <div className="dropdown-anchor">
+          <button
+            type="button"
+            className="category-dropdown"
+            aria-haspopup="true"
+            aria-expanded={openPanel === "categories"}
+            onClick={(event) => togglePanel(event, "categories")}
+          >
+            <BiMenuAltLeft size={24} className="bi-menu" /> All Categories{" "}
+            <GoChevronDown />
+          </button>
+          {openPanel === "categories" && (
+            <div
+              className="dropdown-panel category-dropdown-panel"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="dropdown-head">Browse Categories</div>
+              <nav className="dropdown-menu category-dropdown-menu">
+                <button type="button" onClick={() => selectCategory(null)}>
+                  All Categories
+                </button>
+                {categories.map((category) => (
+                  <button
+                    type="button"
+                    key={category.category_id}
+                    onClick={() => selectCategory(category.category_name)}
+                  >
+                    {category.category_name}
+                    {typeof category.product_count === "number" && (
+                      <span className="category-dropdown-count">
+                        {category.product_count}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </nav>
+            </div>
+          )}
+        </div>
         {showSearch && (
           <form className="search" onSubmit={submitSearch} role="search">
             <input
@@ -166,7 +239,7 @@ function Topbar({ showSearch = false }) {
               key={qParam}
             />
             <button type="submit" className="icon-btn go" title="Search">
-              <Search size={16} />
+              Search <Search size={16} />
             </button>
           </form>
         )}
@@ -180,25 +253,44 @@ function Topbar({ showSearch = false }) {
               onClick={(event) => togglePanel(event, "notifications")}
             >
               <Bell size={16} />
-              {notifications.length > 0 && <span className="notif-badge">{notifications.length}</span>}
+              {notifications.length > 0 && (
+                <span className="notif-badge">{notifications.length}</span>
+              )}
             </button>
             {openPanel === "notifications" && (
-              <div className="dropdown-panel" onClick={(event) => event.stopPropagation()}>
+              <div
+                className="dropdown-panel"
+                onClick={(event) => event.stopPropagation()}
+              >
                 <div className="dropdown-head">Notifications</div>
                 <ul className="notif-list">
                   {notifications.length === 0 ? (
-                    <li style={{ padding: '1rem', textAlign: 'center', color: '#666' }}>No new notifications</li>
+                    <li
+                      style={{
+                        padding: "1rem",
+                        textAlign: "center",
+                        color: "#666",
+                      }}
+                    >
+                      No new notifications
+                    </li>
                   ) : (
                     notifications.map((n) => {
                       const Icon = getIconForType(n.type);
                       return (
-                        <li key={n.notification_id} onClick={() => markAsRead(n.notification_id)} style={{ cursor: 'pointer' }}>
+                        <li
+                          key={n.notification_id}
+                          onClick={() => markAsRead(n.notification_id)}
+                          style={{ cursor: "pointer" }}
+                        >
                           <span className="notif-icon">
                             <Icon size={16} />
                           </span>
                           <div>
                             <span className="notif-text">{n.message}</span>
-                            <span className="notif-time">{new Date(n.created_at).toLocaleDateString()}</span>
+                            <span className="notif-time">
+                              {new Date(n.created_at).toLocaleDateString()}
+                            </span>
                           </div>
                         </li>
                       );
@@ -229,7 +321,10 @@ function Topbar({ showSearch = false }) {
               <User size={16} />
             </button>
             {openPanel === "profile" && (
-              <div className="dropdown-panel" onClick={(event) => event.stopPropagation()}>
+              <div
+                className="dropdown-panel"
+                onClick={(event) => event.stopPropagation()}
+              >
                 <div className="profile-head">
                   <span className="profile-avatar">{avatarLetter}</span>
                   <div>
@@ -255,7 +350,11 @@ function Topbar({ showSearch = false }) {
                   <button type="button">
                     <Settings size={15} /> Settings
                   </button>
-                  <button type="button" className="danger" onClick={handleLogout}>
+                  <button
+                    type="button"
+                    className="danger"
+                    onClick={handleLogout}
+                  >
                     <LogOut size={15} /> Logout
                   </button>
                 </nav>
