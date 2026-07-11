@@ -456,37 +456,34 @@ test("auth register creates account, membership, and session", { skip: !hasDb },
   await deleteRegisteredUser(uniqueEmail);
 });
 
-test("auth register with business_type both grants buyer and wholesaler memberships", { skip: !hasDb }, async () => {
-  const uniqueEmail = `both-${Date.now()}@example.com`;
+test("auth register rejects business_type both without creating sessions", { skip: !hasDb }, async () => {
+  const uniqueEmail = `both-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
   const register = await request("/api/auth/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       email: uniqueEmail,
       password: "Password123!",
-      full_name: "Hybrid Owner",
-      business_name: "Hybrid Trading",
+      full_name: "Rejected Hybrid",
+      business_name: "Rejected Hybrid Trading",
       business_type: "both",
     }),
   });
 
-  assert.equal(register.status, 201);
-  assert.match(register.setCookie, /linko_session=/);
-  assert.equal(register.body.memberships.length, 2);
-  assert.equal(register.body.memberships[0].business_type, "both");
-  const roles = register.body.memberships.map((m) => m.role).sort();
-  assert.deepEqual(roles, ["buyer", "wholesaler"]);
+  assert.equal(register.status, 400);
+  assert.match(register.body.error.message, /business_type must be buyer or wholesaler/i);
+  assert.equal(register.setCookie, null);
 
-  const cookie = register.setCookie.split(";")[0];
-  const me = await request("/api/auth/me", {
-    headers: { Cookie: cookie },
+  const login = await request("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email: uniqueEmail,
+      password: "Password123!",
+    }),
   });
 
-  assert.equal(me.status, 200);
-  const meRoles = me.body.memberships.map((m) => m.role).sort();
-  assert.deepEqual(meRoles, ["buyer", "wholesaler"]);
-
-  await deleteRegisteredUser(uniqueEmail);
+  assert.equal(login.status, 401);
 });
 
 test("auth register rejects duplicate email", { skip: !hasDb }, async () => {
@@ -525,7 +522,7 @@ test("auth register rejects duplicate email", { skip: !hasDb }, async () => {
 });
 
 test("auth register rejects public privileged role business types without creating sessions", { skip: !hasDb }, async () => {
-  const disallowedBusinessTypes = ["admin", "courier", "logistics_coordinator"];
+  const disallowedBusinessTypes = ["admin", "courier", "logistics_coordinator", "both"];
 
   for (const businessType of disallowedBusinessTypes) {
     const uniqueEmail = `${businessType}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
@@ -542,7 +539,7 @@ test("auth register rejects public privileged role business types without creati
     });
 
     assert.equal(register.status, 400);
-    assert.match(register.body.error.message, /business_type must be buyer, wholesaler, or both/i);
+    assert.match(register.body.error.message, /business_type must be buyer or wholesaler/i);
     assert.equal(register.setCookie, null);
 
     const login = await request("/api/auth/login", {
