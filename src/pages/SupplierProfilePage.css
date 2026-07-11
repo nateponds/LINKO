@@ -166,7 +166,6 @@
     width: 100%;
     aspect-ratio: 3 / 4;
     background: rgba(48, 80, 160, 0.25);
-    transition: opacity 0.15s ease;
     overflow: hidden;
   }
 
@@ -175,10 +174,14 @@
     height: 100%;
     object-fit: cover;
     display: block;
+    transition:
+      transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1),
+      filter 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   }
 
-  .product-card:hover .product-image {
-    opacity: 0.85;
+  .product-card:hover .product-image img {
+    transform: scale(1.04);
+    filter: grayscale(12%) brightness(88%);
   }
 
   .product-details {
@@ -254,7 +257,7 @@
     color: #fff;
     font-weight: 700;
     cursor: pointer;
-    transition: background 0.15s ease, transform 0.15s ease;
+    transition: background 0.15s ease, box-shadow 0.15s ease;
   }
 
   .add-cart-btn {
@@ -265,7 +268,7 @@
   .add-cart-btn:hover,
   .checkout-btn:hover {
     background: var(--color-primary-dark);
-    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(23, 33, 61, 0.15);
   }
 
   .add-cart-btn:disabled,
@@ -273,7 +276,6 @@
   .cart-stepper button:disabled {
     cursor: not-allowed;
     opacity: 0.55;
-    transform: none;
   }
 
   .cart-panel {
@@ -558,13 +560,13 @@
     font-size: 0.9rem;
     font-weight: 700;
     cursor: pointer;
-    transition: background 0.15s ease, transform 0.15s ease;
+    transition: background 0.15s ease, box-shadow 0.15s ease;
   }
 
   .shop-hero-cta:hover {
     background: var(--color-accent-dark);
     color: #fff;
-    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(23, 33, 61, 0.15);
   }
 
   .shop-hero-image {
