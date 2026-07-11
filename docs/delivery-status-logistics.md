@@ -106,6 +106,39 @@ carrier-event-driven. The seller never marks an order delivered.
    material; dispatch is not blocked on payment. Documented simplification.
 10. **Delivered parcels stay visible** in the courier dashboard as history:
    nothing disappears from the list when acted on.
+11. **Courier write scope (shipped in Sprint 7, documented here).** A courier's
+   `POST /api/parcels/:id/tracking` is scoped exactly like their read: they may
+   write only to a parcel in their own handling history or an unassigned parcel
+   in their assigned branch's pickup pool (strict branch-id equality, no
+   NULL-to-NULL match). Out-of-scope writes return `404`, matching the read.
+12. **Ship-time weight (Sprint 8).** Marking a marketplace order `shipped`
+   requires `weight_kg` (> 0) and accepts optional `dimensions`; the wholesaler
+   records the real weight at the physical handoff. The commission bracket
+   freezes from that weight, while `shipping_fee` stays the tier base fee quoted
+   at checkout ("fee quoted at checkout, weight recorded at handoff"). Route
+   distance is unknown at marketplace checkout, so `total_distance_km` is `NULL`
+   and the ETA derives from the tier's `estimated_days`. Replaces the old
+   hardcoded 10 kg / 15 km / `+5 days` placeholders.
+13. **Proof-of-delivery remarks (Sprint 8).** A **courier** `Delivered` or
+   `Returned` scan requires non-empty `remarks` (received-by name / failure
+   reason) or the API returns `400`. Coordinators and admins are exempt so the
+   correction escape hatch (decisions 6/7) still works without fabricating POD
+   text. The asymmetry is deliberate and documented in API_CONTRACTS §3.6.
+14. **Method-honest payment lifecycle (Sprint 8).** `payments.payment_status`
+   now moves by method: `Prepaid`/`Online` settle `'Paid'` (with `paid_at`) at
+   booking; `COD` starts `'Pending'` and settles on the terminal scan —
+   `Delivered → 'Paid'`, `Returned → 'Failed'` — guarded on `Pending` so a
+   coordinator correction never rewrites a settled payment. This is status
+   movement only; the payment→dispatch gate stays **modeled, not enforced**
+   (decision 9 unchanged, `docs/course-deliverable.md`). No commission or
+   remittance workflow is added.
+15. **Buyer delivery visibility (Sprint 8).** A buyer may read a single parcel
+   via `GET /api/parcels/:id` when its `receiver_id` is one of their buyer
+   businesses (404 otherwise), backing a read-only "Track parcel" modal on the
+   Orders screen. Orders expose `parcel_id` for this. The parcel **list** stays
+   operator-only (buyer-only callers get `[]`) and the tracking **write** route
+   still excludes `buyer` — buyers never enter the logistics workspace. Mixed-
+   role (`both`) businesses keep full wholesaler visibility.
 
 ## Logistics API payload notes
 

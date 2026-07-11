@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import AppLayout from "../../layouts/AppLayout";
+import TrackingTimeline from "../../features/logistics/TrackingTimeline";
 import { peso, shortDate, statusClass } from "../../lib/format";
-import { trackingLocationText } from "../../lib/trackingTimeline";
 import { selectableTrackingStatuses } from "../../lib/statusWorkflow";
 import { useAuth } from "../../auth/AuthProvider";
 import { apiGet, apiSend } from "../../lib/api";
@@ -12,17 +12,6 @@ import "./logistics.css";
 /* Parcel detail + tracking timeline, backed by GET /api/parcels/:id.
    Demonstrates the ERD's core design decision live: current status is the
    latest tracking_logs row, not a column on parcels. */
-
-const longDate = (iso) =>
-  iso
-    ? new Date(iso).toLocaleString("en-PH", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      })
-    : "—";
 
 const addressLine = (a) =>
   [a.street_address, a.barangay, a.city_municipality, a.province, a.postal_code]
@@ -88,16 +77,26 @@ export default function ParcelDetailPage() {
     };
   }, [parcelId]);
 
-  // Newest first for display; the API sends the history oldest first.
-  const timeline = parcel?.tracking_history ? [...parcel.tracking_history].reverse() : [];
   const filteredCouriers = formBranch
     ? couriers.filter((courier) => courier.assigned_branch_id === Number(formBranch))
     : couriers;
   const statusOptions = selectableTrackingStatuses(parcel?.current_status, canUpdateAssignment);
   const canLogTrackingUpdate = canUpdateAssignment || statusOptions.length > 0;
+  // Courier terminal scans carry proof of delivery / failure reason (Sprint 8);
+  // coordinators/admins keep the correction escape hatch.
+  const remarksRequired =
+    !canUpdateAssignment && (formStatus === "Delivered" || formStatus === "Returned");
 
   async function handleTrackingSubmit() {
     if (updating) return;
+    if (remarksRequired && !formRemarks.trim()) {
+      setUpdateError(
+        formStatus === "Delivered"
+          ? "Enter who received the parcel (proof of delivery)."
+          : "Enter the failure reason for the return.",
+      );
+      return;
+    }
     setUpdating(true);
     setUpdateError(null);
     try {
@@ -250,12 +249,25 @@ export default function ParcelDetailPage() {
                       </div>
 
                       <label className="update-remarks">
-                        <span>Remarks</span>
+                        <span>
+                          {formStatus === "Delivered"
+                            ? `Received by (name)${remarksRequired ? " *" : ""}`
+                            : formStatus === "Returned"
+                              ? `Failure reason${remarksRequired ? " *" : ""}`
+                              : "Remarks"}
+                        </span>
                         <input
                           type="text"
                           value={formRemarks}
                           onChange={e => setFormRemarks(e.target.value)}
-                          placeholder="Delivery notes or return reason"
+                          placeholder={
+                            formStatus === "Delivered"
+                              ? "Who received the parcel"
+                              : formStatus === "Returned"
+                                ? "Why the delivery failed"
+                                : "Delivery notes or return reason"
+                          }
+                          required={remarksRequired}
                         />
                       </label>
 
@@ -273,32 +285,7 @@ export default function ParcelDetailPage() {
                 </div>
               )}
 
-              <div className="timeline-block">
-                <span className="timeline-heading">Tracking History</span>
-                <ol className="timeline">
-                  {timeline.map((step, i) => {
-                    const locationText = trackingLocationText(step, parcel);
-
-                    return (
-                      <li
-                        key={step.scanned_at + step.status_update}
-                        className={`tl-step done ${i === 0 ? "current" : ""}`}
-                      >
-                        <span className="tl-dot" />
-                        <div className="tl-content">
-                          <span className="tl-title">{step.status_update}</span>
-                          <span className="tl-meta">
-                            {longDate(step.scanned_at)}
-                            {locationText ? ` - ${locationText}` : ""}
-                            {step.courier_name ? ` - ${step.courier_name}` : ""}
-                          </span>
-                          {step.remarks && <span className="tl-remarks">{step.remarks}</span>}
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ol>
-              </div>
+              <TrackingTimeline parcel={parcel} />
             </section>
           </main>
         )}

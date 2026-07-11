@@ -257,6 +257,7 @@ Returns visible orders:
     "buyer_business_name": "Sunrise Retail Cooperative",
     "wholesaler_business_name": "Harbor Bulk Trading",
     "status": "accepted",
+    "parcel_id": "LKO-00000001",
     "total": "240.00",
     "items": [],
     "invoice": {
@@ -269,9 +270,11 @@ Returns visible orders:
 ]
 ```
 
+`parcel_id` (Sprint 8) is the order's auto-created parcel, or `null` before the order ships. It backs the buyer's "Track parcel" modal, which then reads the parcel via `GET /api/parcels/:id` (§3.6a). Exposed on both `GET /api/orders` (what the Orders UI consumes) and `GET /api/orders/:id`.
+
 ### 2c.2 `GET /api/orders/:id`
 
-Returns one visible order. Missing, non-numeric, or not-owned orders return `404`.
+Returns one visible order (same shape as the list rows above, including `parcel_id`). Missing, non-numeric, or not-owned orders return `404`.
 
 ### 2c.3 `POST /api/orders`
 
@@ -302,9 +305,13 @@ Roles: `buyer`, `wholesaler`, or `platform_admin` (admin acts as a manual overri
 { "status": "accepted" }
 ```
 
+```json
+{ "status": "shipped", "weight_kg": 8.5, "dimensions": "40x30x20 cm" }
+```
+
 Accepting an order decrements each product's `stock_quantity` in the same transaction and generates exactly one invoice. If any line lacks enough stock, the request returns `400` and neither stock nor invoices change. Rejecting an order uses status `cancelled`.
 
-Marking an order `shipped` auto-creates a parcel (with `order_id` set, migration 009) plus its payment row and an `'Order Created'` tracking log; the parcel then appears in the courier pickup pool (§3.1). Marketplace checkout does not collect physical package weight or route distance, so this bridge snapshots the frozen order-item subtotal into `parcels.declared_value` and uses the selected service tier's quoted `base_fee` as `parcels.shipping_fee`. The payment trigger therefore produces the same goods-plus-tier total as the accepted invoice. Standalone `POST /api/parcels` bookings continue to use the full weight-and-distance shipping formula.
+Marking an order `shipped` **requires** `weight_kg` (a number > 0; missing or non-positive → `400`) and accepts optional `dimensions` — the wholesaler records the real parcel weight at the physical handoff, so the commission bracket freezes from a true measurement (Sprint 8). Shipping auto-creates a parcel (with `order_id` set, migration 009) plus its payment row and an `'Order Created'` tracking log; the parcel then appears in the courier pickup pool (§3.1). Checkout never measured a route, so `total_distance_km` is `NULL` and the ETA derives from the service tier's `estimated_days` (not a fixed `+5`). This bridge snapshots the frozen order-item subtotal into `parcels.declared_value` and keeps the tier's quoted `base_fee` as `parcels.shipping_fee` ("fee quoted at checkout, weight recorded at handoff"). The auto-created payment is `Online` and settles as `'Paid'` at ship time (§3.3). Standalone `POST /api/parcels` bookings continue to use the full weight-and-distance shipping formula.
 
 Returns the updated order.
 
@@ -416,7 +423,7 @@ Parcel detail with full tracking timeline (oldest first). `404` if unknown. `bra
 
 ### 3.3 `POST /api/parcels`
 
-Book a parcel. The database fills `shipping_fee` (tier pricing trigger), `payments.amount` (goods + shipping), and the commission row. Also writes the first `'Order Created'` tracking log. `payment_status` starts `'Pending'`.
+Book a parcel. The database fills `shipping_fee` (tier pricing trigger), `payments.amount` (goods + shipping), and the commission row. Also writes the first `'Order Created'` tracking log. `payment_status` is **method-honest**: `Prepaid` / `Online` insert as `'Paid'` with `paid_at` set at booking; `COD` starts `'Pending'` and settles later on the terminal tracking scan (§3.6). The payment→dispatch gate is modeled, not enforced (course-deliverable scope).
 
 **Request Body:**
 
@@ -457,31 +464,9 @@ Book a parcel. The database fills `shipping_fee` (tier pricing trigger), `paymen
 ]
 ```
 
-### 3.5 `GET /api/businesses`
+### 3.5 (removed)
 
-Businesses with their addresses — feeds the book-a-parcel form's sender/receiver and origin/destination selects.
-
-```json
-[
-  {
-    "business_id": 1,
-    "full_name": "John's Pork",
-    "phone_number": "0917-555-0101",
-    "email": "orders@johnspork.ph",
-    "business_type": "msme",
-    "addresses": [
-      {
-        "address_id": 1,
-        "province": "Cebu",
-        "city_municipality": "Cebu City",
-        "barangay": "Mabolo",
-        "street_address": "12 Pork Ave",
-        "postal_code": "6000"
-      }
-    ]
-  }
-]
-```
+`GET /api/businesses` was deleted with the standalone booking surface (Sprint 8); it fed only the retired book-a-parcel form. Section number retained so later references (§3.6) stay stable.
 
 ### 3.6 `POST /api/parcels/:id/tracking`
 
@@ -499,6 +484,16 @@ Courier identity is server-side: a courier caller's scan is stamped with their o
 
 Courier-role updates are forward-only across `Order Created → Picked Up → In Transit → Out for Delivery → Delivered/Returned`. A courier cannot append an earlier lifecycle phase, cannot submit `Cancelled`, and cannot append any update after `Delivered` or `Returned`. Coordinators/admins may still override status history for operational corrections, including temporary `Cancelled` parcel logs.
 
+**Proof-of-delivery remarks (Sprint 8):** for **courier-role** callers, a `Delivered` or `Returned` scan **requires** non-empty `remarks` ("Received by <name>" / failure reason) or the request is rejected with `400`. Coordinators and platform admins are **exempt** — the missing-remarks path is left open deliberately so they retain the operational-correction escape hatch (a terminal scan may need correcting without fabricating POD text).
+
+**Payment settlement (Sprint 8):** a scan on a parcel whose payment is `COD` and still `Pending` settles inside the same transaction — `Delivered → payment_status 'Paid'` (with `paid_at`), `Returned → 'Failed'`. The update is guarded on `Pending`, so a coordinator correction after a terminal scan never rewrites an already-settled payment. Non-COD payments already settled at booking (§3.3). The payment→dispatch gate remains modeled, not enforced.
+
 Side effects on a parcel with an `order_id` are transactional and apply to courier, coordinator, and admin tracking updates. A `Delivered` scan flips a linked order from `shipped` to terminal `delivered` and notifies the buyer ("Order Delivered"). A `Returned` scan flips a linked order from `shipped` to terminal `returned` and sends warning notifications to both buyer and wholesaler. When tracking remarks are present, both returned-order messages include them. If the linked order is not `shipped`, the order update and notifications are silently skipped.
 
 **Response Body (`201 Created`):** the inserted `tracking_logs` row.
+
+### 3.6a Buyer read scope on `GET /api/parcels/:id`
+
+`GET /api/parcels/:id` gains a **buyer** scope (Sprint 8): a buyer may read a single parcel when its `receiver_id` is one of their buyer businesses — this backs the read-only "Track parcel" modal on the Orders screen. As with every other role, an out-of-scope parcel returns **404** (existence is not leaked), and the internal `sender_id` / `receiver_id` fields are stripped from the response.
+
+The parcel **list** (`GET /api/parcels`) stays **operator-only**: a buyer-only caller receives an empty list — buyers can never enumerate parcels, only read their own delivery by id. The tracking **write** route (§3.6) is unchanged and still excludes `buyer`. A mixed-role business (`both`) keeps its full wholesaler list visibility; the buyer scope only adds single-parcel reads, it does not regress wholesaler access.

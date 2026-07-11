@@ -94,22 +94,19 @@ async function findBranchIdByCity(client, cityMunicipality) {
   return rows[0]?.branch_id ?? null;
 }
 
+// Buyers pass the gate only for the single-parcel read (track-my-order);
+// the list below yields nothing for a buyer-only caller and every write
+// route layers its own tighter requireAnyRole without "buyer".
 router.use(
   "/parcels",
   requireAuth,
-  requireAnyRole(["wholesaler", "logistics_coordinator", "courier", "platform_admin"]),
+  requireAnyRole(["buyer", "wholesaler", "logistics_coordinator", "courier", "platform_admin"]),
 );
 
 router.use(
   "/service-tiers",
   requireAuth,
   requireAnyRole(["buyer", "wholesaler", "logistics_coordinator", "courier", "platform_admin"]),
-);
-
-router.use(
-  "/businesses",
-  requireAuth,
-  requireAnyRole(["wholesaler", "logistics_coordinator", "courier", "platform_admin"]),
 );
 
 // Branches and couriers are logistics reference data. Reads (GET) were
@@ -131,6 +128,9 @@ router.use(
 //   { all: true }              -> logistics_coordinator or platform_admin
 //   { businessIds: [...] }     -> wholesaler: parcels they send OR receive
 //   { courierId, courierBranchId } -> courier: history plus branch pickup pool
+//   receiverOnlyIds            -> buyer memberships: single-parcel reads where
+//                                 they are the receiver; deliberately ignored
+//                                 by the list so buyers never enumerate parcels
 // Resolved once per request; used to build the WHERE clause in the house style.
 async function parcelScope(req) {
   const { user, memberships } = req.auth;
@@ -138,11 +138,15 @@ async function parcelScope(req) {
     return { all: true };
   }
 
+  const receiverOnlyIds = memberships
+    .filter((m) => m.role === "buyer")
+    .map((m) => m.business_id);
+
   const businessIds = memberships
     .filter((m) => m.role === "wholesaler")
     .map((m) => m.business_id);
   if (businessIds.length) {
-    return { businessIds };
+    return { businessIds, receiverOnlyIds };
   }
 
   const { rows } = await query(
@@ -152,6 +156,7 @@ async function parcelScope(req) {
   return {
     courierId: rows[0]?.courier_id ?? null,
     courierBranchId: rows[0]?.assigned_branch_id ?? null,
+    receiverOnlyIds,
   };
 }
 
@@ -297,6 +302,7 @@ router.get("/parcels/:id", async (req, res) => {
     (scope.businessIds &&
       (scope.businessIds.includes(parcel.sender_id) ||
         scope.businessIds.includes(parcel.receiver_id))) ||
+    (scope.receiverOnlyIds?.includes(parcel.receiver_id) ?? false) ||
     courierHistoryVisible ||
     courierPoolVisible;
 
@@ -415,10 +421,15 @@ router.post(
       ],
     );
 
+    // Method-honest status: Prepaid/Online are settled at booking; COD stays
+    // Pending until the terminal scan. The dispatch gate remains modeled, not
+    // enforced (docs/course-deliverable.md).
+    const paymentStatus = payment_method === "COD" ? "Pending" : "Paid";
     await client.query(
-      `INSERT INTO payments (parcel_id, method, payment_status, amount)
-       VALUES ($1, $2, 'Pending', NULL)`,
-      [parcelId, payment_method],
+      `INSERT INTO payments (parcel_id, method, payment_status, amount, paid_at)
+       VALUES ($1, $2, $3, NULL,
+               CASE WHEN $3::varchar = 'Paid' THEN CURRENT_TIMESTAMP END)`,
+      [parcelId, payment_method, paymentStatus],
     );
 
     const originAddress = await client.query(
@@ -453,28 +464,6 @@ router.get("/service-tiers", async (_req, res) => {
            rate_per_km::float8, estimated_days
       FROM service_tiers
      ORDER BY tier_id`);
-
-  res.json(rows);
-});
-
-// Businesses with their addresses -- the book-a-parcel form needs both to
-// fill sender/receiver and origin/destination selects.
-router.get("/businesses", async (_req, res) => {
-  const { rows } = await query(`
-    SELECT b.business_id, b.business_name, b.contact_number, b.business_type,
-           COALESCE(json_agg(json_build_object(
-                      'address_id', a.address_id,
-                      'province', a.province,
-                      'city_municipality', a.city_municipality,
-                      'barangay', a.barangay,
-                      'street_address', a.street_address,
-                      'postal_code', a.postal_code)
-                    ORDER BY a.address_id)
-                    FILTER (WHERE a.address_id IS NOT NULL), '[]') AS addresses
-      FROM businesses b
-      LEFT JOIN addresses a ON a.business_id = b.business_id
-     GROUP BY b.business_id
-     ORDER BY b.business_id`);
 
   res.json(rows);
 });
@@ -529,6 +518,21 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
     }
     effectiveCourierId = rows[0].courier_id;
     effectiveBranchId = rows[0].assigned_branch_id ?? null;
+
+    // Terminal scans are evidence-bearing: couriers must attach proof of
+    // delivery / failure reason. Coordinators and admins stay exempt so the
+    // operational-correction escape hatch keeps working.
+    if (
+      (status_update === "Delivered" || status_update === "Returned") &&
+      !(typeof remarks === "string" && remarks.trim())
+    ) {
+      return res.status(400).json({
+        error: {
+          message:
+            "Delivered/Returned scans require remarks (proof of delivery / failure reason)",
+        },
+      });
+    }
   }
 
   // Transaction: the scan and its order side effect commit together.
@@ -641,6 +645,26 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
     // Terminal delivery scans complete the linked marketplace order -- the
     // wholesaler's fulfillment control ended at 'shipped'
     // (docs/delivery-status-logistics.md).
+    // COD settles at the terminal scan: Delivered collects, Returned fails.
+    // Guard on Pending so coordinator corrections after a terminal scan do
+    // not rewrite already-settled payments.
+    if (status_update === "Delivered") {
+      await client.query(
+        `UPDATE payments
+            SET payment_status = 'Paid', paid_at = CURRENT_TIMESTAMP
+          WHERE parcel_id = $1 AND method = 'COD' AND payment_status = 'Pending'`,
+        [parcelId],
+      );
+    }
+    if (status_update === "Returned") {
+      await client.query(
+        `UPDATE payments
+            SET payment_status = 'Failed'
+          WHERE parcel_id = $1 AND method = 'COD' AND payment_status = 'Pending'`,
+        [parcelId],
+      );
+    }
+
     if (status_update === "Delivered") {
       const { rows: orderRows } = await client.query(
         `UPDATE orders o
