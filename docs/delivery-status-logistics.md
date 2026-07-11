@@ -137,8 +137,11 @@ carrier-event-driven. The seller never marks an order delivered.
    businesses (404 otherwise), backing a read-only "Track parcel" modal on the
    Orders screen. Orders expose `parcel_id` for this. The parcel **list** stays
    operator-only (buyer-only callers get `[]`) and the tracking **write** route
-   still excludes `buyer` — buyers never enter the logistics workspace. Mixed-
-   role (`both`) businesses keep full wholesaler visibility.
+   still excludes `buyer` — buyers never enter the logistics workspace. Sprint 9
+   dropped the `both` business type; a single business can no longer be both
+   buyer and wholesaler. A user who needs both capabilities holds them via two
+   distinct businesses, and only the active business's roles apply to a given
+   request.
 
 ## Logistics API payload notes
 

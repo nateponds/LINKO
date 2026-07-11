@@ -13,10 +13,7 @@ proof-of-delivery remarks, and buyer delivery visibility).
 - Ensure the demo data is loaded (fresh state): from `backend/`, `npm run seed:demo`.
 - Log in at `/login`. To switch accounts between journeys, use the profile menu **Log out**,
   then log in as the next account.
-- **Business switcher:** the `both@linko.test` account has two memberships (buyer +
-  wholesaler). When logged in as that user, a business/role switcher appears in the top bar —
-  changing it changes the "active business" the backend scopes every request to. The five
-  journeys below use the single-membership accounts for clarity.
+- **Business switcher:** the `bizswitch@linko.test` account owns **two separate businesses** — Metro Cebu Trading — Retail (buyer) and Metro Cebu Trading — Wholesale (wholesaler). When logged in as that user, a business switcher appears in the top bar — changing it changes the "active business" the backend scopes every request to. Sprint 9 replaced the prior single-"both"-business account with this two-business split, so a single business can never be both buyer and wholesaler at once. The five journeys below use the single-membership accounts for clarity.
 
 Routes referenced below all exist in `src/App.jsx` and are protected by
 `ROLE_ACCESS` role groups in `src/auth/roleAccess.js`.
@@ -134,9 +131,7 @@ Routes referenced below all exist in `src/App.jsx` and are protected by
    workspace**.
 3. Confirm the buyer has **no** Logistics nav item and cannot reach `/logistics` — the modal
    is their only delivery visibility.
-4. *(Optional, mixed-role check)* Log in as `both@linko.test`, switch the top-bar business to
-   the buyer role, and confirm the buyer-side parcel is visible via its order's Track modal —
-   while the operator parcel **list** stays empty for the buyer role.
+4. *(Optional, multi-business check)* Log in as `bizswitch@linko.test`, switch the top-bar business to **Metro Cebu Trading — Retail** (the buyer side), and confirm the buyer-side parcel is visible via its order's Track modal — while the operator parcel **list** stays empty for the buyer context. Then switch to **Metro Cebu Trading — Wholesale** (the wholesaler side) and confirm the parcel list becomes populated — the two contexts are fully isolated.
 
 **Grader should observe:**
 - A buyer reads exactly **one parcel — their own delivery** — via `GET /api/parcels/:id`
