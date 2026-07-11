@@ -7,7 +7,26 @@ export function createPool(connectionString = process.env.DATABASE_URL) {
     throw new Error("DATABASE_URL is required");
   }
 
-  return new Pool({ connectionString });
+  // Managed Postgres (Supabase) presents a cert chain Node's default trust
+  // store rejects (SELF_SIGNED_CERT_IN_CHAIN). Enable TLS but skip chain
+  // verification whenever the URL asks for SSL. Local/staging Docker Postgres
+  // has no sslmode in its URL, so it stays plain.
+  // ponytail: rejectUnauthorized:false trusts the tunnel; swap for a pinned
+  // Supabase CA (sslrootcert + verify-full) if the DB link needs MITM protection.
+  const wantsSsl = /\bsslmode=(require|prefer|verify-ca|verify-full|no-verify)\b/.test(
+    connectionString,
+  );
+
+  // pg-connection-string parses sslmode from the URL into its own ssl config
+  // (now verify-full semantics), which overrides the ssl object below and
+  // re-triggers SELF_SIGNED_CERT_IN_CHAIN. Strip sslmode so our ssl object is
+  // the single source of truth.
+  const cleanedString = connectionString.replace(/([?&])sslmode=[^&]*&?/g, "$1").replace(/[?&]$/, "");
+
+  return new Pool({
+    connectionString: cleanedString,
+    ssl: wantsSsl ? { rejectUnauthorized: false } : false,
+  });
 }
 
 let pool;
