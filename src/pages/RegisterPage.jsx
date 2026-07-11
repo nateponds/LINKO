@@ -134,7 +134,6 @@ export default function RegisterPage() {
                 >
                   <option value="buyer">Buyer</option>
                   <option value="wholesaler">Wholesaler</option>
-                  <option value="both">Both (Buyer &amp; Wholesaler)</option>
                 </select>
               </label>
 
