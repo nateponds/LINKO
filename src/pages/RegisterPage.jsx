@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
+import { defaultPathForSession, redirectPathForRoles } from "../auth/roleAccess";
 import AuthVisualPanel from "../components/ui/AuthVisualPanel";
 import "./LoginPage.css";
 
@@ -14,7 +15,7 @@ const INITIAL_FORM = {
 };
 
 export default function RegisterPage() {
-  const { user, register: authRegister, hasAnyRole } = useAuth();
+  const { user, register: authRegister, activeRoles } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState(INITIAL_FORM);
   const [showPassword, setShowPassword] = useState(false);
@@ -22,7 +23,7 @@ export default function RegisterPage() {
   const [submitting, setSubmitting] = useState(false);
 
   if (user) {
-    const defaultPath = (hasAnyRole(["buyer"]) && !hasAnyRole(["wholesaler", "platform_admin", "logistics_coordinator", "courier"])) ? "/" : "/dashboard";
+    const defaultPath = redirectPathForRoles(activeRoles, user.global_role === "platform_admin");
     return <Navigate to={defaultPath} replace />;
   }
 
@@ -43,11 +44,8 @@ export default function RegisterPage() {
         business_name: form.business_name.trim(),
         business_type: form.business_type,
       });
-      const roles = payload.memberships?.map((m) => m.role) || [];
-      const isBuyer = roles.includes("buyer");
-      const hasOtherRoles = roles.some(r => r !== "buyer") || payload.user.global_role === "platform_admin";
-
-      const defaultPath = (isBuyer && !hasOtherRoles) ? "/" : "/dashboard";
+      const stored = window.localStorage.getItem("linko-active-business");
+      const defaultPath = defaultPathForSession(payload, stored);
       navigate(defaultPath, { replace: true });
     } catch (error) {
       setSubmitError(error.message);
@@ -136,7 +134,6 @@ export default function RegisterPage() {
                 >
                   <option value="buyer">Buyer</option>
                   <option value="wholesaler">Wholesaler</option>
-                  <option value="both">Both (Buyer &amp; Wholesaler)</option>
                 </select>
               </label>
 

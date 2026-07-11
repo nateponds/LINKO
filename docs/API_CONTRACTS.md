@@ -112,7 +112,7 @@ Modify stock count, reorder limits, or units.
 
 Note: the route name remains `suppliers` for implementation continuity, but in product language this domain primarily represents wholesaler-facing marketplace profiles.
 
-> **Milestone 2 reconciliation.** The Sprint 1 sketch below (nested `supplier_profiles` shape, `POST`/`PATCH`) has been replaced by a real, read-only listing. The `POST`/`PATCH` supplier-registration endpoints and the `supplier_profiles`-nested payload are **not implemented**; suppliers are derived from `businesses` where `business_type IN ('wholesaler','both')`. Any authenticated user may read. See §2.1 for the shipped shape.
+> **Milestone 2 reconciliation.** The Sprint 1 sketch below (nested `supplier_profiles` shape, `POST`/`PATCH`) has been replaced by a real, read-only listing. The `POST`/`PATCH` supplier-registration endpoints and the `supplier_profiles`-nested payload are **not implemented**; suppliers are derived from `businesses` where `business_type = 'wholesaler'`. Any authenticated user may read. See §2.1 for the shipped shape.
 
 ### 2.1 `GET /api/suppliers` (shipped, Milestone 2)
 
@@ -190,7 +190,7 @@ Roles: `wholesaler` or `platform_admin`.
 
 **Body:** `product_name` (required, non-empty, ≤100), `unit_price` (required, number ≥ 0), `sku?` (≤50), `description?`, `category_id?`, `stock_quantity?` (int ≥ 0, default 0), `image_url?`.
 
-Owning `business_id` comes from the caller's `wholesaler` membership: 0 memberships and not admin → `403`; more than 1 → `400` ("multiple wholesaler businesses not supported yet"). A `platform_admin` with no wholesaler membership **must** pass `business_id` in the body; it is validated to exist with `business_type IN ('wholesaler','both')`, else `400`. Duplicate `sku` → `400`. Returns `201` + the created product (full shape).
+Owning `business_id` comes from the caller's `wholesaler` membership: 0 memberships and not admin → `403`; more than 1 → `400` ("multiple wholesaler businesses not supported yet"). A `platform_admin` with no wholesaler membership **must** pass `business_id` in the body; it is validated to exist with `business_type = 'wholesaler'`, else `400`. Duplicate `sku` → `400`. Returns `201` + the created product (full shape).
 
 ### 2b.5 `PATCH /api/products/:id`
 
@@ -496,4 +496,4 @@ Side effects on a parcel with an `order_id` are transactional and apply to couri
 
 `GET /api/parcels/:id` gains a **buyer** scope (Sprint 8): a buyer may read a single parcel when its `receiver_id` is one of their buyer businesses — this backs the read-only "Track parcel" modal on the Orders screen. As with every other role, an out-of-scope parcel returns **404** (existence is not leaked), and the internal `sender_id` / `receiver_id` fields are stripped from the response.
 
-The parcel **list** (`GET /api/parcels`) stays **operator-only**: a buyer-only caller receives an empty list — buyers can never enumerate parcels, only read their own delivery by id. The tracking **write** route (§3.6) is unchanged and still excludes `buyer`. A mixed-role business (`both`) keeps its full wholesaler list visibility; the buyer scope only adds single-parcel reads, it does not regress wholesaler access.
+The parcel **list** (`GET /api/parcels`) stays **operator-only**: a buyer-only caller receives an empty list — buyers can never enumerate parcels, only read their own delivery by id. The tracking **write** route (§3.6) is unchanged and still excludes `buyer`. (Sprint 9 dropped the `both` business type; a single business can no longer be both buyer and wholesaler. A user who holds both roles does so via two distinct businesses, and only the active business's roles apply to a given request.)

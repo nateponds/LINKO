@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { hasAccess } from "./roleAccess";
+import { groupMemberships, hasAccess } from "./roleAccess";
 
 const AuthContext = createContext(null);
 
@@ -86,6 +86,21 @@ export function AuthProvider({ children }) {
     },
     [memberships],
   );
+
+  // One entry per unique business with its additive role set; drives the
+  // switcher, combined labels, and every capability check.
+  const businesses = useMemo(() => groupMemberships(memberships), [memberships]);
+
+  const activeBusiness = useMemo(
+    () =>
+      businesses.find(
+        (business) => String(business.business_id) === String(activeBusinessId),
+      ) ?? null,
+    [activeBusinessId, businesses],
+  );
+
+  // The single source for capability checks: roles of the active business only.
+  const activeRoles = useMemo(() => activeBusiness?.roles ?? [], [activeBusiness]);
 
   const activeMembership = useMemo(
     () =>
@@ -243,16 +258,19 @@ export function AuthProvider({ children }) {
   }, [applySession]);
 
   const hasAnyRole = useCallback(
-    (roles = []) => hasAccess(user, memberships, roles),
-    [memberships, user],
+    (roles = []) => hasAccess(user, activeRoles, roles),
+    [activeRoles, user],
   );
 
   const value = useMemo(
     () => ({
       user,
       memberships,
+      businesses,
       activeBusinessId,
+      activeBusiness,
       activeMembership,
+      activeRoles,
       setActiveBusiness,
       loading,
       error,
@@ -263,8 +281,11 @@ export function AuthProvider({ children }) {
       hasAnyRole,
     }),
     [
+      activeBusiness,
       activeBusinessId,
       activeMembership,
+      activeRoles,
+      businesses,
       error,
       hasAnyRole,
       loading,
