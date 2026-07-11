@@ -8,7 +8,7 @@ import {
 } from "react-router-dom";
 import { AuthProvider, useAuth } from "./auth/AuthProvider";
 import ProtectedRoute from "./auth/ProtectedRoute";
-import { ROLE_ACCESS } from "./auth/roleAccess";
+import { ROLE_ACCESS, redirectPathForRoles } from "./auth/roleAccess";
 import SupplierDiscoveryPage from "./pages/SupplierDiscoveryPage";
 import SupplierProfilePage from "./pages/SupplierProfilePage";
 import InventoryPage from "./pages/InventoryPage";
@@ -55,7 +55,7 @@ function RouteChrome() {
 }
 
 function UnknownRouteRedirect() {
-  const { loading, user, hasAnyRole } = useAuth();
+  const { loading, user, activeRoles } = useAuth();
 
   if (loading) {
     return <div>Loading...</div>;
@@ -65,16 +65,7 @@ function UnknownRouteRedirect() {
     return <Navigate to="/login" replace />;
   }
 
-  const defaultPath =
-    hasAnyRole(["buyer"]) &&
-    !hasAnyRole([
-      "wholesaler",
-      "platform_admin",
-      "logistics_coordinator",
-      "courier",
-    ])
-      ? "/"
-      : "/dashboard";
+  const defaultPath = redirectPathForRoles(activeRoles, user.global_role === "platform_admin");
   return <Navigate to={defaultPath} replace />;
 }
 

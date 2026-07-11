@@ -475,6 +475,77 @@ test("courier cannot backtrack a parcel status", { skip: !hasDb }, async () => {
 });
 
 // ---------------------------------------------------------------------------
+// Active-business model: one business per row, additive roles, distinct-
+// business 400 gate. Sprint 8 follow-up (docs/SPRINT_8_ACTIVE_BUSINESS_GUIDE).
+//
+// Sprint 9 (refactor/phaseout-both-role) dropped the "one business is both
+// buyer AND wholesaler" case: register rejects business_type="both", the
+// 017 migration collapses any historical both-role memberships to wholesaler
+// only, and the one_marketplace_role_per_business partial unique index blocks
+// the combination at the schema level. The two former both-caller tests
+// (one-business both resolves without 400; active buyer+wholesaler business
+// lists wholesaler parcels) were removed because the both-caller can no
+// longer be constructed. The two contrast tests below remain meaningful.
+// ---------------------------------------------------------------------------
+
+// A buyer-only active business lists NO parcels (single-parcel receiver reads
+// still work via the detail route; the list is deliberately empty).
+test("active buyer-only context returns an empty parcel list", { skip: !hasDb }, async () => {
+  const cookie = await loginAs("buyer@linko.test"); // business 1, buyer only
+  const list = await request("/api/parcels", { headers: { Cookie: cookie } });
+  assert.equal(list.status, 200);
+  assert.deepEqual(list.body, []);
+});
+
+// A genuinely multi-business caller with no X-Active-Business is ambiguous and
+// gets 400 on a business-scoped read. No seed account spans two businesses, so
+// build a throwaway that is a member of business 1 and business 6.
+test("multi-business caller with no X-Active-Business gets 400 on /parcels", { skip: !hasDb }, async () => {
+  const { createPool } = await import("./db.js");
+  const { hashPassword } = await import("./auth/passwords.js");
+  const pool = createPool();
+  const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const email = `multibiz-${stamp}@linko.test`;
+  const password = "Password123!";
+  let userId;
+  try {
+    const passwordHash = await hashPassword(password);
+    userId = (
+      await pool.query(
+        `INSERT INTO users (username, email, full_name, password_hash, role)
+         VALUES ($1, $2, 'Multi Business User', $3, 'staff') RETURNING user_id`,
+        [`multibiz_${stamp}`, email, passwordHash],
+      )
+    ).rows[0].user_id;
+    const biz1 = await getBusinessIdByName(pool, "Sunrise Retail Cooperative"); // 1
+    const biz6 = await getBusinessIdByName(pool, "Davao Sari-Sari Mart"); // 6
+    for (const businessId of [biz1, biz6]) {
+      await pool.query(
+        "INSERT INTO user_businesses (user_id, business_id) VALUES ($1, $2)",
+        [userId, businessId],
+      );
+      await pool.query(
+        "INSERT INTO business_memberships (user_id, business_id, role) VALUES ($1, $2, 'buyer')",
+        [userId, businessId],
+      );
+    }
+
+    const cookie = await loginAs(email, password);
+    const list = await request("/api/parcels", { headers: { Cookie: cookie } });
+    assert.equal(list.status, 400);
+    assert.match(list.body.error.message, /select one via X-Active-Business/i);
+  } finally {
+    if (userId) {
+      await pool.query("DELETE FROM business_memberships WHERE user_id = $1", [userId]);
+      await pool.query("DELETE FROM auth_sessions WHERE user_id = $1", [userId]);
+      await pool.query("DELETE FROM user_businesses WHERE user_id = $1", [userId]);
+      await pool.query("DELETE FROM users WHERE user_id = $1", [userId]);
+    }
+    await pool.end();
+  }
+});
+
+// ---------------------------------------------------------------------------
 // X-Active-Business header validation.
 // ---------------------------------------------------------------------------
 test("X-Active-Business naming a non-member business is rejected (403)", { skip: !hasDb }, async () => {

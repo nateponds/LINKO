@@ -201,7 +201,7 @@ router.post(
         }
         const { rows } = await query(
           `SELECT business_id FROM businesses
-            WHERE business_id = $1 AND business_type IN ('wholesaler', 'both')`,
+            WHERE business_id = $1 AND business_type = 'wholesaler'`,
           [Number(bodyBusinessId)],
         );
         if (!rows.length) {

@@ -5,12 +5,16 @@ import { useAuth } from "../../auth/AuthProvider";
 import { APP_NAV_ITEMS, formatRoleLabel } from "../../auth/roleAccess";
 
 function Sidebar({ isOpen, onClose, onLogout }) {
-  const { user, activeMembership, hasAnyRole } = useAuth();
+  const { user, activeMembership, activeRoles, hasAnyRole } = useAuth();
   const displayName = user?.full_name || user?.email || "LINKO User";
   const displayBusiness = activeMembership?.business_name || "No business assigned";
-  const displayRole = formatRoleLabel(
-    user?.global_role === "platform_admin" ? user.global_role : activeMembership?.role,
-  );
+  // Use the additive activeRoles (matching the Topbar) so a user with multiple
+  // roles on the active business sees all of them, not just whichever row
+  // happened to sort first in the session payload.
+  const displayRole =
+    user?.global_role === "platform_admin"
+      ? formatRoleLabel("platform_admin")
+      : activeRoles.map(formatRoleLabel).join(", ") || "Member";
   const menuItems = APP_NAV_ITEMS.filter((item) => hasAnyRole(item.roles));
 
   useEffect(() => {

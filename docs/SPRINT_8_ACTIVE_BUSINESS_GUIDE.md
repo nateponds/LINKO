@@ -1,6 +1,14 @@
 # Sprint 8 Follow-up: Active Business Guide
 
-**Status:** Planned
+> **⚠️ Superseded by Sprint 9 (branch `refactor/phaseout-both-role`).** Sprint 9
+> eliminated the both-role combination entirely: a business can no longer be
+> both buyer and wholesaler, so the "additive roles per business" machinery
+> this guide specifies (`groupMemberships`, combined role labels, the
+> distinct-business 400-gate rationale) is now dead code queued for removal.
+> The guide is retained for history. See `docs/SPRINTS.md` § "Sprint 9" for
+> the active model.
+
+**Status:** Superseded by Sprint 9
 **Parent:** [Sprint 8 follow-up](./SPRINTS.md#sprint-8-follow-up-mixed-role-active-business-context)
 
 ## Purpose

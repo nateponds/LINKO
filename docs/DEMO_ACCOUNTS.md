@@ -35,7 +35,7 @@ scenarios (e.g. the business switcher and cross-business ownership scoping).
 | --- | --- | --- | --- | --- |
 | `buyer2@linko.test` | Ben Buyer Jr | Davao Sari-Sari Mart | `buyer` | Second buyer for ownership-isolation checks |
 | `wholesaler2@linko.test` | Wendy Wholesaler | Mandaue Agri Supply | `wholesaler` | Second wholesaler with its own products/inventory |
-| `both@linko.test` | Bo Bothway | Metro Cebu Trading | `buyer` **and** `wholesaler` | One user, two memberships — exercises the **business switcher** |
+| `bizswitch@linko.test` | Bo Bizswitch | Metro Cebu Trading — Retail **and** Metro Cebu Trading — Wholesale | `buyer` (business 8) + `wholesaler` (business 10) | One user with **two businesses** — exercises the business switcher. Sprint 9 replaced the prior single-"both"-business account with this two-business split so a single business can never be both buyer and wholesaler at once. |
 | `courier2@linko.test` | Carlo Courier | Carlo Quick Haul | `courier` | Second courier assigned to the Mandaue hub |
 
 ## What the seed loads
@@ -43,9 +43,9 @@ scenarios (e.g. the business switcher and cross-business ownership scoping).
 Beyond the accounts, `dev_seed.sql` provisions a coherent demo dataset so every page has
 content on first login:
 
-- **9 businesses** (one per user) spanning buyer, wholesaler, both, logistics, and courier types.
-- **13 wholesale products** across two wholesalers plus the "both" business.
-- **2 warehouses**, **2 branches** (Cebu + Mandaue hubs), and **2 couriers**.
+- **10 businesses** (one per user, except `bizswitch@linko.test` who owns two — one buyer, one wholesaler) spanning buyer, wholesaler, logistics, and courier types. Sprint 9 dropped the `both` business type; a single business can no longer be both buyer and wholesaler.
+- **13 wholesale products** across three wholesalers (Cebu Fresh, Mandaue Agri, Metro Cebu Trading — Wholesale).
+- **3 warehouses**, **2 branches** (Cebu + Mandaue hubs), and **2 couriers**.
 - **5 orders** spread across statuses (`pending`, `accepted`, `shipped`, `delivered`,
   `returned`) with order items, **4 invoices**, **3 parcels**, and a realistic
   **tracking-log** history — including one clean delivery journey (COD collected on delivery)
@@ -63,7 +63,7 @@ and are **not** self-registerable. They are created two ways:
    membership to; admin kind sets the global role. Newly created accounts can log in
    immediately with the password you set for them.
 
-Public self-registration (`/register`) only creates buyer/wholesaler marketplace accounts.
+Public self-registration (`/register`) only creates buyer or wholesaler marketplace accounts. Sprint 9 removed the `both` option: a single business can no longer be both buyer and wholesaler. A user who needs both capabilities registers two separate businesses and switches between them via the top-bar business switcher.
 
 ## Resetting the demo data
 
