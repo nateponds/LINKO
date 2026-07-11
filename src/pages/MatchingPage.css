@@ -94,11 +94,10 @@
     box-shadow: 0 2px 8px rgba(23, 33, 61, 0.08);
     text-decoration: none;
     color: inherit;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    transition: box-shadow 0.15s ease;
   }
 
   .match-card:hover {
-    transform: translateY(-2px);
     box-shadow: 0 6px 18px rgba(23, 33, 61, 0.14);
   }
 
