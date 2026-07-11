@@ -60,9 +60,14 @@ export function getActiveMembership(req, roles) {
     return membership;
   }
 
-  // Gate on distinct businesses, not membership rows: a single business with
-  // several roles (e.g. a buyer+wholesaler `both`) resolves automatically. Only
-  // a genuinely ambiguous multi-business caller with no header gets 400.
+  // Gate on distinct businesses, not membership rows. Sprint 9 dropped the
+  // both-role combination (a single business can no longer be both buyer and
+  // wholesaler), so in practice every membership row maps to a distinct
+  // business for marketplace roles. The distinct-business count is preserved
+  // here so a multi-business caller (e.g. bizswitch@linko.test with one buyer
+  // business + one wholesaler business) still gets a 400 when no header is
+  // sent. A logistics_coordinator who is also a courier on the same business
+  // also resolves automatically.
   const distinctBusinessIds = new Set(matches.map((m) => m.business_id));
   if (distinctBusinessIds.size === 1) {
     return matches[0];
