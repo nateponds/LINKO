@@ -36,7 +36,7 @@ Use `buyer` when describing matching, requests, quotes, and orders. A buyer will
 
 Business is the broad legal or organizational entity represented in LINKO.
 
-Use `business` as the umbrella term in data models and system relationships. A business may act as a buyer, a wholesaler, or both depending on the workflow.
+Use `business` as the umbrella term in data models and system relationships. A business is either a buyer or a wholesaler (Sprint 9 dropped the prior `both` business type). A user who needs both capabilities registers two separate businesses and switches between them via the top-bar business switcher.
 
 ### Business Owner
 

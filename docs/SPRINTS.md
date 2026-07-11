@@ -137,37 +137,83 @@ Depends on nothing in Sprint 7; the two ship as separate reviewable PRs.
 
 ## Sprint 8 Follow-up: Mixed-Role Active Business Context
 
-**Status:** Planned
+**Status:** Superseded by Sprint 9
 **Priority:** High
 **Goal:** Make business selection and mixed-role authorization consistent across
 the frontend and API without reopening the completed Sprint 8 delivery scope.
 
-Implementation decisions and acceptance details are fixed in
+Implementation decisions and acceptance details were fixed in
 [`SPRINT_8_ACTIVE_BUSINESS_GUIDE.md`](./SPRINT_8_ACTIVE_BUSINESS_GUIDE.md).
-This is committed follow-up work, not backlog work.
+
+**Superseded:** Sprint 9 (below) eliminated the both-role combination entirely.
+The guide's additive-role machinery (`groupMemberships`, combined role labels,
+the distinct-business 400-gate rationale) is now dead code on the
+`refactor/phaseout-both-role` branch and is queued for simplification. The
+guide is retained for history.
+
+---
+
+## Sprint 9: Phase Out the Both-Role Combination
+
+**Status:** In Progress (branch `refactor/phaseout-both-role`)
+**Priority:** High
+**Goal:** Eliminate the "one business is both buyer AND wholesaler" combination.
+A business is either a buyer or a wholesaler, never both. A user who needs both
+capabilities registers two separate businesses and switches between them via
+the top-bar business switcher.
+
+This supersedes the Sprint 8 follow-up's additive-role model: the
+`groupMemberships` collapse, combined role labels, and the
+distinct-business 400-gate rationale become dead code on this branch.
 
 ### Tasks
 
-- [ ] Resolve active context by unique business, with all memberships for the
-      selected business active together.
-- [ ] Align the switcher, route guards, API scoping, and parcel-list behavior
-      with the guide.
-- [ ] Persist and restore the last valid business selection, then clear stale
-      data and refresh when the user switches businesses.
-- [ ] Correct the Sprint 8 demo script's role-switching misconception and add
-      mixed-role/multi-business verification steps.
-- [ ] Add backend and frontend tests for the guide's selection, capability,
-      redirect, and isolation rules.
+- [x] Migration `017_phaseout_both_role.sql`: collapse historical both-role
+      memberships to wholesaler-only, reclassify `businesses.business_type =
+      'both'` to `'wholesaler'`, replace the `businesses.business_type` CHECK
+      constraint without `'both'`, add the `one_marketplace_role_per_business`
+      partial unique index on `business_memberships (user_id, business_id)
+      WHERE role IN ('buyer','wholesaler')`.
+- [x] Register flow (`routes/auth.js`) rejects `business_type: "both"` with
+      `400 "business_type must be buyer or wholesaler"`; inserts exactly one
+      membership row per registration.
+- [x] Register UI (`src/pages/RegisterPage.jsx`) drops the "Both (Buyer &
+      Wholesaler)" option.
+- [x] Tests: deleted the two both-caller tests in `ownership.test.js` and the
+      `business_type: "both"` register-success test in `app.test.js`; added a
+      `business_type: "both"` rejection test; added `"both"` to the
+      privileged-kinds rejection loop.
+- [x] Seed (`backend/seeds/dev_seed.sql`): replaced the `both@linko.test`
+      single-both-business account with `bizswitch@linko.test` owning two
+      distinct businesses (business 8 = buyer, business 10 = wholesaler).
+      Reassigned products, warehouse, address, and order references
+      accordingly. The business switcher demo is now a legitimate
+      multi-business user instead of a single both-role business.
+- [x] Docs: updated `DEMO_ACCOUNTS.md`, `seeded accounts.md`, `DEMO_SCRIPT.md`,
+      `API_CONTRACTS.md`, `delivery-status-logistics.md`,
+      `linko_database_specification.md`, `LINKO_ERD.md`, `glossary.md`, and
+      this file.
+- [ ] Simplification pass (optional, separate PR): collapse `groupMemberships`
+      to a single-role-per-business shape; delete `ROLE_ORDER`; simplify the
+      Topbar/Sidebar combined-label joins; simplify `redirectPathForRoles`
+      OR-branch; align `InventoryPage` to use `activeBusinessId` + `activeRoles`
+      instead of the flat membership scan; fix the Sidebar label to use
+      `activeRoles` like the Topbar.
+- [ ] Delete or archive `SPRINT_8_ACTIVE_BUSINESS_GUIDE.md` after the
+      simplification pass lands.
 
 ### Acceptance Criteria
 
-- The active selector chooses a business, never one membership role within it.
-- A selected business receives the additive capabilities of all its roles;
-  memberships belonging to other businesses remain inactive.
-- Multi-business requests cannot silently fall back to an arbitrary business.
-- Switching businesses cannot leave data or navigation from the previous
-  context on screen.
-- The demo script describes and demonstrates the implemented model accurately.
+- `POST /api/auth/register` rejects `business_type: "both"` with a 400.
+- The `one_marketplace_role_per_business` partial unique index prevents any
+  `(user_id, business_id)` pair from holding both `buyer` and `wholesaler`
+  roles, regardless of how the rows were inserted.
+- `businesses.business_type` no longer accepts `'both'`.
+- The seed loads cleanly with the new two-business split for `bizswitch@linko.test`.
+- The business switcher demo works end to end: logging in as
+  `bizswitch@linko.test` shows the switcher with two options, and switching
+  between them changes the active business context for every API request.
+- All backend tests pass.
 
 ---
 

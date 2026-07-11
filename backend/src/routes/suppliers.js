@@ -16,7 +16,7 @@ function asClientError(error) {
 
 router.get("/", async (req, res, next) => {
   try {
-    const conditions = ["b.business_type IN ('wholesaler', 'both')"];
+    const conditions = ["b.business_type = 'wholesaler'"];
     const params = [];
 
     if (req.query.q !== undefined && req.query.q !== "") {

@@ -4,6 +4,7 @@ import { requireAnyRole, requireAuth } from "../middleware/auth.js";
 import {
   getActiveMembership,
   isPlatformAdmin,
+  resolveActiveBusinessId,
 } from "../middleware/ownership.js";
 import { notifyBusiness } from "../services/notify.js";
 
@@ -134,19 +135,40 @@ router.use(
 // Resolved once per request; used to build the WHERE clause in the house style.
 async function parcelScope(req) {
   const { user, memberships } = req.auth;
-  if (isPlatformAdmin(user) || memberships.some((m) => m.role === "logistics_coordinator")) {
+  if (isPlatformAdmin(user)) {
     return { all: true };
   }
 
-  const receiverOnlyIds = memberships
+  // Scope to the ACTIVE business only. A wholesaler/buyer/courier business that
+  // is not the current selection grants no parcel-list rows. Throws 400 for a
+  // multi-business caller with no X-Active-Business, which Express 5 forwards to
+  // the central errorHandler.
+  const activeBusinessId = resolveActiveBusinessId(req);
+  const activeMemberships = memberships.filter(
+    (m) => m.business_id === activeBusinessId,
+  );
+
+  if (activeMemberships.some((m) => m.role === "logistics_coordinator")) {
+    return { all: true };
+  }
+
+  const receiverOnlyIds = activeMemberships
     .filter((m) => m.role === "buyer")
     .map((m) => m.business_id);
 
-  const businessIds = memberships
+  const businessIds = activeMemberships
     .filter((m) => m.role === "wholesaler")
     .map((m) => m.business_id);
   if (businessIds.length) {
     return { businessIds, receiverOnlyIds };
+  }
+
+  // Only reach the courier pool when the active business is a courier business;
+  // otherwise a buyer-active context would leak the courier's handling pool.
+  // A buyer-only active business lists no parcels (it may still read a single
+  // parcel it receives via receiverOnlyIds on the detail route).
+  if (!activeMemberships.some((m) => m.role === "courier")) {
+    return { none: true, receiverOnlyIds };
   }
 
   const { rows } = await query(
@@ -162,6 +184,13 @@ async function parcelScope(req) {
 
 router.get("/parcels", async (req, res) => {
   const scope = await parcelScope(req);
+
+  // No list scope (e.g. buyer-only active business): empty list, never an
+  // unfiltered full-table read.
+  if (scope.none) {
+    res.json([]);
+    return;
+  }
 
   let filterClause = "";
   const params = [];
