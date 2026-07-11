@@ -1,5 +1,11 @@
 import { useEffect } from "react";
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+} from "react-router-dom";
 import { AuthProvider, useAuth } from "./auth/AuthProvider";
 import ProtectedRoute from "./auth/ProtectedRoute";
 import { ROLE_ACCESS, redirectPathForRoles } from "./auth/roleAccess";
@@ -39,7 +45,9 @@ function RouteChrome() {
 
   useEffect(() => {
     const match = TITLES.find(([prefix]) => pathname.startsWith(prefix));
-    document.title = match ? `${match[1]} · LINKO` : "LINKO — Wholesale Marketplace";
+    document.title = match
+      ? `${match[1]} · LINKO`
+      : "LINKO — Wholesale Marketplace";
     window.scrollTo(0, 0);
   }, [pathname]);
 
@@ -74,7 +82,10 @@ function AppRoutes() {
       <Route element={<ProtectedRoute roles={ROLE_ACCESS.marketplace} />}>
         <Route path="/" element={<SupplierDiscoveryPage />} />
         <Route path="/suppliers" element={<SupplierDiscoveryPage />} />
-        <Route path="/suppliers/:supplierId" element={<SupplierProfilePage />} />
+        <Route
+          path="/suppliers/:supplierId"
+          element={<SupplierProfilePage />}
+        />
         <Route path="/invoices" element={<InvoicePage />} />
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/become-a-supplier" element={<BecomeSupplierPage />} />
@@ -90,7 +101,10 @@ function AppRoutes() {
 
       <Route element={<ProtectedRoute roles={ROLE_ACCESS.logistics} />}>
         <Route path="/logistics" element={<LogisticsPage />} />
-        <Route path="/logistics/management" element={<LogisticsManagementPage />} />
+        <Route
+          path="/logistics/management"
+          element={<LogisticsManagementPage />}
+        />
         <Route path="/logistics/:parcelId" element={<ParcelDetailPage />} />
         <Route path="/courier" element={<CourierDashboardPage />} />
       </Route>
