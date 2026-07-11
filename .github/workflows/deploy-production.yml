@@ -18,6 +18,8 @@ jobs:
           rsync -avz --exclude '.git' --exclude 'node_modules' --exclude 'backend/node_modules' ./ /mnt/Storage2_New/website-hosting/linko-platform/
 
       - name: Deploy Production Services
+        env:
+          PROD_DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
         run: |
           cd /mnt/Storage2_New/website-hosting/linko-platform
-          docker compose up -d --build linko-db-production linko-backend-production linko-frontend-production
+          docker compose up -d --build linko-backend-production linko-frontend-production
