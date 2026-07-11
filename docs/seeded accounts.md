@@ -2,7 +2,7 @@
 
 The following accounts are created when you run the `dev_seed.sql` script (or `node seeds/_apply_seed.js`).
 
-**All accounts share the same password:** `password`
+**All accounts share the same password:** `Password123!`
 
 | Email                    | Full Name          | Business / Entity          | Role(s)               | Notes                                                                                     |
 | ------------------------ | ------------------ | -------------------------- | --------------------- | ----------------------------------------------------------------------------------------- |
