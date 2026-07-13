@@ -36,6 +36,12 @@ export default function InventoryPage() {
 
   // Sprint 10: "products" = catalog (existing view), "stock" = warehouse-level
   // inventory_items. Same route, tab state only.
+  //
+  // Stock tab is FROZEN off for the course demo (2026-07-13): the backend
+  // write contract shipped and stays, but warehouse-level stock has no
+  // consuming workflow yet, so its UI is hidden until the product decides
+  // to unify the two stock counts (see docs/BACKLOG.md). Flip to re-enable.
+  const SHOW_STOCK_TAB = false;
   const [activeTab, setActiveTab] = useState("products");
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -392,6 +398,7 @@ export default function InventoryPage() {
           )}
         </div>
 
+        {SHOW_STOCK_TAB && (
         <div className="inv-tabs" role="tablist">
           <button
             type="button"
@@ -412,8 +419,9 @@ export default function InventoryPage() {
             Stock
           </button>
         </div>
+        )}
 
-        {activeTab === "stock" ? (
+        {SHOW_STOCK_TAB && activeTab === "stock" ? (
           <main className="inventory-container">
             <StockTab products={products} />
           </main>
