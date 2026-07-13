@@ -6,7 +6,7 @@ function Footer() {
   const { hasAnyRole } = useAuth();
   const marketplaceLinks = APP_NAV_ITEMS.filter(
     (item) =>
-      ["/", "/matching", "/orders", "/invoices"].includes(item.link) && hasAnyRole(item.roles),
+      ["/", "/orders", "/invoices"].includes(item.link) && hasAnyRole(item.roles),
   );
   const operationsLinks = APP_NAV_ITEMS.filter(
     (item) =>
