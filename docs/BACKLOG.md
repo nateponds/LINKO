@@ -191,3 +191,23 @@ Related docs: `delivery-status-logistics.md`
 
 Description:
 Link tracking info from invoice and order views beyond the Sprint 8 buyer modal, and add empty/error states for no assigned parcels, no branch pool, and terminal parcel history. Timeline label review shipped with the delivery-status work; buyer visibility, quick-action status rules, and demo script/seeds moved to Sprint 8.
+
+---
+
+## Inventory Own-Product Tenant Check
+
+Status: Deferred (Sprint 10 grilling decision, 2026-07-13)
+Suggested by: @nateponds
+Date added: 2026-07-13
+Area: Backend
+Priority: Low
+Related docs: `API_CONTRACTS.md` §1.2
+
+Description:
+`POST /api/inventory` currently accepts any existing `product_id` (FK-only) —
+a wholesaler may stock another business's product in their own warehouse,
+which reads as consignment. The industry-standard tightening: require
+`product.business_id` to also be in the caller's `memberBusinessIds`
+(admins exempt), answering 404 per the anti-leak convention, plus one
+rejection test. Deliberately skipped in Sprint 10 to keep the write path
+minimal.

@@ -220,7 +220,7 @@ distinct-business 400-gate rationale become dead code on this branch.
 
 ## Sprint 10: Inventory Write Contract
 
-**Status:** Not Started
+**Status:** Completed (2026-07-13, `feature/inventory-contract`)
 **Priority:** Medium
 **Goal:** Implement the two stubbed `/api/inventory` writes per
 `docs/API_CONTRACTS.md` §1.2/1.3, add the missing warehouse lookup they
@@ -236,30 +236,30 @@ today — the frontend has never called anything warehouse-shaped.
 
 ### Tasks
 
-- [ ] `POST /api/inventory`: insert an `inventory_items` row per API_CONTRACTS
+- [x] `POST /api/inventory`: insert an `inventory_items` row per API_CONTRACTS
       §1.2 (`product_id`, `warehouse_id`, `quantity`, `unit`,
       `reorder_threshold`). Gate `wholesaler`/`platform_admin` (matches the
       router's existing role mount) and verify the target `warehouse_id`
       belongs to one of the caller's businesses via `memberBusinessIds` —
       same ownership check `GET` already applies, now enforced on write.
-- [ ] `PATCH /api/inventory/:id`: update `quantity`/`reorder_threshold`/`unit`
+- [x] `PATCH /api/inventory/:id`: update `quantity`/`reorder_threshold`/`unit`
       per API_CONTRACTS §1.3, same ownership check (item's warehouse →
       business must be in `memberBusinessIds`), `404` if out of scope (matches
       the anti-leak convention used elsewhere in the codebase, e.g. logistics
       Sprint 7).
-- [ ] Add `GET /api/warehouses`: read-only, scoped to the caller's businesses,
+- [x] Add `GET /api/warehouses`: read-only, scoped to the caller's businesses,
       returns `warehouse_id`, `warehouse_name`, `city` (join `addresses` like
       `INVENTORY_SELECT` already does). Needed so the frontend can populate a
       warehouse picker for the add-stock form. Add API_CONTRACTS §1.4 for it.
-- [ ] Frontend: add a "Stock" tab alongside the existing "Products" tab inside
+- [x] Frontend: add a "Stock" tab alongside the existing "Products" tab inside
       `InventoryPage` (no new route/nav entry — `/inventory` stays the single
       entry point). Stock tab reads `GET /api/inventory`, shows quantity/
       warehouse/status per row, and has add-stock (`POST`) and adjust
       (`PATCH`) forms backed by the new warehouse picker.
-- [ ] Tests: write-path ownership rejection (foreign warehouse_id → 403/404
+- [x] Tests: write-path ownership rejection (foreign warehouse_id → 403/404
       per convention), successful create/update shape matches API_CONTRACTS,
       `GET /api/warehouses` scoping.
-- [ ] Update `docs/API_CONTRACTS.md` if implementation deviates from the
+- [x] Update `docs/API_CONTRACTS.md` if implementation deviates from the
       existing §1.2/1.3 sketch (e.g. actual error shapes), and mark them
       shipped like §2.1 does for suppliers.
 
