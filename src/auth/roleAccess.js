@@ -1,7 +1,6 @@
 export const ROLE_ACCESS = {
   dashboard: [],
   marketplace: ["buyer", "wholesaler", "platform_admin"],
-  matching: ["buyer", "platform_admin"],
   inventory: ["wholesaler", "platform_admin"],
   orders: ["buyer", "wholesaler", "platform_admin"],
   invoices: ["buyer", "wholesaler", "platform_admin"],
@@ -13,7 +12,6 @@ export const ROLE_ACCESS = {
 export const APP_NAV_ITEMS = [
   { name: "Home", link: "/", end: true, roles: ROLE_ACCESS.marketplace },
   { name: "Dashboard", link: "/dashboard", roles: ROLE_ACCESS.dashboard },
-  { name: "Find Wholesalers", link: "/matching", roles: ROLE_ACCESS.matching },
   { name: "My Products", link: "/inventory", roles: ROLE_ACCESS.inventory },
   { name: "Orders", link: "/orders", roles: ROLE_ACCESS.orders },
   { name: "Invoices", link: "/invoices", roles: ROLE_ACCESS.invoices },

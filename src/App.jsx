@@ -19,7 +19,6 @@ import LogisticsPage from "./pages/logistics/LogisticsPage";
 import LogisticsManagementPage from "./pages/logistics/LogisticsManagementPage";
 import ParcelDetailPage from "./pages/logistics/ParcelDetailPage";
 import CourierDashboardPage from "./pages/logistics/CourierDashboardPage";
-import MatchingPage from "./pages/MatchingPage";
 import BecomeSupplierPage from "./pages/BecomeSupplierPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -27,7 +26,6 @@ import AdminDashboardPage from "./pages/AdminDashboardPage";
 
 const TITLES = [
   ["/register", "Register"],
-  ["/matching", "Find Wholesalers"],
   ["/become-a-supplier", "Become a Supplier"],
   ["/login", "Log In"],
   ["/inventory", "My Products"],
@@ -93,10 +91,6 @@ function AppRoutes() {
 
       <Route element={<ProtectedRoute roles={ROLE_ACCESS.inventory} />}>
         <Route path="/inventory" element={<InventoryPage />} />
-      </Route>
-
-      <Route element={<ProtectedRoute roles={ROLE_ACCESS.matching} />}>
-        <Route path="/matching" element={<MatchingPage />} />
       </Route>
 
       <Route element={<ProtectedRoute roles={ROLE_ACCESS.logistics} />}>
