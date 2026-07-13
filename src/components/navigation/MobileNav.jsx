@@ -1,10 +1,9 @@
 import { NavLink } from "react-router-dom";
-import { Boxes, ClipboardList, LayoutDashboard, MapPin, Store, Truck } from "lucide-react";
+import { Boxes, ClipboardList, LayoutDashboard, Store, Truck } from "lucide-react";
 import { useAuth } from "../../auth/AuthProvider";
 
 const items = [
   { name: "Home", link: "/", Icon: Store, end: true, roles: ["buyer", "wholesaler", "platform_admin"] },
-  { name: "Nearby", link: "/matching", Icon: MapPin, roles: ["buyer", "platform_admin"] },
   { name: "Orders", link: "/orders", Icon: ClipboardList, roles: ["buyer", "wholesaler", "platform_admin"] },
   { name: "Inventory", link: "/inventory", Icon: Boxes, roles: ["wholesaler", "platform_admin"] },
   { name: "Logistics", link: "/logistics", Icon: Truck, roles: ["wholesaler", "logistics_coordinator", "courier", "platform_admin"] },

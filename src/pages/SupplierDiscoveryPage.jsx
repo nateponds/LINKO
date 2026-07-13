@@ -127,12 +127,12 @@ function SupplierDiscoveryPage() {
                   <span className="home-hero-eyebrow">LINKO Marketplace</span>
                   <h1>Wholesale for your business, sourced nearby</h1>
                   <p>
-                    Browse trusted wholesalers, compare offers, and get matched
-                    with suppliers close to you.
+                    Browse trusted wholesalers and compare offers from
+                    suppliers close to you.
                   </p>
                 </div>
-                <Link to="/matching" className="hero-cta">
-                  Find wholesalers near me <ArrowRight size={16} />
+                <Link to="/suppliers" className="hero-cta">
+                  Browse wholesalers <ArrowRight size={16} />
                 </Link>
               </div>
 
