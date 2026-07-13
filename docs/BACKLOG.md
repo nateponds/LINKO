@@ -211,3 +211,26 @@ which reads as consignment. The industry-standard tightening: require
 (admins exempt), answering 404 per the anti-leak convention, plus one
 rejection test. Deliberately skipped in Sprint 10 to keep the write path
 minimal.
+
+---
+
+## Stock Count Unification Decision
+
+Status: Deferred (frozen 2026-07-13, Sprint 10 close-out)
+Suggested by: @nateponds
+Date added: 2026-07-13
+Area: Product / Backend / Frontend
+Priority: Low
+Related docs: `API_CONTRACTS.md` §1.1–1.4, `linko_database_specification.md`
+
+Description:
+The platform holds two unlinked stock numbers: `products.stock_quantity`
+(single figure, drives order accept/decrement) and `inventory_items.quantity`
+(per product × warehouse, trigger-audited). Sprint 10 shipped the full
+inventory write contract, but no workflow consumes warehouse-level stock, so
+its UI (the InventoryPage Stock tab) is frozen off behind
+`SHOW_STOCK_TAB = false` for the course demo. Decide before reviving:
+either make `inventory_items` the source of truth (derive
+`products.stock_quantity` as SUM over warehouses) or drop the warehouse
+dimension and retire contract §1.2–1.4. Until decided, do not build further
+on either side.
