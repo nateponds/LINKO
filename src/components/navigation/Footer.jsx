@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../../auth/AuthProvider";
-import { APP_NAV_ITEMS } from "../../auth/roleAccess";
+import { APP_NAV_ITEMS, ROLE_ACCESS } from "../../auth/roleAccess";
 
 function Footer() {
   const { hasAnyRole } = useAuth();
@@ -41,7 +41,7 @@ function Footer() {
         </div>
         <div className="footer-col">
           <h4>Account</h4>
-          <Link to="/dashboard">Workspace</Link>
+          {hasAnyRole(ROLE_ACCESS.dashboard) && <Link to="/dashboard">Workspace</Link>}
           {hasAnyRole(["buyer", "wholesaler", "platform_admin"]) && <Link to="/orders">Orders</Link>}
           {hasAnyRole(["wholesaler", "logistics_coordinator", "courier", "platform_admin"]) && (
             <Link to="/logistics">Logistics</Link>
