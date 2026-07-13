@@ -343,3 +343,50 @@
     }
   }
 }
+
+/* ===== Sprint 10: Products | Stock tabs + stock tab bits ===== */
+.inventory-page .inv-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 6px 0 18px;
+  border-bottom: 2px solid var(--color-primary-soft);
+}
+
+.inventory-page .inv-tab {
+  border: none;
+  background: none;
+  padding: 10px 20px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--color-muted);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+}
+
+.inventory-page .inv-tab.active {
+  color: var(--color-primary-dark);
+  border-bottom-color: var(--color-primary);
+}
+
+.inventory-page .stock-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.inventory-page .stock-toolbar .add-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.inventory-page .stock-warehouse-city {
+  color: var(--color-muted);
+  font-size: 0.85em;
+}
+
+.inventory-page .stock-adjust-target {
+  margin: 0 0 14px;
+  font-weight: 600;
+  color: var(--color-text);
+}

@@ -4,6 +4,7 @@ import AppLayout from "../layouts/AppLayout";
 import { useAuth } from "../auth/AuthProvider";
 import { apiGet, apiSend } from "../lib/api";
 import { peso } from "../lib/format";
+import StockTab from "../features/inventory/StockTab";
 import "./InventoryPage.css";
 
 const EMPTY_FORM = {
@@ -33,6 +34,9 @@ export default function InventoryPage() {
     ? activeBusinessId
     : null;
 
+  // Sprint 10: "products" = catalog (existing view), "stock" = warehouse-level
+  // inventory_items. Same route, tab state only.
+  const [activeTab, setActiveTab] = useState("products");
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -275,6 +279,7 @@ export default function InventoryPage() {
       <div className="inventory-page">
         <div className="page-head">
           <h1>My Products</h1>
+          {activeTab === "products" && (
           <div className="header-toolbar">
             <div className="search-bar">
               <input
@@ -384,8 +389,35 @@ export default function InventoryPage() {
               </button>
             )}
           </div>
+          )}
         </div>
 
+        <div className="inv-tabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "products"}
+            className={`inv-tab${activeTab === "products" ? " active" : ""}`}
+            onClick={() => setActiveTab("products")}
+          >
+            Products
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "stock"}
+            className={`inv-tab${activeTab === "stock" ? " active" : ""}`}
+            onClick={() => setActiveTab("stock")}
+          >
+            Stock
+          </button>
+        </div>
+
+        {activeTab === "stock" ? (
+          <main className="inventory-container">
+            <StockTab products={products} />
+          </main>
+        ) : (
         <main className="inventory-container">
           {loading ? (
             <p className="grid-empty">Loading products…</p>
@@ -468,6 +500,7 @@ export default function InventoryPage() {
             </table>
           )}
         </main>
+        )}
 
         {/* ===== Add/Edit item modal ===== */}
         <div className={`modal-overlay${modalOpen ? " open" : ""}`}>
