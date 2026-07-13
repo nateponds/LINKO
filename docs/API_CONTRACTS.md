@@ -47,9 +47,15 @@ Fetch all inventory items with basic product and warehouse details.
 ]
 ```
 
-### 1.2 `POST /api/inventory`
+### 1.2 `POST /api/inventory` (shipped, Sprint 10)
 
-Add product stock at a specific warehouse location.
+Add product stock at a specific warehouse location. Requires the `wholesaler`
+or `platform_admin` role. The target `warehouse_id` must belong to one of the
+caller's businesses (admins exempt); an unknown **or foreign** warehouse
+answers `404` so callers cannot probe which warehouse ids exist. `unit`
+(default `"pcs"`) and `reorder_threshold` (default `10`) are optional.
+`quantity` must be an integer ≥ 0. A duplicate `(product_id, warehouse_id)`
+pair, or an unknown `product_id`, answers `400`.
 
 **Request Header:** `Content-Type: application/json`
 
@@ -79,9 +85,17 @@ Add product stock at a specific warehouse location.
 }
 ```
 
-### 1.3 `PATCH /api/inventory/:id`
+### 1.3 `PATCH /api/inventory/:id` (shipped, Sprint 10)
 
-Modify stock count, reorder limits, or units.
+Modify stock count, reorder limits, or units. Partial: any non-empty subset of
+`quantity`, `reorder_threshold`, `unit` (an empty body is `400`). Same role
+gate and ownership rule as §1.2 — an item whose warehouse belongs to another
+business answers `404`, indistinguishable from a missing id.
+
+> **Sprint 10 reconciliation.** The original sketch returned `updated_at`;
+> `inventory_items` has no such column in the finalized schema, so the
+> response carries `created_at` like §1.2. Quantity changes are audited by the
+> `trg_log_inventory_mutation` trigger into `inventory_transactions`.
 
 **Request Body:**
 
@@ -102,8 +116,27 @@ Modify stock count, reorder limits, or units.
   "quantity": 120,
   "unit": "pcs",
   "reorder_threshold": 25,
-  "updated_at": "2026-06-21T04:42:00Z"
+  "created_at": "2026-06-21T04:41:00Z"
 }
+```
+
+### 1.4 `GET /api/warehouses` (shipped, Sprint 10)
+
+Read-only warehouse lookup feeding the add-stock warehouse picker. Requires
+the `wholesaler` or `platform_admin` role. Scoped to the caller's businesses;
+platform admins see all warehouses. `city` comes from the warehouse's address,
+same as §1.1.
+
+**Response Body (`200 OK`):**
+
+```json
+[
+  {
+    "warehouse_id": 5,
+    "warehouse_name": "Manila Sortation Center",
+    "city": "Manila"
+  }
+]
 ```
 
 ---

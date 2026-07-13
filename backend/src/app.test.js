@@ -92,15 +92,16 @@ test("supplier route is scaffolded", async () => {
   assert.match(response.body.error.message, /authentication required/i);
 });
 
-test("authorized inventory mutation placeholder returns not implemented", { skip: !hasDb }, async () => {
+// Sprint 10 implemented the writes; buyers are now stopped by the role gate
+// before any handler runs. Full write coverage lives in inventory.test.js.
+test("inventory mutation is role-gated for buyers", { skip: !hasDb }, async () => {
   const cookie = await loginAs("buyer@linko.test");
   const response = await request("/api/inventory", {
     method: "POST",
     headers: { Cookie: cookie },
   });
 
-  assert.equal(response.status, 501);
-  assert.match(response.body.error.message, /not implemented/i);
+  assert.equal(response.status, 403);
 });
 
 test("authorized parcel booking rejects missing fields before touching the database", { skip: !hasDb }, async () => {
@@ -244,14 +245,14 @@ test("booking a parcel creates payment, commission, and first log", { skip: !has
 
   assert.equal(created.status, 201);
   assert.equal(created.body.current_status, "Order Created");
-  // Current seed pricing: 50 base + 2.5kg x 45 + 10km x 2 = 182.50
-  assert.equal(created.body.shipping_fee, 182.5);
+  // Current seed pricing (tier 1): 50 base + 2.5kg x 20 + 10km x 2 = 120.00
+  assert.equal(created.body.shipping_fee, 120);
 
   const detail = await request(`/api/parcels/${created.body.parcel_id}`, {
     headers: { Cookie: cookie },
   });
   assert.equal(detail.status, 200);
-  assert.equal(detail.body.payment.amount, 1182.5);
+  assert.equal(detail.body.payment.amount, 1120);
   assert.equal(detail.body.tracking_history.length, 1);
   assert.equal(detail.body.latest_branch_id, 1);
   assert.equal(detail.body.tracking_history[0].branch_name, "LINKO Cebu Central Hub");
@@ -325,7 +326,9 @@ test("wholesaler session can access inventory", { skip: !hasDb }, async () => {
   });
 
   assert.equal(response.status, 200);
-  assert.deepEqual(response.body, []);
+  // inventory.test.js creates and deletes rows for this business in a parallel
+  // test process, so assert access + shape, not emptiness.
+  assert.ok(Array.isArray(response.body));
 });
 
 test("buyer session can access suppliers", { skip: !hasDb }, async () => {

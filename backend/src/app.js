@@ -5,6 +5,7 @@ import logisticsRouter from "./routes/logistics.js";
 import ordersRouter from "./routes/orders.js";
 import productsRouter from "./routes/products.js";
 import suppliersRouter from "./routes/suppliers.js";
+import warehousesRouter from "./routes/warehouses.js";
 import dashboardRouter from "./routes/dashboard.js";
 import adminRouter from "./routes/admin.js";
 import { errorHandler } from "./middleware/errorHandler.js";
@@ -30,6 +31,14 @@ export function createApp() {
     requireAuth,
     requireAnyRole(["buyer", "wholesaler", "platform_admin"]),
     inventoryRouter,
+  );
+  // Read-only warehouse lookup feeding the inventory add-stock picker
+  // (Sprint 10). Same audience as the inventory writes it supports.
+  app.use(
+    "/api/warehouses",
+    requireAuth,
+    requireAnyRole(["wholesaler", "platform_admin"]),
+    warehousesRouter,
   );
   // Suppliers is a read-only marketplace listing for any authenticated user
   // (buyers browse wholesalers), so it only needs requireAuth -- no role gate.
