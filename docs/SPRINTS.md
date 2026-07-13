@@ -155,7 +155,7 @@ guide is retained for history.
 
 ## Sprint 9: Phase Out the Both-Role Combination
 
-**Status:** In Progress (branch `refactor/phaseout-both-role`)
+**Status:** Done (branch `refactor/phaseout-both-role`)
 **Priority:** High
 **Goal:** Eliminate the "one business is both buyer AND wholesaler" combination.
 A business is either a buyer or a wholesaler, never both. A user who needs both
@@ -193,14 +193,15 @@ distinct-business 400-gate rationale become dead code on this branch.
       `API_CONTRACTS.md`, `delivery-status-logistics.md`,
       `linko_database_specification.md`, `LINKO_ERD.md`, `glossary.md`, and
       this file.
-- [ ] Simplification pass (optional, separate PR): collapse `groupMemberships`
-      to a single-role-per-business shape; delete `ROLE_ORDER`; simplify the
-      Topbar/Sidebar combined-label joins; simplify `redirectPathForRoles`
-      OR-branch; align `InventoryPage` to use `activeBusinessId` + `activeRoles`
-      instead of the flat membership scan; fix the Sidebar label to use
-      `activeRoles` like the Topbar.
-- [ ] Delete or archive `SPRINT_8_ACTIVE_BUSINESS_GUIDE.md` after the
-      simplification pass lands.
+- [x] Simplification pass: `groupMemberships`/`ROLE_ORDER` stay — migration
+      017 explicitly still allows one business to hold multiple roles
+      (wholesaler + courier), so the multi-role collapse is load-bearing, not
+      phaseout debt. Sidebar already matched Topbar's `activeRoles` label
+      join. The one real gap was `InventoryPage`'s flat
+      `memberships.find(role === "wholesaler")` scan — replaced with
+      `activeBusinessId`/`activeRoles`, so switching business in the Topbar
+      switcher now correctly changes Inventory's scope.
+- [x] Archived `SPRINT_8_ACTIVE_BUSINESS_GUIDE.md` to `docs/archived/`.
 
 ### Acceptance Criteria
 

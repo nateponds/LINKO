@@ -1,5 +1,5 @@
 export const ROLE_ACCESS = {
-  dashboard: [],
+  dashboard: ["wholesaler", "platform_admin"],
   marketplace: ["buyer", "wholesaler", "platform_admin"],
   inventory: ["wholesaler", "platform_admin"],
   orders: ["buyer", "wholesaler", "platform_admin"],

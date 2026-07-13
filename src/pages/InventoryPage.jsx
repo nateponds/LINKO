@@ -26,14 +26,12 @@ function statusFor(status) {
 }
 
 export default function InventoryPage() {
-  const { user, memberships } = useAuth();
+  const { user, activeBusinessId, activeRoles } = useAuth();
 
   const isAdmin = user?.global_role === "platform_admin";
-  const wholesalerMembership = useMemo(
-    () => memberships.find((m) => m.role === "wholesaler") ?? null,
-    [memberships],
-  );
-  const ownBusinessId = wholesalerMembership?.business_id ?? null;
+  const ownBusinessId = activeRoles.includes("wholesaler")
+    ? activeBusinessId
+    : null;
 
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);

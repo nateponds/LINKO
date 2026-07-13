@@ -18,7 +18,7 @@ import { GoChevronDown } from "react-icons/go";
 
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../auth/AuthProvider";
-import { formatRoleLabel } from "../../auth/roleAccess";
+import { formatRoleLabel, ROLE_ACCESS } from "../../auth/roleAccess";
 import Sidebar from "./Sidebar";
 
 function getIconForType(type) {
@@ -334,9 +334,11 @@ function Topbar({ showSearch = false }) {
                   </div>
                 </div>
                 <nav className="dropdown-menu">
-                  <Link to="/dashboard" onClick={() => setOpenPanel(null)}>
-                    <LayoutDashboard size={15} /> Dashboard
-                  </Link>
+                  {hasAnyRole(ROLE_ACCESS.dashboard) && (
+                    <Link to="/dashboard" onClick={() => setOpenPanel(null)}>
+                      <LayoutDashboard size={15} /> Dashboard
+                    </Link>
+                  )}
                   {hasAnyRole(["wholesaler", "platform_admin"]) && (
                     <Link to="/inventory" onClick={() => setOpenPanel(null)}>
                       <Boxes size={15} /> Inventory
