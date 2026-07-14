@@ -275,6 +275,155 @@ today — the frontend has never called anything warehouse-shaped.
 
 ---
 
+## Sprint 11: Parcel Cancellation Workflow
+
+**Status:** Not Started
+**Priority:** Medium
+**Goal:** Turn the ad-hoc `Cancelled` tracking status into a first-class,
+backend-enforced parcel-cancel operation with order side-effects and
+notifications — closing the UML `Cancel Parcel` (UC14) gap found in the
+2026-07-14 use-case audit. This makes the graded parcel-tracking subsystem
+complete: it already has terminal `Delivered`/`Returned` handling; `Cancelled`
+is the missing operational counterpart for a parcel that must be pulled before
+delivery.
+
+Course-relevance: **graded** — parcel tracking is the graded workflow focus
+(`docs/course-deliverable.md`). Cancellation is a tracking-state operation, in
+scope.
+
+### Scope boundary (read first)
+
+- This is **parcel** cancellation (post-shipment logistics), distinct from
+  **order** cancellation, which already exists and stays pre-shipment only
+  (buyer cancels a `pending` order — `orders.js` `assertTransitionAllowed`,
+  Execution Rules below). A parcel only exists after an order ships, so the two
+  never overlap.
+- `Cancelled` is a **coordinator/admin override only**, never courier-submitted
+  (`LINKO_ERD.md` tracking-logs note; couriers are already blocked at
+  `COURIER_TRACKING_STATUSES`). Keep that.
+- **Commissions/remittances stay untouched.** Commission is outcome-blind and
+  scope-frozen (`docs/course-deliverable.md`, `LINKO_ERD.md` COMMISSIONS note):
+  a `Cancelled` parcel keeps its commission row, no reversal, no remittance
+  adjustment. The cancel path must not read or write `commissions`,
+  `commission_brackets`, or the remittance view. Reversal semantics remain
+  deferred with Returns & Refunds (`docs/BACKLOG.md`).
+- Payment: mirror the `Returned` handling that already exists — a COD parcel
+  cancelled before delivery has its `Pending` payment marked `Failed`
+  (never collected). Prepaid/Online refund is **out of scope** (returns/refunds
+  planning owns it); leave already-`Paid` rows untouched.
+
+### Tasks
+
+- [ ] Enforce `Cancelled` as a real transition on
+      `POST /api/parcels/:id/tracking` (`routes/logistics.js`), coordinator/
+      admin only (courier path already rejects it): block cancelling a parcel
+      whose latest status is already terminal (`Delivered`/`Returned`/
+      `Cancelled`) — `400`, mirroring the terminal-guard pattern. Require
+      non-empty `remarks` (cancellation reason), same rule Delivered/Returned
+      already carry.
+- [ ] Order side-effect inside the existing scan transaction: when a parcel is
+      `Cancelled` and links a marketplace order, move the order to `cancelled`
+      **only from `shipped`** (guard on `o.status = 'shipped'` like the
+      Delivered/Returned blocks do), so a coordinator cancel after some other
+      terminal state does not rewrite it. Reuse the existing
+      `UPDATE orders … FROM parcels … RETURNING` shape.
+- [ ] Payment side-effect: COD + `Pending` → `Failed` (copy the `Returned`
+      block, guarded on `method = 'COD' AND payment_status = 'Pending'`). No
+      Prepaid/Online refund.
+- [ ] Notifications: notify buyer and wholesaler of the cancellation with the
+      reason (reuse `notifyBusiness` + the `Returned` message-building pattern).
+- [ ] `orders.js` transition map: allow `shipped → cancelled` for
+      `platform_admin` override only (admins already have the manual escape
+      hatch; do not open it to the wholesaler, and never to the buyer
+      post-shipment per Execution Rules). Verify this does not weaken the
+      existing pre-shipment buyer-cancel rule.
+- [ ] Frontend: coordinator/admin parcel view gains a "Cancel parcel" action on
+      non-terminal parcels that prompts for a reason and posts the `Cancelled`
+      scan. No new route. Buyer/courier surfaces unchanged.
+- [ ] Docs: `delivery-status-logistics.md` (cancellation as an operational
+      override, its order/payment side-effects, and the explicit
+      no-commission-reversal note), `API_CONTRACTS.md` (Cancelled in the
+      tracking-scan contract), and update `LINKO_USE-CASE.puml`'s UC14 to match
+      what actually ships.
+- [ ] Tests: courier cannot submit `Cancelled` (already true — assert it);
+      cancelling a terminal parcel is rejected `400`; a `Cancelled` scan on a
+      shipped-order parcel moves the order to `cancelled` and fails a COD
+      `Pending` payment; buyer + wholesaler both get notified; commission row is
+      unchanged after cancel.
+
+### Acceptance Criteria
+
+- A logistics coordinator or platform admin can cancel a non-terminal parcel
+  with a reason; couriers and buyers cannot.
+- Cancelling a parcel that fulfills a shipped order moves that order to
+  `cancelled`, fails its uncollected COD payment, and notifies both parties —
+  all in one transaction.
+- No commission or remittance row is created, reversed, or read by the cancel
+  path.
+- A parcel already `Delivered`/`Returned`/`Cancelled` cannot be cancelled.
+- The pre-shipment order-cancel rule is unchanged and still test-covered.
+- All backend tests pass.
+
+---
+
+## Sprint 12: Editable Service Tier Pricing (PUT-only)
+
+**Status:** Not Started
+**Priority:** Low
+**Goal:** Let a platform admin edit an existing service tier's price and SLA
+fields, demonstrating a write operation on a core graded entity
+(`Service_Tiers`) — and, in the report, showcasing that `shipping_fee` freezing
+protects historical parcels from re-pricing. Closes the UML `Manage Service
+Tiers` (UC8) gap from the 2026-07-14 audit, narrowed to editing only.
+
+Course-relevance: **graded** — `Service_Tiers` is a core ERD table. This adds a
+demonstrable, RBAC-gated write path to it without touching the scope-frozen
+commission domain.
+
+### Scope boundary (read first)
+
+- **PUT only.** No `POST` (adding tiers) and no `DELETE` (deleting a tier
+  orphans parcels via FK and would need a soft-delete dance for three seeded
+  rows — not worth it). Add/remove tiers stays out of scope.
+- **Edits future pricing only.** `shipping_fee` is frozen at ship time by the
+  003 trigger (`LINKO_ERD.md` design notes); editing a tier re-prices only
+  parcels booked *after* the edit. This is the design being demonstrated, not a
+  bug to fix — do not backfill or recompute historical `shipping_fee`.
+- **Does not touch commissions.** Tier prices feed `shipping_fee` only;
+  commission comes from the separate `Commission_Brackets` weight table. The
+  cancel-domain freeze does not apply here, but the PUT handler must not read or
+  write `commissions`/`commission_brackets`/the remittance view.
+
+### Tasks
+
+- [ ] `PUT /api/service-tiers/:id` (`routes/logistics.js`), `platform_admin`
+      only (tighter than the GET's read roles): update `tier_name`, `base_fee`,
+      `base_rate_per_kg`, `rate_per_km`, `estimated_days`. `404` if the tier id
+      does not exist. Validate numeric fields `>= 0` and `estimated_days >= 1`;
+      map DB constraint violations to `400` via the existing `asClientError`.
+- [ ] Return the updated tier row in the same shape `GET /api/service-tiers`
+      emits (float-cast decimals).
+- [ ] Frontend: admin-only edit action on the service-tiers view (reuse the
+      Logistics Management surface pattern) — inline edit or modal, posts the
+      PUT. No new route/nav.
+- [ ] Docs: `API_CONTRACTS.md` (the PUT contract), and update
+      `LINKO_USE-CASE.puml` UC8 to reflect edit-only (no add/remove).
+- [ ] Tests: non-admin (coordinator, wholesaler, courier) gets `403`; admin
+      edit updates future pricing; a parcel booked before the edit keeps its
+      frozen `shipping_fee` while a parcel booked after reflects the new rate
+      (the headline demo assertion); invalid negative fee → `400`.
+
+### Acceptance Criteria
+
+- A platform admin can edit an existing tier's price/SLA fields; no other role
+  can, and no one can add or delete tiers.
+- A parcel booked before a tier price change keeps its original
+  `shipping_fee`; a parcel booked after reflects the new price — proven by test.
+- The PUT path never touches commission or remittance data.
+- All backend tests pass.
+
+---
+
 ## Execution Rules
 
 - Keep future sprints small, reviewable, and tied to the active product model.
