@@ -244,14 +244,14 @@ test("booking a parcel creates payment and first log", { skip: !hasDb }, async (
 
   assert.equal(created.status, 201);
   assert.equal(created.body.current_status, "Order Created");
-  // Current seed pricing: 50 base + 2.5kg x 45 + 10km x 2 = 182.50
-  assert.equal(created.body.shipping_fee, 182.5);
+  // Current seed pricing (tier 1 Standard): 50 base + 2.5kg x 20 + 10km x 2 = 120.00
+  assert.equal(created.body.shipping_fee, 120);
 
   const detail = await request(`/api/parcels/${created.body.parcel_id}`, {
     headers: { Cookie: cookie },
   });
   assert.equal(detail.status, 200);
-  assert.equal(detail.body.payment.amount, 1182.5);
+  assert.equal(detail.body.payment.amount, 1120);
   assert.equal(detail.body.tracking_history.length, 1);
   assert.equal(detail.body.latest_branch_id, 1);
   assert.equal(detail.body.tracking_history[0].branch_name, "LINKO Cebu Central Hub");
