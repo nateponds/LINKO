@@ -471,7 +471,7 @@ router.patch(
         throw createHttpError(400, "status is required and must be a valid order status");
       }
       // Shipping is the physical handoff: the wholesaler weighs the parcel
-      // here, so the commission bracket freezes from a real measurement.
+      // here, so the shipping fee is set from a real measurement.
       if (status === "shipped" && (Number(weight_kg) <= 0 || Number.isNaN(Number(weight_kg)))) {
         throw createHttpError(400, "weight_kg must be a number greater than 0");
       }

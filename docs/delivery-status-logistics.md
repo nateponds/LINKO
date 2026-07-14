@@ -113,9 +113,9 @@ carrier-event-driven. The seller never marks an order delivered.
    NULL-to-NULL match). Out-of-scope writes return `404`, matching the read.
 12. **Ship-time weight (Sprint 8).** Marking a marketplace order `shipped`
    requires `weight_kg` (> 0) and accepts optional `dimensions`; the wholesaler
-   records the real weight at the physical handoff. The commission bracket
-   freezes from that weight, while `shipping_fee` stays the tier base fee quoted
-   at checkout ("fee quoted at checkout, weight recorded at handoff"). Route
+   records the real weight at the physical handoff, while `shipping_fee` stays
+   the tier base fee quoted at checkout ("fee quoted at checkout, weight recorded
+   at handoff"). Route
    distance is unknown at marketplace checkout, so `total_distance_km` is `NULL`
    and the ETA derives from the tier's `estimated_days`. Replaces the old
    hardcoded 10 kg / 15 km / `+5 days` placeholders.
@@ -130,8 +130,7 @@ carrier-event-driven. The seller never marks an order delivered.
    `Delivered → 'Paid'`, `Returned → 'Failed'` — guarded on `Pending` so a
    coordinator correction never rewrites a settled payment. This is status
    movement only; the payment→dispatch gate stays **modeled, not enforced**
-   (decision 9 unchanged, `docs/course-deliverable.md`). No commission or
-   remittance workflow is added.
+   (decision 9 unchanged, `docs/course-deliverable.md`).
 15. **Buyer delivery visibility (Sprint 8).** A buyer may read a single parcel
    via `GET /api/parcels/:id` when its `receiver_id` is one of their buyer
    businesses (404 otherwise), backing a read-only "Track parcel" modal on the

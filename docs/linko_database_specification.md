@@ -213,34 +213,6 @@ Settlement for a parcel (goods + shipping). `amount` is set by trigger from `par
 
 ---
 
-## 5. Commissions & Platform Revenue
-
-### `commission_brackets`
-LINKO's fee structure by weight.
-- `bracket_id` (SERIAL PRIMARY KEY)
-- `min_weight_kg` (DECIMAL 6,2)
-- `max_weight_kg` (DECIMAL 6,2, nullable)
-- `fee` (DECIMAL 10,2)
-
-### `commissions`
-Platform cut per parcel, generated automatically via trigger on `parcels` insert.
-- `commission_id` (SERIAL PRIMARY KEY)
-- `parcel_id` (VARCHAR 20 FK -> parcels, UNIQUE)
-- `bracket_id` (INT FK -> commission_brackets)
-- `amount` (DECIMAL 10,2)
-- `status` (VARCHAR 20)
-- `settled_at` (TIMESTAMP)
-
-### `wholesaler_remittances` (VIEW)
-Calculates what the wholesaler nets after LINKO commission.
-- `parcel_id`
-- `wholesaler_id`
-- `gross_amount`
-- `commission`
-- `net_amount`
-
----
-
 ## 6. Real-time Notifications
 
 ### `notifications`
