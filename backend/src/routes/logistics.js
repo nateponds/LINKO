@@ -419,8 +419,8 @@ router.post(
   }
 
   // One transaction: parcel + payment + first tracking log all appear or
-  // none do. The 003 triggers fill shipping_fee, payments.amount, and the
-  // commission row along the way.
+  // none do. The 003 triggers fill shipping_fee and payments.amount along
+  // the way.
   const client = await getPool().connect();
   try {
     await client.query("BEGIN");

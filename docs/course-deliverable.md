@@ -24,8 +24,6 @@ The 5 Core Tables
 
 Spec says Parcels holds "the current assigned status." Our design keeps status **only** in `Tracking_Logs` (current status = latest row by `scanned_at`): status is event data, and storing it on Parcels would duplicate the log. The demo UI still shows a per-parcel status, derived from the latest log row.
 
-## Commissions & remittances — scope freeze (defend in report)
+## Commissions & remittances — removed
 
-`commission_brackets`, `commissions`, and the `wholesaler_remittances` view are a deliberate scope **addition** beyond the 5 core tables — they exist as ERD-and-report material (trigger, frozen-fee history, derived view) and are demonstrable live: booking a parcel auto-creates the commission row with zero application code, and the view computes remittances on the fly (`seeds/demo_queries.sql` Q9–Q11).
-
-**Frozen: no application workflow will be built on them.** No collection flow, no reversal on returned parcels, no dedicated UI. The defense line: the settlement *lifecycle* is modeled and seeded (`status`, `settled_at`); the collection *workflow* is application scope, outside a database course's grading surface. Commission and remittance are charged per parcel booked, outcome-blind — a `Returned` parcel still carries them; reversal semantics are deferred indefinitely (`docs/BACKLOG.md` "Returns & Refunds Planning", if ever). Do not propose wiring commissions into marketplace or parcel-tracking workflows.
+`commission_brackets`, `commissions`, and the `wholesaler_remittances` view were an earlier scope addition beyond the 5 core tables. They were never part of the graded requirements and have been **removed entirely** (migration `018_phaseout_commissions.sql` drops the view, trigger, function, and both tables). The buyer money story stays: `parcels.declared_value` (cart goods total) + `parcels.shipping_fee`, summed into `payments.amount`. The goods payment goes to the wholesaler undivided — LINKO takes no per-parcel cut in the model.

@@ -134,7 +134,7 @@ Priority: Medium
 Related docs: `delivery-status-logistics.md`, `course-deliverable.md`
 
 Description:
-Planning-only work for post-shipment buyer issues: return/refund terminology, who initiates each issue, whether orders need statuses beyond `delivered`/`cancelled` (e.g. `return_requested`, `refunded`), refund ownership and invoice display, and restock behavior for returned goods. Already resolved elsewhere: failed-delivery `Returned` maps a shipped order to terminal `returned` (`delivery-status-logistics.md`); commission reversal is out — commissions/remittances are scope-frozen DB-layer-only (`course-deliverable.md`). No implementation before the remaining effects on orders, invoices, payments, inventory, and notifications are written down.
+Planning-only work for post-shipment buyer issues: return/refund terminology, who initiates each issue, whether orders need statuses beyond `delivered`/`cancelled` (e.g. `return_requested`, `refunded`), refund ownership and invoice display, and restock behavior for returned goods. Already resolved elsewhere: failed-delivery `Returned` maps a shipped order to terminal `returned` (`delivery-status-logistics.md`); commission reversal is not a concern — commissions/remittances were removed entirely (`course-deliverable.md`, migration `018`). No implementation before the remaining effects on orders, invoices, payments, inventory, and notifications are written down.
 
 ---
 

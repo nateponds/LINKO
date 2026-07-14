@@ -297,12 +297,6 @@ INSERT INTO payments (parcel_id, method, payment_status, amount, paid_at) VALUES
   ('LKO-00000002', 'COD',    'Paid',   NULL, NOW() - INTERVAL '7 days'),   -- clean journey: COD collected on Delivered
   ('LKO-00000003', 'COD',    'Failed', NULL, NULL);                        -- failed journey: COD never collected
 
--- Commission rows are created by the parcel trigger. Seed a couple as
--- collected for report/demo variety; this does not add collection workflow.
-UPDATE commissions
-   SET status = 'Collected', settled_at = NOW() - INTERVAL '1 day'
- WHERE parcel_id IN ('LKO-00000001', 'LKO-00000002');
-
 -- ---------------------------------------------------------------------------
 -- 15. NOTIFICATIONS — none (system-generated)
 -- ---------------------------------------------------------------------------
