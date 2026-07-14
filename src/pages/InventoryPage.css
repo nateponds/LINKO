@@ -153,9 +153,14 @@
   }
 
   .stock-cell {
-    display: flex;
+    min-width: 90px;
+  }
+
+  .stock-value {
+    display: inline-flex;
     align-items: center;
     gap: 12px;
+    white-space: nowrap;
   }
 
   .stock-edit-btn {
@@ -340,6 +345,24 @@
 
     .inventory-container {
       padding: 4px 12px 12px;
+    }
+
+    .col-sku,
+    .col-status {
+      display: none;
+    }
+
+    .add-btn-label,
+    .filter-btn-label,
+    .filter-btn-chevron {
+      display: none;
+    }
+
+    .add-btn,
+    .filter-btn {
+      padding: 0;
+      width: 44px;
+      justify-content: center;
     }
   }
 }

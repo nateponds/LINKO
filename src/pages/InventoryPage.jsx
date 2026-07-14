@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { ChevronDown, Pencil, Plus, Search, X } from "lucide-react";
+import { ChevronDown, Filter, Pencil, Plus, Search, X } from "lucide-react";
 import AppLayout from "../layouts/AppLayout";
 import { useAuth } from "../auth/AuthProvider";
 import { apiGet, apiSend } from "../lib/api";
@@ -290,7 +290,9 @@ export default function InventoryPage() {
 
             <div className="filter-wrap" ref={filterWrapRef}>
               <button className="filter-btn" onClick={handleFilterBtnClick}>
-                FILTER <ChevronDown size={14} />
+                <Filter size={14} className="filter-btn-icon" />
+                <span className="filter-btn-label">FILTER</span>
+                <ChevronDown size={14} className="filter-btn-chevron" />
               </button>
               <div
                 className={`filter-panel${filterPanelOpen ? " open" : ""}`}
@@ -380,7 +382,8 @@ export default function InventoryPage() {
 
             {ownBusinessId && (
               <button className="add-btn" onClick={openAddModal}>
-                ADD ITEMS <Plus size={16} />
+                <span className="add-btn-label">ADD ITEMS</span>
+                <Plus size={16} />
               </button>
             )}
           </div>
@@ -399,11 +402,11 @@ export default function InventoryPage() {
             <table className="inventory-table">
               <thead>
                 <tr>
-                  <th>SKU</th>
+                  <th className="col-sku">SKU</th>
                   <th>Name</th>
                   <th>Price</th>
                   <th>Stock</th>
-                  <th>Status</th>
+                  <th className="col-status">Status</th>
                   <th></th>
                 </tr>
               </thead>
@@ -414,7 +417,7 @@ export default function InventoryPage() {
                     isAdmin || item.business_id === ownBusinessId;
                   return (
                     <tr key={item.product_id}>
-                      <td>{item.sku ?? "—"}</td>
+                      <td className="col-sku">{item.sku ?? "—"}</td>
                       <td>
                         <strong>{item.product_name}</strong>
                       </td>
@@ -422,19 +425,19 @@ export default function InventoryPage() {
                       <td className="stock-cell">
                         <span className="stock-value">
                           {item.stock_quantity}
+                          {canManage && (
+                            <button
+                              type="button"
+                              className="stock-edit-btn"
+                              title="Edit stock"
+                              onClick={(e) => handleStockEditClick(e, item)}
+                            >
+                              <Pencil size={14} />
+                            </button>
+                          )}
                         </span>
-                        {canManage && (
-                          <button
-                            type="button"
-                            className="stock-edit-btn"
-                            title="Edit stock"
-                            onClick={(e) => handleStockEditClick(e, item)}
-                          >
-                            <Pencil size={14} />
-                          </button>
-                        )}
                       </td>
-                      <td>
+                      <td className="col-status">
                         <span className={`status ${status.cls}`}>
                           {status.label}
                         </span>
