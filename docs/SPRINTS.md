@@ -82,8 +82,8 @@ Depends on nothing in Sprint 7; the two ship as separate reviewable PRs.
 
 - [x] Ship-time weight entry: the wholesaler provides `weight_kg` (and optional
       `dimensions`) when marking an order `shipped` — replaces the hardcoded
-      10.0 kg / 15.0 km placeholders, so the commission bracket freezes from a
-      real weight. `shipping_fee` stays the frozen checkout quote (per commit
+      10.0 kg / 15.0 km placeholders, recording the real handoff weight.
+      `shipping_fee` stays the frozen checkout quote (per commit
       `ce24e68`; defend in report as "fee quoted at checkout, weight recorded
       at handoff"). Distance becomes `NULL`; ETA derives from the tier's
       `estimated_days`, not `CURRENT_DATE + 5`.
@@ -111,8 +111,8 @@ Depends on nothing in Sprint 7; the two ship as separate reviewable PRs.
 - [x] Delete the dead standalone booking surface: `BookParcelPage.jsx`
       (unrouted, calls the removed `/api/customers`), the `/logistics/book`
       redirect, `GET /api/businesses` (feeds nothing else), and API_CONTRACTS
-      §3.5. `POST /api/parcels` stays as the API-level demo of the pricing/
-      commission triggers.
+      §3.5. `POST /api/parcels` stays as the API-level demo of the pricing
+      trigger.
 - [x] Update the demo script and seed data for one clean delivery journey and
       one failed-delivery journey, exercising the new surface end to end:
       ship-time weight entry, payment status transitions, POD remarks, buyer
@@ -301,12 +301,10 @@ scope.
 - `Cancelled` is a **coordinator/admin override only**, never courier-submitted
   (`LINKO_ERD.md` tracking-logs note; couriers are already blocked at
   `COURIER_TRACKING_STATUSES`). Keep that.
-- **Commissions/remittances stay untouched.** Commission is outcome-blind and
-  scope-frozen (`docs/course-deliverable.md`, `LINKO_ERD.md` COMMISSIONS note):
-  a `Cancelled` parcel keeps its commission row, no reversal, no remittance
-  adjustment. The cancel path must not read or write `commissions`,
-  `commission_brackets`, or the remittance view. Reversal semantics remain
-  deferred with Returns & Refunds (`docs/BACKLOG.md`).
+- **No commissions/remittances.** They were removed entirely (migration `018`,
+  `docs/course-deliverable.md`) — no `commissions`/`commission_brackets` tables,
+  no remittance view. The cancel path has nothing to reverse or adjust on that
+  front; there is simply no commission concept left.
 - Payment: mirror the `Returned` handling that already exists — a COD parcel
   cancelled before delivery has its `Pending` payment marked `Failed`
   (never collected). Prepaid/Online refund is **out of scope** (returns/refunds
@@ -341,15 +339,13 @@ scope.
       non-terminal parcels that prompts for a reason and posts the `Cancelled`
       scan. No new route. Buyer/courier surfaces unchanged.
 - [ ] Docs: `delivery-status-logistics.md` (cancellation as an operational
-      override, its order/payment side-effects, and the explicit
-      no-commission-reversal note), `API_CONTRACTS.md` (Cancelled in the
+      override and its order/payment side-effects), `API_CONTRACTS.md` (Cancelled in the
       tracking-scan contract), and update `LINKO_USE-CASE.puml`'s UC14 to match
       what actually ships.
 - [ ] Tests: courier cannot submit `Cancelled` (already true — assert it);
       cancelling a terminal parcel is rejected `400`; a `Cancelled` scan on a
       shipped-order parcel moves the order to `cancelled` and fails a COD
-      `Pending` payment; buyer + wholesaler both get notified; commission row is
-      unchanged after cancel.
+      `Pending` payment; buyer + wholesaler both get notified.
 
 ### Acceptance Criteria
 
@@ -358,8 +354,6 @@ scope.
 - Cancelling a parcel that fulfills a shipped order moves that order to
   `cancelled`, fails its uncollected COD payment, and notifies both parties —
   all in one transaction.
-- No commission or remittance row is created, reversed, or read by the cancel
-  path.
 - A parcel already `Delivered`/`Returned`/`Cancelled` cannot be cancelled.
 - The pre-shipment order-cancel rule is unchanged and still test-covered.
 - All backend tests pass.
@@ -377,8 +371,7 @@ protects historical parcels from re-pricing. Closes the UML `Manage Service
 Tiers` (UC8) gap from the 2026-07-14 audit, narrowed to editing only.
 
 Course-relevance: **graded** — `Service_Tiers` is a core ERD table. This adds a
-demonstrable, RBAC-gated write path to it without touching the scope-frozen
-commission domain.
+demonstrable, RBAC-gated write path to it.
 
 ### Scope boundary (read first)
 
@@ -389,10 +382,6 @@ commission domain.
   003 trigger (`LINKO_ERD.md` design notes); editing a tier re-prices only
   parcels booked *after* the edit. This is the design being demonstrated, not a
   bug to fix — do not backfill or recompute historical `shipping_fee`.
-- **Does not touch commissions.** Tier prices feed `shipping_fee` only;
-  commission comes from the separate `Commission_Brackets` weight table. The
-  cancel-domain freeze does not apply here, but the PUT handler must not read or
-  write `commissions`/`commission_brackets`/the remittance view.
 
 ### Tasks
 
@@ -419,7 +408,6 @@ commission domain.
   can, and no one can add or delete tiers.
 - A parcel booked before a tier price change keeps its original
   `shipping_fee`; a parcel booked after reflects the new price — proven by test.
-- The PUT path never touches commission or remittance data.
 - All backend tests pass.
 
 ---

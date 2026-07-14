@@ -72,22 +72,6 @@ erDiagram
         TIMESTAMP paid_at
     }
 
-    COMMISSION_BRACKETS {
-        INT bracket_id PK
-        DECIMAL min_weight_kg "6,2"
-        DECIMAL max_weight_kg "6,2"
-        DECIMAL fee "10,2"
-    }
-
-    COMMISSIONS {
-        INT commission_id PK
-        VARCHAR parcel_id FK
-        INT bracket_id FK
-        DECIMAL amount "10,2"
-        VARCHAR status "CHECK enum"
-        TIMESTAMP settled_at
-    }
-
     TRACKING_LOGS {
         INT log_id PK
         VARCHAR parcel_id FK
@@ -106,8 +90,6 @@ erDiagram
     ADDRESSES ||--o{ BRANCHES : "1 to 0..*"
     SERVICE_TIERS ||--o{ PARCELS : "1 to 0..*"
     PARCELS ||--|| PAYMENTS : "1 to 1 (buyer's total settlement)"
-    PARCELS ||--|| COMMISSIONS : "1 to 1 (LINKO's cut from wholesaler)"
-    COMMISSION_BRACKETS ||--o{ COMMISSIONS : "1 to 0..*"
     PARCELS ||--|{ TRACKING_LOGS : "1 to 1..*"
     BRANCHES |o--o{ TRACKING_LOGS : "0..1 to 0..* (nullable handling branch)"
     BRANCHES ||--o{ COURIERS : "1 to 0..* (home base)"
@@ -205,7 +187,7 @@ Master record per package: weight, dimensions, cost, journey distance. Status an
 | destination_address_id  | INT           | FK → ADDRESSES, NOT NULL     | delivery address (parcel label)                                               |
 | weight_kg               | DECIMAL(6,2)  | NOT NULL, CHECK > 0          |                                                                               |
 | dimensions              | VARCHAR(50)   |                              | e.g. '30x30x30 cm'                                                            |
-| declared_value          | DECIMAL(12,2) | NOT NULL, DEFAULT 0, CHECK ≥ 0 | goods price the buyer pays the wholesaler; 0 = undeclared. Remittance input |
+| declared_value          | DECIMAL(12,2) | NOT NULL, DEFAULT 0, CHECK ≥ 0 | cart goods total the buyer pays the wholesaler; 0 = undeclared. Half of `payments.amount` |
 | shipping_fee            | DECIMAL(10,2) | NOT NULL                     | = tier.base_fee + weight_kg × tier.base_rate_per_kg + total_distance_km × tier.rate_per_km, set by trigger |
 | total_distance_km       | DECIMAL(8,2)  |                              | origin → destination journey distance, fixed at ship time; pricing input      |
 | estimated_delivery_date | DATE          |                              | promised ETA, frozen at ship time (creation + tier SLA); overridable on delay |
@@ -214,7 +196,7 @@ Master record per package: weight, dimensions, cost, journey distance. Status an
 
 ### PAYMENTS
 
-Settlement of the **buyer's total** for one parcel (1:1). `amount` is the real total cost — everything the buyer hands over: `declared_value` (goods) + `shipping_fee` (delivery), both read from the parcel at booking. Marketplace checkout / order totals still stay in the Orders/Payments domain. LINKO's per-parcel commission is settled separately in `COMMISSIONS` (payer = wholesaler, not receiver). Models COD vs prepaid and an "await payment before dispatch" concept; enforcement of that gate is deliberately not implemented — dispatch is never blocked on payment (see `delivery-status-logistics.md`, decision 9).
+Settlement of the **buyer's total** for one parcel (1:1). `amount` is the real total cost — everything the buyer hands over: `declared_value` (goods) + `shipping_fee` (delivery), both read from the parcel at booking. Marketplace checkout / order totals still stay in the Orders/Payments domain. Models COD vs prepaid and an "await payment before dispatch" concept; enforcement of that gate is deliberately not implemented — dispatch is never blocked on payment (see `delivery-status-logistics.md`, decision 9).
 
 | Column         | Type          | Constraints                                               | Notes                                                     |
 | -------------- | ------------- | --------------------------------------------------------- | --------------------------------------------------------- |
@@ -224,36 +206,6 @@ Settlement of the **buyer's total** for one parcel (1:1). `amount` is the real t
 | payment_status | VARCHAR(20)   | NOT NULL, CHECK IN ('Pending','Paid','Failed','Refunded') | settlement lifecycle; dispatch is not blocked on payment (gate modeled, not enforced) |
 | amount         | DECIMAL(12,2) | NOT NULL                                                  | buyer's total = `declared_value + shipping_fee`, set by trigger |
 | paid_at        | TIMESTAMP     | NULLABLE                                                  | null until settled; set when status → 'Paid'              |
-
----
-
-### COMMISSION_BRACKETS
-
-Flat commission fees by parcel weight bracket. `min_weight_kg` inclusive, `max_weight_kg` exclusive; `NULL` max = no upper cap. Brackets must cover 0 → ∞ so every parcel gets a commission.
-
-| Column        | Type          | Constraints | Notes                       |
-| ------------- | ------------- | ----------- | --------------------------- |
-| bracket_id    | SERIAL        | PK          |                             |
-| min_weight_kg | DECIMAL(6,2)  | NOT NULL    | inclusive lower bound       |
-| max_weight_kg | DECIMAL(6,2)  | NULLABLE    | exclusive; NULL = no cap    |
-| fee           | DECIMAL(10,2) | NOT NULL    | flat commission for bracket |
-
----
-
-### COMMISSIONS
-
-**LINKO's cut per parcel (1:1), charged to the wholesaler** (`Parcels.sender_id` — no duplicate payer FK stored here). Row auto-created `'Pending'` by an `AFTER INSERT` trigger on `Parcels`, which picks the weight bracket and freezes its fee into `amount` — same rationale as `shipping_fee`: future bracket changes must not rewrite what history was charged. Separate from `PAYMENTS` because the payer differs: `PAYMENTS` settles the shipping fee (receiver side), `COMMISSIONS` settles LINKO's platform fee (wholesaler side).
-
-> **Scope freeze (course-report material).** Commissions and the remittance view are ERD-and-report scope: the settlement lifecycle is modeled and seeded, but no application workflow (collection, reversal, UI) will be built. The commission is charged per parcel booked and is outcome-blind — a `Returned` or `Cancelled` parcel still carries its commission; reversal semantics are deferred (see `docs/course-deliverable.md` and `docs/BACKLOG.md` "Returns & Refunds Planning").
-
-| Column        | Type          | Constraints                                  | Notes                                     |
-| ------------- | ------------- | -------------------------------------------- | ----------------------------------------- |
-| commission_id | SERIAL        | PK                                           |                                           |
-| parcel_id     | VARCHAR(20)   | FK → PARCELS, NOT NULL, UNIQUE               | one commission per parcel (1:1)           |
-| bracket_id    | INT           | FK → COMMISSION_BRACKETS, NOT NULL           | bracket applied at ship time              |
-| amount        | DECIMAL(10,2) | NOT NULL                                     | frozen bracket fee, set by trigger        |
-| status        | VARCHAR(20)   | NOT NULL, CHECK IN ('Pending','Collected'), DEFAULT 'Pending' | LINKO's collection state |
-| settled_at    | TIMESTAMP     | NULLABLE                                     | null until collected                      |
 
 ---
 
@@ -273,26 +225,6 @@ Append-only history of every scan/status change. `scanned_at` carries per-event 
 
 ---
 
-## Views
-
-### WHOLESALER_REMITTANCES
-
-Not a table — derived arithmetic. Answers "what does the wholesaler actually receive?" The buyer pays `PAYMENTS.amount` = `declared_value` (goods, to the wholesaler) **plus** `shipping_fee`; the wholesaler expects to net `declared_value − commission`, because LINKO takes its cut out of the goods payment before remitting.
-
-| Column        | Source                                | Example (₱500 goods, ₱50 cut) |
-| ------------- | ------------------------------------- | ------------------------------ |
-| parcel_id     | `PARCELS.parcel_id`                   |                                |
-| wholesaler_id | `PARCELS.sender_id`                   |                                |
-| gross_amount  | `PARCELS.declared_value`              | 500                            |
-| commission    | `COMMISSIONS.amount`                  | 50                             |
-| net_amount    | `declared_value − commissions.amount` | 450                            |
-
-Both inputs are frozen at ship time, so no drift — a view is the honest shape; a stored remittance table would duplicate them.
-
-The view is outcome-blind by current design: it joins every parcel with a commission row regardless of delivery outcome, so a `Returned` parcel still appears with a computed `net_amount`. Return/refund remittance semantics are deferred (scope freeze — see `COMMISSIONS` note above).
-
----
-
 ## Relationships Summary
 
 | From          | To            | Cardinality   | Notes                                                             |
@@ -305,8 +237,6 @@ The view is outcome-blind by current design: it joins every parcel with a commis
 | ADDRESSES     | BRANCHES      | 1 to 0..\*    | branch location                                                   |
 | SERVICE_TIERS | PARCELS       | 1 to 0..\*    |                                                                   |
 | PARCELS       | PAYMENTS      | 1 to 1        | one buyer payment (goods + shipping) per parcel (`parcel_id` UNIQUE) |
-| PARCELS       | COMMISSIONS   | 1 to 1        | one LINKO commission per parcel, charged to sender (`parcel_id` UNIQUE) |
-| COMMISSION_BRACKETS | COMMISSIONS | 1 to 0..\* | bracket applied; fee frozen into `amount`                         |
 | PARCELS       | TRACKING_LOGS | 1 to 1..\*    | every parcel gets at least one log row on creation                |
 | BRANCHES      | TRACKING_LOGS | 0..1 to 0..\* | nullable handling branch for tracking events                       |
 | BRANCHES      | COURIERS      | 1 to 0..\*    | courier's home base                                               |
@@ -328,11 +258,10 @@ The view is outcome-blind by current design: it joins every parcel with a commis
 - `Parcels.parcel_id` kept as `VARCHAR(20)` natural key (human tracking number) rather than surrogate `SERIAL`, per the goal's tracking-number requirement.
 - **No `total_cost` column on `Parcels` — the total lives in `PAYMENTS.amount`.** `shipping_fee` (tier base fee + weight × tier per-kg rate + distance × tier per-km rate) stays a stored column set by `BEFORE INSERT` trigger, so historical pricing survives future `Service_Tiers` rate changes; the flat `base_fee` acts as the minimum charge. `declared_value` and `shipping_fee` are the parcel's own attributes; their sum is not — it is what the buyer pays, a settlement fact, so it belongs on the payment row. Storing the sum on `Parcels` **and** an amount on `Payments` would be the redundancy; keeping it once, on `PAYMENTS.amount` (set by the same trigger that creates the payment row), removes it.
 - **`PAYMENTS` settles the buyer's total.** `amount` = `declared_value + shipping_fee` — everything the buyer hands over for this parcel. `method` (COD/Prepaid/Online) tells the courier whether to collect cash on delivery; `payment_status` models the settlement lifecycle, including an "await payment before dispatch" concept (payment `Pending` → parcel not yet dispatched). That gate is **modeled, not enforced**: the application deliberately does not block dispatch on payment (documented simplification, `delivery-status-logistics.md` decision 9). Marketplace checkout and order totals remain out of scope in the Orders/Payments domain; this row is per-parcel settlement only.
-- **`declared_value` on `Parcels` + `WHOLESALER_REMITTANCES` view — the money story end to end.** The buyer pays `Payments.amount` (₱550) = `declared_value` to the wholesaler (₱500) + `shipping_fee` for delivery (₱50); the wholesaler does **not** receive the full 500 — LINKO deducts its commission and remits the rest (₱450). `declared_value` is stated at booking (`DEFAULT 0` = undeclared, like real courier insurance forms); the remittance is `declared_value − commissions.amount`, exposed as a **view** rather than a stored table because both operands are already frozen at ship time — storing the difference would be duplication, not history-keeping.
-- **`COMMISSIONS` — LINKO's revenue, charged to the wholesaler per parcel.** A deliberate scope addition: the platform takes a flat fee per parcel that varies by weight bracket (`COMMISSION_BRACKETS`: e.g. 0–5 kg → light fee, 5–20 kg → medium, 20+ kg → heavy). Kept as its own table, not folded into `PAYMENTS`, because the **payer differs** — the shipping fee is settled by/for the receiver side; the commission is owed by the wholesaler (`Parcels.sender_id`, role-via-FK, so no duplicate wholesaler column is stored). The row is auto-created `'Pending'` by an `AFTER INSERT` trigger on `Parcels`, and `amount` freezes the bracket fee at ship time — future bracket price changes must not rewrite what a wholesaler was historically charged (same drift argument as `shipping_fee`). The commission is _per parcel shipped_, not a percentage of sale value: goods pricing stays out of this domain.
+- **`declared_value` on `Parcels` — the buyer money story.** The buyer pays `Payments.amount` (₱550) = `declared_value` for the goods (₱500) + `shipping_fee` for delivery (₱50). `declared_value` is the cart total stated at booking (`DEFAULT 0` = undeclared, like real courier declaration forms); it and `shipping_fee` are the parcel's own attributes, and their sum lives once on `PAYMENTS.amount` (set by the payment trigger). Commissions and a wholesaler-remittance view were an earlier scope addition, now fully removed (migration 018) — the goods payment goes to the wholesaler undivided.
 
 ---
 
 ## Table Count
 
-10 tables: **Service_Tiers, Addresses, Customers, Branches, Couriers, Parcels, Payments, Commission_Brackets, Commissions, Tracking_Logs** — plus 1 view (**Wholesaler_Remittances**). Status is an attribute (`CHECK` enum), not a table. `Payments` covers the buyer's total settlement — `amount` = goods + shipping (COD / prepaid; dispatch gate modeled, not enforced); `Commissions` covers LINKO's flat per-parcel cut from the wholesaler, bracketed by weight; `declared_value` + the remittance view show what the wholesaler nets after that cut (report material — scope-frozen, no application workflow). Order totals and marketplace checkout remain out of scope in the Orders/Payments domain.
+8 tables: **Service_Tiers, Addresses, Customers, Branches, Couriers, Parcels, Payments, Tracking_Logs** — no views. Status is an attribute (`CHECK` enum), not a table. `Payments` covers the buyer's total settlement — `amount` = goods + shipping (COD / prepaid; dispatch gate modeled, not enforced). Order totals and marketplace checkout remain out of scope in the Orders/Payments domain. (Commissions and the wholesaler-remittance view were an earlier ERD-only scope addition, removed entirely in migration 018.)

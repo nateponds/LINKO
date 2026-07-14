@@ -125,7 +125,7 @@ Core features:
 - Business memberships and global roles (platform_admin).
 - Persistent session tokens.
 
-## Phase 3: Orders, Logistics, & Commissions [Done]
+## Phase 3: Orders & Logistics [Done]
 
 Goal: Connect discovery and matching to real business and fulfillment workflows.
 
@@ -134,7 +134,6 @@ Core features:
 - Complete order and invoice tracking.
 - Native logistics schemas (parcels, couriers, branches, tracking logs).
 - Automated shipping fee calculation via service tiers.
-- Platform commissions and wholesaler remittance views.
 
 ## Phase 4: Basic Frontend & API Integration [Active]
 
