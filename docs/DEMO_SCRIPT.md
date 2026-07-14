@@ -55,8 +55,8 @@ Routes referenced below all exist in `src/App.jsx` and are protected by
 5. Advance to *Preparing*, then click **Ship**. A **Ship order** modal opens and asks for the
    parcel's **weight (kg)** — this is required; submitting without it is rejected. Enter a real
    weight (e.g. `8.5`) and optional dimensions, then confirm. This is the honest-weight beat:
-   the commission bracket freezes from the weight recorded **at handoff**, while the shipping
-   fee stays the quote frozen at checkout. Shipping auto-creates the parcel (distance is left
+   the shipping fee stays the quote frozen at checkout, while the real weight is recorded
+   **at handoff**. Shipping auto-creates the parcel (distance is left
    `NULL` — checkout never measured a route).
 6. Confirm an invoice/shipment is associated with the progressed order (visible via the
    order detail and, for parcels, the logistics surface).

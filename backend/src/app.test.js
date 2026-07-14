@@ -213,7 +213,7 @@ test("parcel detail resolves equal tracking timestamps by insertion order", { sk
   );
 });
 
-test("booking a parcel creates payment, commission, and first log", { skip: !hasDb }, async () => {
+test("booking a parcel creates payment and first log", { skip: !hasDb }, async () => {
   const { createPool: createPoolPatch } = await import("./db.js");
   const patchPool = createPoolPatch();
   const harborId = await getBusinessIdByName(patchPool, "Cebu Fresh Wholesale");
@@ -257,7 +257,7 @@ test("booking a parcel creates payment, commission, and first log", { skip: !has
   assert.equal(detail.body.tracking_history[0].branch_name, "LINKO Cebu Central Hub");
 
   // Remove the test booking so repeated runs do not pile up demo data.
-  // Payments, logs, and the commission row cascade with the parcel.
+  // Payments and logs cascade with the parcel.
   const { createPool } = await import("./db.js");
   const pool = createPool();
   await pool.query("DELETE FROM parcels WHERE parcel_id = $1", [
