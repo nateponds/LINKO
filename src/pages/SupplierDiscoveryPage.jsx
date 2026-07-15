@@ -1,13 +1,6 @@
 import "./SupplierDiscoveryPage.css";
 import { useEffect, useState } from "react";
-import {
-  ArrowRight,
-  BadgeCheck,
-  Handshake,
-  MapPin,
-  ShieldCheck,
-  Sprout,
-} from "lucide-react";
+import { ArrowRight, BadgeCheck } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
 import SupplierGrid from "../features/suppliers/SupplierGrid";
@@ -15,11 +8,102 @@ import { apiGet } from "../lib/api";
 import { peso, stockBadge } from "../lib/format";
 import { imageForCategory } from "../lib/categoryImages";
 
-const VALUE_PROPS = [
-  { Icon: MapPin, text: "Wholesalers matched to your location" },
-  { Icon: Handshake, text: "Direct buyer-wholesaler connections" },
-  { Icon: ShieldCheck, text: "Verified supplier profiles" },
+// Each promo banner is matched to a real product row (by name) so its button
+// can deep-link to that product's supplier. `button` is the pill's position
+// and size as percentages of the banner, tuned per image so it sits in the
+// artwork's empty space (and covers the baked-in "Button Here" placeholder
+// on images 6-8). Image 9 is a blank export, so it is not in the pool.
+const BANNERS = [
+  {
+    image: "/images/productbanners/1.png",
+    alt: "Pure fresh milk, by the crate",
+    productMatch: "carabao milk",
+    button: { left: "4.4%", bottom: "12%", width: "15%", height: "9.5%", background: "#2c5aa8", color: "#fff" },
+  },
+  {
+    image: "/images/productbanners/2.png",
+    alt: "Premium dried squid, sun-dried to perfection",
+    productMatch: "dried pusit",
+    button: { right: "3.5%", bottom: "12%", width: "15%", height: "9.5%", background: "#5a3f96", color: "#fff" },
+  },
+  {
+    image: "/images/productbanners/3.png",
+    alt: "Fresh calamansi juice, zest in every sip",
+    productMatch: "calamansi juice",
+    button: { left: "5.9%", bottom: "8%", width: "15%", height: "9.5%", background: "#4a8f2f", color: "#fff" },
+  },
+  {
+    image: "/images/productbanners/4.png",
+    alt: "Plump tiger prawns, fresh off the boat",
+    productMatch: "tiger prawns",
+    button: { right: "5.5%", bottom: "13%", width: "15%", height: "9.5%", background: "#a65b32", color: "#fff" },
+  },
+  {
+    image: "/images/productbanners/5.png",
+    alt: "Krispy chicharon, sarap for all",
+    productMatch: "chicharon baboy",
+    button: { left: "6%", bottom: "6.5%", width: "15%", height: "9.5%", background: "#c14b57", color: "#fff" },
+  },
+  {
+    image: "/images/productbanners/6.png",
+    alt: "Krispy chicharon, sarap for all",
+    productMatch: "chicharon baboy",
+    button: { left: "4.2%", bottom: "8.9%", width: "16%", height: "9.6%", background: "#f5b940", color: "#4a2a12" },
+  },
+  {
+    image: "/images/productbanners/7.png",
+    alt: "Sweet ripe mangoes, goodness in every bite",
+    productMatch: "carabao mango",
+    button: { left: "4.4%", bottom: "14.1%", width: "15.8%", height: "9.9%", background: "#e8872d", color: "#fff" },
+  },
+  {
+    image: "/images/productbanners/8.png",
+    alt: "Pure fresh milk, by the crate",
+    productMatch: "carabao milk",
+    button: { left: "5.7%", bottom: "14.9%", width: "15.7%", height: "9.9%", background: "#4a72c4", color: "#fff" },
+  },
 ];
+
+function shuffle(list) {
+  const copy = [...list];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+// Pick `count` banners advertising distinct products (some products have two
+// banner variants), choosing randomly among variants, so the slots never
+// promote the same thing twice and the selection changes between visits.
+function pickRandomBanners(count) {
+  const byProduct = new Map();
+  for (const banner of shuffle(BANNERS)) {
+    if (!byProduct.has(banner.productMatch)) {
+      byProduct.set(banner.productMatch, banner);
+    }
+  }
+  return shuffle([...byProduct.values()]).slice(0, count);
+}
+
+function PromoBanner({ banner, products, className = "" }) {
+  const product = products.find((item) =>
+    item.product_name?.toLowerCase().includes(banner.productMatch),
+  );
+  const target = product ? `/suppliers/${product.business_id}` : "/suppliers";
+  const { background, color, ...position } = banner.button;
+
+  return (
+    <section className={`home-banner ${className}`.trim()}>
+      <Link to={target}>
+        <img src={banner.image} alt={banner.alt} />
+        <span className="home-banner-btn" style={{ ...position, background, color }}>
+          Shop Now <ArrowRight size={16} />
+        </span>
+      </Link>
+    </section>
+  );
+}
 
 const AVATAR_PALETTE = [
   "var(--color-primary)",
@@ -85,6 +169,9 @@ function SupplierDiscoveryPage() {
 
   const [products, setProducts] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
+  // Lazy initializer so the pick survives re-renders and only changes on a
+  // fresh mount (i.e., navigating back to the page).
+  const [banners] = useState(() => pickRandomBanners(2));
 
   useEffect(() => {
     if (isFiltered) return undefined;
@@ -121,42 +208,11 @@ function SupplierDiscoveryPage() {
       <div className="discovery-page">
         {!isFiltered && (
           <>
-            <section className="home-hero-row">
-              <div className="home-hero home-hero--primary">
-                <div>
-                  <span className="home-hero-eyebrow">LINKO Marketplace</span>
-                  <h1>Wholesale for your business, sourced nearby</h1>
-                  <p>
-                    Browse trusted wholesalers and compare offers from
-                    suppliers close to you.
-                  </p>
-                </div>
-                <Link to="/suppliers" className="hero-cta">
-                  Browse wholesalers <ArrowRight size={16} />
-                </Link>
-              </div>
-
-              <div className="home-hero-stack">
-                <Link to="/become-a-supplier" className="home-hero home-hero--sell">
-                  <Sprout size={22} />
-                  <div>
-                    <h2>Got inventory to move?</h2>
-                    <p>List your business and start getting orders.</p>
-                  </div>
-                  <span className="hero-cta hero-cta--ghost">
-                    Become a Supplier <ArrowRight size={14} />
-                  </span>
-                </Link>
-
-                <div className="home-hero home-hero--trust">
-                  <ShieldCheck size={22} />
-                  <div>
-                    <h2>Verified &amp; reliable</h2>
-                    <p>Every wholesaler is reviewed before they can list.</p>
-                  </div>
-                </div>
-              </div>
-            </section>
+            <PromoBanner
+              banner={banners[0]}
+              products={products}
+              className="home-banner--hero"
+            />
 
             {featuredProducts.length > 0 && (
               <section className="home-section">
@@ -185,16 +241,7 @@ function SupplierDiscoveryPage() {
               </section>
             )}
 
-            <section className="home-value-banner">
-              <h2>Built for trust, priced for growth.</h2>
-              <ul>
-                {VALUE_PROPS.map(({ Icon, text }) => (
-                  <li key={text}>
-                    <Icon size={18} /> {text}
-                  </li>
-                ))}
-              </ul>
-            </section>
+            <PromoBanner banner={banners[1]} products={products} />
 
             {moreProducts.length > 0 && (
               <section className="home-section">
@@ -208,17 +255,6 @@ function SupplierDiscoveryPage() {
                 </div>
               </section>
             )}
-
-            <section className="home-cta-banner">
-              <div>
-                <span className="home-hero-eyebrow home-hero-eyebrow--dark">Only on LINKO</span>
-                <h2>Turn your inventory into orders</h2>
-                <p>Join the wholesalers already selling to buyers near them.</p>
-              </div>
-              <Link to="/become-a-supplier" className="hero-cta">
-                Become a Supplier <ArrowRight size={16} />
-              </Link>
-            </section>
 
             <div className="home-section-head home-section-head--browse">
               <h2>Browse All Wholesalers</h2>

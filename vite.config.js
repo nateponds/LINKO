@@ -10,7 +10,7 @@ export default defineConfig({
     // the Vite dev server. Backend port must match backend/.env's PORT
     // (5000 is avoided by default since macOS's AirPlay Receiver squats it).
     proxy: {
-      "/api": "http://localhost:5000",
+      "/api": "http://localhost:5001",
     },
   },
 });
