@@ -7,136 +7,59 @@
   --color-plum-dark: #5a3f96;
 
   /* ------------------------------------------------------------------ */
-  /* Hero row (hidden while a search/category filter is active)          */
+  /* Promo image banners (hidden while a search/category filter is active) */
   /* ------------------------------------------------------------------ */
-  .home-hero-row {
-    display: grid;
-    grid-template-columns: 1.4fr 1fr;
-    gap: 20px;
-    margin: 28px 70px 0;
+  .home-banner {
+    margin: 44px 70px 0;
   }
 
-  .home-hero {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 20px;
-    flex-wrap: wrap;
-    padding: 28px 32px;
+  .home-banner--hero {
+    margin-top: 28px;
+  }
+
+  .home-banner a {
+    position: relative;
+    display: block;
     border-radius: 14px;
-    color: white;
-  }
-
-  .home-hero--primary {
-    background: linear-gradient(
-      120deg,
-      var(--color-primary),
-      var(--color-plum-dark)
-    );
-  }
-
-  .home-hero h1 {
-    margin: 0 0 6px;
-    font-size: 1.5rem;
-  }
-
-  .home-hero-eyebrow {
-    display: inline-block;
-    margin-bottom: 10px;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.8);
-  }
-
-  .home-hero-eyebrow--dark {
-    color: var(--color-primary-dark);
-  }
-
-  .home-hero p {
-    margin: 0;
-    color: rgba(255, 255, 255, 0.85);
-    font-size: 0.95rem;
-    max-width: 520px;
-  }
-
-  .home-hero-stack {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-  }
-
-  .home-hero-stack .home-hero {
-    flex: 1;
-    align-items: flex-start;
-    flex-wrap: nowrap;
-    padding: 22px 24px;
-  }
-
-  .home-hero--sell {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    background: linear-gradient(
-      135deg,
-      var(--color-accent-dark),
-      var(--color-accent)
-    );
-    text-decoration: none;
+    overflow: hidden;
     transition: box-shadow 0.15s ease;
   }
 
-  .home-hero--sell:hover {
+  .home-banner a:hover {
     box-shadow: 0 8px 24px rgba(23, 33, 61, 0.15);
   }
 
-  .home-hero--sell h2 {
-    margin: 0 0 4px;
-    font-size: 1.05rem;
+  .home-banner img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 3 / 1;
+    object-fit: cover;
   }
 
-  .home-hero--sell p {
-    font-size: 0.85rem;
-  }
-
-  .home-hero--trust {
-    background: var(--color-sunset);
-  }
-
-  .home-hero--trust h2 {
-    margin: 0 0 4px;
-    font-size: 1.05rem;
-  }
-
-  .home-hero--trust p {
-    font-size: 0.85rem;
-  }
-
-  .hero-cta {
-    display: inline-flex;
+  /* Navigation pill overlaid on the artwork; position/size/colors come from
+     each banner's config so it lands in that image's empty space. */
+  .home-banner-btn {
+    position: absolute;
+    display: flex;
     align-items: center;
-    gap: 8px;
-    background: var(--color-accent);
-    color: var(--color-primary-dark);
+    justify-content: center;
+    gap: 6px;
+    border-radius: 999px;
     font-weight: 700;
-    padding: 12px 22px;
-    border-radius: 25px;
-    text-decoration: none;
-    flex-shrink: 0;
-    transition: box-shadow 0.15s ease;
+    font-size: clamp(0.68rem, 1.2vw, 1rem);
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(23, 33, 61, 0.18);
+    transition: filter 0.15s ease, transform 0.15s ease;
   }
 
-  .hero-cta:hover {
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  .home-banner-btn svg {
+    width: 1em;
+    height: 1em;
   }
 
-  .hero-cta--ghost {
-    align-self: flex-start;
-    background: rgba(255, 255, 255, 0.9);
-    color: var(--color-accent-dark);
-    padding: 8px 16px;
-    font-size: 0.82rem;
+  .home-banner a:hover .home-banner-btn {
+    filter: brightness(1.08);
+    transform: scale(1.03);
   }
 
   /* ------------------------------------------------------------------ */
@@ -350,81 +273,6 @@
   }
 
   /* ------------------------------------------------------------------ */
-  /* Value-prop + bottom CTA banners                                      */
-  /* ------------------------------------------------------------------ */
-  .home-value-banner {
-    margin: 44px 70px 0;
-    padding: 30px 36px;
-    border-radius: 14px;
-    background: linear-gradient(
-      120deg,
-      var(--color-plum),
-      var(--color-plum-dark)
-    );
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 20px;
-  }
-
-  .home-value-banner h2 {
-    margin: 0;
-    font-size: 1.3rem;
-    max-width: 320px;
-  }
-
-  .home-value-banner ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .home-value-banner li {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 0.9rem;
-    color: rgba(255, 255, 255, 0.92);
-  }
-
-  .home-value-banner svg {
-    color: var(--color-sunset);
-    flex-shrink: 0;
-  }
-
-  .home-cta-banner {
-    margin: 44px 70px 0;
-    padding: 30px 36px;
-    border-radius: 14px;
-    background: linear-gradient(
-      120deg,
-      var(--color-sunset),
-      var(--color-sunset-dark)
-    );
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 20px;
-  }
-
-  .home-cta-banner h2 {
-    margin: 0 0 6px;
-    font-size: 1.3rem;
-  }
-
-  .home-cta-banner p {
-    margin: 0;
-    color: rgba(255, 255, 255, 0.88);
-  }
-
-  /* ------------------------------------------------------------------ */
   /* Supplier directory grid (existing)                                   */
   /* ------------------------------------------------------------------ */
   .content-grid {
@@ -529,26 +377,14 @@
     color: var(--color-muted);
   }
 
-  @media (max-width: 900px) {
-    .home-hero-row {
-      grid-template-columns: 1fr;
-    }
-  }
-
   @media (max-width: 700px) {
-    .home-hero-row {
-      margin: 16px 16px 0;
-      gap: 12px;
-    }
-
-    .home-hero {
-      padding: 20px;
+    .home-banner--hero {
+      margin-top: 16px;
     }
 
     .home-section,
     .home-section-head--browse,
-    .home-value-banner,
-    .home-cta-banner {
+    .home-banner {
       margin-left: 16px;
       margin-right: 16px;
     }
