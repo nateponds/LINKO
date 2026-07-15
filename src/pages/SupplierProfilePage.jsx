@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   BadgeCheck,
+  Boxes,
   Check,
   Leaf,
+  MapPin,
   MessageCircle,
   Minus,
   Package,
@@ -16,6 +18,7 @@ import { useParams } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
 import { apiGet, apiSend } from "../lib/api";
 import { peso, stockBadge } from "../lib/format";
+import { bannersForProducts } from "../lib/productBanners";
 import "./SupplierProfilePage.css";
 
 function stockLimit(product) {
@@ -89,6 +92,13 @@ export default function SupplierProfilePage() {
   useEffect(() => {
     if (supplier) document.title = `${supplier.business_name} · LINKO`;
   }, [supplier]);
+
+  // This supplier's own promo banner artwork, matched to their products.
+  // Random order per visit; the first one becomes the shop hero.
+  const heroBanner = useMemo(
+    () => bannersForProducts(products)[0] ?? null,
+    [products],
+  );
 
   // Distinct categories present in this supplier's products.
   const categories = useMemo(() => {
@@ -281,7 +291,9 @@ export default function SupplierProfilePage() {
                 )}
               </div>
               <div className="supplier-meta">
-                <span className="location">{supplier?.city ?? "—"}</span>
+                <span className="location">
+                  <MapPin size={14} /> {supplier?.city ?? "—"}
+                </span>
               </div>
             </div>
           </div>
@@ -321,45 +333,87 @@ export default function SupplierProfilePage() {
 
         {activeTab === "shop" && (
           <section className="shop-section">
-            <div className="shop-hero">
-              <div className="shop-hero-text">
-                <div className="shop-hero-tag">
-                  <Leaf size={14} /> Fresh &amp; Local
+            {heroBanner ? (
+              <button
+                type="button"
+                className="shop-banner"
+                onClick={() => switchTab("products")}
+              >
+                <img src={heroBanner.image} alt={heroBanner.alt} />
+                <span className="shop-banner-btn" style={heroBanner.button}>
+                  Shop Now →
+                </span>
+              </button>
+            ) : (
+              <div className="shop-hero">
+                <div className="shop-hero-text">
+                  <div className="shop-hero-tag">
+                    <Leaf size={14} /> Fresh &amp; Local
+                  </div>
+                  <h1 className="shop-hero-title">
+                    Quality you can taste, <br />
+                    prices you&apos;ll love.
+                  </h1>
+                  <p className="shop-hero-sub">
+                    Sourced from local farms and trusted partners — delivered
+                    straight to your door.
+                  </p>
+                  <button
+                    className="shop-hero-cta"
+                    onClick={() => switchTab("products")}
+                  >
+                    Browse Products →
+                  </button>
                 </div>
-                <h1 className="shop-hero-title">
-                  Quality you can taste, <br />
-                  prices you&apos;ll love.
-                </h1>
-                <p className="shop-hero-sub">
-                  Sourced from local farms and trusted partners — delivered
-                  straight to your door.
-                </p>
-                <button
-                  className="shop-hero-cta"
-                  onClick={() => switchTab("products")}
-                >
-                  Browse Products →
-                </button>
+                <div className="shop-hero-image" />
               </div>
-              <div className="shop-hero-image" />
-            </div>
+            )}
 
-            <div className="shop-stats">
-              <div className="stat-item">
-                <div className="stat-number">{products.length}</div>
-                <div className="stat-label">Products</div>
+            <div className="stat-grid">
+              <div className="stat-card">
+                <span className="stat-icon products">
+                  <Boxes size={26} />
+                </span>
+                <div>
+                  <span className="stat-value">{products.length}</span>
+                  <span className="stat-label">Products</span>
+                </div>
               </div>
-              <div className="stat-divider" />
-              <div className="stat-item">
-                <div className="stat-number">{categories.length}</div>
-                <div className="stat-label">Categories</div>
+              <div className="stat-card">
+                <span className="stat-icon categories">
+                  <Package size={26} />
+                </span>
+                <div>
+                  <span className="stat-value">{categories.length}</span>
+                  <span className="stat-label">Categories</span>
+                </div>
+              </div>
+              <div className="stat-card">
+                <span className="stat-icon verified">
+                  <BadgeCheck size={26} />
+                </span>
+                <div>
+                  <span className="stat-value">
+                    {supplier?.is_verified ? "Verified" : "Pending"}
+                  </span>
+                  <span className="stat-label">Supplier Status</span>
+                </div>
+              </div>
+              <div className="stat-card">
+                <span className="stat-icon location">
+                  <MapPin size={26} />
+                </span>
+                <div>
+                  <span className="stat-value">{supplier?.city ?? "—"}</span>
+                  <span className="stat-label">Location</span>
+                </div>
               </div>
             </div>
 
             <div className="shop-features">
               <div className="feature-card">
                 <div className="feature-icon">
-                  <Truck size={28} />
+                  <Truck size={32} />
                 </div>
                 <div className="feature-title">Fast Delivery</div>
                 <div className="feature-desc">
@@ -368,7 +422,7 @@ export default function SupplierProfilePage() {
               </div>
               <div className="feature-card">
                 <div className="feature-icon">
-                  <BadgeCheck size={28} />
+                  <BadgeCheck size={32} />
                 </div>
                 <div className="feature-title">Quality Assured</div>
                 <div className="feature-desc">
@@ -377,7 +431,7 @@ export default function SupplierProfilePage() {
               </div>
               <div className="feature-card">
                 <div className="feature-icon">
-                  <MessageCircle size={28} />
+                  <MessageCircle size={32} />
                 </div>
                 <div className="feature-title">Always Here</div>
                 <div className="feature-desc">
@@ -386,7 +440,7 @@ export default function SupplierProfilePage() {
               </div>
               <div className="feature-card">
                 <div className="feature-icon">
-                  <Repeat size={28} />
+                  <Repeat size={32} />
                 </div>
                 <div className="feature-title">Easy Returns</div>
                 <div className="feature-desc">
