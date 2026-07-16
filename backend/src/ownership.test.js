@@ -3,7 +3,7 @@ import { createServer } from "node:http";
 import test from "node:test";
 import createApp from "./app.js";
 
-// Milestone 5: business-context + row-level ownership + inventory scoping.
+// Milestone 5: business-context + row-level ownership.
 // DB-backed tests skip without DATABASE_URL, same as app.test.js. Each request
 // boots the app on port 0 and closes it; helper pools are self-cleaning.
 const hasDb = Boolean(process.env.DATABASE_URL);
@@ -340,10 +340,12 @@ test("courier history survives reassignment and unassign returns parcel to branc
     assert.equal(pickedUp.body.courier_id, 1);
     assert.equal(pickedUp.body.branch_id, 1);
 
+    // Picked Up -> Arrived at Branch is a valid edge; the coordinator reassigns
+    // branch/courier on it (checkpoint map binds coordinators too).
     const reassigned = await request(`/api/parcels/${parcelId}/tracking`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Cookie: logisticsCookie },
-      body: JSON.stringify({ status_update: "In Transit", branch_id: 2, courier_id: 2 }),
+      body: JSON.stringify({ status_update: "Arrived at Branch", branch_id: 2, courier_id: 2 }),
     });
     assert.equal(reassigned.status, 201);
 
@@ -357,10 +359,12 @@ test("courier history survives reassignment and unassign returns parcel to branc
     const courierBList = await request("/api/parcels", { headers: { Cookie: courier2Cookie } });
     assert.ok(courierBList.body.some((parcel) => parcel.parcel_id === parcelId));
 
+    // Arrived at Branch -> Departed Branch is valid; omitting courier_id
+    // unassigns the parcel back to the branch-2 pool.
     const unassigned = await request(`/api/parcels/${parcelId}/tracking`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Cookie: logisticsCookie },
-      body: JSON.stringify({ status_update: "In Transit", branch_id: 2 }),
+      body: JSON.stringify({ status_update: "Departed Branch", branch_id: 2 }),
     });
     assert.equal(unassigned.status, 201);
     assert.equal(unassigned.body.branch_id, 2);
@@ -395,10 +399,13 @@ test("tracking updates carry forward branch and couriers cannot spoof branch", {
       [parcelId],
     );
 
+    // Picked Up is the only valid move off Order Created; the coordinator logs
+    // it with no assignment fields, so branch 1 carries forward and courier
+    // stays unassigned.
     const coordinatorRemark = await request(`/api/parcels/${parcelId}/tracking`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Cookie: logisticsCookie },
-      body: JSON.stringify({ status_update: "In Transit", remarks: "No assignment fields" }),
+      body: JSON.stringify({ status_update: "Picked Up", remarks: "No assignment fields" }),
     });
     assert.equal(coordinatorRemark.status, 201);
     assert.equal(coordinatorRemark.body.branch_id, 1);
@@ -409,7 +416,7 @@ test("tracking updates carry forward branch and couriers cannot spoof branch", {
     const courierScan = await request(`/api/parcels/${parcelId}/tracking`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Cookie: courierCookie },
-      body: JSON.stringify({ status_update: "In Transit", branch_id: 2 }),
+      body: JSON.stringify({ status_update: "Arrived at Branch", branch_id: 2 }),
     });
     assert.equal(courierScan.status, 201);
     assert.equal(courierScan.body.courier_id, 1);
@@ -455,7 +462,7 @@ test("courier cannot backtrack a parcel status", { skip: !hasDb }, async () => {
       body: JSON.stringify({ status_update: "Picked Up" }),
     });
     assert.equal(backtrack.status, 400);
-    assert.match(backtrack.body.error.message, /cannot move backward/i);
+    assert.match(backtrack.body.error.message, /cannot move from/i);
 
     const latest = await pool.query(
       `SELECT status_update
@@ -634,132 +641,6 @@ test("wholesaler cannot spoof sender_id when booking a parcel", { skip: !hasDb }
     assert.equal(response.status, 403);
     assert.match(response.body.error.message, /sender_id must be your own business/i);
   } finally {
-    await pool.end();
-  }
-});
-
-// ---------------------------------------------------------------------------
-// GET /api/inventory scoping.
-// ---------------------------------------------------------------------------
-test("inventory returns only the caller's own business rows; admin sees all", { skip: !hasDb }, async () => {
-  const { createPool } = await import("./db.js");
-  const pool = createPool();
-  const { hashPassword } = await import("./auth/passwords.js");
-  // Everything below is created under a THROWAWAY business so this test never
-  // writes to the seeded "Cebu Fresh Wholesale" rows. node --test runs test
-  // files as parallel processes, and a stray inventory row on a seeded business
-  // would intermittently break app.test.js's "wholesaler session can access
-  // inventory" assertion (deepEqual []). Kept fully self-contained + torn down.
-  const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const password = "InvScope123!";
-  let userId;
-  let businessId;
-  let addressId;
-  let warehouseId;
-  let productId;
-  let itemId;
-  try {
-    const passwordHash = await hashPassword(password);
-    userId = (
-      await pool.query(
-        `INSERT INTO users (username, email, full_name, password_hash, role)
-         VALUES ($1, $2, 'Inventory Scope User', $3, 'wholesaler') RETURNING user_id`,
-        [`invscope_${stamp}`, `invscope-${stamp}@linko.test`, passwordHash],
-      )
-    ).rows[0].user_id;
-    businessId = (
-      await pool.query(
-        `INSERT INTO businesses (business_name, business_type, contact_number, is_verified)
-         VALUES ($1, 'wholesaler', '+639170009999', TRUE) RETURNING business_id`,
-        [`Inventory Scope Wholesale ${stamp}`],
-      )
-    ).rows[0].business_id;
-    await pool.query(
-      "INSERT INTO user_businesses (user_id, business_id) VALUES ($1, $2)",
-      [userId, businessId],
-    );
-    await pool.query(
-      "INSERT INTO business_memberships (user_id, business_id, role) VALUES ($1, $2, 'wholesaler')",
-      [userId, businessId],
-    );
-    addressId = (
-      await pool.query(
-        `INSERT INTO addresses (business_id, province, city_municipality, barangay, street_address, postal_code)
-         VALUES ($1, 'Cebu', 'Cebu City', 'Lahug', 'Inventory Scope St', '6000') RETURNING address_id`,
-        [businessId],
-      )
-    ).rows[0].address_id;
-    warehouseId = (
-      await pool.query(
-        `INSERT INTO warehouses (business_id, warehouse_name, address_id)
-         VALUES ($1, 'Inventory Scope Warehouse', $2) RETURNING warehouse_id`,
-        [businessId, addressId],
-      )
-    ).rows[0].warehouse_id;
-    productId = (
-      await pool.query(
-        `INSERT INTO products (business_id, product_name, sku, unit_price, stock_quantity)
-         VALUES ($1, 'Inventory Scope Product', $2, 10, 5) RETURNING product_id`,
-        [businessId, `INVSCOPE-${stamp}`],
-      )
-    ).rows[0].product_id;
-    itemId = (
-      await pool.query(
-        `INSERT INTO inventory_items (product_id, warehouse_id, quantity, unit, reorder_threshold)
-         VALUES ($1, $2, 100, 'pcs', 20) RETURNING item_id`,
-        [productId, warehouseId],
-      )
-    ).rows[0].item_id;
-
-    // Owner (the throwaway wholesaler) sees the item, in contract shape.
-    const ownerCookie = await loginAs(`invscope-${stamp}@linko.test`, password);
-    const ownerList = await request("/api/inventory", { headers: { Cookie: ownerCookie } });
-    assert.equal(ownerList.status, 200);
-    const found = ownerList.body.find((row) => row.item_id === itemId);
-    assert.ok(found, "owner should see their own inventory item");
-    assert.equal(found.status, "In Stock");
-    assert.equal(found.warehouse.warehouse_id, warehouseId);
-    assert.ok("city" in found.warehouse);
-    assert.equal(found.product.product_id, productId);
-
-    // A different, unrelated wholesaler (seeded business 7) must NOT see it.
-    const otherCookie = await loginAs("wholesaler2@linko.test");
-    const otherList = await request("/api/inventory", { headers: { Cookie: otherCookie } });
-    assert.equal(otherList.status, 200);
-    assert.ok(!otherList.body.some((row) => row.item_id === itemId));
-
-    // Platform admin sees all inventory, including this item.
-    const adminCookie = await loginAs("admin@linko.test");
-    const adminList = await request("/api/inventory", { headers: { Cookie: adminCookie } });
-    assert.equal(adminList.status, 200);
-    assert.ok(adminList.body.some((row) => row.item_id === itemId));
-  } finally {
-    // FK-safe teardown order: transactions -> items -> products -> warehouses
-    // -> addresses -> memberships/sessions/user_businesses -> business -> user.
-    if (itemId) {
-      await pool.query("DELETE FROM inventory_transactions WHERE item_id = $1", [itemId]);
-      await pool.query("DELETE FROM inventory_items WHERE item_id = $1", [itemId]);
-    }
-    if (productId) {
-      await pool.query("DELETE FROM products WHERE product_id = $1", [productId]);
-    }
-    if (warehouseId) {
-      await pool.query("DELETE FROM warehouses WHERE warehouse_id = $1", [warehouseId]);
-    }
-    if (addressId) {
-      await pool.query("DELETE FROM addresses WHERE address_id = $1", [addressId]);
-    }
-    if (userId) {
-      await pool.query("DELETE FROM business_memberships WHERE user_id = $1", [userId]);
-      await pool.query("DELETE FROM auth_sessions WHERE user_id = $1", [userId]);
-      await pool.query("DELETE FROM user_businesses WHERE user_id = $1", [userId]);
-    }
-    if (businessId) {
-      await pool.query("DELETE FROM businesses WHERE business_id = $1", [businessId]);
-    }
-    if (userId) {
-      await pool.query("DELETE FROM users WHERE user_id = $1", [userId]);
-    }
     await pool.end();
   }
 });

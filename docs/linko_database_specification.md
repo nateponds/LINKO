@@ -83,26 +83,6 @@ Physical storage locations for inventory.
 - `warehouse_name` (VARCHAR 100)
 - `address_id` (INT FK -> addresses)
 
-### `inventory_items`
-Physical quantity mapping a `product` to a `warehouse`.
-- `item_id` (SERIAL PRIMARY KEY)
-- `product_id` (INT FK -> products)
-- `warehouse_id` (INT FK -> warehouses)
-- `quantity` (INT, default 0)
-- `unit` (VARCHAR 20, default 'pcs')
-- `reorder_threshold` (INT, default 10)
-- `created_at` (TIMESTAMP)
-
-### `inventory_transactions`
-Audit trail recording stock alterations. Handled via trigger on `inventory_items`.
-- `transaction_id` (SERIAL PRIMARY KEY)
-- `item_id` (INT FK -> inventory_items)
-- `transaction_type` (VARCHAR 20, check: in, out, adjustment, transfer)
-- `quantity_change` (INT)
-- `remarks` (TEXT)
-- `created_by` (INT FK -> users)
-- `created_at` (TIMESTAMP)
-
 ### `supplier_profiles`
 Extends business profiles for wholesalers.
 - `supplier_id` (INT PK & FK -> businesses)

@@ -1,6 +1,5 @@
 import express from "express";
 import authRouter from "./routes/auth.js";
-import inventoryRouter from "./routes/inventory.js";
 import logisticsRouter from "./routes/logistics.js";
 import ordersRouter from "./routes/orders.js";
 import productsRouter from "./routes/products.js";
@@ -8,7 +7,7 @@ import suppliersRouter from "./routes/suppliers.js";
 import dashboardRouter from "./routes/dashboard.js";
 import adminRouter from "./routes/admin.js";
 import { errorHandler } from "./middleware/errorHandler.js";
-import { requireAnyRole, requireAuth, requireGlobalRole } from "./middleware/auth.js";
+import { requireAuth, requireGlobalRole } from "./middleware/auth.js";
 
 export function createApp() {
   const app = express();
@@ -22,15 +21,8 @@ export function createApp() {
     res.json({ status: "ok" });
   });
 
-  // These routers own their domain paths. Code inside inventory.js can stay
-  // focused on "/" because app.js attaches it under "/api/inventory".
+  // These routers own their domain paths.
   app.use("/api/auth", authRouter);
-  app.use(
-    "/api/inventory",
-    requireAuth,
-    requireAnyRole(["buyer", "wholesaler", "platform_admin"]),
-    inventoryRouter,
-  );
   // Suppliers is a read-only marketplace listing for any authenticated user
   // (buyers browse wholesalers), so it only needs requireAuth -- no role gate.
   app.use("/api/suppliers", requireAuth, suppliersRouter);

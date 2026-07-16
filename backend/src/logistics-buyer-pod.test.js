@@ -218,49 +218,73 @@ test("shipping records the entered weight and the buyer can track their own parc
   }
 });
 
-test("courier terminal scans require remarks; coordinators stay exempt", { skip: !hasDb }, async () => {
+test("courier terminal scans auto-generate POD; coordinators keep manual remarks", { skip: !hasDb }, async () => {
   const pool = createPool();
   const parcelIds = [];
+  const AUTO_POD = "Cory Courier → Sunrise Retail Cooperative";
   try {
     const courierCookie = await loginAs("courier@linko.test");
     const coordinatorCookie = await loginAs("logistics@linko.test");
 
-    for (const [status, remarks] of [
-      ["Delivered", "Received by Bianca Buyer"],
-      ["Returned", "Receiver moved away"],
-    ]) {
-      const parcelId = await createPoolParcel(pool);
-      parcelIds.push(parcelId);
+    const walk = async (parcelId, statuses) => {
+      for (const status_update of statuses) {
+        const step = await postJson(`/api/parcels/${parcelId}/tracking`, courierCookie, {
+          status_update,
+        });
+        assert.equal(step.status, 201, `courier should reach ${status_update}`);
+      }
+    };
 
-      const bare = await postJson(`/api/parcels/${parcelId}/tracking`, courierCookie, {
-        status_update: status,
-      });
-      assert.equal(bare.status, 400, `${status} without remarks should be rejected`);
-      assert.match(bare.body.error.message, /remarks/);
+    // Delivered: remark is generated from accounts even when the client sends
+    // nothing — and a client-sent remark on a courier terminal scan is replaced.
+    const deliveredParcel = await createPoolParcel(pool);
+    parcelIds.push(deliveredParcel);
+    await walk(deliveredParcel, ["Picked Up", "Out for Delivery"]);
+    const delivered = await postJson(`/api/parcels/${deliveredParcel}/tracking`, courierCookie, {
+      status_update: "Delivered",
+      remarks: "client-typed text must not win",
+    });
+    assert.equal(delivered.status, 201);
+    assert.equal(delivered.body.remarks, AUTO_POD);
 
-      const blank = await postJson(`/api/parcels/${parcelId}/tracking`, courierCookie, {
-        status_update: status,
-        remarks: "   ",
-      });
-      assert.equal(blank.status, 400, `${status} with blank remarks should be rejected`);
+    // Returned (end of the return leg): reached only after 3 Delivery Failed
+    // scans open the return leg, then Arrived at Branch -> Returned. Same auto-POD.
+    const returnedParcel = await createPoolParcel(pool);
+    parcelIds.push(returnedParcel);
+    await walk(returnedParcel, [
+      "Picked Up",
+      "Out for Delivery",
+      "Delivery Failed",
+      "Out for Delivery",
+      "Delivery Failed",
+      "Out for Delivery",
+      "Delivery Failed",
+      "Arrived at Branch",
+    ]);
+    const returned = await postJson(`/api/parcels/${returnedParcel}/tracking`, courierCookie, {
+      status_update: "Returned",
+    });
+    assert.equal(returned.status, 201);
+    assert.equal(returned.body.remarks, AUTO_POD);
 
-      const withPod = await postJson(`/api/parcels/${parcelId}/tracking`, courierCookie, {
-        status_update: status,
-        remarks,
-      });
-      assert.equal(withPod.status, 201, `${status} with remarks should succeed`);
-      assert.equal(withPod.body.remarks, remarks);
-    }
-
-    // Coordinator correction path keeps working without forced POD text.
+    // Coordinator keeps the manual-remark override, but still follows the
+    // checkpoint map like couriers (handoff §2) — no Order Created -> Delivered
+    // jump. Walk to Out for Delivery, then deliver with a manual remark.
     const correctionParcel = await createPoolParcel(pool);
     parcelIds.push(correctionParcel);
+    for (const status_update of ["Picked Up", "Out for Delivery"]) {
+      const step = await postJson(`/api/parcels/${correctionParcel}/tracking`, coordinatorCookie, {
+        status_update,
+      });
+      assert.equal(step.status, 201, `coordinator should reach ${status_update}`);
+    }
     const coordinatorScan = await postJson(
       `/api/parcels/${correctionParcel}/tracking`,
       coordinatorCookie,
-      { status_update: "Delivered" },
+      { status_update: "Delivered", remarks: "Manual correction" },
     );
     assert.equal(coordinatorScan.status, 201);
+    assert.equal(coordinatorScan.body.remarks, "Manual correction");
   } finally {
     for (const id of parcelIds) {
       await pool.query("DELETE FROM parcels WHERE parcel_id = $1", [id]);
@@ -278,6 +302,17 @@ test("payment lifecycle follows the method", { skip: !hasDb }, async () => {
     const receiverId = await getBusinessIdByName(pool, "Sunrise Retail Cooperative");
     const originAddressId = await getAddressIdForBusiness(pool, "Cebu Fresh Wholesale");
     const destinationAddressId = await getAddressIdForBusiness(pool, "Sunrise Retail Cooperative");
+
+    // The checkpoint map binds coordinators too — walk to a terminal status
+    // through valid edges before settling the payment.
+    const walkTo = async (parcelId, statuses) => {
+      for (const status_update of statuses) {
+        const step = await postJson(`/api/parcels/${parcelId}/tracking`, coordinatorCookie, {
+          status_update,
+        });
+        assert.equal(step.status, 201, `should reach ${status_update}`);
+      }
+    };
 
     const book = async (payment_method) => {
       const created = await postJson("/api/parcels", coordinatorCookie, {
@@ -307,6 +342,7 @@ test("payment lifecycle follows the method", { skip: !hasDb }, async () => {
     assert.equal(cod.paid_at, null);
 
     // COD collects on Delivered...
+    await walkTo(codDeliveredId, ["Picked Up", "Out for Delivery"]);
     const delivered = await postJson(
       `/api/parcels/${codDeliveredId}/tracking`,
       coordinatorCookie,
@@ -317,8 +353,19 @@ test("payment lifecycle follows the method", { skip: !hasDb }, async () => {
     assert.equal(cod.payment_status, "Paid");
     assert.ok(cod.paid_at);
 
-    // ...and fails on Returned.
+    // ...and fails on Returned (reached via the return leg: 3 fails, then
+    // Arrived at Branch -> Returned).
     const codReturnedId = await book("COD");
+    await walkTo(codReturnedId, [
+      "Picked Up",
+      "Out for Delivery",
+      "Delivery Failed",
+      "Out for Delivery",
+      "Delivery Failed",
+      "Out for Delivery",
+      "Delivery Failed",
+      "Arrived at Branch",
+    ]);
     const returned = await postJson(
       `/api/parcels/${codReturnedId}/tracking`,
       coordinatorCookie,
@@ -335,3 +382,69 @@ test("payment lifecycle follows the method", { skip: !hasDb }, async () => {
     await pool.end();
   }
 });
+
+test(
+  "buyer sees the timeline only up to the 3rd Delivery Failed; staff see the full return leg",
+  { skip: !hasDb },
+  async () => {
+    // Seeded return journey LKO-00000003: 3 Delivery Failed rows then a return
+    // leg (Arrived at Branch -> Returned). Buyer (receiver,
+    // business 6 = buyer2@linko.test) must be cut off at the 3rd fail; the
+    // coordinator sees everything (AGENT_HANDOFF §9.3).
+    const PARCEL = "LKO-00000003";
+
+    const buyerCookie = await loginAs("buyer2@linko.test");
+    const buyerView = await request(`/api/parcels/${PARCEL}`, {
+      headers: { Cookie: buyerCookie },
+    });
+    assert.equal(buyerView.status, 200, "buyer receives their own parcel");
+    assert.equal(
+      buyerView.body.current_status,
+      "Delivery Failed",
+      "buyer status banner stops at the 3rd Delivery Failed",
+    );
+    assert.equal(buyerView.body.latest_courier_id, null);
+    assert.equal(buyerView.body.latest_branch_id, null);
+    const buyerStatuses = buyerView.body.tracking_history.map(
+      (r) => r.status_update,
+    );
+
+    // Exactly 3 Delivery Failed visible, and the LAST row the buyer sees is the
+    // 3rd Delivery Failed -- nothing from the return leg leaks.
+    assert.equal(
+      buyerStatuses.filter((s) => s === "Delivery Failed").length,
+      3,
+      "buyer sees all three failed attempts",
+    );
+    assert.equal(
+      buyerStatuses[buyerStatuses.length - 1],
+      "Delivery Failed",
+      "buyer timeline ends at the 3rd Delivery Failed",
+    );
+    assert.ok(
+      !buyerStatuses.includes("Returned"),
+      "buyer must not see the terminal Returned scan",
+    );
+    // The return-leg checkpoints that come AFTER the 3rd fail are hidden. (The
+    // forward journey also has Arrived/Departed rows, so we assert on Returned
+    // absence + the last-row cutoff above, which together prove truncation.)
+
+    // Coordinator sees the untruncated history, including the return leg.
+    const staffCookie = await loginAs("logistics@linko.test");
+    const staffView = await request(`/api/parcels/${PARCEL}`, {
+      headers: { Cookie: staffCookie },
+    });
+    assert.equal(staffView.status, 200);
+    const staffStatuses = staffView.body.tracking_history.map(
+      (r) => r.status_update,
+    );
+    assert.ok(
+      staffStatuses.includes("Returned"),
+      "coordinator sees the terminal Returned scan",
+    );
+    assert.ok(
+      staffStatuses.length > buyerStatuses.length,
+      "staff history is longer than the buyer's truncated view",
+    );
+  },
+);

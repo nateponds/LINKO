@@ -78,29 +78,11 @@ test("health route reports ok", async () => {
   assert.deepEqual(response.body, { status: "ok" });
 });
 
-test("inventory route is scaffolded", async () => {
-  const response = await request("/api/inventory");
-
-  assert.equal(response.status, 401);
-  assert.match(response.body.error.message, /authentication required/i);
-});
-
 test("supplier route is scaffolded", async () => {
   const response = await request("/api/suppliers");
 
   assert.equal(response.status, 401);
   assert.match(response.body.error.message, /authentication required/i);
-});
-
-test("authorized inventory mutation placeholder returns not implemented", { skip: !hasDb }, async () => {
-  const cookie = await loginAs("buyer@linko.test");
-  const response = await request("/api/inventory", {
-    method: "POST",
-    headers: { Cookie: cookie },
-  });
-
-  assert.equal(response.status, 501);
-  assert.match(response.body.error.message, /not implemented/i);
 });
 
 test("authorized parcel booking rejects missing fields before touching the database", { skip: !hasDb }, async () => {
@@ -209,7 +191,7 @@ test("parcel detail resolves equal tracking timestamps by insertion order", { sk
   assert.equal(detail.body.current_status, "Returned");
   assert.deepEqual(
     detail.body.tracking_history.slice(-2).map((entry) => entry.status_update),
-    ["Out for Delivery", "Returned"],
+    ["Arrived at Branch", "Returned"],
   );
 });
 
@@ -244,14 +226,14 @@ test("booking a parcel creates payment and first log", { skip: !hasDb }, async (
 
   assert.equal(created.status, 201);
   assert.equal(created.body.current_status, "Order Created");
-  // Current seed pricing: 50 base + 2.5kg x 45 + 10km x 2 = 182.50
-  assert.equal(created.body.shipping_fee, 182.5);
+  // Current seed pricing (tier 1 Standard): 50 base + 2.5kg x 20 + 10km x 2 = 120.00
+  assert.equal(created.body.shipping_fee, 120);
 
   const detail = await request(`/api/parcels/${created.body.parcel_id}`, {
     headers: { Cookie: cookie },
   });
   assert.equal(detail.status, 200);
-  assert.equal(detail.body.payment.amount, 1182.5);
+  assert.equal(detail.body.payment.amount, 1120);
   assert.equal(detail.body.tracking_history.length, 1);
   assert.equal(detail.body.latest_branch_id, 1);
   assert.equal(detail.body.tracking_history[0].branch_name, "LINKO Cebu Central Hub");
@@ -306,26 +288,6 @@ test("buyer session cannot book a parcel", { skip: !hasDb }, async () => {
 
   assert.equal(response.status, 403);
   assert.match(response.body.error.message, /forbidden/i);
-});
-
-test("buyer session can access inventory", { skip: !hasDb }, async () => {
-  const cookie = await loginAs("buyer@linko.test");
-  const response = await request("/api/inventory", {
-    headers: { Cookie: cookie },
-  });
-
-  assert.equal(response.status, 200);
-  assert.deepEqual(response.body, []);
-});
-
-test("wholesaler session can access inventory", { skip: !hasDb }, async () => {
-  const cookie = await loginAs("wholesaler@linko.test");
-  const response = await request("/api/inventory", {
-    headers: { Cookie: cookie },
-  });
-
-  assert.equal(response.status, 200);
-  assert.deepEqual(response.body, []);
 });
 
 test("buyer session can access suppliers", { skip: !hasDb }, async () => {
@@ -1193,7 +1155,7 @@ test("platform admin can view all orders and override order status", { skip: !ha
   }
 });
 
-test("Returned tracking updates a shipped order and notifies both businesses", { skip: !hasDb }, async () => {
+test("3-fail return path: count-gated edges, auto-POD, split order side effects", { skip: !hasDb }, async () => {
   const courierCookie = await loginAs("courier@linko.test");
   const { createPool } = await import("./db.js");
   const pool = createPool();
@@ -1252,16 +1214,79 @@ test("Returned tracking updates a shipped order and notifies both businesses", {
       [parcelId],
     );
 
-    const returned = await request(`/api/parcels/${parcelId}/tracking`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Cookie: courierCookie },
-      body: JSON.stringify({
-        status_update: "Returned",
-        remarks: "Receiver refused delivery",
-      }),
-    });
+    const scan = (body) =>
+      request(`/api/parcels/${parcelId}/tracking`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Cookie: courierCookie },
+        body: JSON.stringify(body),
+      });
+
+    // Couriers can no longer jump straight to Returned from Out for Delivery:
+    // the return path is fail x3 -> checkpoints back -> Returned.
+    const shortcut = await scan({ status_update: "Returned" });
+    assert.equal(shortcut.status, 400);
+
+    // Attempt 1 + 2: Delivery Failed then retry.
+    for (const attempt of [1, 2]) {
+      const failed = await scan({ status_update: "Delivery Failed", remarks: "Nobody home" });
+      assert.equal(failed.status, 201, `fail attempt ${attempt}`);
+      const retry = await scan({ status_update: "Out for Delivery" });
+      assert.equal(retry.status, 201, `retry after attempt ${attempt}`);
+    }
+
+    // 3rd fail: notification fires for both businesses, order stays shipped.
+    const thirdFail = await scan({ status_update: "Delivery Failed", remarks: "Receiver refused delivery" });
+    assert.equal(thirdFail.status, 201);
+
+    const stillShipped = await pool.query(
+      "SELECT status FROM orders WHERE order_id = $1",
+      [orderId],
+    );
+    assert.equal(stillShipped.rows[0].status, "shipped");
+
+    const thirdFailNotifications = await pool.query(
+      `SELECT n.message, n.type, bm.business_id
+         FROM notifications n
+         JOIN business_memberships bm ON bm.user_id = n.user_id
+        WHERE n.message ILIKE $1
+          AND n.title = 'Delivery Failed — Parcel Returning to Sender'`,
+      [`%order #${orderId}%`],
+    );
+    const notifiedBusinesses = thirdFailNotifications.rows.map((row) => row.business_id);
+    assert.ok(notifiedBusinesses.includes(buyerBusinessId));
+    assert.ok(notifiedBusinesses.includes(wholesalerBusinessId));
+    assert.ok(
+      thirdFailNotifications.rows.every(
+        (row) =>
+          row.type === "warning" &&
+          row.message.includes("after 3 attempts") &&
+          row.message.includes("Receiver refused delivery"),
+      ),
+    );
+    const buyerNotificationsBeforeSettle = await pool.query(
+      `SELECT COUNT(*)::int AS n
+         FROM notifications n
+         JOIN business_memberships bm ON bm.user_id = n.user_id
+        WHERE bm.business_id = $1
+          AND n.message ILIKE $2`,
+      [buyerBusinessId, `%order #${orderId}%`],
+    );
+
+    // Count-gated edge: after the 3rd fail the retry closes, return leg opens.
+    const blockedRetry = await scan({ status_update: "Out for Delivery" });
+    assert.equal(blockedRetry.status, 400);
+
+    // fails>=3 opens the return leg: Arrived at Branch -> Returned. Departing a
+    // hub is never terminal, so there is no Departed hop before the return scan.
+    const returnArrive = await scan({ status_update: "Arrived at Branch" });
+    assert.equal(returnArrive.status, 201);
+
+    // Terminal scan back at the sender. Remark is auto-generated proof of
+    // delivery (courier full_name -> receiver business_name), no client input.
+    const returned = await scan({ status_update: "Returned" });
     assert.equal(returned.status, 201);
     assert.equal(returned.body.status_update, "Returned");
+    assert.equal(returned.body.remarks, "Cory Courier → Sunrise Retail Cooperative");
 
     const updatedOrder = await pool.query(
       "SELECT status FROM orders WHERE order_id = $1",
@@ -1269,34 +1294,40 @@ test("Returned tracking updates a shipped order and notifies both businesses", {
     );
     assert.equal(updatedOrder.rows[0].status, "returned");
 
-    const returnNotifications = await pool.query(
+    const settleNotifications = await pool.query(
       `SELECT n.title, n.message, n.type, bm.business_id
          FROM notifications n
          JOIN business_memberships bm ON bm.user_id = n.user_id
         WHERE n.message ILIKE $1
-          AND n.title IN ('Delivery Failed — Order Returned', 'Parcel Returning to Sender')`,
+          AND n.title = 'Parcel Returned to You'`,
       [`%order #${orderId}%`],
     );
+    // Buyer is NOT notified on Returned -- they went silent after the 3rd
+    // Delivery Failed (decision A). Only the wholesaler gets the settle notice.
     assert.ok(
-      returnNotifications.rows.some(
-        (row) =>
-          row.business_id === buyerBusinessId &&
-          row.title === "Delivery Failed — Order Returned",
+      settleNotifications.rows.some(
+        (row) => row.business_id === wholesalerBusinessId && row.title === "Parcel Returned to You",
       ),
     );
+    // Settle message drops the "delivery failed" wording — that already fired
+    // on the 3rd failed attempt.
     assert.ok(
-      returnNotifications.rows.some(
-        (row) =>
-          row.business_id === wholesalerBusinessId &&
-          row.title === "Parcel Returning to Sender",
+      settleNotifications.rows.every(
+        (row) => row.type === "warning" && !/delivery failed/i.test(row.message),
       ),
     );
-    assert.ok(
-      returnNotifications.rows.every(
-        (row) =>
-          row.type === "warning" &&
-          row.message.includes("Receiver refused delivery"),
-      ),
+    const buyerNotificationsAfterSettle = await pool.query(
+      `SELECT COUNT(*)::int AS n
+         FROM notifications n
+         JOIN business_memberships bm ON bm.user_id = n.user_id
+        WHERE bm.business_id = $1
+          AND n.message ILIKE $2`,
+      [buyerBusinessId, `%order #${orderId}%`],
+    );
+    assert.equal(
+      buyerNotificationsAfterSettle.rows[0].n,
+      buyerNotificationsBeforeSettle.rows[0].n,
+      "Returned settlement must not create another buyer notification",
     );
   } finally {
     if (orderId) {

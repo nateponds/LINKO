@@ -267,24 +267,35 @@ SELECT setval('parcel_id_seq', 3, true);
 -- 13. TRACKING_LOGS — realistic progression
 -- ---------------------------------------------------------------------------
 INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id, courier_id, scanned_at) VALUES
-  -- Parcel LKO-00000001 (shipped/in-transit): 3 events
-  ('LKO-00000001', 'Order Created',  'Auto-generated from marketplace order',   1,    NULL, NOW() - INTERVAL '4 days'),
-  ('LKO-00000001', 'Picked Up',      'Picked up from Cebu Fresh warehouse',     1,    1,   NOW() - INTERVAL '3 days'),
-  ('LKO-00000001', 'In Transit',     'En route to Metro Cebu Trading — Retail', 1,    1,   NOW() - INTERVAL '2 days'),
+  -- Parcel LKO-00000001 (shipped/en route): Departed not yet Arrived = in transit
+  ('LKO-00000001', 'Order Created',   'Auto-generated from marketplace order',   1,    NULL, NOW() - INTERVAL '4 days'),
+  ('LKO-00000001', 'Picked Up',       'Picked up from Cebu Fresh warehouse',     1,    1,   NOW() - INTERVAL '3 days'),
+  ('LKO-00000001', 'Departed Branch', 'En route to Metro Cebu Trading — Retail', 1,    1,   NOW() - INTERVAL '2 days'),
 
-  -- Parcel LKO-00000002 (delivered): full chain, 5 events
+  -- Parcel LKO-00000002 (delivered): clean journey with branch checkpoints
   ('LKO-00000002', 'Order Created',     'Auto-generated from marketplace order', 2,    NULL, NOW() - INTERVAL '9 days'),
   ('LKO-00000002', 'Picked Up',         'Picked up from Mandaue Agri warehouse',2,    2,   NOW() - INTERVAL '8 days'),
-  ('LKO-00000002', 'In Transit',        'Line-haul Mandaue → Cebu hub',          2,    2,   NOW() - INTERVAL '8 days'),
+  ('LKO-00000002', 'Departed Branch',   'Line-haul Mandaue → Cebu hub',          2,    2,   NOW() - INTERVAL '8 days'),
+  ('LKO-00000002', 'Arrived at Branch', 'Checkpoint at Cebu hub',                 1,    1,   NOW() - INTERVAL '7 days 12 hours'),
+  ('LKO-00000002', 'Departed Branch',   'Departed Cebu hub for last mile',        1,    1,   NOW() - INTERVAL '7 days 4 hours'),
   ('LKO-00000002', 'Out for Delivery',  'Last mile to Sunrise Retail',            1,    1,   NOW() - INTERVAL '7 days'),
-  ('LKO-00000002', 'Delivered',         'Received by staff at Lahug office',      1,    1,   NOW() - INTERVAL '7 days'),
+  ('LKO-00000002', 'Delivered',         'Cory Courier → Sunrise Retail Cooperative', 1, 1,  NOW() - INTERVAL '7 days'),
 
-  -- Parcel LKO-00000003 (failed delivery): full chain ending in Returned
+  -- Parcel LKO-00000003 (3 failed attempts → return leg → Returned): the graded
+  -- return path. Retry loop OFD/Delivery Failed x3, then the parcel arrives
+  -- back at the sender's hub; Returned is the terminal scan from that arrival.
+  -- Terminal remark uses the live auto-POD format (courier → receiver business).
   ('LKO-00000003', 'Order Created',     'Auto-generated from marketplace order', 2,    NULL, NOW() - INTERVAL '6 days'),
   ('LKO-00000003', 'Picked Up',         'Picked up from Mandaue Agri warehouse', 2,    2,   NOW() - INTERVAL '5 days'),
-  ('LKO-00000003', 'In Transit',        'Line-haul to Davao destination',         2,    2,   NOW() - INTERVAL '4 days'),
-  ('LKO-00000003', 'Out for Delivery',  'Last-mile delivery attempt',             2,    2,   NOW() - INTERVAL '2 days'),
-  ('LKO-00000003', 'Returned',          'Receiver refused delivery',              2,    2,   NOW() - INTERVAL '2 days');
+  ('LKO-00000003', 'Departed Branch',   'Line-haul to Davao destination',         2,    2,   NOW() - INTERVAL '4 days'),
+  ('LKO-00000003', 'Out for Delivery',  'Delivery attempt 1',                     2,    2,   NOW() - INTERVAL '3 days 12 hours'),
+  ('LKO-00000003', 'Delivery Failed',   'Nobody home',                            2,    2,   NOW() - INTERVAL '3 days 10 hours'),
+  ('LKO-00000003', 'Out for Delivery',  'Delivery attempt 2',                     2,    2,   NOW() - INTERVAL '3 days'),
+  ('LKO-00000003', 'Delivery Failed',   'Nobody home',                            2,    2,   NOW() - INTERVAL '2 days 22 hours'),
+  ('LKO-00000003', 'Out for Delivery',  'Delivery attempt 3',                     2,    2,   NOW() - INTERVAL '2 days 12 hours'),
+  ('LKO-00000003', 'Delivery Failed',   'Receiver refused delivery',              2,    2,   NOW() - INTERVAL '2 days 10 hours'),
+  ('LKO-00000003', 'Arrived at Branch', 'Return leg — back at Mandaue hub',       2,    2,   NOW() - INTERVAL '2 days'),
+  ('LKO-00000003', 'Returned',          'Carlo Courier → Davao Sari-Sari Mart',   2,    2,   NOW() - INTERVAL '2 days');
 
 -- ---------------------------------------------------------------------------
 -- 14. PAYMENTS — method-honest, matching live behavior (Sprint 8):

@@ -211,7 +211,7 @@ Settlement of the **buyer's total** for one parcel (1:1). `amount` is the real t
 
 ### TRACKING_LOGS
 
-Append-only history of every scan/status change. `scanned_at` carries per-event timing — the 'Order Created' row = creation, 'In Transit' row = dispatch, 'Delivered' row = delivery. Current status = latest row by `scanned_at`.
+Append-only history of every scan/status change. `scanned_at` carries per-event timing — the 'Order Created' row = creation, 'Departed Branch' row = dispatch, 'Delivered' row = delivery. Current status = latest row by `scanned_at`.
 
 | Column        | Type        | Constraints               | Notes                                                                                                |
 | ------------- | ----------- | ------------------------- | ---------------------------------------------------------------------------------------------------- |
@@ -219,7 +219,7 @@ Append-only history of every scan/status change. `scanned_at` carries per-event 
 | parcel_id     | VARCHAR(20) | FK → PARCELS, NOT NULL    |                                                                                                      |
 | branch_id     | INT         | FK → BRANCHES, NULLABLE   | handling/dispatch branch for the event; null = branch not recorded or manually unresolved             |
 | courier_id    | INT         | FK → COURIERS, NULLABLE   | null = automated/system scan                                                                         |
-| status_update | VARCHAR(50) | NOT NULL, CHECK IN (...)  | enum: 'Order Created','Picked Up','In Transit','Out for Delivery','Delivered','Returned','Cancelled'; `Cancelled` is temporary coordinator/admin override only, not a courier-submitted delivery state |
+| status_update | VARCHAR(50) | NOT NULL, CHECK IN (...)  | enum (migration 020): 'Order Created','Picked Up','Arrived at Branch','Departed Branch','Out for Delivery','Delivery Failed','Delivered','Returned','Cancelled'; 'In Transit' removed — with branch checkpoints, Departed-not-yet-Arrived *is* in transit; `Cancelled` is temporary coordinator/admin override only, not a courier-submitted delivery state |
 | remarks       | TEXT        |                           | e.g. 'Sorted for local dispatch'                                                                     |
 | scanned_at    | TIMESTAMP   | DEFAULT CURRENT_TIMESTAMP | per-event timestamp                                                                                  |
 
@@ -247,7 +247,7 @@ Append-only history of every scan/status change. `scanned_at` carries per-event 
 ## Design Notes / Deviations from Archived Spec
 
 - **Status lives only in `TRACKING_LOGS`.** `Parcels` no longer carries `current_status`. Status is event data — it belongs in the append-only event log. Current status = the latest `Tracking_Logs` row by `scanned_at`. Trade-off: "where is my parcel now" needs a latest-row lookup instead of a single column read; acceptable at course scale, and normalization is the correct textbook stance.
-- **Actual lifecycle timing lives in `Tracking_Logs`, not `Parcels`.** Creation, dispatch, and delivery times = the `scanned_at` of their respective status rows ('Order Created', 'In Transit', 'Delivered'). No `created_at`/`dispatched_at`/`delivered_at` columns on `Parcels` — those are event data.
+- **Actual lifecycle timing lives in `Tracking_Logs`, not `Parcels`.** Creation, dispatch, and delivery times = the `scanned_at` of their respective status rows ('Order Created', 'Departed Branch', 'Delivered'). No `created_at`/`dispatched_at`/`delivered_at` columns on `Parcels` — those are event data.
 - **`estimated_delivery_date` stored on `Parcels`, frozen at ship time.** Computed once at creation (creation time + tier SLA) and saved, exactly like `shipping_fee`. Deriving it live would let a future `Service_Tiers.estimated_days` change silently rewrite the promised ETA of old parcels — the same drift that justifies storing `shipping_fee`. Stored value also allows manual override when a parcel is delayed (typhoon, branch reschedule). Actual delivery time still comes from the 'Delivered' log row; this column is the _promise_, not the fact.
 - **`ADDRESSES` table for granular, unified addresses.** Flat `address_line`/`city` replaced by structured parts (province, city_municipality, barangay, street_address, postal_code) following Philippine address hierarchy. Consumed by customers (1:N), branches (FK), and parcels (origin + destination FK). No many-to-many anywhere — every link is a clean 1:N per academic standard.
 - **Parcels carry origin + destination address.** Both `NOT NULL` — a parcel physically comes from somewhere and goes somewhere; neither can be null. Mirrors real parcel labels (receiver name + destination address).
