@@ -4,7 +4,13 @@ import { useNavigate, useParams } from "react-router-dom";
 import AppLayout from "../../layouts/AppLayout";
 import TrackingTimeline from "../../features/logistics/TrackingTimeline";
 import { peso, shortDate, statusClass } from "../../lib/format";
-import { selectableTrackingStatuses } from "../../lib/statusWorkflow";
+import {
+  countFailedAttempts,
+  isReturning,
+  selectableTrackingStatuses,
+  ONE_TAP_REMARKS,
+  FAIL_REASONS,
+} from "../../lib/statusWorkflow";
 import { useAuth } from "../../auth/AuthProvider";
 import { apiGet, apiSend } from "../../lib/api";
 import "./logistics.css";
@@ -33,7 +39,7 @@ export default function ParcelDetailPage() {
   // Update form state
   const [updating, setUpdating] = useState(false);
   const [updateError, setUpdateError] = useState(null);
-  const [formStatus, setFormStatus] = useState("In Transit");
+  const [formStatus, setFormStatus] = useState("");
   const [formBranch, setFormBranch] = useState("");
   const [formCourier, setFormCourier] = useState("");
   const [formRemarks, setFormRemarks] = useState("");
@@ -58,7 +64,6 @@ export default function ParcelDetailPage() {
         setBranches(Array.isArray(branchData) ? branchData : []);
         setCouriers(Array.isArray(courierData) ? courierData : []);
         if (parcelData) {
-          setFormStatus(parcelData.current_status ?? "In Transit");
           setFormBranch(parcelData.latest_branch_id ? String(parcelData.latest_branch_id) : "");
           setFormCourier(parcelData.latest_courier_id ? String(parcelData.latest_courier_id) : "");
         }
@@ -80,36 +85,45 @@ export default function ParcelDetailPage() {
   const filteredCouriers = formBranch
     ? couriers.filter((courier) => courier.assigned_branch_id === Number(formBranch))
     : couriers;
-  const statusOptions = selectableTrackingStatuses(parcel?.current_status, canUpdateAssignment);
+  // Fail count is derived from the rendered history — no new API field needed.
+  const failedAttempts = countFailedAttempts(parcel?.tracking_history);
+  const statusOptions = selectableTrackingStatuses(
+    parcel?.current_status,
+    canUpdateAssignment,
+    failedAttempts,
+  );
   const canLogTrackingUpdate = canUpdateAssignment || statusOptions.length > 0;
-  // Courier terminal scans carry proof of delivery / failure reason (Sprint 8);
-  // coordinators/admins keep the correction escape hatch.
-  const remarksRequired =
-    !canUpdateAssignment && (formStatus === "Delivered" || formStatus === "Returned");
+  const selectedStatus = statusOptions.includes(formStatus)
+    ? formStatus
+    : statusOptions.includes(parcel?.current_status)
+      ? parcel.current_status
+      : statusOptions[0] ?? "";
+  // Return-leg red cue: post-3rd-fail and not yet back at the sender.
+  const returning = isReturning(parcel?.current_status, failedAttempts);
 
   async function handleTrackingSubmit() {
     if (updating) return;
-    if (remarksRequired && !formRemarks.trim()) {
-      setUpdateError(
-        formStatus === "Delivered"
-          ? "Enter who received the parcel (proof of delivery)."
-          : "Enter the failure reason for the return.",
-      );
-      return;
-    }
     setUpdating(true);
     setUpdateError(null);
     try {
-      const body = { status_update: formStatus, remarks: formRemarks };
+      const body = { status_update: selectedStatus };
       if (canUpdateAssignment) {
+        // Coordinator/admin override: manual remark + explicit assignment.
+        if (formRemarks) body.remarks = formRemarks;
         if (formBranch) body.branch_id = Number(formBranch);
         if (formCourier) body.courier_id = Number(formCourier);
+      } else {
+        // Courier: fixed remark per status; Delivery Failed carries the picked
+        // reason; terminal scans send nothing (backend auto-generates the POD).
+        const remark =
+          selectedStatus === "Delivery Failed" ? formRemarks : ONE_TAP_REMARKS[selectedStatus];
+        if (remark) body.remarks = remark;
       }
 
       await apiSend(`/api/parcels/${parcelId}/tracking`, { body });
       const data = await apiGet(`/api/parcels/${parcelId}`);
       setParcel(data);
-      setFormStatus(data.current_status ?? formStatus);
+      setFormStatus("");
       setFormBranch(data.latest_branch_id ? String(data.latest_branch_id) : "");
       setFormCourier(data.latest_courier_id ? String(data.latest_courier_id) : "");
       setFormRemarks("");
@@ -193,9 +207,11 @@ export default function ParcelDetailPage() {
             </aside>
 
             {/* RIGHT: status + timeline */}
-            <section className="parcel-status-panel">
+            <section className={`parcel-status-panel${returning ? " is-returning" : ""}`}>
               <div className="parcel-status-head">
-                <span className="status-eyebrow">This parcel is</span>
+                <span className="status-eyebrow">
+                  {returning ? "Returning to sender — this parcel is" : "This parcel is"}
+                </span>
                 <h1 className="status-title">{parcel.current_status ?? "Unknown"}</h1>
                 <span className={`status ${statusClass(parcel.current_status)}`}>
                   {parcel.current_status ?? "—"}
@@ -212,7 +228,7 @@ export default function ParcelDetailPage() {
                         <label>
                           <span>Delivery status</span>
                           <select
-                            value={formStatus}
+                            value={selectedStatus}
                             onChange={e => setFormStatus(e.target.value)}
                           >
                             {statusOptions.map((status) => (
@@ -248,28 +264,35 @@ export default function ParcelDetailPage() {
                         )}
                       </div>
 
-                      <label className="update-remarks">
-                        <span>
-                          {formStatus === "Delivered"
-                            ? `Received by (name)${remarksRequired ? " *" : ""}`
-                            : formStatus === "Returned"
-                              ? `Failure reason${remarksRequired ? " *" : ""}`
-                              : "Remarks"}
-                        </span>
-                        <input
-                          type="text"
-                          value={formRemarks}
-                          onChange={e => setFormRemarks(e.target.value)}
-                          placeholder={
-                            formStatus === "Delivered"
-                              ? "Who received the parcel"
-                              : formStatus === "Returned"
-                                ? "Why the delivery failed"
-                                : "Delivery notes or return reason"
-                          }
-                          required={remarksRequired}
-                        />
-                      </label>
+                      {/* Couriers never free-type (handoff 2026-07-16 §5): the
+                          status carries a fixed remark, Delivery Failed a canned
+                          reason, terminal scans an auto-generated POD. Only the
+                          coordinator/admin override keeps a manual remarks box. */}
+                      {canUpdateAssignment ? (
+                        <label className="update-remarks">
+                          <span>Remarks</span>
+                          <input
+                            type="text"
+                            value={formRemarks}
+                            onChange={e => setFormRemarks(e.target.value)}
+                            placeholder={
+                              selectedStatus === "Delivered" || selectedStatus === "Returned"
+                                ? "Optional — proof of delivery is auto-generated"
+                                : "Optional delivery notes"
+                            }
+                          />
+                        </label>
+                      ) : selectedStatus === "Delivery Failed" ? (
+                        <label className="update-remarks">
+                          <span>Reason</span>
+                          <select value={formRemarks} onChange={e => setFormRemarks(e.target.value)}>
+                            <option value="">-- Select reason --</option>
+                            {FAIL_REASONS.map((reason) => (
+                              <option key={reason} value={reason}>{reason}</option>
+                            ))}
+                          </select>
+                        </label>
+                      ) : null}
 
                       <button
                         onClick={handleTrackingSubmit}

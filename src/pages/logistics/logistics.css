@@ -11,6 +11,8 @@
   }
 
   .status.picked-up,
+  .status.arrived-at-branch,
+  .status.departed-branch,
   .status.out-for-delivery {
     background: var(--color-primary-soft);
     color: var(--color-primary-dark);
@@ -19,6 +21,11 @@
   .status.returned {
     background: #fdf3d7;
     color: #9a7b12;
+  }
+
+  .status.delivery-failed {
+    background: #fdecea;
+    color: #b3261e;
   }
 
   .logistics-head-actions {
@@ -193,6 +200,17 @@
     border-radius: 12px;
     padding: 26px 30px;
     box-shadow: 0 2px 8px rgba(23, 33, 61, 0.08);
+    border-top: 4px solid var(--color-accent);
+  }
+
+  /* Return-leg cue: parcel is post-3rd-fail, heading flips accent green → red */
+  .parcel-status-panel.is-returning {
+    border-top-color: #b3261e;
+  }
+
+  .parcel-status-panel.is-returning .status-title,
+  .parcel-status-panel.is-returning .status-eyebrow {
+    color: #b3261e;
   }
 
   .parcel-status-head {

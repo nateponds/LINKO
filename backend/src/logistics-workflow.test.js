@@ -136,13 +136,23 @@ test("courier picks up from the pool and delivering the parcel completes the ord
       "claimed parcel should remain visible to the courier",
     );
 
-    // Delivered scan flips the linked order automatically.
+    // Transition map: delivery attempt requires an Out for Delivery scan first.
+    const ofd = await request(`/api/parcels/${parcelId}/tracking`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: courierCookie },
+      body: JSON.stringify({ status_update: "Out for Delivery" }),
+    });
+    assert.equal(ofd.status, 201);
+
+    // Delivered scan flips the linked order automatically; the POD remark is
+    // auto-generated from accounts (courier → receiver business).
     const delivered = await request(`/api/parcels/${parcelId}/tracking`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Cookie: courierCookie },
-      body: JSON.stringify({ status_update: "Delivered", remarks: "Received by test buyer" }),
+      body: JSON.stringify({ status_update: "Delivered" }),
     });
     assert.equal(delivered.status, 201);
+    assert.match(delivered.body.remarks, /→ Sunrise Retail Cooperative$/);
 
     const order = await request(`/api/orders/${orderId}`, { headers: { Cookie: buyerCookie } });
     assert.equal(order.status, 200);
