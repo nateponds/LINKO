@@ -17,6 +17,7 @@ const VALID_TRACKING_STATUSES = [
   "Departed Branch",
   "Out for Delivery",
   "Delivery Failed",
+  "Out for Return",
   "Delivered",
   "Returned",
   "Cancelled",
@@ -34,9 +35,8 @@ const COURIER_TRANSITIONS = {
   "Picked Up": ["Arrived at Branch", "Out for Delivery"],
   // Arrived can either depart for another hub (more transit) or go straight out
   // for delivery when this is the final hub -- no redundant Departed Branch scan
-  // right before Out for Delivery (2026-07-16 §2 clarification). The return-leg
-  // 'Returned' edge (Arrived at Branch -> Returned, fails>=3) is injected in
-  // courierAllowedNextStatuses, not here -- it is count-gated (AGENT_HANDOFF §9.2).
+  // right before Out for Delivery. Count-gated return-leg edges are injected
+  // in courierAllowedNextStatuses rather than this forward-journey map.
   "Arrived at Branch": ["Departed Branch", "Out for Delivery"],
   // Departed is never terminal -- it always means line-haul toward another node
   // or the final-hub delivery run. 'Returned' is NOT an edge off Departed.
@@ -52,14 +52,18 @@ export function courierAllowedNextStatuses(currentStatus, failedAttempts = 0) {
       ? ["Arrived at Branch"]
       : ["Out for Delivery"];
   }
-  // ponytail: 'Returned' is only reachable on the return leg (fails>=3), and
-  // only from a branch arrival (the parcel is back at a hub). It is gated here,
-  // not in COURIER_TRANSITIONS, because the static map has no fail count.
+  // Return-leg movement is count-gated here because the static forward map has
+  // no fail count: branch arrival -> Out for Return -> Returned.
   // Ceiling: any Arrived-at-Branch scan qualifies -- the system does NOT verify
   // the branch is the sender's serving hub. Strict-hub enforcement (a
   // branch-service-area model) is deferred, see DETAILED_HANDOFF §7.
   if (currentStatus === "Arrived at Branch" && failedAttempts >= RETURN_TRIGGER_FAILS) {
-    return [...COURIER_TRANSITIONS["Arrived at Branch"], "Returned"];
+    // Return leg is one-way: no redelivery or hub departure once the parcel
+    // reaches the return branch. It must leave for the sender next.
+    return ["Out for Return"];
+  }
+  if (currentStatus === "Out for Return") {
+    return failedAttempts >= RETURN_TRIGGER_FAILS ? ["Returned"] : [];
   }
   return COURIER_TRANSITIONS[currentStatus] ?? [];
 }
@@ -249,7 +253,7 @@ router.get("/parcels", async (req, res) => {
                        OR p.receiver_id = ANY($${params.length}::int[]))`;
   } else if (scope.courierId !== undefined && !scope.all) {
     // Courier sees parcels they have handled plus their branch's unassigned
-    // pickup pool -- docs/delivery-status-logistics.md. A courier with no
+    // pickup pool -- docs/API_CONTRACTS.md §3.1. A courier with no
     // assigned branch sees handling history only; see Sprint 7
     // anti-leak/pool-strictness contract below.
     params.push(scope.courierId);
@@ -582,6 +586,60 @@ router.get("/service-tiers", async (_req, res) => {
   res.json(rows);
 });
 
+router.put(
+  "/service-tiers/:id",
+  requireAnyRole(["platform_admin"]),
+  async (req, res, next) => {
+    const tierId = Number(req.params.id);
+    const { tier_name, base_fee, base_rate_per_kg, rate_per_km, estimated_days } = req.body;
+
+    // Validate required fields
+    if (!tier_name || typeof tier_name !== "string" || !tier_name.trim()) {
+      return res.status(400).json({
+        error: { message: "tier_name is required" },
+      });
+    }
+
+    const numBaseFee = Number(base_fee);
+    const numBaseRate = Number(base_rate_per_kg);
+    const numRateKm = Number(rate_per_km);
+    const numDays = Number(estimated_days);
+
+    if ([numBaseFee, numBaseRate, numRateKm].some((v) => Number.isNaN(v) || v < 0)) {
+      return res.status(400).json({
+        error: { message: "base_fee, base_rate_per_kg, and rate_per_km must be numbers >= 0" },
+      });
+    }
+    if (Number.isNaN(numDays) || !Number.isInteger(numDays) || numDays < 1) {
+      return res.status(400).json({
+        error: { message: "estimated_days must be an integer >= 1" },
+      });
+    }
+
+    try {
+      const { rows } = await query(
+        `UPDATE service_tiers
+            SET tier_name = $1, base_fee = $2, base_rate_per_kg = $3,
+                rate_per_km = $4, estimated_days = $5
+          WHERE tier_id = $6
+          RETURNING tier_id, tier_name, base_fee::float8, base_rate_per_kg::float8,
+                    rate_per_km::float8, estimated_days`,
+        [tier_name.trim(), numBaseFee, numBaseRate, numRateKm, numDays, tierId],
+      );
+
+      if (!rows.length) {
+        return res.status(404).json({
+          error: { message: "Service tier not found" },
+        });
+      }
+
+      res.json(rows[0]);
+    } catch (error) {
+      next(asClientError(error));
+    }
+  },
+);
+
 router.get("/branches", async (_req, res) => {
   const { rows } = await query(`
     SELECT b.branch_id, b.branch_name, b.contact_number,
@@ -747,11 +805,19 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
       effectiveBranchId = carried.rows[0]?.branch_id ?? null;
     }
 
-    // Terminal courier scans auto-generate the proof of delivery from accounts:
-    // "{courier full_name} → {receiver business_name}". Receiver is deliberately
-    // the business, not a person — parcels.receiver_id points at businesses and
-    // businesses↔users is many-to-many, so any single person name would be a
-    // fabricated POD. Coordinators/admins keep the manual-remark override.
+    // Terminal courier scans auto-generate proof from accounts. Delivered names
+    // the receiver business; Returned names the sender business that physically
+    // receives the parcel back. Businesses, not individual users, are the parcel
+    // parties. Coordinators/admins keep the manual-remark override.
+    // Cancelled is coordinator/admin-only (never courier-submitted) and, unlike
+    // Delivered/Returned, has no account data to auto-generate a reason from --
+    // the remark IS the cancellation reason, so it's required here explicitly.
+    if (status_update === "Cancelled" && !(typeof remarks === "string" && remarks.trim())) {
+      const error = new Error("remarks (cancellation reason) is required to cancel a parcel");
+      error.statusCode = 400;
+      throw error;
+    }
+
     let effectiveRemarks = typeof remarks === "string" && remarks.trim() ? remarks.trim() : null;
     if (
       !isPrivileged &&
@@ -760,12 +826,33 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
       const pod = await client.query(
         `SELECT c.full_name, b.business_name
            FROM parcels p
-           JOIN businesses b ON b.business_id = p.receiver_id
+           JOIN businesses b
+             ON b.business_id = CASE
+                  WHEN $3 = 'Returned' THEN p.sender_id
+                  ELSE p.receiver_id
+                END
            JOIN couriers c ON c.courier_id = $2
           WHERE p.parcel_id = $1`,
-        [parcelId, effectiveCourierId],
+        [parcelId, effectiveCourierId, status_update],
       );
       effectiveRemarks = `${pod.rows[0].full_name} → ${pod.rows[0].business_name}`;
+    }
+    // Branch checkpoint scans auto-generate remarks from the branch name so the
+    // log reads with the real hub instead of a generic label. Courier-only,
+    // same pattern as the Delivered/Returned POD override above.
+    if (
+      !isPrivileged &&
+      (status_update === "Arrived at Branch" || status_update === "Departed Branch")
+    ) {
+      const branch = await client.query(
+        "SELECT branch_name FROM branches WHERE branch_id = $1",
+        [effectiveBranchId],
+      );
+      const branchName = branch.rows[0]?.branch_name ?? "branch checkpoint";
+      effectiveRemarks =
+        status_update === "Arrived at Branch"
+          ? `Arrived at ${branchName}`
+          : `Departed from ${branchName}`;
     }
 
     // Coordinator/admin logs without courier_id deliberately unassign the
@@ -779,7 +866,7 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
 
     // Terminal delivery scans complete the linked marketplace order -- the
     // wholesaler's fulfillment control ended at 'shipped'
-    // (docs/delivery-status-logistics.md).
+    // (docs/API_CONTRACTS.md §3.6).
     // COD settles at the terminal scan: Delivered collects, Returned fails.
     // Guard on Pending so coordinator corrections after a terminal scan do
     // not rewrite already-settled payments.
@@ -791,7 +878,7 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
         [parcelId],
       );
     }
-    if (status_update === "Returned") {
+    if (status_update === "Returned" || status_update === "Cancelled") {
       await client.query(
         `UPDATE payments
             SET payment_status = 'Failed'
@@ -877,9 +964,32 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
           client,
           order.wholesaler_business_id,
           "Parcel Returned to You",
-          `Order #${order.order_id} returned to sender. Parcel is back at your branch.`,
+          `Order #${order.order_id} returned to sender. Parcel was received by your business.`,
           "warning",
         );
+      }
+    }
+
+    // Cancelled is a coordinator/admin override (Sprint 11), guarded on
+    // status = 'shipped' like Delivered/Returned so a cancel after some other
+    // terminal state never rewrites the order. Both parties are notified,
+    // unlike Returned's wholesaler-only notice, since neither side initiated it.
+    if (status_update === "Cancelled") {
+      const { rows: orderRows } = await client.query(
+        `UPDATE orders o
+            SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP
+           FROM parcels p
+          WHERE p.parcel_id = $1
+            AND o.order_id = p.order_id
+            AND o.status = 'shipped'
+        RETURNING o.order_id, o.buyer_business_id, o.wholesaler_business_id`,
+        [parcelId],
+      );
+      if (orderRows.length) {
+        const order = orderRows[0];
+        const message = `Order #${order.order_id} was cancelled: ${effectiveRemarks}`;
+        await notifyBusiness(client, order.buyer_business_id, "Order Cancelled", message, "warning");
+        await notifyBusiness(client, order.wholesaler_business_id, "Order Cancelled", message, "warning");
       }
     }
 

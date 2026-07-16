@@ -111,16 +111,33 @@
   }
 
   .action-button {
-    border: none;
-    background: none;
+    border: 1px solid var(--color-primary);
+    background: #fff;
+    color: var(--color-primary);
     cursor: pointer;
-    padding: 0;
-    font: inherit;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    transition: all 0.15s ease;
+    text-decoration: none;
+    min-width: 103px;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .action-button:hover:not(:disabled) {
+    background: var(--color-primary);
+    color: #fff;
+    text-decoration: none;
   }
 
   .action-button:disabled {
-    color: var(--color-muted);
-    cursor: default;
+    color: #a0aec0;
+    border-color: #cbd5e1;
+    background: #f8fafc;
+    cursor: not-allowed;
     text-decoration: none;
   }
 

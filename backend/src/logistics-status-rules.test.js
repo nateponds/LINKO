@@ -53,20 +53,34 @@ test("Delivery Failed edge is count-gated: retry below 3, return leg at 3", () =
   assert.equal(canCourierSubmitTrackingStatus("Delivery Failed", "Returned", 3).allowed, false);
 });
 
-test("Arrived at Branch offers Returned only once the return leg exists (fails>=3)", () => {
+test("return leg locks to Out for Return then Returned once fails>=3", () => {
   // Forward journey: no Returned option, only checkpoints / last-mile.
   assert.deepEqual(courierAllowedNextStatuses("Arrived at Branch", 0), ["Departed Branch", "Out for Delivery"]);
   assert.deepEqual(courierAllowedNextStatuses("Arrived at Branch", 2), ["Departed Branch", "Out for Delivery"]);
-  // Return leg: Returned becomes available.
-  assert.deepEqual(courierAllowedNextStatuses("Arrived at Branch", 3), ["Departed Branch", "Out for Delivery", "Returned"]);
+  // Return leg: branch arrival can only leave for the sender, then complete.
+  assert.deepEqual(courierAllowedNextStatuses("Arrived at Branch", 3), ["Out for Return"]);
+  assert.deepEqual(courierAllowedNextStatuses("Out for Return", 3), ["Returned"]);
+  assert.deepEqual(courierAllowedNextStatuses("Out for Return", 2), []);
+
+  assert.equal(canCourierSubmitTrackingStatus("Arrived at Branch", "Out for Return", 3).allowed, true);
+  assert.equal(canCourierSubmitTrackingStatus("Out for Return", "Returned", 3).allowed, true);
+
+  // Return leg is a trap: no redelivery, no hub departure once fails>=3.
+  assert.equal(canCourierSubmitTrackingStatus("Arrived at Branch", "Out for Delivery", 3).allowed, false);
+  assert.equal(canCourierSubmitTrackingStatus("Arrived at Branch", "Departed Branch", 3).allowed, false);
+  assert.equal(canCourierSubmitTrackingStatus("Arrived at Branch", "Returned", 3).allowed, false);
+  assert.equal(canCourierSubmitTrackingStatus("Out for Return", "Returned", 2).allowed, false);
+  assert.equal(canCourierSubmitTrackingStatus("Delivery Failed", "Out for Return", 3).allowed, false);
+  assert.equal(canCourierSubmitTrackingStatus("Departed Branch", "Out for Return", 3).allowed, false);
+  assert.equal(canCourierSubmitTrackingStatus("Arrived at Branch", "Out for Return", 2).allowed, false);
 });
 
-test("Returned is reachable only from Arrived at Branch on the return leg (fails>=3)", () => {
-  // Terminal scan when the parcel arrives back at the sender's hub.
-  assert.equal(canCourierSubmitTrackingStatus("Arrived at Branch", "Returned", 3).allowed, true);
-  // Not on the forward journey (fails < 3).
+test("Returned is reachable only from Out for Return on the locked return leg", () => {
+  assert.equal(canCourierSubmitTrackingStatus("Out for Return", "Returned", 3).allowed, true);
+  // Never directly from a branch arrival.
   assert.equal(canCourierSubmitTrackingStatus("Arrived at Branch", "Returned", 0).allowed, false);
   assert.equal(canCourierSubmitTrackingStatus("Arrived at Branch", "Returned", 2).allowed, false);
+  assert.equal(canCourierSubmitTrackingStatus("Arrived at Branch", "Returned", 3).allowed, false);
   // Departing a hub is never terminal -- 'Returned' is not an edge off Departed.
   assert.equal(canCourierSubmitTrackingStatus("Departed Branch", "Returned").allowed, false);
   assert.equal(canCourierSubmitTrackingStatus("Departed Branch", "Returned", 3).allowed, false);
@@ -92,6 +106,8 @@ test("courierAllowedNextStatuses matches the map and gates on fail count", () =>
   assert.deepEqual(courierAllowedNextStatuses("Out for Delivery"), ["Delivered", "Delivery Failed"]);
   assert.deepEqual(courierAllowedNextStatuses("Delivery Failed", 2), ["Out for Delivery"]);
   assert.deepEqual(courierAllowedNextStatuses("Delivery Failed", 3), ["Arrived at Branch"]);
+  assert.deepEqual(courierAllowedNextStatuses("Arrived at Branch", 3), ["Out for Return"]);
+  assert.deepEqual(courierAllowedNextStatuses("Out for Return", 3), ["Returned"]);
   assert.deepEqual(courierAllowedNextStatuses("Delivered"), []);
   assert.equal(courierAllowedNextStatuses(null).includes("Cancelled"), false);
 });

@@ -1,4 +1,4 @@
--- Courier workflow (docs/delivery-status-logistics.md): link marketplace
+-- Courier workflow (docs/API_CONTRACTS.md §3): link marketplace
 -- orders to their auto-created parcels so a courier's 'Delivered' scan can
 -- complete the order. Nullable -- standalone course-deliverable bookings
 -- (BookParcel flow) have no order. Deliberate, documented crossing of the

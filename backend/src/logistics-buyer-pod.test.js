@@ -221,7 +221,8 @@ test("shipping records the entered weight and the buyer can track their own parc
 test("courier terminal scans auto-generate POD; coordinators keep manual remarks", { skip: !hasDb }, async () => {
   const pool = createPool();
   const parcelIds = [];
-  const AUTO_POD = "Cory Courier → Sunrise Retail Cooperative";
+  const DELIVERED_POD = "Cory Courier → Sunrise Retail Cooperative";
+  const RETURNED_POD = "Cory Courier → Cebu Fresh Wholesale";
   try {
     const courierCookie = await loginAs("courier@linko.test");
     const coordinatorCookie = await loginAs("logistics@linko.test");
@@ -245,10 +246,10 @@ test("courier terminal scans auto-generate POD; coordinators keep manual remarks
       remarks: "client-typed text must not win",
     });
     assert.equal(delivered.status, 201);
-    assert.equal(delivered.body.remarks, AUTO_POD);
+    assert.equal(delivered.body.remarks, DELIVERED_POD);
 
     // Returned (end of the return leg): reached only after 3 Delivery Failed
-    // scans open the return leg, then Arrived at Branch -> Returned. Same auto-POD.
+    // scans open the return leg, then Arrived -> Out for Return -> Returned.
     const returnedParcel = await createPoolParcel(pool);
     parcelIds.push(returnedParcel);
     await walk(returnedParcel, [
@@ -260,12 +261,13 @@ test("courier terminal scans auto-generate POD; coordinators keep manual remarks
       "Out for Delivery",
       "Delivery Failed",
       "Arrived at Branch",
+      "Out for Return",
     ]);
     const returned = await postJson(`/api/parcels/${returnedParcel}/tracking`, courierCookie, {
       status_update: "Returned",
     });
     assert.equal(returned.status, 201);
-    assert.equal(returned.body.remarks, AUTO_POD);
+    assert.equal(returned.body.remarks, RETURNED_POD);
 
     // Coordinator keeps the manual-remark override, but still follows the
     // checkpoint map like couriers (handoff §2) — no Order Created -> Delivered
@@ -353,8 +355,7 @@ test("payment lifecycle follows the method", { skip: !hasDb }, async () => {
     assert.equal(cod.payment_status, "Paid");
     assert.ok(cod.paid_at);
 
-    // ...and fails on Returned (reached via the return leg: 3 fails, then
-    // Arrived at Branch -> Returned).
+    // ...and fails on Returned after the locked return leg.
     const codReturnedId = await book("COD");
     await walkTo(codReturnedId, [
       "Picked Up",
@@ -365,6 +366,7 @@ test("payment lifecycle follows the method", { skip: !hasDb }, async () => {
       "Out for Delivery",
       "Delivery Failed",
       "Arrived at Branch",
+      "Out for Return",
     ]);
     const returned = await postJson(
       `/api/parcels/${codReturnedId}/tracking`,
@@ -375,6 +377,18 @@ test("payment lifecycle follows the method", { skip: !hasDb }, async () => {
     const failed = await getPayment(pool, codReturnedId);
     assert.equal(failed.payment_status, "Failed");
     assert.equal(failed.paid_at, null);
+
+    // ...and also fails on Cancelled (Sprint 11), from any non-terminal status.
+    const codCancelledId = await book("COD");
+    const cancelled = await postJson(
+      `/api/parcels/${codCancelledId}/tracking`,
+      coordinatorCookie,
+      { status_update: "Cancelled", remarks: "Buyer requested cancellation" },
+    );
+    assert.equal(cancelled.status, 201);
+    const cancelledPayment = await getPayment(pool, codCancelledId);
+    assert.equal(cancelledPayment.payment_status, "Failed");
+    assert.equal(cancelledPayment.paid_at, null);
   } finally {
     for (const id of parcelIds) {
       await pool.query("DELETE FROM parcels WHERE parcel_id = $1", [id]);
@@ -388,7 +402,7 @@ test(
   { skip: !hasDb },
   async () => {
     // Seeded return journey LKO-00000003: 3 Delivery Failed rows then a return
-    // leg (Arrived at Branch -> Returned). Buyer (receiver,
+    // leg (Arrived -> Out for Return -> Returned). Buyer (receiver,
     // business 6 = buyer2@linko.test) must be cut off at the 3rd fail; the
     // coordinator sees everything (AGENT_HANDOFF §9.3).
     const PARCEL = "LKO-00000003";
@@ -422,6 +436,10 @@ test(
       "buyer timeline ends at the 3rd Delivery Failed",
     );
     assert.ok(
+      !buyerStatuses.includes("Out for Return"),
+      "buyer must not see the outbound return scan",
+    );
+    assert.ok(
       !buyerStatuses.includes("Returned"),
       "buyer must not see the terminal Returned scan",
     );
@@ -441,6 +459,11 @@ test(
     assert.ok(
       staffStatuses.includes("Returned"),
       "coordinator sees the terminal Returned scan",
+    );
+    assert.deepEqual(
+      staffStatuses.slice(-2),
+      ["Out for Return", "Returned"],
+      "coordinator sees the complete final return handoff",
     );
     assert.ok(
       staffStatuses.length > buyerStatuses.length,
