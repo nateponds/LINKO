@@ -1,7 +1,7 @@
 export const ROLE_ACCESS = {
   dashboard: ["wholesaler", "platform_admin"],
   marketplace: ["buyer", "wholesaler", "platform_admin"],
-  inventory: ["wholesaler", "platform_admin"],
+  inventory: ["wholesaler"],
   orders: ["buyer", "wholesaler", "platform_admin"],
   invoices: ["buyer", "wholesaler", "platform_admin"],
   logistics: ["wholesaler", "logistics_coordinator", "courier", "platform_admin"],
@@ -63,7 +63,7 @@ export function hasAccess(user, activeRoles = [], roles = []) {
     return true;
   }
 
-  if (user.global_role === "platform_admin") {
+  if (user.global_role === "platform_admin" && roles.includes("platform_admin")) {
     return true;
   }
 

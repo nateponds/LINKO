@@ -25,9 +25,11 @@ test("allowedNext gates the Delivery Failed edge on fail count", () => {
   assert.deepEqual(allowedNext("Delivery Failed", 3), ["Arrived at Branch"]);
 });
 
-test("allowedNext offers Returned from Arrived at Branch only at fails>=3", () => {
+test("allowedNext locks the return leg through Out for Return at fails>=3", () => {
   assert.deepEqual(allowedNext("Arrived at Branch", 0), ["Departed Branch", "Out for Delivery"]);
-  assert.deepEqual(allowedNext("Arrived at Branch", 3), ["Departed Branch", "Out for Delivery", "Returned"]);
+  assert.deepEqual(allowedNext("Arrived at Branch", 3), ["Out for Return"]);
+  assert.deepEqual(allowedNext("Out for Return", 3), ["Returned"]);
+  assert.deepEqual(allowedNext("Out for Return", 2), []);
 });
 
 test("allowedNext locks terminal statuses", () => {
@@ -49,6 +51,10 @@ test("selectableTrackingStatuses binds privileged users to the map plus Cancelle
     "Out for Delivery",
     "Cancelled",
   ]);
+  assert.deepEqual(selectableTrackingStatuses("Out for Return", true, 3), [
+    "Returned",
+    "Cancelled",
+  ]);
   assert.deepEqual(selectableTrackingStatuses("Delivered", true), []);
 });
 
@@ -61,6 +67,7 @@ test("selectableTrackingStatuses never offers Cancelled to couriers", () => {
 test("isReturning flags the post-3rd-fail leg until Returned", () => {
   assert.equal(isReturning("Delivery Failed", 3), true);
   assert.equal(isReturning("Arrived at Branch", 3), true);
+  assert.equal(isReturning("Out for Return", 3), true);
   assert.equal(isReturning("Returned", 3), false);
   assert.equal(isReturning("Out for Delivery", 2), false);
 });

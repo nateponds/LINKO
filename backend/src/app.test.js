@@ -181,7 +181,7 @@ test("unknown parcel returns 404", { skip: !hasDb }, async () => {
   assert.equal(response.status, 404);
 });
 
-test("parcel detail resolves equal tracking timestamps by insertion order", { skip: !hasDb }, async () => {
+test("parcel detail returns the seeded return journey in event order", { skip: !hasDb }, async () => {
   const cookie = await loginAs("logistics@linko.test");
   const detail = await request("/api/parcels/LKO-00000003", {
     headers: { Cookie: cookie },
@@ -190,8 +190,8 @@ test("parcel detail resolves equal tracking timestamps by insertion order", { sk
   assert.equal(detail.status, 200);
   assert.equal(detail.body.current_status, "Returned");
   assert.deepEqual(
-    detail.body.tracking_history.slice(-2).map((entry) => entry.status_update),
-    ["Arrived at Branch", "Returned"],
+    detail.body.tracking_history.slice(-3).map((entry) => entry.status_update),
+    ["Arrived at Branch", "Out for Return", "Returned"],
   );
 });
 
@@ -973,7 +973,7 @@ test("order status transitions and ownership are enforced", { skip: !hasDb }, as
     assert.equal(buyerAccept.status, 403);
 
     // Wholesalers can never set delivered -- that's the courier's scan
-    // (docs/delivery-status-logistics.md) -- so this 403s before transition
+    // (docs/API_CONTRACTS.md §3.6) -- so this 403s before transition
     // validity is even considered.
     const wholesalerDelivers = await request(`/api/orders/${orderId}/status`, {
       method: "PATCH",
@@ -1072,7 +1072,7 @@ test("platform admin can view all orders and override order status", { skip: !ha
     assert.equal(adminList.status, 200);
     assert.ok(adminList.body.some((order) => order.order_id === orderId));
 
-    // Admin override (docs/delivery-status-logistics.md): valid transitions
+    // Admin override (docs/API_CONTRACTS.md §2c.4): valid transitions
     // succeed with full side effects...
     const adminAccept = await request(`/api/orders/${orderId}/status`, {
       method: "PATCH",
@@ -1155,6 +1155,74 @@ test("platform admin can view all orders and override order status", { skip: !ha
   }
 });
 
+test("shipped -> cancelled is an admin-only manual override (Sprint 11)", { skip: !hasDb }, async () => {
+  const wholesalerCookie = await loginAs("wholesaler@linko.test");
+  const buyerCookie = await loginAs("buyer@linko.test");
+  const adminCookie = await loginAs("admin@linko.test");
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+  let orderId;
+  let productId;
+
+  try {
+    productId = await createTestProduct(pool, { stock_quantity: 4, unit_price: 30 });
+    const created = await postJson("/api/orders", buyerCookie, {
+      tier_id: 1, items: [{ product_id: productId, quantity: 2 }],
+    });
+    assert.equal(created.status, 201);
+    orderId = created.body.order_id;
+
+    for (const status of ["accepted", "preparing"]) {
+      const step = await request(`/api/orders/${orderId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Cookie: wholesalerCookie },
+        body: JSON.stringify({ status }),
+      });
+      assert.equal(step.status, 200, `wholesaler should reach ${status}`);
+    }
+    const shipped = await request(`/api/orders/${orderId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: wholesalerCookie },
+      body: JSON.stringify({ status: "shipped", weight_kg: 2.0 }),
+    });
+    assert.equal(shipped.status, 200);
+
+    // Neither the buyer (post-shipment) nor the wholesaler can cancel --
+    // this is an admin-only manual escape hatch.
+    const buyerCancels = await request(`/api/orders/${orderId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: buyerCookie },
+      body: JSON.stringify({ status: "cancelled" }),
+    });
+    assert.equal(buyerCancels.status, 403);
+
+    const wholesalerCancels = await request(`/api/orders/${orderId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: wholesalerCookie },
+      body: JSON.stringify({ status: "cancelled" }),
+    });
+    assert.equal(wholesalerCancels.status, 403);
+
+    const adminCancels = await request(`/api/orders/${orderId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: adminCookie },
+      body: JSON.stringify({ status: "cancelled" }),
+    });
+    assert.equal(adminCancels.status, 200);
+    assert.equal(adminCancels.body.status, "cancelled");
+  } finally {
+    if (orderId) {
+      await pool.query("DELETE FROM parcels WHERE order_id = $1", [orderId]);
+      await pool.query("DELETE FROM order_items WHERE order_id = $1", [orderId]);
+      await pool.query("DELETE FROM orders WHERE order_id = $1", [orderId]);
+    }
+    if (productId) {
+      await pool.query("DELETE FROM products WHERE product_id = $1", [productId]);
+    }
+    await pool.end();
+  }
+});
+
 test("3-fail return path: count-gated edges, auto-POD, split order side effects", { skip: !hasDb }, async () => {
   const courierCookie = await loginAs("courier@linko.test");
   const { createPool } = await import("./db.js");
@@ -1221,8 +1289,7 @@ test("3-fail return path: count-gated edges, auto-POD, split order side effects"
         body: JSON.stringify(body),
       });
 
-    // Couriers can no longer jump straight to Returned from Out for Delivery:
-    // the return path is fail x3 -> checkpoints back -> Returned.
+    // Couriers cannot jump straight to Returned from Out for Delivery.
     const shortcut = await scan({ status_update: "Returned" });
     assert.equal(shortcut.status, 400);
 
@@ -1276,17 +1343,40 @@ test("3-fail return path: count-gated edges, auto-POD, split order side effects"
     const blockedRetry = await scan({ status_update: "Out for Delivery" });
     assert.equal(blockedRetry.status, 400);
 
-    // fails>=3 opens the return leg: Arrived at Branch -> Returned. Departing a
-    // hub is never terminal, so there is no Departed hop before the return scan.
+    // fails>=3 opens the locked return leg. Branch-checkpoint remarks are
+    // auto-generated from branches.branch_name, not client input.
     const returnArrive = await scan({ status_update: "Arrived at Branch" });
     assert.equal(returnArrive.status, 201);
+    assert.equal(returnArrive.body.remarks, "Arrived at LINKO Cebu Central Hub");
 
-    // Terminal scan back at the sender. Remark is auto-generated proof of
-    // delivery (courier full_name -> receiver business_name), no client input.
+    const directReturn = await scan({ status_update: "Returned" });
+    assert.equal(directReturn.status, 400);
+    const blockedDeparture = await scan({ status_update: "Departed Branch" });
+    assert.equal(blockedDeparture.status, 400);
+
+    const outForReturn = await scan({ status_update: "Out for Return" });
+    assert.equal(outForReturn.status, 201);
+
+    const beforeReturnSettlement = await pool.query(
+      "SELECT status FROM orders WHERE order_id = $1",
+      [orderId],
+    );
+    assert.equal(beforeReturnSettlement.rows[0].status, "shipped");
+    const prematureSettleNotifications = await pool.query(
+      `SELECT COUNT(*)::int AS n
+         FROM notifications
+        WHERE title = 'Parcel Returned to You'
+          AND message ILIKE $1`,
+      [`%order #${orderId}%`],
+    );
+    assert.equal(prematureSettleNotifications.rows[0].n, 0);
+
+    // Terminal handoff to the sender. Remark is auto-generated proof of
+    // return (courier full_name -> sender business_name), no client input.
     const returned = await scan({ status_update: "Returned" });
     assert.equal(returned.status, 201);
     assert.equal(returned.body.status_update, "Returned");
-    assert.equal(returned.body.remarks, "Cory Courier → Sunrise Retail Cooperative");
+    assert.equal(returned.body.remarks, "Cory Courier → Cebu Fresh Wholesale");
 
     const updatedOrder = await pool.query(
       "SELECT status FROM orders WHERE order_id = $1",
@@ -1398,6 +1488,178 @@ test("non-owner status mutation is rejected before lifecycle details leak", { sk
     }
     if (foreignBusinessId) {
       await pool.query("DELETE FROM businesses WHERE business_id = $1", [foreignBusinessId]);
+    }
+    await pool.end();
+  }
+});
+
+test("PUT /api/service-tiers/:id is admin-only and validates inputs (Sprint 12)", { skip: !hasDb }, async () => {
+  const adminCookie = await loginAs("admin@linko.test");
+  const wholesalerCookie = await loginAs("wholesaler@linko.test");
+  const buyerCookie = await loginAs("buyer@linko.test");
+  const coordinatorCookie = await loginAs("logistics@linko.test");
+
+  const payload = {
+    tier_name: "Test Tier Admin Edit",
+    base_fee: 50,
+    base_rate_per_kg: 10,
+    rate_per_km: 5,
+    estimated_days: 3
+  };
+
+  // 1. Non-admin roles 403
+  for (const cookie of [wholesalerCookie, buyerCookie, coordinatorCookie]) {
+    const res = await request("/api/service-tiers/1", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Cookie: cookie },
+      body: JSON.stringify(payload),
+    });
+    assert.equal(res.status, 403);
+  }
+
+  // 2. Admin 200 (Valid)
+  const validRes = await request("/api/service-tiers/1", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Cookie: adminCookie },
+    body: JSON.stringify(payload),
+  });
+  assert.equal(validRes.status, 200);
+  assert.equal(validRes.body.tier_name, "Test Tier Admin Edit");
+  assert.equal(validRes.body.base_fee, 50);
+
+  // 3. 404 Not Found
+  const notFoundRes = await request("/api/service-tiers/9999", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Cookie: adminCookie },
+    body: JSON.stringify(payload),
+  });
+  assert.equal(notFoundRes.status, 404);
+
+  // 4. 400 Negative fee
+  const negativeFeeRes = await request("/api/service-tiers/1", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Cookie: adminCookie },
+    body: JSON.stringify({ ...payload, base_fee: -10 }),
+  });
+  assert.equal(negativeFeeRes.status, 400);
+
+  // 5. 400 estimated_days < 1
+  const zeroDaysRes = await request("/api/service-tiers/1", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Cookie: adminCookie },
+    body: JSON.stringify({ ...payload, estimated_days: 0 }),
+  });
+  assert.equal(zeroDaysRes.status, 400);
+
+  // Revert the tier 1 to its original state so we don't break other tests permanently.
+  await request("/api/service-tiers/1", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Cookie: adminCookie },
+    body: JSON.stringify({
+      tier_name: "Standard",
+      base_fee: 45,
+      base_rate_per_kg: 20,
+      rate_per_km: 2,
+      estimated_days: 5
+    }),
+  });
+});
+
+test("Frozen shipping_fee: editing a tier does not affect already-booked parcels", { skip: !hasDb }, async () => {
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+  let orderId1, orderId2;
+
+  try {
+    const buyerCookie = await loginAs("buyer@linko.test");
+    const wholesalerCookie = await loginAs("wholesaler@linko.test");
+    const adminCookie = await loginAs("admin@linko.test");
+
+    const seedRefs = await pool.query(
+      `SELECT p.product_id, st.tier_id, st.base_fee::float8
+         FROM products p
+         JOIN business_memberships m ON m.business_id = p.business_id AND m.role = 'wholesaler'
+         JOIN users u ON u.user_id = m.user_id
+         CROSS JOIN LATERAL (
+           SELECT tier_id, base_fee FROM service_tiers ORDER BY tier_id LIMIT 1
+         ) st
+        WHERE u.email = 'wholesaler@linko.test' AND p.is_active = TRUE
+        LIMIT 1`,
+    );
+    const { product_id: productId, tier_id: tierId, base_fee: originalFee } = seedRefs.rows[0];
+
+    // Book parcel 1 (BEFORE edit)
+    const created1 = await request("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: buyerCookie },
+      body: JSON.stringify({ items: [{ product_id: productId, quantity: 1 }], tier_id: tierId }),
+    });
+    orderId1 = created1.body.order_id;
+    for (const status of ["accepted", "preparing", "shipped"]) {
+      await request(`/api/orders/${orderId1}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Cookie: wholesalerCookie },
+        body: JSON.stringify(status === "shipped" ? { status, weight_kg: 1 } : { status }),
+      });
+    }
+
+    // Get parcel 1 shipping_fee
+    const parcel1 = await pool.query("SELECT shipping_fee::float8 FROM parcels WHERE order_id = $1", [orderId1]);
+    const fee1 = parcel1.rows[0].shipping_fee;
+
+    // Edit tier
+    const payload = {
+      tier_name: "Edited Tier",
+      base_fee: originalFee + 100, // Increase by 100
+      base_rate_per_kg: 20,
+      rate_per_km: 2,
+      estimated_days: 5
+    };
+    await request(`/api/service-tiers/${tierId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Cookie: adminCookie },
+      body: JSON.stringify(payload),
+    });
+
+    // Book parcel 2 (AFTER edit)
+    const created2 = await request("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: buyerCookie },
+      body: JSON.stringify({ items: [{ product_id: productId, quantity: 1 }], tier_id: tierId }),
+    });
+    orderId2 = created2.body.order_id;
+    for (const status of ["accepted", "preparing", "shipped"]) {
+      await request(`/api/orders/${orderId2}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Cookie: wholesalerCookie },
+        body: JSON.stringify(status === "shipped" ? { status, weight_kg: 1 } : { status }),
+      });
+    }
+
+    // Get parcel 2 shipping_fee
+    const parcel2 = await pool.query("SELECT shipping_fee::float8 FROM parcels WHERE order_id = $1", [orderId2]);
+    const fee2 = parcel2.rows[0].shipping_fee;
+
+    assert.notEqual(fee1, fee2);
+    assert.equal(fee2, fee1 + 100);
+
+    // Revert tier
+    await request(`/api/service-tiers/${tierId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Cookie: adminCookie },
+      body: JSON.stringify({ ...payload, base_fee: originalFee, tier_name: "Standard" }),
+    });
+
+  } finally {
+    if (orderId1) {
+      await pool.query("DELETE FROM parcels WHERE order_id = $1", [orderId1]);
+      await pool.query("DELETE FROM order_items WHERE order_id = $1", [orderId1]);
+      await pool.query("DELETE FROM orders WHERE order_id = $1", [orderId1]);
+    }
+    if (orderId2) {
+      await pool.query("DELETE FROM parcels WHERE order_id = $1", [orderId2]);
+      await pool.query("DELETE FROM order_items WHERE order_id = $1", [orderId2]);
+      await pool.query("DELETE FROM orders WHERE order_id = $1", [orderId2]);
     }
     await pool.end();
   }

@@ -232,21 +232,22 @@ function assertTransitionAllowed(auth, order, nextStatus) {
     pending: ["accepted", "cancelled"],
     accepted: ["preparing"],
     preparing: ["shipped"],
-    shipped: ["delivered", "returned"],
+    shipped: ["delivered", "returned", "cancelled"],
     delivered: [],
     cancelled: [],
     returned: [],
   };
 
   // Delivery outcomes are confirmed by parcel tracking (see
-  // docs/delivery-status-logistics.md), never by the wholesaler.
+  // docs/API_CONTRACTS.md §3.6), never by the wholesaler.
   // platform_admin keeps a manual override for stuck or legacy orders.
   const canUpdate =
     isAdmin(auth) ||
-    (nextStatus === "cancelled" && canBuyerCancel(auth, order)) ||
+    (nextStatus === "cancelled" && order.status === "pending" && canBuyerCancel(auth, order)) ||
     (canWholesalerManage(auth, order) &&
       nextStatus !== "delivered" &&
-      nextStatus !== "returned");
+      nextStatus !== "returned" &&
+      nextStatus !== "cancelled");
 
   if (!canUpdate) {
     throw createHttpError(403, "You cannot update this order status");

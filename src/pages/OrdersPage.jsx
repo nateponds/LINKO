@@ -34,28 +34,6 @@ const STATUS_LABELS = {
   canceled: "Cancelled",
 };
 
-// Every order status, in workflow order — the update dropdown lists them all.
-const ALL_STATUSES = [
-  "pending",
-  "accepted",
-  "preparing",
-  "shipped",
-  "delivered",
-  "returned",
-  "cancelled",
-];
-
-// Same transition graph the backend enforces in assertTransitionAllowed.
-const STATUS_FLOW = {
-  pending: ["accepted", "cancelled"],
-  accepted: ["preparing"],
-  preparing: ["shipped"],
-  shipped: ["delivered", "returned", "cancelled"],
-  delivered: [],
-  cancelled: [],
-  returned: [],
-};
-
 function normalizeStatus(status) {
   return String(status ?? "")
     .trim()
@@ -216,59 +194,53 @@ export default function OrdersPage() {
     }
   }
 
-  // Buyer parcel tracking is available to whoever can see the order (buyer,
-  // wholesaler, admin) once a parcel exists — a read-only modal, no logistics
-  // workspace access. Operators still have the full parcel detail page.
-  function canTrack(order) {
-    return Boolean(
-      order.parcel_id && TRACKABLE_STATUSES.has(normalizeStatus(order.status)),
-    );
-  }
-
-  // Mirrors the backend's assertTransitionAllowed: the order-status graph,
-  // filtered by what the caller's ACTIVE business may do. The dropdown shows
-  // every status; anything outside this set renders disabled.
-  function allowedTransitions(order) {
+  function actionsFor(order) {
     const status = normalizeStatus(order.status);
-    const graph = STATUS_FLOW[status] ?? [];
+    const actions = [];
 
-    // platform_admin keeps a manual override for stuck or legacy orders.
-    if (user?.global_role === "platform_admin") {
-      return graph;
+    // Buyer parcel tracking is available to whoever can see the order (buyer,
+    // wholesaler, admin) once a parcel exists — a read-only modal, no logistics
+    // workspace access. Operators still have the full parcel detail page.
+    if (order.parcel_id && TRACKABLE_STATUSES.has(status)) {
+      actions.push({ label: "Track parcel", onClick: () => openTracking(order) });
     }
 
+    if (user?.global_role === "platform_admin") {
+      return actions;
+    }
+    // Actions are scoped to the ACTIVE business only: the caller must be acting
+    // as the order's buyer/wholesaler side through their selected business.
+    // Capabilities from any unselected business grant nothing here.
     const ownsBuyerSide =
       activeBusinessId === order.buyer_business_id && activeRoles.includes("buyer");
     const ownsWholesalerSide =
       activeBusinessId === order.wholesaler_business_id &&
       activeRoles.includes("wholesaler");
 
-    return graph.filter((next) => {
-      // Buyers may only cancel (the graph already limits that to pending).
-      if (next === "cancelled" && ownsBuyerSide) return true;
-      // Delivery outcomes are confirmed by parcel tracking, and cancellation
-      // past "shipped" is an admin-only override — neither is the
-      // wholesaler's call.
-      if (
-        ownsWholesalerSide &&
-        next !== "delivered" &&
-        next !== "returned" &&
-        next !== "cancelled"
-      ) {
-        return true;
+    if (status === "pending") {
+      if (ownsWholesalerSide) {
+        actions.push({ label: "Accept", nextStatus: "accepted" });
+        actions.push({ label: "Reject", nextStatus: "cancelled" });
+      } else if (ownsBuyerSide) {
+        actions.push({ label: "Cancel", nextStatus: "cancelled" });
       }
-      return false;
-    });
-  }
-
-  function handleStatusSelect(order, value) {
-    if (!value || value === normalizeStatus(order.status)) return;
-    if (value === "shipped") {
-      // Ship collects the real weight at handoff — open the modal, don't PATCH.
-      setShipOrder(order);
-      return;
+      return actions;
     }
-    void updateOrderStatus(order.order_id, value);
+
+    if (!ownsWholesalerSide) {
+      return actions;
+    }
+
+    if (status === "accepted") {
+      actions.push({ label: "Preparing", nextStatus: "preparing" });
+    } else if (status === "preparing") {
+      // Ship collects the real weight at handoff — open the modal, don't PATCH.
+      actions.push({ label: "Ship", onClick: () => setShipOrder(order) });
+    }
+    // Past "shipped" the courier owns the parcel; delivery is confirmed by
+    // their tracking scan, not the wholesaler.
+
+    return actions;
   }
 
   return (
@@ -307,7 +279,7 @@ export default function OrdersPage() {
           ))}
         </div>
 
-        <main className="orders-table-wrap">
+        <main className="table-card">
           {loading ? (
             <div className="page-empty">Loading orders...</div>
           ) : error ? (
@@ -333,9 +305,7 @@ export default function OrdersPage() {
               </thead>
               <tbody>
                 {visibleOrders.map((order) => {
-                  const allowed = allowedTransitions(order);
-                  const currentStatus = normalizeStatus(order.status);
-                  const trackable = canTrack(order);
+                  const orderActions = actionsFor(order);
                   const disabled = updatingId === order.order_id;
 
                   return (
@@ -368,44 +338,31 @@ export default function OrdersPage() {
                         )}
                       </td>
                       <td>
-                        {trackable || allowed.length > 0 ? (
+                        {orderActions.length > 0 ? (
                           <div
                             className="order-actions"
                             aria-label={`Actions for order ${order.order_id}`}
                           >
-                            {trackable && (
+                            {orderActions.map((action) => (
                               <button
+                                key={`${action.label}-${action.nextStatus ?? "fn"}`}
                                 className="track-link action-button"
                                 type="button"
-                                onClick={() => openTracking(order)}
-                              >
-                                Track parcel
-                              </button>
-                            )}
-                            {allowed.length > 0 && (
-                              <select
-                                className="status-select"
-                                value={currentStatus}
-                                disabled={disabled}
-                                aria-label={`Update status for order ${order.order_id}`}
-                                onChange={(event) =>
-                                  handleStatusSelect(order, event.target.value)
+                                disabled={disabled && !action.onClick}
+                                onClick={
+                                  action.onClick ??
+                                  (() =>
+                                    updateOrderStatus(
+                                      order.order_id,
+                                      action.nextStatus,
+                                    ))
                                 }
                               >
-                                {ALL_STATUSES.map((statusOption) => (
-                                  <option
-                                    key={statusOption}
-                                    value={statusOption}
-                                    disabled={
-                                      statusOption !== currentStatus &&
-                                      !allowed.includes(statusOption)
-                                    }
-                                  >
-                                    {STATUS_LABELS[statusOption]}
-                                  </option>
-                                ))}
-                              </select>
-                            )}
+                                {disabled && !action.onClick
+                                  ? "Updating"
+                                  : action.label}
+                              </button>
+                            ))}
                           </div>
                         ) : (
                           <span className="muted-cell">—</span>

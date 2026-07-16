@@ -131,10 +131,10 @@ Suggested by: @nateponds
 Date added: 2026-07-10
 Area: Product / Backend
 Priority: Medium
-Related docs: `delivery-status-logistics.md`, `course-deliverable.md`
+Related docs: `API_CONTRACTS.md`, `course-deliverable.md`
 
 Description:
-Planning-only work for post-shipment buyer issues: return/refund terminology, who initiates each issue, whether orders need statuses beyond `delivered`/`cancelled` (e.g. `return_requested`, `refunded`), refund ownership and invoice display, and restock behavior for returned goods. Already resolved elsewhere: failed-delivery `Returned` maps a shipped order to terminal `returned` (`delivery-status-logistics.md`); commission reversal is not a concern — commissions/remittances were removed entirely (`course-deliverable.md`, migration `018`). No implementation before the remaining effects on orders, invoices, payments, inventory, and notifications are written down.
+Planning-only work for post-shipment buyer issues: return/refund terminology, who initiates each issue, whether orders need statuses beyond `delivered`/`cancelled` (e.g. `return_requested`, `refunded`), refund ownership and invoice display, and restock behavior for returned goods. Already resolved elsewhere: failed-delivery `Returned` maps a shipped order to terminal `returned` (`API_CONTRACTS.md` §3.6); commission reversal is not a concern — commissions/remittances were removed entirely (`course-deliverable.md`, migration `018`). No implementation before the remaining effects on orders, invoices, payments, inventory, and notifications are written down.
 
 ---
 
@@ -145,7 +145,7 @@ Suggested by: @nateponds
 Date added: 2026-07-10
 Area: Frontend / Backend
 Priority: Low
-Related docs: `delivery-status-logistics.md`
+Related docs: `API_CONTRACTS.md`
 
 Description:
 Coordinator visibility and filters for exception parcels (returned, branchless, unassigned, stalled, manually cancelled), remarks required on coordinator/admin exceptional statuses, and showing who made each exceptional update (tracking logs do not record the acting user today — only the assigned courier). Decide whether corrections stay normal tracking rows or become audit events. Courier-side restrictions and write-scope enforcement moved to Sprints 7–8.
@@ -159,7 +159,7 @@ Suggested by: @nateponds
 Date added: 2026-07-10
 Area: Backend
 Priority: Low
-Related docs: `delivery-status-logistics.md`, `LINKO_ERD.md`
+Related docs: `API_CONTRACTS.md`, `LINKO_ERD.md`
 
 Description:
 Remove `Cancelled` from parcel tracking once replacement correction/refund workflows exist: inventory every reference, pick replacements (order `cancelled`, parcel `Returned`, coordinator void, future refund state), migrate the `tracking_logs.status_update` CHECK constraint, preserve historical rows. Until then it stays a coordinator/admin-only escape hatch.
@@ -187,7 +187,7 @@ Suggested by: @nateponds
 Date added: 2026-07-10
 Area: Frontend
 Priority: Low
-Related docs: `delivery-status-logistics.md`
+Related docs: `API_CONTRACTS.md`
 
 Description:
 Link tracking info from invoice and order views beyond the Sprint 8 buyer modal, and add empty/error states for no assigned parcels, no branch pool, and terminal parcel history. Timeline label review shipped with the delivery-status work; buyer visibility, quick-action status rules, and demo script/seeds moved to Sprint 8.
