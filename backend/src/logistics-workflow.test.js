@@ -174,3 +174,111 @@ test("courier picks up from the pool and delivering the parcel completes the ord
     await pool.end();
   }
 });
+
+test("Cancelled scan requires a reason, cancels the order, notifies both parties", { skip: !hasDb }, async () => {
+  const pool = createPool();
+  let orderId;
+  try {
+    const buyerCookie = await loginAs("buyer@linko.test");
+    const wholesalerCookie = await loginAs("wholesaler@linko.test");
+    const courierCookie = await loginAs("courier@linko.test");
+    const coordinatorCookie = await loginAs("logistics@linko.test");
+
+    const seedRefs = await pool.query(
+      `SELECT p.product_id, st.tier_id
+         FROM products p
+         JOIN business_memberships m ON m.business_id = p.business_id AND m.role = 'wholesaler'
+         JOIN users u ON u.user_id = m.user_id
+         CROSS JOIN LATERAL (SELECT tier_id FROM service_tiers ORDER BY tier_id LIMIT 1) st
+        WHERE u.email = 'wholesaler@linko.test' AND p.is_active = TRUE
+        LIMIT 1`,
+    );
+    assert.ok(seedRefs.rows[0], "expected a seeded wholesaler product");
+    const { product_id: productId, tier_id: tierId } = seedRefs.rows[0];
+
+    const created = await request("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: buyerCookie },
+      body: JSON.stringify({
+        items: [{ product_id: productId, quantity: 1 }],
+        tier_id: tierId,
+      }),
+    });
+    assert.equal(created.status, 201);
+    orderId = created.body.order_id;
+
+    for (const status of ["accepted", "preparing", "shipped"]) {
+      const body = status === "shipped" ? { status, weight_kg: 2.0 } : { status };
+      const step = await request(`/api/orders/${orderId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Cookie: wholesalerCookie },
+        body: JSON.stringify(body),
+      });
+      assert.equal(step.status, 200, `wholesaler should reach ${status}`);
+    }
+
+    const parcelRow = await pool.query(
+      "SELECT parcel_id FROM parcels WHERE order_id = $1",
+      [orderId],
+    );
+    assert.ok(parcelRow.rows[0], "shipping should create a parcel");
+    const parcelId = parcelRow.rows[0].parcel_id;
+
+    // Courier cannot cancel.
+    const courierAttempt = await request(`/api/parcels/${parcelId}/tracking`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: courierCookie },
+      body: JSON.stringify({ status_update: "Cancelled", remarks: "nope" }),
+    });
+    assert.equal(courierAttempt.status, 400);
+
+    // Coordinator cancel without a reason is rejected.
+    const noReason = await request(`/api/parcels/${parcelId}/tracking`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: coordinatorCookie },
+      body: JSON.stringify({ status_update: "Cancelled" }),
+    });
+    assert.equal(noReason.status, 400);
+
+    // Coordinator cancel with a reason succeeds.
+    const cancel = await request(`/api/parcels/${parcelId}/tracking`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: coordinatorCookie },
+      body: JSON.stringify({ status_update: "Cancelled", remarks: "Buyer requested cancellation" }),
+    });
+    assert.equal(cancel.status, 201);
+
+    const order = await request(`/api/orders/${orderId}`, { headers: { Cookie: buyerCookie } });
+    assert.equal(order.body.status, "cancelled");
+
+    const buyerNotif = await request("/api/notifications", { headers: { Cookie: buyerCookie } });
+    assert.ok(
+      buyerNotif.body.some(
+        (n) => n.title === "Order Cancelled" && n.message.includes(`#${orderId}`),
+      ),
+      "buyer should be notified of the cancellation",
+    );
+    const wholesalerNotif = await request("/api/notifications", { headers: { Cookie: wholesalerCookie } });
+    assert.ok(
+      wholesalerNotif.body.some(
+        (n) => n.title === "Order Cancelled" && n.message.includes(`#${orderId}`),
+      ),
+      "wholesaler should be notified of the cancellation",
+    );
+
+    // Already-terminal parcel cannot be cancelled again.
+    const recancel = await request(`/api/parcels/${parcelId}/tracking`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: coordinatorCookie },
+      body: JSON.stringify({ status_update: "Cancelled", remarks: "again" }),
+    });
+    assert.equal(recancel.status, 400);
+  } finally {
+    if (orderId) {
+      await pool.query("DELETE FROM parcels WHERE order_id = $1", [orderId]);
+      await pool.query("DELETE FROM notifications WHERE message LIKE $1", [`%#${orderId}%`]);
+      await pool.query("DELETE FROM orders WHERE order_id = $1", [orderId]);
+    }
+    await pool.end();
+  }
+});

@@ -586,6 +586,60 @@ router.get("/service-tiers", async (_req, res) => {
   res.json(rows);
 });
 
+router.put(
+  "/service-tiers/:id",
+  requireAnyRole(["platform_admin"]),
+  async (req, res, next) => {
+    const tierId = Number(req.params.id);
+    const { tier_name, base_fee, base_rate_per_kg, rate_per_km, estimated_days } = req.body;
+
+    // Validate required fields
+    if (!tier_name || typeof tier_name !== "string" || !tier_name.trim()) {
+      return res.status(400).json({
+        error: { message: "tier_name is required" },
+      });
+    }
+
+    const numBaseFee = Number(base_fee);
+    const numBaseRate = Number(base_rate_per_kg);
+    const numRateKm = Number(rate_per_km);
+    const numDays = Number(estimated_days);
+
+    if ([numBaseFee, numBaseRate, numRateKm].some((v) => Number.isNaN(v) || v < 0)) {
+      return res.status(400).json({
+        error: { message: "base_fee, base_rate_per_kg, and rate_per_km must be numbers >= 0" },
+      });
+    }
+    if (Number.isNaN(numDays) || !Number.isInteger(numDays) || numDays < 1) {
+      return res.status(400).json({
+        error: { message: "estimated_days must be an integer >= 1" },
+      });
+    }
+
+    try {
+      const { rows } = await query(
+        `UPDATE service_tiers
+            SET tier_name = $1, base_fee = $2, base_rate_per_kg = $3,
+                rate_per_km = $4, estimated_days = $5
+          WHERE tier_id = $6
+          RETURNING tier_id, tier_name, base_fee::float8, base_rate_per_kg::float8,
+                    rate_per_km::float8, estimated_days`,
+        [tier_name.trim(), numBaseFee, numBaseRate, numRateKm, numDays, tierId],
+      );
+
+      if (!rows.length) {
+        return res.status(404).json({
+          error: { message: "Service tier not found" },
+        });
+      }
+
+      res.json(rows[0]);
+    } catch (error) {
+      next(asClientError(error));
+    }
+  },
+);
+
 router.get("/branches", async (_req, res) => {
   const { rows } = await query(`
     SELECT b.branch_id, b.branch_name, b.contact_number,
@@ -755,6 +809,15 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
     // the receiver business; Returned names the sender business that physically
     // receives the parcel back. Businesses, not individual users, are the parcel
     // parties. Coordinators/admins keep the manual-remark override.
+    // Cancelled is coordinator/admin-only (never courier-submitted) and, unlike
+    // Delivered/Returned, has no account data to auto-generate a reason from --
+    // the remark IS the cancellation reason, so it's required here explicitly.
+    if (status_update === "Cancelled" && !(typeof remarks === "string" && remarks.trim())) {
+      const error = new Error("remarks (cancellation reason) is required to cancel a parcel");
+      error.statusCode = 400;
+      throw error;
+    }
+
     let effectiveRemarks = typeof remarks === "string" && remarks.trim() ? remarks.trim() : null;
     if (
       !isPrivileged &&
@@ -815,7 +878,7 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
         [parcelId],
       );
     }
-    if (status_update === "Returned") {
+    if (status_update === "Returned" || status_update === "Cancelled") {
       await client.query(
         `UPDATE payments
             SET payment_status = 'Failed'
@@ -904,6 +967,29 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
           `Order #${order.order_id} returned to sender. Parcel was received by your business.`,
           "warning",
         );
+      }
+    }
+
+    // Cancelled is a coordinator/admin override (Sprint 11), guarded on
+    // status = 'shipped' like Delivered/Returned so a cancel after some other
+    // terminal state never rewrites the order. Both parties are notified,
+    // unlike Returned's wholesaler-only notice, since neither side initiated it.
+    if (status_update === "Cancelled") {
+      const { rows: orderRows } = await client.query(
+        `UPDATE orders o
+            SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP
+           FROM parcels p
+          WHERE p.parcel_id = $1
+            AND o.order_id = p.order_id
+            AND o.status = 'shipped'
+        RETURNING o.order_id, o.buyer_business_id, o.wholesaler_business_id`,
+        [parcelId],
+      );
+      if (orderRows.length) {
+        const order = orderRows[0];
+        const message = `Order #${order.order_id} was cancelled: ${effectiveRemarks}`;
+        await notifyBusiness(client, order.buyer_business_id, "Order Cancelled", message, "warning");
+        await notifyBusiness(client, order.wholesaler_business_id, "Order Cancelled", message, "warning");
       }
     }
 

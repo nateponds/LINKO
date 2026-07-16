@@ -1,0 +1,65 @@
+@startuml
+left to right direction
+
+actor "Buyer" as Buyer
+actor "Courier" as Courier
+actor "Logistics Coordinator" as Coordinator
+actor "Administrator" as Admin
+
+rectangle "LINKO Courier & Parcel Tracking System" {
+  usecase "Register Parcel" as UC1
+  usecase "Calculate Shipping Fee" as UC2
+  usecase "Process Payment" as UC3
+  usecase "Track Own Parcel (via Order)" as UC4
+  usecase "Update Parcel Status" as UC6
+  usecase "Assign Courier to Branch" as UC7
+  usecase "Manage Service Tiers" as UC8
+  usecase "Manage Branches" as UC9
+  usecase "Manage Couriers" as UC10
+  usecase "Generate Tracking Number" as UC11
+  usecase "Record Tracking Log" as UC12
+  usecase "View Parcel Details" as UC13
+  usecase "Cancel Parcel" as UC14
+}
+
+Buyer -- UC4
+
+Courier -- UC6
+Courier -- UC13
+
+Coordinator -- UC1
+Coordinator -- UC6
+Coordinator -- UC7
+Coordinator -- UC9
+Coordinator -- UC10
+Coordinator -- UC13
+Coordinator -- UC14
+
+Admin -- UC1
+Admin -- UC6
+Admin -- UC7
+Admin -- UC8
+Admin -- UC9
+Admin -- UC10
+Admin -- UC13
+Admin -- UC14
+
+UC1 ..> UC11 : <<include>>
+UC1 ..> UC2 : <<include>>
+UC1 ..> UC3 : <<include>>
+UC1 ..> UC12 : <<include>>
+UC6 ..> UC12 : <<include>>
+UC14 ..> UC12 : <<include>>
+
+note right of UC8
+  Note: Sprint 12 limits UC8 to Edit-Only
+  (Update existing tiers). No Add/Delete.
+end note
+
+note right of UC4
+  Read-only, scoped to the buyer's own orders
+  (GET /api/parcels/:id buyer scope, API_CONTRACTS §3.6a).
+  No parcel list, no cross-order access.
+end note
+
+@enduml

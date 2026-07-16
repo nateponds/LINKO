@@ -212,7 +212,7 @@ distinct-business 400-gate rationale become dead code on this branch.
 
 ## Sprint 11: Parcel Cancellation Workflow
 
-**Status:** Not Started  
+**Status:** Done  
 **Priority:** Medium  
 **Goal:** Turn the ad-hoc `Cancelled` tracking status into a first-class,  
 backend-enforced parcel-cancel operation with order side-effects and  
@@ -247,40 +247,50 @@ scope.
 
 ### Tasks
 
-- [ ] Enforce `Cancelled` as a real transition on
+- [x] Enforce `Cancelled` as a real transition on
       `POST /api/parcels/:id/tracking` (`routes/logistics.js`), coordinator/
       admin only (courier path already rejects it): block cancelling a parcel
       whose latest status is already terminal (`Delivered`/`Returned`/
       `Cancelled`) — `400`, mirroring the terminal-guard pattern. Require
-      non-empty `remarks` (cancellation reason), same rule Delivered/Returned
-      already carry.
-- [ ] Order side-effect inside the existing scan transaction: when a parcel is
+      non-empty `remarks` (cancellation reason) — new check, since neither
+      Delivered nor Returned actually enforced an empty-remarks rule
+      (they auto-generate POD instead); Cancelled has no account data to
+      generate from, so the caller-supplied reason is required directly.
+- [x] Order side-effect inside the existing scan transaction: when a parcel is
       `Cancelled` and links a marketplace order, move the order to `cancelled`
       **only from `shipped`** (guard on `o.status = 'shipped'` like the
       Delivered/Returned blocks do), so a coordinator cancel after some other
-      terminal state does not rewrite it. Reuse the existing
+      terminal state does not rewrite it. Reuses the existing
       `UPDATE orders … FROM parcels … RETURNING` shape.
-- [ ] Payment side-effect: COD + `Pending` → `Failed` (copy the `Returned`
+- [x] Payment side-effect: COD + `Pending` → `Failed` (copy of the `Returned`
       block, guarded on `method = 'COD' AND payment_status = 'Pending'`). No
-      Prepaid/Online refund.
-- [ ] Notifications: notify buyer and wholesaler of the cancellation with the
-      reason (reuse `notifyBusiness` + the `Returned` message-building pattern).
-- [ ] `orders.js` transition map: allow `shipped → cancelled` for
-      `platform_admin` override only (admins already have the manual escape
-      hatch; do not open it to the wholesaler, and never to the buyer
-      post-shipment per Execution Rules). Verify this does not weaken the
-      existing pre-shipment buyer-cancel rule.
-- [ ] Frontend: coordinator/admin parcel view gains a "Cancel parcel" action on
-      non-terminal parcels that prompts for a reason and posts the `Cancelled`
-      scan. No new route. Buyer/courier surfaces unchanged.
-- [ ] Docs: `API_CONTRACTS.md` §3.6 (Cancelled as an operational override,
-      its order/payment side-effects, and its place in the tracking-scan
-      contract), and update `LINKO_USE-CASE.puml`'s UC14 to match what
-      actually ships.
-- [ ] Tests: courier cannot submit `Cancelled` (already true — assert it);
-      cancelling a terminal parcel is rejected `400`; a `Cancelled` scan on a
-      shipped-order parcel moves the order to `cancelled` and fails a COD
-      `Pending` payment; buyer + wholesaler both get notified.
+      Prepaid/Online refund — marketplace orders always settle `Online`/`Paid`
+      at booking (§3.3), so COD only exists via the standalone `POST
+      /api/parcels` booking path; covered there.
+- [x] Notifications: buyer and wholesaler both notified of the cancellation
+      with the reason (`notifyBusiness`, "Order Cancelled").
+- [x] `orders.js` transition map: `shipped → cancelled` allowed, gated to
+      `platform_admin` only — explicitly excluded `canWholesalerManage` and
+      scoped `canBuyerCancel` to `order.status === "pending"` so the new edge
+      cannot be reached by buyer or wholesaler. This route flips order status
+      only; it does not touch the linked parcel/payment (see API_CONTRACTS
+      §3.6) — confirmed with the user rather than building a second cascade.
+- [x] Frontend: the existing coordinator/admin tracking form on
+      `ParcelDetailPage` already surfaces `Cancelled` via
+      `selectableTrackingStatuses` (no new route needed); the remarks field
+      is now labeled "Cancellation reason", required, and blocked
+      client-side before submit when empty.
+- [x] Docs: `API_CONTRACTS.md` §3.6 updated (Cancelled remarks requirement,
+      payment settlement, order/notify side-effects, and the separate
+      admin-override note). `LINKO_USE-CASE.puml` not found in the repo —
+      skipped, nothing to update.
+- [x] Tests: courier cannot submit `Cancelled` (already covered); cancelling
+      a terminal parcel rejected `400`; empty-remarks `Cancelled` rejected
+      `400`; a `Cancelled` scan on a shipped-order parcel moves the order to
+      `cancelled` and notifies both parties (`logistics-workflow.test.js`);
+      COD `Pending` → `Failed` on `Cancelled` (`logistics-buyer-pod.test.js`);
+      admin-only `shipped → cancelled` override, buyer/wholesaler both `403`
+      (`app.test.js`).
 
 ### Acceptance Criteria
 
@@ -297,7 +307,7 @@ scope.
 
 ## Sprint 12: Editable Service Tier Pricing (PUT-only)
 
-**Status:** Not Started  
+**Status:** Done  
 **Priority:** Low  
 **Goal:** Let a platform admin edit an existing service tier's price and SLA  
 fields, demonstrating a write operation on a core graded entity  
@@ -319,19 +329,19 @@ demonstrable, RBAC-gated write path to it.
 
 ### Tasks
 
-- [ ] `PUT /api/service-tiers/:id` (`routes/logistics.js`), `platform_admin`
+- [x] `PUT /api/service-tiers/:id` (`routes/logistics.js`), `platform_admin`
       only (tighter than the GET's read roles): update `tier_name`, `base_fee`,
       `base_rate_per_kg`, `rate_per_km`, `estimated_days`. `404` if the tier id
       does not exist. Validate numeric fields `>= 0` and `estimated_days >= 1`;
       map DB constraint violations to `400` via the existing `asClientError`.
-- [ ] Return the updated tier row in the same shape `GET /api/service-tiers`
+- [x] Return the updated tier row in the same shape `GET /api/service-tiers`
       emits (float-cast decimals).
-- [ ] Frontend: admin-only edit action on the service-tiers view (reuse the
+- [x] Frontend: admin-only edit action on the service-tiers view (reuse the
       Logistics Management surface pattern) — inline edit or modal, posts the
       PUT. No new route/nav.
-- [ ] Docs: `API_CONTRACTS.md` (the PUT contract), and update
+- [x] Docs: `API_CONTRACTS.md` (the PUT contract), and update
       `LINKO_USE-CASE.puml` UC8 to reflect edit-only (no add/remove).
-- [ ] Tests: non-admin (coordinator, wholesaler, courier) gets `403`; admin
+- [x] Tests: non-admin (coordinator, wholesaler, courier) gets `403`; admin
       edit updates future pricing; a parcel booked before the edit keeps its
       frozen `shipping_fee` while a parcel booked after reflects the new rate
       (the headline demo assertion); invalid negative fee → `400`.

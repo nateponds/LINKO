@@ -377,6 +377,18 @@ test("payment lifecycle follows the method", { skip: !hasDb }, async () => {
     const failed = await getPayment(pool, codReturnedId);
     assert.equal(failed.payment_status, "Failed");
     assert.equal(failed.paid_at, null);
+
+    // ...and also fails on Cancelled (Sprint 11), from any non-terminal status.
+    const codCancelledId = await book("COD");
+    const cancelled = await postJson(
+      `/api/parcels/${codCancelledId}/tracking`,
+      coordinatorCookie,
+      { status_update: "Cancelled", remarks: "Buyer requested cancellation" },
+    );
+    assert.equal(cancelled.status, 201);
+    const cancelledPayment = await getPayment(pool, codCancelledId);
+    assert.equal(cancelledPayment.payment_status, "Failed");
+    assert.equal(cancelledPayment.paid_at, null);
   } finally {
     for (const id of parcelIds) {
       await pool.query("DELETE FROM parcels WHERE parcel_id = $1", [id]);
