@@ -50,7 +50,7 @@ const STATUS_FLOW = {
   pending: ["accepted", "cancelled"],
   accepted: ["preparing"],
   preparing: ["shipped"],
-  shipped: ["delivered", "returned"],
+  shipped: ["delivered", "returned", "cancelled"],
   delivered: [],
   cancelled: [],
   returned: [],
@@ -246,9 +246,15 @@ export default function OrdersPage() {
     return graph.filter((next) => {
       // Buyers may only cancel (the graph already limits that to pending).
       if (next === "cancelled" && ownsBuyerSide) return true;
-      // Delivery outcomes are confirmed by parcel tracking, never the
-      // wholesaler.
-      if (ownsWholesalerSide && next !== "delivered" && next !== "returned") {
+      // Delivery outcomes are confirmed by parcel tracking, and cancellation
+      // past "shipped" is an admin-only override — neither is the
+      // wholesaler's call.
+      if (
+        ownsWholesalerSide &&
+        next !== "delivered" &&
+        next !== "returned" &&
+        next !== "cancelled"
+      ) {
         return true;
       }
       return false;
