@@ -98,16 +98,18 @@ Routes referenced below all exist in `src/App.jsx` and are protected by
 1. Land on **Courier Dashboard** (`/courier`) — a courier-only route.
 2. Confirm you see **only parcels assigned to you** (not the whole network) — this is the
    ownership scope that distinguishes a courier from a coordinator.
-3. Use a **quick action** on an assigned parcel to record the next non-terminal status
-   (e.g. *Picked Up* → *In Transit* → *Out for Delivery*). These stay one-tap.
+3. Use a **quick action** on an assigned parcel to record the next status — the buttons are
+   derived from the transition map (*Picked Up* → *Arrived at Branch* → *Departed Branch* →
+   *Out for Delivery*). Every action is one tap with a fixed remark; **Delivery Failed**
+   swaps in a canned reason pick-list (nobody home / refused / bad address) — no free text.
 4. Open the parcel detail (`/logistics/:parcelId`) to see the tracking history update.
-5. Record **Delivered** on the final parcel. The quick action now **prompts for proof of
-   delivery** ("received by (name)") — a terminal scan without remarks is rejected (`400`).
-   Enter a name and confirm it moves to the delivered state. The parcel detail form labels the
-   remarks field per status ("Received by" for Delivered, "Failure reason" for Returned) and
-   requires it for those two. For a **failed delivery**, recording **Returned** likewise
-   prompts for a failure reason.
-6. Re-open the parcel to confirm the full tracking chain is present and the POD/failure remark
+5. Record **Delivered** on the final parcel. The proof-of-delivery remark is
+   **auto-generated from accounts** ("{courier name} → {receiver business}") — no typing.
+6. Return path: after **3× Delivery Failed** the retry option closes and the parcel retraces
+   branch checkpoints back to the sender — the detail page shows the red **returning** cue —
+   until **Returned**, the terminal scan at the sender. Seeded parcel `LKO-00000003` carries
+   the full 3-fail → return journey for a read-only walkthrough.
+7. Re-open the parcel to confirm the full tracking chain is present and the auto-POD remark
    shows on the terminal event.
 
 **Grader should observe:**

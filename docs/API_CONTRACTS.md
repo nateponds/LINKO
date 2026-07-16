@@ -4,107 +4,12 @@
 
 ---
 
-## 1. Inventory Domain (`/api/inventory`)
+## 1. Inventory Domain — removed
 
-### 1.1 `GET /api/inventory`
-
-Fetch all inventory items with basic product and warehouse details.
-
-**Query Parameters (Optional):**
-
-- `warehouse_id`: filter by warehouse
-- `category_id`: filter by category
-
-**Response Header:** `Content-Type: application/json`
-
-**Response Body (`200 OK`):**
-
-```json
-[
-  {
-    "item_id": 1,
-    "product": {
-      "product_id": 101,
-      "product_name": "Premium Industrial Valves",
-      "sku": "VALVE-500X",
-      "category": {
-        "category_id": 3,
-        "category_name": "Plumbing & Piping"
-      },
-      "description": "Standard heavy-duty steel valves"
-    },
-    "warehouse": {
-      "warehouse_id": 5,
-      "warehouse_name": "Manila Sortation Center",
-      "city": "Manila"
-    },
-    "quantity": 150,
-    "unit": "pcs",
-    "reorder_threshold": 20,
-    "status": "In Stock",
-    "created_at": "2026-06-21T04:00:00Z"
-  }
-]
-```
-
-### 1.2 `POST /api/inventory`
-
-Add product stock at a specific warehouse location.
-
-**Request Header:** `Content-Type: application/json`
-
-**Request Body:**
-
-```json
-{
-  "product_id": 101,
-  "warehouse_id": 5,
-  "quantity": 100,
-  "unit": "pcs",
-  "reorder_threshold": 15
-}
-```
-
-**Response Body (`201 Created`):**
-
-```json
-{
-  "item_id": 2,
-  "product_id": 101,
-  "warehouse_id": 5,
-  "quantity": 100,
-  "unit": "pcs",
-  "reorder_threshold": 15,
-  "created_at": "2026-06-21T04:41:00Z"
-}
-```
-
-### 1.3 `PATCH /api/inventory/:id`
-
-Modify stock count, reorder limits, or units.
-
-**Request Body:**
-
-```json
-{
-  "quantity": 120,
-  "reorder_threshold": 25
-}
-```
-
-**Response Body (`200 OK`):**
-
-```json
-{
-  "item_id": 2,
-  "product_id": 101,
-  "warehouse_id": 5,
-  "quantity": 120,
-  "unit": "pcs",
-  "reorder_threshold": 25,
-  "updated_at": "2026-06-21T04:42:00Z"
-}
-```
+The warehouse-level inventory subsystem (`/api/inventory`, `inventory_items`,
+`inventory_transactions`) was phased out in migration `019`. The app never
+adopted it: stock is tracked as `products.stock_quantity` and edited through
+`/api/products` (§2b). See that section for the shipped stock CRUD.
 
 ---
 
@@ -368,10 +273,13 @@ List parcels with derived current status, most recently scanned first. Row visib
     "shipping_fee": 318.15,
     "estimated_delivery_date": "2026-07-04",
     "current_status": "Out for Delivery",
-    "last_scanned_at": "2026-07-05T09:47:21.662Z"
+    "last_scanned_at": "2026-07-05T09:47:21.662Z",
+    "failed_attempts": 0
   }
 ]
 ```
+
+`failed_attempts` is the derived count of `'Delivery Failed'` tracking rows for the parcel (never stored on the parcel row); the courier dashboard uses it to gate the retry vs return-leg actions.
 
 ### 3.2 `GET /api/parcels/:id`
 
@@ -478,17 +386,30 @@ Roles: `courier`, `logistics_coordinator`, `platform_admin`. Appends a tracking 
 { "status_update": "Picked Up", "remarks": "optional", "branch_id": null, "courier_id": null }
 ```
 
-`status_update` is one of `Order Created | Picked Up | In Transit | Out for Delivery | Delivered | Returned | Cancelled`; anything else returns `400`. For courier-role callers, `Cancelled` is rejected with `400` because cancellation is not a normal field delivery outcome. `Cancelled` remains temporarily available only to logistics coordinators and platform admins as an operational correction.
+`status_update` is one of `Order Created | Picked Up | Arrived at Branch | Departed Branch | Out for Delivery | Delivery Failed | Delivered | Returned | Cancelled`; anything else returns `400`. (`In Transit` was removed in migration 020 — with branch checkpoints, "Departed X not yet Arrived Y" *is* in transit.) For courier-role callers, `Cancelled` is rejected with `400` because cancellation is not a normal field delivery outcome. `Cancelled` remains temporarily available only to logistics coordinators and platform admins as an operational correction.
 
 Courier identity is server-side: a courier caller's scan is stamped with their own linked `couriers.user_id` row and assigned handling branch, and any body `courier_id` / `branch_id` is ignored (a courier without a linked row gets `403`). Coordinators/admins may pass an explicit `courier_id` and `branch_id` (or none). If no branch is supplied, the API carries forward the latest non-null branch for that parcel; if no courier is supplied by a coordinator/admin, the scan deliberately unassigns the parcel back to that branch pool. A courier's first scan on a pool parcel (`Picked Up`) is the claim that assigns it to them.
 
-Courier-role updates are forward-only across `Order Created → Picked Up → In Transit → Out for Delivery → Delivered/Returned`. A courier cannot append an earlier lifecycle phase, cannot submit `Cancelled`, and cannot append any update after `Delivered` or `Returned`. Coordinators/admins may still override status history for operational corrections, including temporary `Cancelled` parcel logs.
+Courier-role updates follow an explicit **transition map** (migration 020 — the flow is non-linear, so the old forward-only integer rank is gone):
 
-**Proof-of-delivery remarks (Sprint 8):** for **courier-role** callers, a `Delivered` or `Returned` scan **requires** non-empty `remarks` ("Received by <name>" / failure reason) or the request is rejected with `400`. Coordinators and platform admins are **exempt** — the missing-remarks path is left open deliberately so they retain the operational-correction escape hatch (a terminal scan may need correcting without fabricating POD text).
+```
+Order Created     → Picked Up
+Picked Up         → Arrived at Branch | Out for Delivery
+Arrived at Branch → Departed Branch
+Departed Branch   → Arrived at Branch | Out for Delivery | Returned
+Out for Delivery  → Delivered | Delivery Failed
+Delivery Failed   → Out for Delivery      (fail count < 3)   [retry]
+                  → Arrived at Branch     (fail count = 3)   [return leg begins]
+Delivered / Returned / Cancelled → terminal
+```
+
+The `Delivery Failed` edge is count-aware: the fail count is derived from `tracking_logs` (never stored on `parcels`) and **gates the transition** — it never auto-writes `Returned`. After the 3rd fail the parcel physically retraces branch checkpoints back to the sender using the same `Arrived at Branch` / `Departed Branch` statuses; `Returned` is the terminal scan at the sender. A courier cannot submit `Cancelled` and cannot append any update after `Delivered` or `Returned`; a move not on an edge returns `400`. Coordinators/admins may still override status history for operational corrections, including temporary `Cancelled` parcel logs.
+
+**Auto proof-of-delivery (migration 020, replaces the Sprint 8 remarks requirement):** for **courier-role** callers, a `Delivered` or `Returned` scan **auto-generates** `remarks` from accounts — `"{couriers.full_name} → {businesses.business_name}"` (receiver business of the parcel; a person name would be fabricated POD since `businesses`↔`users` is many-to-many). Any client-sent remarks on those scans are replaced. `Delivery Failed` scans carry a canned failure reason from the UI pick-list. Coordinators and platform admins keep the manual-remarks override (operational-correction escape hatch).
 
 **Payment settlement (Sprint 8):** a scan on a parcel whose payment is `COD` and still `Pending` settles inside the same transaction — `Delivered → payment_status 'Paid'` (with `paid_at`), `Returned → 'Failed'`. The update is guarded on `Pending`, so a coordinator correction after a terminal scan never rewrites an already-settled payment. Non-COD payments already settled at booking (§3.3). The payment→dispatch gate remains modeled, not enforced.
 
-Side effects on a parcel with an `order_id` are transactional and apply to courier, coordinator, and admin tracking updates. A `Delivered` scan flips a linked order from `shipped` to terminal `delivered` and notifies the buyer ("Order Delivered"). A `Returned` scan flips a linked order from `shipped` to terminal `returned` and sends warning notifications to both buyer and wholesaler. When tracking remarks are present, both returned-order messages include them. If the linked order is not `shipped`, the order update and notifications are silently skipped.
+Side effects on a parcel with an `order_id` are transactional and apply to courier, coordinator, and admin tracking updates. A `Delivered` scan flips a linked order from `shipped` to terminal `delivered` and notifies the buyer ("Order Delivered"). The return flow is **split** (migration 020): the **3rd `Delivery Failed`** scan sends warning notifications to both buyer and wholesaler ("Delivery failed after 3 attempts: {reason}. Parcel … returning to sender.") with **no order or payment change**; the final **`Returned`** scan flips a linked order from `shipped` to terminal `returned` and sends the settle confirmations ("Order #N returned to sender." — the delivery-failed wording deliberately absent, it already fired on the 3rd fail). If the linked order is not `shipped`, the order update and notifications are silently skipped.
 
 **Response Body (`201 Created`):** the inserted `tracking_logs` row.
 

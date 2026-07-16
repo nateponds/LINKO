@@ -1,36 +1,77 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { selectableTrackingStatuses } from "./statusWorkflow.js";
+import {
+  allowedNext,
+  countFailedAttempts,
+  isReturning,
+  selectableTrackingStatuses,
+} from "./statusWorkflow.js";
 
-test("selectableTrackingStatuses hides completed phases from couriers", () => {
-  assert.deepEqual(selectableTrackingStatuses("Out for Delivery", false), [
+test("allowedNext follows the transition map", () => {
+  assert.deepEqual(allowedNext("Order Created"), ["Picked Up"]);
+  assert.deepEqual(allowedNext("Picked Up"), ["Arrived at Branch", "Out for Delivery"]);
+  assert.deepEqual(allowedNext("Arrived at Branch"), ["Departed Branch", "Out for Delivery"]);
+  assert.deepEqual(allowedNext("Departed Branch"), [
+    "Arrived at Branch",
     "Out for Delivery",
-    "Delivered",
-    "Returned",
   ]);
+  assert.deepEqual(allowedNext("Out for Delivery"), ["Delivered", "Delivery Failed"]);
 });
 
-test("selectableTrackingStatuses keeps all statuses available to privileged users", () => {
+test("allowedNext gates the Delivery Failed edge on fail count", () => {
+  assert.deepEqual(allowedNext("Delivery Failed", 1), ["Out for Delivery"]);
+  assert.deepEqual(allowedNext("Delivery Failed", 2), ["Out for Delivery"]);
+  assert.deepEqual(allowedNext("Delivery Failed", 3), ["Arrived at Branch"]);
+});
+
+test("allowedNext offers Returned from Arrived at Branch only at fails>=3", () => {
+  assert.deepEqual(allowedNext("Arrived at Branch", 0), ["Departed Branch", "Out for Delivery"]);
+  assert.deepEqual(allowedNext("Arrived at Branch", 3), ["Departed Branch", "Out for Delivery", "Returned"]);
+});
+
+test("allowedNext locks terminal statuses", () => {
+  assert.deepEqual(allowedNext("Delivered"), []);
+  assert.deepEqual(allowedNext("Returned"), []);
+  assert.deepEqual(allowedNext("Cancelled"), []);
+});
+
+test("selectableTrackingStatuses binds privileged users to the map plus Cancelled", () => {
+  // Coordinators follow the same checkpoint map as couriers; their only extra
+  // move is Cancelled (never off a terminal status).
   assert.deepEqual(selectableTrackingStatuses("Out for Delivery", true), [
-    "Order Created",
-    "Picked Up",
-    "In Transit",
-    "Out for Delivery",
     "Delivered",
-    "Returned",
+    "Delivery Failed",
     "Cancelled",
   ]);
-});
-
-test("selectableTrackingStatuses locks terminal statuses for couriers", () => {
-  assert.deepEqual(selectableTrackingStatuses("Delivered", false), []);
-  assert.deepEqual(selectableTrackingStatuses("Returned", false), []);
-  assert.deepEqual(selectableTrackingStatuses("Cancelled", false), []);
+  assert.deepEqual(selectableTrackingStatuses("Arrived at Branch", true), [
+    "Departed Branch",
+    "Out for Delivery",
+    "Cancelled",
+  ]);
+  assert.deepEqual(selectableTrackingStatuses("Delivered", true), []);
 });
 
 test("selectableTrackingStatuses never offers Cancelled to couriers", () => {
-  for (const status of [null, "Order Created", "Picked Up", "In Transit", "Out for Delivery"]) {
+  for (const status of [null, "Order Created", "Departed Branch", "Out for Delivery"]) {
     assert.equal(selectableTrackingStatuses(status, false).includes("Cancelled"), false);
   }
+});
+
+test("isReturning flags the post-3rd-fail leg until Returned", () => {
+  assert.equal(isReturning("Delivery Failed", 3), true);
+  assert.equal(isReturning("Arrived at Branch", 3), true);
+  assert.equal(isReturning("Returned", 3), false);
+  assert.equal(isReturning("Out for Delivery", 2), false);
+});
+
+test("countFailedAttempts derives the count from tracking history", () => {
+  const history = [
+    { status_update: "Out for Delivery" },
+    { status_update: "Delivery Failed" },
+    { status_update: "Out for Delivery" },
+    { status_update: "Delivery Failed" },
+  ];
+  assert.equal(countFailedAttempts(history), 2);
+  assert.equal(countFailedAttempts(null), 0);
 });

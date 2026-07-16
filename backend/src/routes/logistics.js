@@ -10,26 +10,59 @@ import { notifyBusiness } from "../services/notify.js";
 
 const router = Router();
 
-const TRACKING_STATUS_RANK = {
-  "Order Created": 0,
-  "Picked Up": 1,
-  "In Transit": 2,
-  "Out for Delivery": 3,
-  Delivered: 4,
-  Returned: 4,
-  Cancelled: 4,
-};
 const VALID_TRACKING_STATUSES = [
   "Order Created",
   "Picked Up",
-  "In Transit",
+  "Arrived at Branch",
+  "Departed Branch",
   "Out for Delivery",
+  "Delivery Failed",
   "Delivered",
   "Returned",
   "Cancelled",
 ];
-const COURIER_TRACKING_STATUSES = new Set(VALID_TRACKING_STATUSES.filter((status) => status !== "Cancelled"));
 const TERMINAL_TRACKING_STATUSES = new Set(["Delivered", "Returned", "Cancelled"]);
+const RETURN_TRIGGER_FAILS = 3;
+
+// The flow is non-linear (checkpoints repeat, delivery retries, the return leg
+// retraces hubs "backwards"), so courier moves are an explicit transition map
+// rather than an integer rank. The 'Delivery Failed' edge is count-aware:
+// < 3 fails allows a retry, the 3rd fail opens the return leg — the count
+// gates the transition, it never auto-writes 'Returned'.
+const COURIER_TRANSITIONS = {
+  "Order Created": ["Picked Up"],
+  "Picked Up": ["Arrived at Branch", "Out for Delivery"],
+  // Arrived can either depart for another hub (more transit) or go straight out
+  // for delivery when this is the final hub -- no redundant Departed Branch scan
+  // right before Out for Delivery (2026-07-16 §2 clarification). The return-leg
+  // 'Returned' edge (Arrived at Branch -> Returned, fails>=3) is injected in
+  // courierAllowedNextStatuses, not here -- it is count-gated (AGENT_HANDOFF §9.2).
+  "Arrived at Branch": ["Departed Branch", "Out for Delivery"],
+  // Departed is never terminal -- it always means line-haul toward another node
+  // or the final-hub delivery run. 'Returned' is NOT an edge off Departed.
+  "Departed Branch": ["Arrived at Branch", "Out for Delivery"],
+  "Out for Delivery": ["Delivered", "Delivery Failed"],
+};
+
+export function courierAllowedNextStatuses(currentStatus, failedAttempts = 0) {
+  if (!currentStatus) return VALID_TRACKING_STATUSES.filter((s) => s !== "Cancelled");
+  if (TERMINAL_TRACKING_STATUSES.has(currentStatus)) return [];
+  if (currentStatus === "Delivery Failed") {
+    return failedAttempts >= RETURN_TRIGGER_FAILS
+      ? ["Arrived at Branch"]
+      : ["Out for Delivery"];
+  }
+  // ponytail: 'Returned' is only reachable on the return leg (fails>=3), and
+  // only from a branch arrival (the parcel is back at a hub). It is gated here,
+  // not in COURIER_TRANSITIONS, because the static map has no fail count.
+  // Ceiling: any Arrived-at-Branch scan qualifies -- the system does NOT verify
+  // the branch is the sender's serving hub. Strict-hub enforcement (a
+  // branch-service-area model) is deferred, see DETAILED_HANDOFF §7.
+  if (currentStatus === "Arrived at Branch" && failedAttempts >= RETURN_TRIGGER_FAILS) {
+    return [...COURIER_TRANSITIONS["Arrived at Branch"], "Returned"];
+  }
+  return COURIER_TRANSITIONS[currentStatus] ?? [];
+}
 
 // Course-deliverable routes (Sprint 2-CD): expose the 002/003 logistics
 // subsystem for the demo UI. Shapes documented in docs/API_CONTRACTS.md.
@@ -44,12 +77,26 @@ function asClientError(error) {
   return error;
 }
 
-export function canCourierSubmitTrackingStatus(currentStatus, nextStatus) {
-  if (!COURIER_TRACKING_STATUSES.has(nextStatus)) {
+export function canCourierSubmitTrackingStatus(currentStatus, nextStatus, failedAttempts = 0) {
+  if (nextStatus === "Cancelled") {
     return {
       allowed: false,
-      message: "Couriers cannot cancel parcels; use Returned for failed delivery outcomes.",
+      message: "Couriers cannot cancel parcels; use Delivery Failed for failed delivery outcomes.",
     };
+  }
+
+  return canSubmitTrackingStatus(currentStatus, nextStatus, failedAttempts);
+}
+
+// The checkpoint transition map binds every role -- a coordinator/admin cannot
+// skip 'Arrived at Branch'/'Departed Branch' either (handoff 2026-07-16 s2).
+// The only privileged-exclusive move is 'Cancelled', a terminal escape hatch
+// couriers are separately barred from (see canCourierSubmitTrackingStatus).
+export function canSubmitTrackingStatus(currentStatus, nextStatus, failedAttempts = 0) {
+  if (nextStatus === "Cancelled") {
+    return currentStatus && TERMINAL_TRACKING_STATUSES.has(currentStatus)
+      ? { allowed: false, message: `Cannot update terminal parcel status ${currentStatus}` }
+      : { allowed: true };
   }
 
   if (!currentStatus) return { allowed: true };
@@ -57,14 +104,15 @@ export function canCourierSubmitTrackingStatus(currentStatus, nextStatus) {
   if (TERMINAL_TRACKING_STATUSES.has(currentStatus)) {
     return {
       allowed: false,
-      message: `Courier cannot update terminal parcel status ${currentStatus}`,
+      message: `Cannot update terminal parcel status ${currentStatus}`,
     };
   }
 
-  if (TRACKING_STATUS_RANK[nextStatus] < TRACKING_STATUS_RANK[currentStatus]) {
+  const allowed = courierAllowedNextStatuses(currentStatus, failedAttempts);
+  if (!allowed.includes(nextStatus)) {
     return {
       allowed: false,
-      message: `Courier cannot move backward from ${currentStatus} to ${nextStatus}`,
+      message: `Cannot move from ${currentStatus} to ${nextStatus}; allowed next: ${allowed.join(", ")}`,
     };
   }
 
@@ -236,7 +284,10 @@ router.get("/parcels", async (req, res) => {
            p.estimated_delivery_date,
            latest.status_update AS current_status,
            latest.scanned_at    AS last_scanned_at,
-           latest.courier_id    AS latest_courier_id
+           latest.courier_id    AS latest_courier_id,
+           (SELECT COUNT(*)::int FROM tracking_logs f
+             WHERE f.parcel_id = p.parcel_id
+               AND f.status_update = 'Delivery Failed') AS failed_attempts
       FROM parcels p
       JOIN businesses s      ON s.business_id = p.sender_id
       JOIN businesses r      ON r.business_id = p.receiver_id
@@ -339,6 +390,40 @@ router.get("/parcels/:id", async (req, res) => {
     return res.status(404).json({
       error: { message: `Parcel ${req.params.id} not found` },
     });
+  }
+
+  // Buyer visibility cutoff (AGENT_HANDOFF §9.3): a caller who sees this parcel
+  // ONLY as its receiver (buyer-side) must not see the return leg. Once the
+  // return leg exists (fails >= 3), truncate their tracking_history at and
+  // including the 3rd 'Delivery Failed' row -- everything after it is the
+  // internal LINKO<->wholesaler return journey. All other callers
+  // (sender/wholesaler, courier, coordinator, admin) get the full history.
+  const isReceiverOnlyView =
+    !scope.all &&
+    !(scope.businessIds && scope.businessIds.includes(parcel.sender_id)) &&
+    scope.courierId === undefined &&
+    (scope.receiverOnlyIds?.includes(parcel.receiver_id) ?? false);
+  if (isReceiverOnlyView && Array.isArray(parcel.tracking_history)) {
+    let failsSeen = 0;
+    let cutoffIndex = -1;
+    for (let i = 0; i < parcel.tracking_history.length; i += 1) {
+      if (parcel.tracking_history[i].status_update === "Delivery Failed") {
+        failsSeen += 1;
+        if (failsSeen === 3) {
+          cutoffIndex = i;
+          break;
+        }
+      }
+    }
+    // Only truncate when the 3rd fail was actually found (return leg exists).
+    // fails < 3 -> full timeline, including in-progress retries.
+    if (cutoffIndex !== -1) {
+      parcel.current_status =
+        parcel.tracking_history[cutoffIndex].status_update;
+      parcel.latest_courier_id = null;
+      parcel.latest_branch_id = null;
+      parcel.tracking_history = parcel.tracking_history.slice(0, cutoffIndex + 1);
+    }
   }
 
   // Strip the internal-only fields used for the ownership check.
@@ -547,21 +632,6 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
     }
     effectiveCourierId = rows[0].courier_id;
     effectiveBranchId = rows[0].assigned_branch_id ?? null;
-
-    // Terminal scans are evidence-bearing: couriers must attach proof of
-    // delivery / failure reason. Coordinators and admins stay exempt so the
-    // operational-correction escape hatch keeps working.
-    if (
-      (status_update === "Delivered" || status_update === "Returned") &&
-      !(typeof remarks === "string" && remarks.trim())
-    ) {
-      return res.status(400).json({
-        error: {
-          message:
-            "Delivered/Returned scans require remarks (proof of delivery / failure reason)",
-        },
-      });
-    }
   }
 
   // Transaction: the scan and its order side effect commit together.
@@ -578,6 +648,17 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
       error.statusCode = 404;
       throw error;
     }
+
+    // Fail count is derived, never stored on parcels — parcel state lives only
+    // in tracking_logs (docs/LINKO_ERD.md design notes). It gates the courier
+    // Delivery Failed edge and fires the 3rd-fail notification below.
+    const failCount = await client.query(
+      `SELECT COUNT(*)::int AS n
+         FROM tracking_logs
+        WHERE parcel_id = $1 AND status_update = 'Delivery Failed'`,
+      [parcelId],
+    );
+    const failedAttempts = failCount.rows[0].n;
 
     // Coordinators/admins may assign branch_id/courier_id explicitly from the
     // body (unlike the courier path below, which is server-stamped) -- so
@@ -607,28 +688,21 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
       }
     }
 
+    const current = await client.query(
+      `SELECT status_update, courier_id, branch_id
+         FROM tracking_logs
+        WHERE parcel_id = $1
+        ORDER BY scanned_at DESC, log_id DESC
+        LIMIT 1`,
+      [parcelId],
+    );
+    const currentStatus = current.rows[0]?.status_update;
+
     if (!isPrivileged) {
-      const current = await client.query(
-        `SELECT status_update, courier_id, branch_id
-           FROM tracking_logs
-          WHERE parcel_id = $1
-          ORDER BY scanned_at DESC, log_id DESC
-          LIMIT 1`,
-        [parcelId],
-      );
-
-      const courierStatusRule = canCourierSubmitTrackingStatus(
-        current.rows[0]?.status_update,
-        status_update,
-      );
-      if (!courierStatusRule.allowed) {
-        const error = new Error(courierStatusRule.message);
-        error.statusCode = 400;
-        throw error;
-      }
-
       // Write scope mirrors the anti-leak GET: history on this parcel, or an
       // unassigned branch-pool match by strict equality (no NULL-to-NULL match).
+      // Checked BEFORE the transition rule so an out-of-scope courier gets 404,
+      // never a 400 that leaks the parcel's current status.
       const history = await client.query(
         `SELECT EXISTS (
            SELECT 1 FROM tracking_logs h
@@ -650,6 +724,17 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
       }
     }
 
+    // The checkpoint transition map binds every role. Couriers additionally
+    // cannot submit 'Cancelled'; that split lives in canCourierSubmitTrackingStatus.
+    const statusRule = isPrivileged
+      ? canSubmitTrackingStatus(currentStatus, status_update, failedAttempts)
+      : canCourierSubmitTrackingStatus(currentStatus, status_update, failedAttempts);
+    if (!statusRule.allowed) {
+      const error = new Error(statusRule.message);
+      error.statusCode = 400;
+      throw error;
+    }
+
     if (effectiveBranchId === null) {
       const carried = await client.query(
         `SELECT branch_id
@@ -662,13 +747,34 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
       effectiveBranchId = carried.rows[0]?.branch_id ?? null;
     }
 
+    // Terminal courier scans auto-generate the proof of delivery from accounts:
+    // "{courier full_name} → {receiver business_name}". Receiver is deliberately
+    // the business, not a person — parcels.receiver_id points at businesses and
+    // businesses↔users is many-to-many, so any single person name would be a
+    // fabricated POD. Coordinators/admins keep the manual-remark override.
+    let effectiveRemarks = typeof remarks === "string" && remarks.trim() ? remarks.trim() : null;
+    if (
+      !isPrivileged &&
+      (status_update === "Delivered" || status_update === "Returned")
+    ) {
+      const pod = await client.query(
+        `SELECT c.full_name, b.business_name
+           FROM parcels p
+           JOIN businesses b ON b.business_id = p.receiver_id
+           JOIN couriers c ON c.courier_id = $2
+          WHERE p.parcel_id = $1`,
+        [parcelId, effectiveCourierId],
+      );
+      effectiveRemarks = `${pod.rows[0].full_name} → ${pod.rows[0].business_name}`;
+    }
+
     // Coordinator/admin logs without courier_id deliberately unassign the
     // parcel back to the effective branch pool; courier_id is not carried.
     const { rows } = await client.query(
       `INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id, courier_id)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [parcelId, status_update, remarks || null, effectiveBranchId, effectiveCourierId]
+      [parcelId, status_update, effectiveRemarks, effectiveBranchId, effectiveCourierId]
     );
 
     // Terminal delivery scans complete the linked marketplace order -- the
@@ -716,6 +822,41 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
       }
     }
 
+    // Order-side effects are split across the return flow (AGENT_HANDOFF §7):
+    // the 3rd Delivery Failed notifies both parties that the return leg is
+    // beginning (no money/order change), and the final Returned scan — the
+    // terminal scan back at the sender — settles the order and payment.
+    if (status_update === "Delivery Failed" && failedAttempts + 1 === RETURN_TRIGGER_FAILS) {
+      const { rows: orderRows } = await client.query(
+        `SELECT o.order_id, o.buyer_business_id, o.wholesaler_business_id
+           FROM parcels p
+           JOIN orders o ON o.order_id = p.order_id
+          WHERE p.parcel_id = $1`,
+        [parcelId],
+      );
+      if (orderRows.length) {
+        const order = orderRows[0];
+        const reason = effectiveRemarks
+          ? effectiveRemarks.replace(/[.]+$/, "")
+          : "reason not recorded";
+        const message = `Delivery failed after 3 attempts: ${reason}. No further attempts will be made; the parcel for order #${order.order_id} is being returned to the wholesaler.`;
+        await notifyBusiness(
+          client,
+          order.buyer_business_id,
+          "Delivery Failed — Parcel Returning to Sender",
+          message,
+          "warning",
+        );
+        await notifyBusiness(
+          client,
+          order.wholesaler_business_id,
+          "Delivery Failed — Parcel Returning to Sender",
+          message,
+          "warning",
+        );
+      }
+    }
+
     if (status_update === "Returned") {
       const { rows: orderRows } = await client.query(
         `UPDATE orders o
@@ -729,29 +870,14 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
       );
       if (orderRows.length) {
         const order = orderRows[0];
-        const returnReason =
-          typeof remarks === "string"
-            ? remarks.trim().replace(/[.]+$/, "")
-            : "";
-        const buyerMessage = returnReason
-          ? `Delivery failed: ${returnReason}. Order #${order.order_id} returned to sender.`
-          : `Delivery failed — order #${order.order_id} returned to sender.`;
-        const wholesalerMessage = returnReason
-          ? `Parcel for order #${order.order_id} is returning to you. Delivery failed: ${returnReason}.`
-          : `Parcel for order #${order.order_id} is returning to you.`;
-
-        await notifyBusiness(
-          client,
-          order.buyer_business_id,
-          "Delivery Failed — Order Returned",
-          buyerMessage,
-          "warning",
-        );
+        // Buyer is deliberately NOT notified here (AGENT_HANDOFF §7 / §9.3 decision
+        // A): they went silent after the 3rd Delivery Failed, which already told
+        // them "no 4th attempt, returning to sender". Wholesaler only.
         await notifyBusiness(
           client,
           order.wholesaler_business_id,
-          "Parcel Returning to Sender",
-          wholesalerMessage,
+          "Parcel Returned to You",
+          `Order #${order.order_id} returned to sender. Parcel is back at your branch.`,
           "warning",
         );
       }
