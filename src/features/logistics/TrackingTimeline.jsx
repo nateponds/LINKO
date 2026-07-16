@@ -4,8 +4,8 @@ import "./TrackingTimeline.css";
 /* Tracking history list shared by the operator parcel detail page and the
    buyer's read-only "Track parcel" modal. Newest first for display; the API
    sends the history oldest first. Display rules (handled-by branch, deliver-to
-   destination address) live in lib/trackingTimeline.js — decision 6 in
-   docs/delivery-status-logistics.md. */
+   destination address) live in lib/trackingTimeline.js — see
+   docs/API_CONTRACTS.md §3.2/§3.6. */
 
 const longDate = (iso) =>
   iso

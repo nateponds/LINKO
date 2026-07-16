@@ -190,6 +190,14 @@ export default function InvoicePage() {
               </div>
             ) : (
               <div className="invoice-list">
+                <div className="invoice-list-header" aria-hidden="true">
+                  <span>Invoice</span>
+                  <span>Buyer</span>
+                  <span>Seller</span>
+                  <span>Issued</span>
+                  <span>Total</span>
+                  <span>Status</span>
+                </div>
                 {invoices.map((visibleInvoice) => (
                   <Link
                     className="invoice-list-row"

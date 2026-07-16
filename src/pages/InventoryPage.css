@@ -1,14 +1,27 @@
-/* Inventory page content styles, in the shared home palette (vars from shell.css).
-   Scoped under .inventory-page; the nav shell comes from AppLayout. */
+/* Inventory page, restyled to the app's modern SaaS look (matching the
+   dashboard and invoices pages): borderless full-width table, hairline
+   separators, soft dropdowns. Scoped under .inventory-page; the nav shell
+   comes from AppLayout. */
 .inventory-page {
+  & {
+    --hairline: rgba(48, 80, 160, 0.14);
+    --control-border: #dbe2ee;
+  }
+
   padding: 30px 40px 60px;
 
-  /* heading toolbar (search / filter / add); heading row itself is
-     the shared .page-head from shell.css */
+  /* heading row is the shared .page-head from shell.css; a minimal gray
+     line divides it from the product list below */
+  .page-head {
+    padding-bottom: 20px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid var(--hairline);
+  }
+
   .header-toolbar {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 12px;
     flex-wrap: wrap;
   }
 
@@ -22,20 +35,26 @@
     align-items: center;
     gap: 8px;
     height: 44px;
-    padding: 0 22px;
-    border-radius: 25px;
-    border: none;
-    background: var(--color-primary-soft);
-    color: var(--color-primary-dark);
+    padding: 0 18px;
+    border-radius: 12px;
+    border: 1px solid var(--control-border);
+    background: white;
+    color: var(--color-text);
     font-weight: 600;
-    font-size: 0.85rem;
+    font-size: 0.88rem;
     cursor: pointer;
     white-space: nowrap;
-    letter-spacing: 0.03em;
+    transition: background 0.15s ease, border-color 0.15s ease;
   }
 
   .filter-btn:hover {
-    background: #c8d7f8;
+    background: #f6f8fc;
+    border-color: #c4cfe2;
+  }
+
+  .filter-btn-icon,
+  .filter-btn-chevron {
+    color: var(--color-muted);
   }
 
   .add-btn {
@@ -43,21 +62,22 @@
     align-items: center;
     gap: 8px;
     height: 44px;
-    padding: 0 24px;
-    border-radius: 25px;
+    padding: 0 20px;
+    border-radius: 12px;
     border: none;
     background: var(--color-primary);
     color: white;
-    font-weight: 700;
-    font-size: 0.85rem;
+    font-weight: 600;
+    font-size: 0.88rem;
     cursor: pointer;
     white-space: nowrap;
-    letter-spacing: 0.03em;
     flex-shrink: 0;
+    transition: background 0.15s ease, box-shadow 0.15s ease;
   }
 
   .add-btn:hover {
     background: var(--color-primary-dark);
+    box-shadow: 0 4px 12px rgba(23, 33, 61, 0.15);
   }
 
   /* filter dropdown panel */
@@ -65,12 +85,13 @@
     display: none;
     position: absolute;
     top: calc(100% + 8px);
-    left: 0;
+    right: 0;
     background: #fff;
-    border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(23, 33, 61, 0.18);
-    padding: 16px;
-    min-width: 220px;
+    border: 1px solid var(--hairline);
+    border-radius: 12px;
+    box-shadow: 0 12px 32px rgba(23, 33, 61, 0.14);
+    padding: 18px;
+    min-width: 260px;
     z-index: 1200;
   }
 
@@ -79,7 +100,7 @@
   }
 
   .filter-group {
-    margin-bottom: 14px;
+    margin-bottom: 16px;
   }
 
   .filter-group:last-child {
@@ -88,41 +109,48 @@
 
   .filter-group h4 {
     margin: 0 0 8px 0;
-    font-size: 0.75rem;
+    font-size: 0.72rem;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.05em;
     color: var(--color-muted);
   }
 
   .filter-group select,
   .filter-group input {
     width: 100%;
-    padding: 8px 10px;
-    border-radius: 6px;
-    border: 1px solid #cbd5e6;
+    padding: 9px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--control-border);
+    background: white;
+    font-family: inherit;
     font-size: 0.9rem;
+    color: var(--color-text);
+    outline: none;
+    transition: border-color 0.15s ease;
+  }
+
+  .filter-group select:focus,
+  .filter-group input:focus {
+    border-color: var(--color-primary);
   }
 
   .filter-range {
     display: flex;
     align-items: center;
     gap: 6px;
+    color: var(--color-muted);
   }
 
   .filter-actions {
     display: flex;
     justify-content: space-between;
     gap: 8px;
-    margin-top: 14px;
+    margin-top: 16px;
   }
 
-  /* table card */
+  /* product list — borderless, straight on the page; hairlines only */
   .inventory-container {
-    background: white;
-    border: 4px solid rgba(48, 80, 160, 0.3);
-    border-radius: 8px;
-    border-top: 4px solid var(--color-accent);
-    padding: 10px 24px 24px;
     overflow-x: auto;
   }
 
@@ -133,57 +161,77 @@
 
   .inventory-table th,
   .inventory-table td {
-    padding: 15px;
-    border-bottom: 1px solid rgba(48, 80, 160, 0.16);
+    padding: 14px 12px;
+    border-bottom: 1px solid var(--hairline);
     text-align: left;
     vertical-align: middle;
   }
 
   .inventory-table th {
     color: var(--color-muted);
-    font-size: 0.85rem;
-    font-weight: 600;
+    font-size: 0.72rem;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.05em;
   }
 
   .inventory-table td {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     color: var(--color-text);
   }
 
+  .inventory-table td strong {
+    color: var(--color-primary-dark);
+    font-weight: 700;
+  }
+
+  .inventory-table tbody tr {
+    transition: background 0.12s ease;
+  }
+
+  .inventory-table tbody tr:hover {
+    background: #f6f8fc;
+  }
+
   .stock-cell {
-    display: flex;
+    min-width: 90px;
+  }
+
+  .stock-value {
+    display: inline-flex;
     align-items: center;
     gap: 12px;
+    white-space: nowrap;
+    color: var(--color-primary);
+    font-weight: 600;
+    min-width: 1.5em;
   }
 
   .stock-edit-btn {
-    width: 26px;
-    height: 26px;
+    width: 28px;
+    height: 28px;
     border: none;
     background: transparent;
-    border-radius: 6px;
+    border-radius: 8px;
     cursor: pointer;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.85rem;
+    color: var(--color-muted);
     flex-shrink: 0;
-    opacity: 0.6;
-    transition: opacity 0.15s, background 0.15s;
+    opacity: 0.7;
+    transition: opacity 0.15s, background 0.15s, color 0.15s;
   }
 
   .stock-edit-btn:hover {
     opacity: 1;
-    background: rgba(48, 80, 160, 0.12);
+    color: var(--color-primary-dark);
+    background: rgba(48, 80, 160, 0.1);
   }
 
-  .stock-value {
-    color: var(--color-primary);
-    font-weight: 600;
-    min-width: 1.5em;
-    display: inline-block;
+  .grid-empty {
+    padding: 32px 4px;
+    color: var(--color-muted);
   }
 
   /* status pills come from shell.css (.status.in-stock etc.) */
@@ -205,8 +253,8 @@
 
   .modal-box {
     background: #fff;
-    border-radius: 12px;
-    border-top: 4px solid var(--color-accent);
+    border-radius: 14px;
+    box-shadow: 0 16px 48px rgba(23, 33, 61, 0.2);
     padding: 28px 30px;
     width: 100%;
     max-width: 420px;
@@ -221,13 +269,20 @@
     right: 16px;
     border: none;
     background: none;
-    font-size: 1.2rem;
     cursor: pointer;
     color: var(--color-muted);
+    padding: 6px;
+    border-radius: 8px;
+    transition: background 0.15s ease;
+  }
+
+  .modal-close:hover {
+    background: #f6f8fc;
   }
 
   .modal-box h2 {
     margin: 0 0 18px 0;
+    font-size: 1.25rem;
     color: var(--color-primary-dark);
   }
 
@@ -240,7 +295,7 @@
   .modal-box form label {
     display: flex;
     flex-direction: column;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     font-weight: 600;
     color: var(--color-text);
     gap: 6px;
@@ -250,12 +305,13 @@
   .modal-box form select,
   .modal-box form textarea {
     font-family: inherit;
-    font-size: 0.95rem;
+    font-size: 0.92rem;
     font-weight: 400;
     padding: 10px 12px;
-    border: 1px solid #cbd5e6;
+    border: 1px solid var(--control-border);
     border-radius: 8px;
     outline: none;
+    transition: border-color 0.15s ease;
   }
 
   .modal-box form input:focus,
@@ -279,20 +335,33 @@
     border-radius: 8px;
     cursor: pointer;
     font-weight: 600;
+    font-size: 0.88rem;
+    transition: background 0.15s ease;
   }
 
   .btn-primary:hover {
     background: var(--color-primary-dark);
   }
 
+  .btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
   .btn-secondary {
-    background: var(--color-primary-soft);
-    color: var(--color-primary-dark);
-    border: none;
+    background: white;
+    color: var(--color-text);
+    border: 1px solid var(--control-border);
     padding: 10px 20px;
     border-radius: 8px;
     cursor: pointer;
     font-weight: 600;
+    font-size: 0.88rem;
+    transition: background 0.15s ease;
+  }
+
+  .btn-secondary:hover {
+    background: #f6f8fc;
   }
 
   /* stock inline edit popover */
@@ -300,12 +369,12 @@
     display: none;
     position: absolute;
     background: #fff;
-    border: 1px solid #cbd5e6;
-    border-radius: 10px;
-    box-shadow: 0 6px 20px rgba(23, 33, 61, 0.15);
-    padding: 14px;
+    border: 1px solid var(--hairline);
+    border-radius: 12px;
+    box-shadow: 0 12px 32px rgba(23, 33, 61, 0.16);
+    padding: 16px;
     z-index: 1500;
-    min-width: 180px;
+    min-width: 200px;
   }
 
   .stock-popover.open {
@@ -315,31 +384,50 @@
   .stock-popover label {
     display: flex;
     flex-direction: column;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     font-weight: 600;
     color: var(--color-text);
     gap: 6px;
   }
 
   .stock-popover input {
-    padding: 8px 10px;
-    border: 1px solid #cbd5e6;
-    border-radius: 6px;
+    padding: 9px 12px;
+    border: 1px solid var(--control-border);
+    border-radius: 8px;
     font-size: 0.9rem;
+    outline: none;
+  }
+
+  .stock-popover input:focus {
+    border-color: var(--color-primary);
   }
 
   .stock-popover-actions {
     display: flex;
     justify-content: flex-end;
     gap: 8px;
-    margin-top: 10px;
+    margin-top: 12px;
   }
 
   @media (max-width: 700px) {
     padding: 16px 12px 40px;
 
-    .inventory-container {
-      padding: 4px 12px 12px;
+    .col-sku,
+    .col-status {
+      display: none;
+    }
+
+    .add-btn-label,
+    .filter-btn-label,
+    .filter-btn-chevron {
+      display: none;
+    }
+
+    .add-btn,
+    .filter-btn {
+      padding: 0;
+      width: 44px;
+      justify-content: center;
     }
   }
 }

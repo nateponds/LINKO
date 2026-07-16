@@ -3,9 +3,8 @@
 -- (products via PATCH, invoices reserved for future edits).
 --
 -- Scope guard: this touches ONLY marketplace/001 tables. The 002/003 course
--- deliverable tables (customers, addresses-as-parcel-origins aside, branches,
--- couriers, parcels, payments, tracking_logs, commissions, remittances) are a
--- deliberately decoupled bounded context and are intentionally left untouched.
+-- deliverable tables (service_tiers, branches, couriers, parcels, payments,
+-- tracking_logs) are the logistics context and are intentionally left untouched.
 --
 -- Every statement is IF NOT EXISTS / IF EXISTS guarded so a manual replay
 -- against an already-migrated database is harmless.

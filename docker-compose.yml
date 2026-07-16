@@ -37,6 +37,8 @@ services:
       dockerfile: Dockerfile
     container_name: linko-frontend-staging
     restart: always
+    environment:
+      BACKEND_HOSTNAME: linko-backend-staging
     ports:
       - "127.0.0.1:8086:80"
 
@@ -64,5 +66,7 @@ services:
       dockerfile: Dockerfile
     container_name: linko-frontend-production
     restart: always
+    environment:
+      BACKEND_HOSTNAME: linko-backend-production
     ports:
       - "127.0.0.1:8085:80"

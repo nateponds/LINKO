@@ -18,7 +18,7 @@ import { GoChevronDown } from "react-icons/go";
 
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../auth/AuthProvider";
-import { formatRoleLabel } from "../../auth/roleAccess";
+import { formatRoleLabel, ROLE_ACCESS } from "../../auth/roleAccess";
 import Sidebar from "./Sidebar";
 
 function getIconForType(type) {
@@ -27,7 +27,7 @@ function getIconForType(type) {
   return Package;
 }
 
-function Topbar({ showSearch = false }) {
+function Topbar({ showSearch = false, showCategories = false }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [openPanel, setOpenPanel] = useState(null);
   const [notifications, setNotifications] = useState([]);
@@ -116,6 +116,9 @@ function Topbar({ showSearch = false }) {
   }, [user]);
 
   useEffect(() => {
+    // Marketplace pages only — no fetch when the dropdown is hidden.
+    if (!showCategories) return undefined;
+
     let cancelled = false;
     async function loadCategories() {
       try {
@@ -132,7 +135,7 @@ function Topbar({ showSearch = false }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [showCategories]);
 
   function selectCategory(name) {
     setOpenPanel(null);
@@ -190,45 +193,47 @@ function Topbar({ showSearch = false }) {
           LINK<span className="logo-accent">O</span>
         </Link>
 
-        <div className="dropdown-anchor">
-          <button
-            type="button"
-            className="category-dropdown"
-            aria-haspopup="true"
-            aria-expanded={openPanel === "categories"}
-            onClick={(event) => togglePanel(event, "categories")}
-          >
-            <BiMenuAltLeft size={24} className="bi-menu" /> All Categories{" "}
-            <GoChevronDown />
-          </button>
-          {openPanel === "categories" && (
-            <div
-              className="dropdown-panel category-dropdown-panel"
-              onClick={(event) => event.stopPropagation()}
+        {showCategories && (
+          <div className="dropdown-anchor">
+            <button
+              type="button"
+              className="category-dropdown"
+              aria-haspopup="true"
+              aria-expanded={openPanel === "categories"}
+              onClick={(event) => togglePanel(event, "categories")}
             >
-              <div className="dropdown-head">Browse Categories</div>
-              <nav className="dropdown-menu category-dropdown-menu">
-                <button type="button" onClick={() => selectCategory(null)}>
-                  All Categories
-                </button>
-                {categories.map((category) => (
-                  <button
-                    type="button"
-                    key={category.category_id}
-                    onClick={() => selectCategory(category.category_name)}
-                  >
-                    {category.category_name}
-                    {typeof category.product_count === "number" && (
-                      <span className="category-dropdown-count">
-                        {category.product_count}
-                      </span>
-                    )}
+              <BiMenuAltLeft size={24} className="bi-menu" /> All Categories{" "}
+              <GoChevronDown />
+            </button>
+            {openPanel === "categories" && (
+              <div
+                className="dropdown-panel category-dropdown-panel"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="dropdown-head">Browse Categories</div>
+                <nav className="dropdown-menu category-dropdown-menu">
+                  <button type="button" onClick={() => selectCategory(null)}>
+                    All Categories
                   </button>
-                ))}
-              </nav>
-            </div>
-          )}
-        </div>
+                  {categories.map((category) => (
+                    <button
+                      type="button"
+                      key={category.category_id}
+                      onClick={() => selectCategory(category.category_name)}
+                    >
+                      {category.category_name}
+                      {typeof category.product_count === "number" && (
+                        <span className="category-dropdown-count">
+                          {category.product_count}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </nav>
+              </div>
+            )}
+          </div>
+        )}
         {showSearch && (
           <form className="search" onSubmit={submitSearch} role="search">
             <input
@@ -334,9 +339,11 @@ function Topbar({ showSearch = false }) {
                   </div>
                 </div>
                 <nav className="dropdown-menu">
-                  <Link to="/dashboard" onClick={() => setOpenPanel(null)}>
-                    <LayoutDashboard size={15} /> Dashboard
-                  </Link>
+                  {hasAnyRole(ROLE_ACCESS.dashboard) && (
+                    <Link to="/dashboard" onClick={() => setOpenPanel(null)}>
+                      <LayoutDashboard size={15} /> Dashboard
+                    </Link>
+                  )}
                   {hasAnyRole(["wholesaler", "platform_admin"]) && (
                     <Link to="/inventory" onClick={() => setOpenPanel(null)}>
                       <Boxes size={15} /> Inventory

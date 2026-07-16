@@ -14,14 +14,18 @@ const parcel = {
 
 test("trackingLocationText describes branch as handling branch", () => {
   assert.equal(
-    trackingLocationText({ status_update: "In Transit", branch_name: "LINKO Cebu Central Hub" }, parcel),
+    trackingLocationText({ status_update: "Departed Branch", branch_name: "LINKO Cebu Central Hub" }, parcel),
     "handled by LINKO Cebu Central Hub",
   );
 });
 
-test("trackingLocationText does not show a branch for out-for-delivery", () => {
+test("trackingLocationText does not show a branch for delivery attempts", () => {
   assert.equal(
     trackingLocationText({ status_update: "Out for Delivery", branch_name: "LINKO Cebu Central Hub" }, parcel),
+    "",
+  );
+  assert.equal(
+    trackingLocationText({ status_update: "Delivery Failed", branch_name: "LINKO Cebu Central Hub" }, parcel),
     "",
   );
 });
