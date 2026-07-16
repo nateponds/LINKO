@@ -103,6 +103,10 @@ export default function ParcelDetailPage() {
 
   async function handleTrackingSubmit() {
     if (updating) return;
+    if (selectedStatus === "Cancelled" && !formRemarks.trim()) {
+      setUpdateError("A cancellation reason is required.");
+      return;
+    }
     setUpdating(true);
     setUpdateError(null);
     try {
@@ -271,15 +275,18 @@ export default function ParcelDetailPage() {
                           coordinator/admin override keeps a manual remarks box. */}
                       {canUpdateAssignment ? (
                         <label className="update-remarks">
-                          <span>Remarks</span>
+                          <span>{selectedStatus === "Cancelled" ? "Cancellation reason" : "Remarks"}</span>
                           <input
                             type="text"
                             value={formRemarks}
                             onChange={e => setFormRemarks(e.target.value)}
+                            required={selectedStatus === "Cancelled"}
                             placeholder={
-                              selectedStatus === "Delivered" || selectedStatus === "Returned"
-                                ? "Optional — proof of delivery is auto-generated"
-                                : "Optional delivery notes"
+                              selectedStatus === "Cancelled"
+                                ? "Required — why this parcel is being cancelled"
+                                : selectedStatus === "Delivered" || selectedStatus === "Returned"
+                                  ? "Optional — proof of delivery is auto-generated"
+                                  : "Optional delivery notes"
                             }
                           />
                         </label>

@@ -232,7 +232,7 @@ function assertTransitionAllowed(auth, order, nextStatus) {
     pending: ["accepted", "cancelled"],
     accepted: ["preparing"],
     preparing: ["shipped"],
-    shipped: ["delivered", "returned"],
+    shipped: ["delivered", "returned", "cancelled"],
     delivered: [],
     cancelled: [],
     returned: [],
@@ -243,10 +243,11 @@ function assertTransitionAllowed(auth, order, nextStatus) {
   // platform_admin keeps a manual override for stuck or legacy orders.
   const canUpdate =
     isAdmin(auth) ||
-    (nextStatus === "cancelled" && canBuyerCancel(auth, order)) ||
+    (nextStatus === "cancelled" && order.status === "pending" && canBuyerCancel(auth, order)) ||
     (canWholesalerManage(auth, order) &&
       nextStatus !== "delivered" &&
-      nextStatus !== "returned");
+      nextStatus !== "returned" &&
+      nextStatus !== "cancelled");
 
   if (!canUpdate) {
     throw createHttpError(403, "You cannot update this order status");
