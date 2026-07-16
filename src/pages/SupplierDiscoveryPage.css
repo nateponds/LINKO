@@ -217,49 +217,59 @@
   /* ------------------------------------------------------------------ */
   .home-wholesaler-row {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
   }
 
   .home-wholesaler-card {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    text-align: center;
-    gap: 8px;
+    gap: 14px;
     background: white;
-    /* border: 4px solid rgba(48, 80, 160, 0.3); */
-    border: 1px solid rgba(0, 0, 0, 0.062);
-    border-radius: 0.5rem;
-    padding: 20px 12px;
+    border: 1px solid #e8edf5;
+    border-radius: 12px;
+    padding: 16px 18px;
     text-decoration: none;
     color: inherit;
-    transition: box-shadow 0.15s ease;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease,
+      transform 0.15s ease;
   }
 
   .home-wholesaler-card:hover {
-    box-shadow: 0 10px 20px rgba(23, 33, 61, 0.1);
+    border-color: #c4cfe2;
+    box-shadow: 0 8px 20px rgba(23, 33, 61, 0.1);
+    transform: translateY(-2px);
   }
 
   .home-wholesaler-avatar {
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: white;
     font-weight: 800;
-    font-size: 1.2rem;
+    font-size: 1.15rem;
+    flex-shrink: 0;
+  }
+
+  .home-wholesaler-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
   }
 
   .home-wholesaler-name {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 5px;
     font-weight: 700;
-    font-size: 0.88rem;
-    color: var(--color-text);
+    font-size: 0.92rem;
+    color: var(--color-primary-dark);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .home-wholesaler-name .verified-badge {
@@ -268,95 +278,111 @@
   }
 
   .home-wholesaler-meta {
-    font-size: 0.76rem;
+    font-size: 0.78rem;
     color: var(--color-muted);
+  }
+
+  .home-wholesaler-arrow {
+    margin-left: auto;
+    color: var(--color-muted);
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    flex-shrink: 0;
+  }
+
+  .home-wholesaler-card:hover .home-wholesaler-arrow {
+    opacity: 1;
+    transform: translateX(0);
+    color: var(--color-primary);
   }
 
   /* ------------------------------------------------------------------ */
   /* Supplier directory grid (existing)                                   */
   /* ------------------------------------------------------------------ */
   .content-grid {
-    background: white;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 55px;
-    padding: 70px;
-  }
-
-  .supplier-box {
-    background: var(--color-card);
-    /* border: 4px solid rgba(48, 80, 160, 0.3); */
-    border: 1px solid rgba(0, 0, 0, 0.044);
-    border-radius: 8px;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .supplier-box:hover {
-    cursor: pointer;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+    padding: 20px 70px 70px;
   }
 
   /* supplier cards are router links; keep the card look */
   a.supplier-box {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    background: white;
+    border: 1px solid #e8edf5;
+    border-radius: 12px;
+    overflow: hidden;
     text-decoration: none;
     color: inherit;
-    max-width: 500px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease,
+      transform 0.15s ease;
+  }
+
+  a.supplier-box:hover {
+    border-color: #c4cfe2;
+    box-shadow: 0 8px 20px rgba(23, 33, 61, 0.1);
+    transform: translateY(-2px);
   }
 
   .supplier-box-image {
-    height: 350px;
-    background: transparent;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 1.4rem;
-    font-weight: 700;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    background: var(--color-primary-soft);
     overflow: hidden;
-    padding: 0;
-    text-align: center;
   }
 
   .supplier-box-image img {
+    display: block;
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition:
-      transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1),
-      filter 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   }
 
   .supplier-box:hover .supplier-box-image img {
     transform: scale(1.04);
-    filter: grayscale(12%) brightness(88%);
   }
 
   .supplier-box-info {
-    /* background: #eef9de; */
-    /* border-top: 4px solid #7fe04e; */
-    background: white;
-    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 16px 18px 18px;
   }
 
   .supplier-box-info h3 {
-    color: var(--color-primary-dark);
-    margin: 0 0 10px 0;
-    font-size: 1.1rem;
+    margin: 0;
     display: flex;
-    gap: 0.5rem;
+    gap: 6px;
     align-items: center;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-primary-dark);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 
     .verified-badge {
-      color: green;
+      color: var(--color-accent-dark);
+      flex-shrink: 0;
     }
   }
 
-  .supplier-box-info p {
-    margin: 5px 0;
-    font-size: 0.9rem;
+  .supplier-box-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    font-size: 0.84rem;
     color: var(--color-muted);
+  }
+
+  .supplier-box-meta svg {
+    flex-shrink: 0;
+    color: #8a94ab;
   }
 
   .grid-filter-bar {
@@ -393,14 +419,6 @@
       gap: 12px;
       padding: 16px;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .supplier-box {
-      border-radius: 2px;
-    }
-
-    .supplier-box-image {
-      height: 220px;
     }
   }
 }
