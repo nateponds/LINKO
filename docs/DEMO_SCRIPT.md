@@ -55,8 +55,8 @@ Routes referenced below all exist in `src/App.jsx` and are protected by
 5. Advance to *Preparing*, then click **Ship**. A **Ship order** modal opens and asks for the
    parcel's **weight (kg)** — this is required; submitting without it is rejected. Enter a real
    weight (e.g. `8.5`) and optional dimensions, then confirm. This is the honest-weight beat:
-   the commission bracket freezes from the weight recorded **at handoff**, while the shipping
-   fee stays the quote frozen at checkout. Shipping auto-creates the parcel (distance is left
+   the shipping fee stays the quote frozen at checkout, while the real weight is recorded
+   **at handoff**. Shipping auto-creates the parcel (distance is left
    `NULL` — checkout never measured a route).
 6. Confirm an invoice/shipment is associated with the progressed order (visible via the
    order detail and, for parcels, the logistics surface).
@@ -98,24 +98,26 @@ Routes referenced below all exist in `src/App.jsx` and are protected by
 1. Land on **Courier Dashboard** (`/courier`) — a courier-only route.
 2. Confirm you see **only parcels assigned to you** (not the whole network) — this is the
    ownership scope that distinguishes a courier from a coordinator.
-3. Use a **quick action** on an assigned parcel to record the next non-terminal status
-   (e.g. *Picked Up* → *In Transit* → *Out for Delivery*). These stay one-tap.
+3. Use a **quick action** on an assigned parcel to record the next status — the buttons are
+   derived from the transition map (*Picked Up* → *Arrived at Branch* → *Departed Branch* →
+   *Out for Delivery*). Every action is one tap with a fixed remark; **Delivery Failed**
+   swaps in a canned reason pick-list (nobody home / refused / bad address) — no free text.
 4. Open the parcel detail (`/logistics/:parcelId`) to see the tracking history update.
-5. Record **Delivered** on the final parcel. The quick action now **prompts for proof of
-   delivery** ("received by (name)") — a terminal scan without remarks is rejected (`400`).
-   Enter a name and confirm it moves to the delivered state. The parcel detail form labels the
-   remarks field per status ("Received by" for Delivered, "Failure reason" for Returned) and
-   requires it for those two. For a **failed delivery**, recording **Returned** likewise
-   prompts for a failure reason.
-6. Re-open the parcel to confirm the full tracking chain is present and the POD/failure remark
-   shows on the terminal event.
+5. Record **Delivered** on the final parcel. The proof-of-delivery remark is
+   **auto-generated from accounts** ("{courier name} → {receiver business}") — no typing.
+6. Return path: after **3× Delivery Failed** the retry option closes. The locked path is
+   **Arrived at Branch → Out for Return → Returned**. `Out for Return` means the parcel left
+   the return branch for the wholesaler; `Returned` means the wholesaler physically received
+   it. Seeded parcel `LKO-00000003` carries the full journey.
+7. Re-open the parcel to confirm the full tracking chain and the generated proof of return
+   (`courier → sender business`) on the terminal event.
 
 **Grader should observe:**
 - A courier is **scoped to assigned parcels only** (row-level ownership) — they cannot
   view or update parcels assigned to another courier.
 - Status updates append to the tracking log with the courier/branch recorded.
-- **Terminal courier scans carry evidence** — Delivered/Returned require remarks
-  (proof of delivery / failure reason); the API enforces it (`400` without).
+- **Terminal courier scans carry generated evidence** — Delivered names the receiver
+  business; Returned names the sender business. Courier free text cannot replace it.
 
 ---
 

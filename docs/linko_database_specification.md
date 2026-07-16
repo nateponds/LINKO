@@ -83,26 +83,6 @@ Physical storage locations for inventory.
 - `warehouse_name` (VARCHAR 100)
 - `address_id` (INT FK -> addresses)
 
-### `inventory_items`
-Physical quantity mapping a `product` to a `warehouse`.
-- `item_id` (SERIAL PRIMARY KEY)
-- `product_id` (INT FK -> products)
-- `warehouse_id` (INT FK -> warehouses)
-- `quantity` (INT, default 0)
-- `unit` (VARCHAR 20, default 'pcs')
-- `reorder_threshold` (INT, default 10)
-- `created_at` (TIMESTAMP)
-
-### `inventory_transactions`
-Audit trail recording stock alterations. Handled via trigger on `inventory_items`.
-- `transaction_id` (SERIAL PRIMARY KEY)
-- `item_id` (INT FK -> inventory_items)
-- `transaction_type` (VARCHAR 20, check: in, out, adjustment, transfer)
-- `quantity_change` (INT)
-- `remarks` (TEXT)
-- `created_by` (INT FK -> users)
-- `created_at` (TIMESTAMP)
-
 ### `supplier_profiles`
 Extends business profiles for wholesalers.
 - `supplier_id` (INT PK & FK -> businesses)
@@ -210,34 +190,6 @@ Settlement for a parcel (goods + shipping). `amount` is set by trigger from `par
 - `payment_status` (VARCHAR 20)
 - `amount` (DECIMAL 12,2)
 - `paid_at` (TIMESTAMP)
-
----
-
-## 5. Commissions & Platform Revenue
-
-### `commission_brackets`
-LINKO's fee structure by weight.
-- `bracket_id` (SERIAL PRIMARY KEY)
-- `min_weight_kg` (DECIMAL 6,2)
-- `max_weight_kg` (DECIMAL 6,2, nullable)
-- `fee` (DECIMAL 10,2)
-
-### `commissions`
-Platform cut per parcel, generated automatically via trigger on `parcels` insert.
-- `commission_id` (SERIAL PRIMARY KEY)
-- `parcel_id` (VARCHAR 20 FK -> parcels, UNIQUE)
-- `bracket_id` (INT FK -> commission_brackets)
-- `amount` (DECIMAL 10,2)
-- `status` (VARCHAR 20)
-- `settled_at` (TIMESTAMP)
-
-### `wholesaler_remittances` (VIEW)
-Calculates what the wholesaler nets after LINKO commission.
-- `parcel_id`
-- `wholesaler_id`
-- `gross_amount`
-- `commission`
-- `net_amount`
 
 ---
 

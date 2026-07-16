@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { BadgeCheck } from "lucide-react";
+import { BadgeCheck, MapPin, Package } from "lucide-react";
 import { apiGet } from "../../lib/api";
 
 const PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1586528116311-ad8ed745d44c?auto=format&fit=crop&q=80&w=600";
@@ -116,9 +116,11 @@ function SupplierGrid() {
                     />
                   )}
                 </h3>
-                <p>Location: {supplier.city ?? "—"}</p>
-                <p>
-                  {supplier.product_count} product
+                <p className="supplier-box-meta">
+                  <MapPin size={14} /> {supplier.city ?? "—"}
+                </p>
+                <p className="supplier-box-meta">
+                  <Package size={14} /> {supplier.product_count} product
                   {supplier.product_count === 1 ? "" : "s"}
                 </p>
               </div>

@@ -232,21 +232,22 @@ function assertTransitionAllowed(auth, order, nextStatus) {
     pending: ["accepted", "cancelled"],
     accepted: ["preparing"],
     preparing: ["shipped"],
-    shipped: ["delivered", "returned"],
+    shipped: ["delivered", "returned", "cancelled"],
     delivered: [],
     cancelled: [],
     returned: [],
   };
 
   // Delivery outcomes are confirmed by parcel tracking (see
-  // docs/delivery-status-logistics.md), never by the wholesaler.
+  // docs/API_CONTRACTS.md §3.6), never by the wholesaler.
   // platform_admin keeps a manual override for stuck or legacy orders.
   const canUpdate =
     isAdmin(auth) ||
-    (nextStatus === "cancelled" && canBuyerCancel(auth, order)) ||
+    (nextStatus === "cancelled" && order.status === "pending" && canBuyerCancel(auth, order)) ||
     (canWholesalerManage(auth, order) &&
       nextStatus !== "delivered" &&
-      nextStatus !== "returned");
+      nextStatus !== "returned" &&
+      nextStatus !== "cancelled");
 
   if (!canUpdate) {
     throw createHttpError(403, "You cannot update this order status");
@@ -471,7 +472,7 @@ router.patch(
         throw createHttpError(400, "status is required and must be a valid order status");
       }
       // Shipping is the physical handoff: the wholesaler weighs the parcel
-      // here, so the commission bracket freezes from a real measurement.
+      // here, so the shipping fee is set from a real measurement.
       if (status === "shipped" && (Number(weight_kg) <= 0 || Number.isNaN(Number(weight_kg)))) {
         throw createHttpError(400, "weight_kg must be a number greater than 0");
       }

@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import AppLayout from "../../layouts/AppLayout";
 import { apiGet, apiSend } from "../../lib/api";
 import { statusClass, shortDate } from "../../lib/format";
+import { allowedNext, ONE_TAP_REMARKS, FAIL_REASONS } from "../../lib/statusWorkflow";
 import "./logistics.css";
 
 const TERMINAL_STATUSES = ["Delivered", "Returned", "Cancelled"];
@@ -46,25 +47,25 @@ export default function CourierDashboardPage() {
     };
   }, []);
 
-  const handleQuickAction = async (parcelId, statusUpdate, e) => {
+  // Which parcel is showing the Delivery Failed reason pick-list.
+  const [failingParcelId, setFailingParcelId] = useState(null);
+
+  const handleQuickAction = async (parcelId, statusUpdate, e, remarks) => {
     e.preventDefault(); // Prevent navigating to detail page
 
-    // Terminal scans are evidence-bearing (Sprint 8): collect the proof of
-    // delivery / failure reason instead of a canned string. Non-terminal
-    // quick actions stay one-tap and send no remarks.
+    // Delivery Failed needs a canned reason first — swap the card's buttons
+    // for the reason pick-list (still one tap per action, no free text).
+    if (statusUpdate === "Delivery Failed" && remarks === undefined) {
+      setFailingParcelId(parcelId);
+      return;
+    }
+    setFailingParcelId(null);
+
+    // Delivered/Returned and branch checkpoints send no remark: the backend
+    // generates the proof of delivery / branch-name remark from accounts.
     const body = { status_update: statusUpdate };
-    if (statusUpdate === "Delivered" || statusUpdate === "Returned") {
-      const remarks = window.prompt(
-        statusUpdate === "Delivered"
-          ? "Proof of delivery — received by (name):"
-          : "Failure reason for the return:",
-      );
-      if (remarks === null) return; // cancelled
-      if (!remarks.trim()) {
-        alert(`${statusUpdate} scans require remarks.`);
-        return;
-      }
-      body.remarks = remarks.trim();
+    if (remarks ?? ONE_TAP_REMARKS[statusUpdate]) {
+      body.remarks = remarks ?? ONE_TAP_REMARKS[statusUpdate];
     }
 
     try {
@@ -124,38 +125,25 @@ export default function CourierDashboardPage() {
           <span>{p.weight_kg} kg - ETA: {shortDate(p.estimated_delivery_date)}</span>
         </div>
         <div className="parcel-card-actions">
-          {p.current_status === "Order Created" && (
-            <button
-              className="courier-action"
-              onClick={(e) => handleQuickAction(p.parcel_id, "Picked Up", e)}
-            >
-              Pick Up
-            </button>
-          )}
-          {["Picked Up", "In Transit"].includes(p.current_status) && (
-            <button
-              className="courier-action"
-              onClick={(e) => handleQuickAction(p.parcel_id, "Out for Delivery", e)}
-            >
-              Out for Delivery
-            </button>
-          )}
-          {p.current_status === "Out for Delivery" && (
-            <>
-              <button
-                className="courier-action"
-                onClick={(e) => handleQuickAction(p.parcel_id, "Returned", e)}
-              >
-                Mark Returned
-              </button>
-              <button
-                className="courier-action-primary"
-                onClick={(e) => handleQuickAction(p.parcel_id, "Delivered", e)}
-              >
-                Mark Delivered
-              </button>
-            </>
-          )}
+          {failingParcelId === p.parcel_id
+            ? FAIL_REASONS.map((reason) => (
+                <button
+                  key={reason}
+                  className="courier-action"
+                  onClick={(e) => handleQuickAction(p.parcel_id, "Delivery Failed", e, reason)}
+                >
+                  {reason}
+                </button>
+              ))
+            : allowedNext(p.current_status, p.failed_attempts).map((status) => (
+                <button
+                  key={status}
+                  className={status === "Delivered" ? "courier-action-primary" : "courier-action"}
+                  onClick={(e) => handleQuickAction(p.parcel_id, status, e)}
+                >
+                  {status}
+                </button>
+              ))}
         </div>
       </div>
     </Link>

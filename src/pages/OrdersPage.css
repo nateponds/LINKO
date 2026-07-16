@@ -1,31 +1,92 @@
 /* Orders page content styles; heading/search/table/status primitives come
    from shell.css. Scoped under .orders-page. */
 .orders-page {
+  & {
+    --hairline: rgba(48, 80, 160, 0.14);
+    --control-border: #dbe2ee;
+  }
+
   padding: 30px 40px 60px;
 
-  /* status filter tabs */
+  /* heading row is the shared .page-head from shell.css; a minimal gray
+     line divides it from the content below */
+  .page-head {
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  /* status filter tabs — flat, no shadows */
   .status-tabs {
     display: flex;
-    gap: 8px;
+    gap: 4px;
     flex-wrap: wrap;
-    margin-bottom: 20px;
+    margin: 18px 0 8px;
   }
 
   .status-tabs button {
     border: none;
-    background: white;
+    background: transparent;
     color: var(--color-muted);
     font-weight: 600;
     font-size: 0.85rem;
-    padding: 9px 20px;
+    padding: 8px 16px;
     border-radius: 20px;
     cursor: pointer;
-    box-shadow: 0 1px 4px rgba(23, 33, 61, 0.08);
+    transition: background 0.12s ease, color 0.12s ease;
+  }
+
+  .status-tabs button:hover {
+    background: #f6f8fc;
+    color: var(--color-primary-dark);
   }
 
   .status-tabs button.active {
     background: var(--color-primary);
     color: white;
+  }
+
+  /* table — flat on the page, no card, no shadow */
+  .orders-table-wrap {
+    overflow-x: auto;
+  }
+
+  .data-table th {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .data-table td {
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .data-table tbody tr:hover {
+    background: #f6f8fc;
+  }
+
+  /* status update dropdown */
+  .status-select {
+    padding: 7px 10px;
+    border: 1px solid var(--control-border);
+    border-radius: 8px;
+    background: white;
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--color-text);
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.15s ease;
+  }
+
+  .status-select:focus {
+    border-color: var(--color-primary);
+  }
+
+  .status-select:disabled {
+    color: var(--color-muted);
+    cursor: default;
   }
 
   .track-link {
@@ -50,16 +111,33 @@
   }
 
   .action-button {
-    border: none;
-    background: none;
+    border: 1px solid var(--color-primary);
+    background: #fff;
+    color: var(--color-primary);
     cursor: pointer;
-    padding: 0;
-    font: inherit;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    transition: all 0.15s ease;
+    text-decoration: none;
+    min-width: 103px;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .action-button:hover:not(:disabled) {
+    background: var(--color-primary);
+    color: #fff;
+    text-decoration: none;
   }
 
   .action-button:disabled {
-    color: var(--color-muted);
-    cursor: default;
+    color: #a0aec0;
+    border-color: #cbd5e1;
+    background: #f8fafc;
+    cursor: not-allowed;
     text-decoration: none;
   }
 
@@ -112,8 +190,8 @@
 
 .modal-overlay .modal-box {
   background: #fff;
-  border-radius: 12px;
-  border-top: 4px solid var(--color-accent);
+  border-radius: 14px;
+  box-shadow: 0 16px 48px rgba(23, 33, 61, 0.2);
   padding: 28px 30px;
   width: 100%;
   max-width: 460px;

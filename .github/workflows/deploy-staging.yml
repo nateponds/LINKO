@@ -14,10 +14,11 @@ jobs:
 
       - name: Sync Code to Hosting Path
         run: |
-          mkdir -p /mnt/Storage2_New/website-hosting/linko-platform
-          rsync -avz --exclude '.git' --exclude 'node_modules' --exclude 'backend/node_modules' ./ /mnt/Storage2_New/website-hosting/linko-platform/
+          mkdir -p /mnt/Storage2_New/website-hosting/linko-platform-staging
+          rsync -avz --delete --exclude '.git' --exclude 'node_modules' --exclude 'backend/node_modules' ./ /mnt/Storage2_New/website-hosting/linko-platform-staging/
 
       - name: Deploy Staging Services
         run: |
-          cd /mnt/Storage2_New/website-hosting/linko-platform
+          docker rm -f linko-db-staging linko-backend-staging linko-frontend-staging || true
+          cd /mnt/Storage2_New/website-hosting/linko-platform-staging
           docker compose up -d --build linko-db-staging linko-backend-staging linko-frontend-staging

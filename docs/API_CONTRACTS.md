@@ -4,107 +4,12 @@
 
 ---
 
-## 1. Inventory Domain (`/api/inventory`)
+## 1. Inventory Domain — removed
 
-### 1.1 `GET /api/inventory`
-
-Fetch all inventory items with basic product and warehouse details.
-
-**Query Parameters (Optional):**
-
-- `warehouse_id`: filter by warehouse
-- `category_id`: filter by category
-
-**Response Header:** `Content-Type: application/json`
-
-**Response Body (`200 OK`):**
-
-```json
-[
-  {
-    "item_id": 1,
-    "product": {
-      "product_id": 101,
-      "product_name": "Premium Industrial Valves",
-      "sku": "VALVE-500X",
-      "category": {
-        "category_id": 3,
-        "category_name": "Plumbing & Piping"
-      },
-      "description": "Standard heavy-duty steel valves"
-    },
-    "warehouse": {
-      "warehouse_id": 5,
-      "warehouse_name": "Manila Sortation Center",
-      "city": "Manila"
-    },
-    "quantity": 150,
-    "unit": "pcs",
-    "reorder_threshold": 20,
-    "status": "In Stock",
-    "created_at": "2026-06-21T04:00:00Z"
-  }
-]
-```
-
-### 1.2 `POST /api/inventory`
-
-Add product stock at a specific warehouse location.
-
-**Request Header:** `Content-Type: application/json`
-
-**Request Body:**
-
-```json
-{
-  "product_id": 101,
-  "warehouse_id": 5,
-  "quantity": 100,
-  "unit": "pcs",
-  "reorder_threshold": 15
-}
-```
-
-**Response Body (`201 Created`):**
-
-```json
-{
-  "item_id": 2,
-  "product_id": 101,
-  "warehouse_id": 5,
-  "quantity": 100,
-  "unit": "pcs",
-  "reorder_threshold": 15,
-  "created_at": "2026-06-21T04:41:00Z"
-}
-```
-
-### 1.3 `PATCH /api/inventory/:id`
-
-Modify stock count, reorder limits, or units.
-
-**Request Body:**
-
-```json
-{
-  "quantity": 120,
-  "reorder_threshold": 25
-}
-```
-
-**Response Body (`200 OK`):**
-
-```json
-{
-  "item_id": 2,
-  "product_id": 101,
-  "warehouse_id": 5,
-  "quantity": 120,
-  "unit": "pcs",
-  "reorder_threshold": 25,
-  "updated_at": "2026-06-21T04:42:00Z"
-}
-```
+The warehouse-level inventory subsystem (`/api/inventory`, `inventory_items`,
+`inventory_transactions`) was phased out in migration `019`. The app never
+adopted it: stock is tracked as `products.stock_quantity` and edited through
+`/api/products` (§2b). See that section for the shipped stock CRUD.
 
 ---
 
@@ -210,7 +115,7 @@ Order status lifecycle is server-enforced:
 
 `pending → accepted | cancelled`, `accepted → preparing`, `preparing → shipped`, `shipped → delivered | returned`.
 
-Invalid skips/backwards transitions return `400`. Buyers may cancel only their own pending orders. Wholesalers may accept/reject and advance only incoming orders for their business **up to `shipped`**. The terminal `delivered` and `returned` outcomes are tracking-driven: an authorized `Delivered` or `Returned` scan on the linked parcel performs the corresponding order transition (see §3.6 and `docs/delivery-status-logistics.md`). Wholesalers requesting either outcome get `403`. Platform admins can view all orders and invoices and may perform either valid transition as a manual override; a manual `returned` override notifies both businesses with generic failed-delivery wording.
+Invalid skips/backwards transitions return `400`. Buyers may cancel only their own pending orders. Wholesalers may accept/reject and advance only incoming orders for their business **up to `shipped`**. The terminal `delivered` and `returned` outcomes are tracking-driven: an authorized `Delivered` or `Returned` scan on the linked parcel performs the corresponding order transition (see §3.6). Wholesalers requesting either outcome get `403`. Platform admins can view all orders and invoices and may perform either valid transition as a manual override; a manual `returned` override notifies both businesses with generic failed-delivery wording.
 
 **Order JSON shape:**
 
@@ -270,7 +175,7 @@ Returns visible orders:
 ]
 ```
 
-`parcel_id` (Sprint 8) is the order's auto-created parcel, or `null` before the order ships. It backs the buyer's "Track parcel" modal, which then reads the parcel via `GET /api/parcels/:id` (§3.6a). Exposed on both `GET /api/orders` (what the Orders UI consumes) and `GET /api/orders/:id`.
+`parcel_id` is the order's auto-created parcel, or `null` before the order ships. It backs the buyer's "Track parcel" modal, which then reads the parcel via `GET /api/parcels/:id` (§3.6a). Exposed on both `GET /api/orders` (what the Orders UI consumes) and `GET /api/orders/:id`.
 
 ### 2c.2 `GET /api/orders/:id`
 
@@ -311,7 +216,7 @@ Roles: `buyer`, `wholesaler`, or `platform_admin` (admin acts as a manual overri
 
 Accepting an order decrements each product's `stock_quantity` in the same transaction and generates exactly one invoice. If any line lacks enough stock, the request returns `400` and neither stock nor invoices change. Rejecting an order uses status `cancelled`.
 
-Marking an order `shipped` **requires** `weight_kg` (a number > 0; missing or non-positive → `400`) and accepts optional `dimensions` — the wholesaler records the real parcel weight at the physical handoff, so the commission bracket freezes from a true measurement (Sprint 8). Shipping auto-creates a parcel (with `order_id` set, migration 009) plus its payment row and an `'Order Created'` tracking log; the parcel then appears in the courier pickup pool (§3.1). Checkout never measured a route, so `total_distance_km` is `NULL` and the ETA derives from the service tier's `estimated_days` (not a fixed `+5`). This bridge snapshots the frozen order-item subtotal into `parcels.declared_value` and keeps the tier's quoted `base_fee` as `parcels.shipping_fee` ("fee quoted at checkout, weight recorded at handoff"). The auto-created payment is `Online` and settles as `'Paid'` at ship time (§3.3). Standalone `POST /api/parcels` bookings continue to use the full weight-and-distance shipping formula.
+Marking an order `shipped` **requires** `weight_kg` (a number > 0; missing or non-positive → `400`) and accepts optional `dimensions`. Shipping auto-creates a parcel (`order_id` set, migration 009) plus its payment row and an `'Order Created'` tracking log; the parcel then appears in the courier pickup pool (§3.1). `total_distance_km` is `NULL` (checkout never measures a route); ETA derives from the service tier's `estimated_days`. `parcels.declared_value` is the frozen order-item subtotal; `parcels.shipping_fee` is the tier's quoted `base_fee`. The auto-created payment is `Online`/`'Paid'` at ship time (§3.3). Standalone `POST /api/parcels` bookings use the full weight-and-distance shipping formula instead.
 
 Returns the updated order.
 
@@ -349,7 +254,7 @@ Returns one visible invoice with item rows. Missing, non-numeric, or not-owned i
 
 ## 3. Logistics Domain (course deliverable — Sprint 2-CD)
 
-Exposes the CIS 2104 courier subsystem (migrations 002/003) for the demo UI. Money and measurement fields are JSON numbers. `current_status` is always derived from the latest `tracking_logs` row, never stored on the parcel (see `docs/LINKO_ERD.md`). Since migration 009 a parcel may carry a nullable `order_id` linking it to the marketplace order that spawned it — a deliberate, documented boundary crossing (`docs/delivery-status-logistics.md`).
+Exposes the CIS 2104 courier subsystem (migrations 002/003) for the demo UI. Money and measurement fields are JSON numbers. `current_status` is always derived from the latest `tracking_logs` row, never stored on the parcel (see `docs/LINKO_ERD.md`). Since migration 009 a parcel may carry a nullable `order_id` linking it to the marketplace order that spawned it.
 
 ### 3.1 `GET /api/parcels`
 
@@ -368,10 +273,13 @@ List parcels with derived current status, most recently scanned first. Row visib
     "shipping_fee": 318.15,
     "estimated_delivery_date": "2026-07-04",
     "current_status": "Out for Delivery",
-    "last_scanned_at": "2026-07-05T09:47:21.662Z"
+    "last_scanned_at": "2026-07-05T09:47:21.662Z",
+    "failed_attempts": 0
   }
 ]
 ```
+
+`failed_attempts` is the derived count of `'Delivery Failed'` tracking rows for the parcel (never stored on the parcel row); the courier dashboard uses it to gate the retry vs return-leg actions.
 
 ### 3.2 `GET /api/parcels/:id`
 
@@ -423,7 +331,7 @@ Parcel detail with full tracking timeline (oldest first). `404` if unknown. `bra
 
 ### 3.3 `POST /api/parcels`
 
-Book a parcel. The database fills `shipping_fee` (tier pricing trigger), `payments.amount` (goods + shipping), and the commission row. Also writes the first `'Order Created'` tracking log. `payment_status` is **method-honest**: `Prepaid` / `Online` insert as `'Paid'` with `paid_at` set at booking; `COD` starts `'Pending'` and settles later on the terminal tracking scan (§3.6). The payment→dispatch gate is modeled, not enforced (course-deliverable scope).
+Book a parcel. The database fills `shipping_fee` (tier pricing trigger) and `payments.amount` (goods + shipping). Also writes the first `'Order Created'` tracking log. `payment_status` is **method-honest**: `Prepaid` / `Online` insert as `'Paid'` with `paid_at` set at booking; `COD` starts `'Pending'` and settles later on the terminal tracking scan (§3.6). The payment→dispatch gate is modeled, not enforced (course-deliverable scope).
 
 **Request Body:**
 
@@ -443,6 +351,8 @@ Book a parcel. The database fills `shipping_fee` (tier pricing trigger), `paymen
 ```
 
 `dimensions`, `declared_value` (defaults 0), and `total_distance_km` are optional. `payment_method` ∈ `COD | Prepaid | Online`. Missing fields / bad references → `400`.
+
+New parcels are stamped into the pickup pool for the origin city: `origin_address.city_municipality` is matched case-insensitively against branch address city; no match leaves `branch_id = NULL` for manual coordinator assignment.
 
 **Response Body (`201 Created`):**
 
@@ -464,9 +374,31 @@ Book a parcel. The database fills `shipping_fee` (tier pricing trigger), `paymen
 ]
 ```
 
+### 3.4.1 `PUT /api/service-tiers/:id`
+
+Roles: `platform_admin` (edit existing tier pricing and SLAs).
+
+**Request Body:**
+
+```json
+{
+  "tier_name": "Standard Edit",
+  "base_fee": 50,
+  "base_rate_per_kg": 25,
+  "rate_per_km": 3,
+  "estimated_days": 4
+}
+```
+
+**Response (200 OK):** Matches the GET shape (returns the updated tier).
+```json
+{ "tier_id": 1, "tier_name": "Standard Edit", "base_fee": 50, "base_rate_per_kg": 25, "rate_per_km": 3, "estimated_days": 4 }
+```
+
+
 ### 3.5 (removed)
 
-`GET /api/businesses` was deleted with the standalone booking surface (Sprint 8); it fed only the retired book-a-parcel form. Section number retained so later references (§3.6) stay stable.
+`GET /api/businesses` was deleted with the standalone booking surface; it fed only the retired book-a-parcel form. Section number retained so later references (§3.6) stay stable.
 
 ### 3.6 `POST /api/parcels/:id/tracking`
 
@@ -478,22 +410,37 @@ Roles: `courier`, `logistics_coordinator`, `platform_admin`. Appends a tracking 
 { "status_update": "Picked Up", "remarks": "optional", "branch_id": null, "courier_id": null }
 ```
 
-`status_update` is one of `Order Created | Picked Up | In Transit | Out for Delivery | Delivered | Returned | Cancelled`; anything else returns `400`. For courier-role callers, `Cancelled` is rejected with `400` because cancellation is not a normal field delivery outcome. `Cancelled` remains temporarily available only to logistics coordinators and platform admins as an operational correction.
+`status_update` is one of `Order Created | Picked Up | Arrived at Branch | Departed Branch | Out for Delivery | Delivery Failed | Out for Return | Delivered | Returned | Cancelled`; anything else returns `400`. `Cancelled` is coordinator/admin-only (`400` for couriers), blocked once the parcel is already terminal, and requires non-empty `remarks` as the cancellation reason (`400` otherwise).
 
-Courier identity is server-side: a courier caller's scan is stamped with their own linked `couriers.user_id` row and assigned handling branch, and any body `courier_id` / `branch_id` is ignored (a courier without a linked row gets `403`). Coordinators/admins may pass an explicit `courier_id` and `branch_id` (or none). If no branch is supplied, the API carries forward the latest non-null branch for that parcel; if no courier is supplied by a coordinator/admin, the scan deliberately unassigns the parcel back to that branch pool. A courier's first scan on a pool parcel (`Picked Up`) is the claim that assigns it to them.
+Courier identity is server-side: a courier caller's scan is stamped with their own linked `couriers.user_id` row and assigned handling branch, and any body `courier_id` / `branch_id` is ignored (a courier without a linked row gets `403`). Admin "create courier user" inserts the linked `couriers` row in the same transaction as the user account, so this link always exists for newly provisioned couriers. Coordinators/admins may pass an explicit `courier_id` and `branch_id` (or none). If no branch is supplied, the API carries forward the latest non-null branch for that parcel; if no courier is supplied by a coordinator/admin, the scan deliberately unassigns the parcel back to that branch pool. A courier's first scan on a pool parcel (`Picked Up`) is the claim that assigns it to them.
 
-Courier-role updates are forward-only across `Order Created → Picked Up → In Transit → Out for Delivery → Delivered/Returned`. A courier cannot append an earlier lifecycle phase, cannot submit `Cancelled`, and cannot append any update after `Delivered` or `Returned`. Coordinators/admins may still override status history for operational corrections, including temporary `Cancelled` parcel logs.
+Courier-role updates follow an explicit **transition map** (migration 020 — the flow is non-linear, so the old forward-only integer rank is gone):
 
-**Proof-of-delivery remarks (Sprint 8):** for **courier-role** callers, a `Delivered` or `Returned` scan **requires** non-empty `remarks` ("Received by <name>" / failure reason) or the request is rejected with `400`. Coordinators and platform admins are **exempt** — the missing-remarks path is left open deliberately so they retain the operational-correction escape hatch (a terminal scan may need correcting without fabricating POD text).
+```
+Order Created     → Picked Up
+Picked Up         → Arrived at Branch | Out for Delivery
+Arrived at Branch → Departed Branch | Out for Delivery       (fail count < 3)
+Departed Branch   → Arrived at Branch | Out for Delivery
+Out for Delivery  → Delivered | Delivery Failed
+Delivery Failed   → Out for Delivery      (fail count < 3)   [retry]
+                  → Arrived at Branch     (fail count >= 3)  [locked return leg]
+Arrived at Branch → Out for Return        (fail count >= 3; only move)
+Out for Return    → Returned              (fail count >= 3; only move)
+Delivered / Returned / Cancelled → terminal
+```
 
-**Payment settlement (Sprint 8):** a scan on a parcel whose payment is `COD` and still `Pending` settles inside the same transaction — `Delivered → payment_status 'Paid'` (with `paid_at`), `Returned → 'Failed'`. The update is guarded on `Pending`, so a coordinator correction after a terminal scan never rewrites an already-settled payment. Non-COD payments already settled at booking (§3.3). The payment→dispatch gate remains modeled, not enforced.
+The fail count is derived from `tracking_logs` (never stored on `parcels`) and gates the transition; it never auto-writes `Returned`. After the 3rd fail, the parcel enters a one-way path: branch arrival, `Out for Return`, then physical handoff to the sender as `Returned`. Direct `Arrived at Branch → Returned`, redelivery, and hub departure are invalid on the return leg. A courier cannot submit `Cancelled` and cannot append any update after `Delivered` or `Returned`; a move not on an edge returns `400`. Coordinators/admins follow the same movement map and retain `Cancelled` as their operational correction.
 
-Side effects on a parcel with an `order_id` are transactional and apply to courier, coordinator, and admin tracking updates. A `Delivered` scan flips a linked order from `shipped` to terminal `delivered` and notifies the buyer ("Order Delivered"). A `Returned` scan flips a linked order from `shipped` to terminal `returned` and sends warning notifications to both buyer and wholesaler. When tracking remarks are present, both returned-order messages include them. If the linked order is not `shipped`, the order update and notifications are silently skipped.
+**Automatic terminal proof:** for courier callers, `Delivered` generates `courier full_name → receiver business_name`; `Returned` generates `courier full_name → sender business_name`. Any client-sent courier remarks on those terminal scans are replaced. `Arrived at Branch` generates `Arrived at {branches.branch_name}` and `Departed Branch` generates `Departed from {branches.branch_name}`, using the scan's resolved `branch_id`. `Out for Return` is non-terminal and carries the fixed one-tap movement remark. `Delivery Failed` carries a canned failure reason. Coordinators and platform admins retain manual remarks on every status, including the branch checkpoints.
+
+**Payment settlement:** a scan on a parcel whose payment is `COD` and still `Pending` settles inside the same transaction — `Delivered → 'Paid'`, `Returned`/`Cancelled → 'Failed'`. Non-COD payments settle at booking (§3.3); no refund path on cancellation.
+
+Side effects on a parcel with an `order_id` (transactional, all roles): `Delivered` → order `delivered`, notifies buyer. `Returned` → order `returned`, notifies wholesaler. `Cancelled` → order `cancelled`, notifies both buyer and wholesaler. All three guard on the order still being `shipped`. `PATCH /api/orders/:id/status` separately allows `platform_admin` to force `shipped → cancelled` directly (never buyer/wholesaler) — order-status only, no parcel/payment cascade.
 
 **Response Body (`201 Created`):** the inserted `tracking_logs` row.
 
 ### 3.6a Buyer read scope on `GET /api/parcels/:id`
 
-`GET /api/parcels/:id` gains a **buyer** scope (Sprint 8): a buyer may read a single parcel when its `receiver_id` is one of their buyer businesses — this backs the read-only "Track parcel" modal on the Orders screen. As with every other role, an out-of-scope parcel returns **404** (existence is not leaked), and the internal `sender_id` / `receiver_id` fields are stripped from the response.
+`GET /api/parcels/:id` gains a **buyer** scope: a buyer may read a single parcel when its `receiver_id` is one of their buyer businesses — this backs the read-only "Track parcel" modal on the Orders screen. As with every other role, an out-of-scope parcel returns **404** (existence is not leaked), and the internal `sender_id` / `receiver_id` fields are stripped from the response.
 
-The parcel **list** (`GET /api/parcels`) stays **operator-only**: a buyer-only caller receives an empty list — buyers can never enumerate parcels, only read their own delivery by id. The tracking **write** route (§3.6) is unchanged and still excludes `buyer`. (Sprint 9 dropped the `both` business type; a single business can no longer be both buyer and wholesaler. A user who holds both roles does so via two distinct businesses, and only the active business's roles apply to a given request.)
+The parcel **list** (`GET /api/parcels`) stays **operator-only**: a buyer-only caller receives an empty list — buyers can never enumerate parcels, only read their own delivery by id. The tracking **write** route (§3.6) is unchanged and still excludes `buyer`. A business is exactly one of buyer or wholesaler; a user holding both roles does so via two distinct businesses, and only the active business's roles apply to a given request.

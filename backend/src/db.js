@@ -23,10 +23,19 @@ export function createPool(connectionString = process.env.DATABASE_URL) {
   // the single source of truth.
   const cleanedString = connectionString.replace(/([?&])sslmode=[^&]*&?/g, "$1").replace(/[?&]$/, "");
 
-  return new Pool({
+  const pool = new Pool({
     connectionString: cleanedString,
     ssl: wantsSsl ? { rejectUnauthorized: false } : false,
   });
+
+  // Idle clients can drop (Supabase's pooler times out quiet connections);
+  // without this handler the pool's 'error' event crashes the whole process.
+  // The pool discards the dead client and opens a fresh one on next query.
+  pool.on("error", (error) => {
+    console.error("Idle Postgres client error (recovered):", error.message);
+  });
+
+  return pool;
 }
 
 let pool;

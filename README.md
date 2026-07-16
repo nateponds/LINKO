@@ -65,7 +65,7 @@ This repository contains the web application, backend scaffold, and planning doc
 - **Backend**: Node.js, Express 5, PostgreSQL, and a custom migration runner
 - **Checkpoint API Focus**: `/api/parcels`, `/api/service-tiers`, `/api/branches`, `/api/couriers`, and `/api/parcels/:id/tracking`
 - **Marketplace Expansion Areas**: `/api/inventory`, `/api/suppliers`, `/api/products`, `/api/orders`, and `/api/invoices`
-- **Database Foundation**: Users, auth, businesses/customers, addresses, service tiers, branches, couriers, parcels, tracking logs, payments, commissions, warehouses, products, inventory items, orders, invoices, and supplier profiles
+- **Database Foundation**: Users, auth, businesses/customers, addresses, service tiers, branches, couriers, parcels, tracking logs, payments, warehouses, products, inventory items, orders, invoices, and supplier profiles
 
 > [!NOTE]
 > **Status:** The courier/parcel tracking core is implemented and test-covered. Marketplace discovery, inventory, orders, and supplier workflows are layered around it and continue to expand.
