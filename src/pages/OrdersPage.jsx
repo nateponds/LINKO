@@ -194,23 +194,25 @@ export default function OrdersPage() {
     }
   }
 
-  function actionsFor(order) {
-    const status = normalizeStatus(order.status);
-    const actions = [];
+  // Buyer parcel tracking is available to whoever can see the order (buyer,
+  // wholesaler, admin) once a parcel exists — a read-only modal, no logistics
+  // workspace access. Operators still have the full parcel detail page.
+  function canTrack(order) {
+    return Boolean(
+      order.parcel_id && TRACKABLE_STATUSES.has(normalizeStatus(order.status)),
+    );
+  }
 
-    // Buyer parcel tracking is available to whoever can see the order (buyer,
-    // wholesaler, admin) once a parcel exists — a read-only modal, no logistics
-    // workspace access. Operators still have the full parcel detail page.
-    if (order.parcel_id && TRACKABLE_STATUSES.has(status)) {
-      actions.push({ label: "Track parcel", onClick: () => openTracking(order) });
-    }
-
+  // Status transitions the caller may apply, rendered as dropdown options.
+  // Scoped to the ACTIVE business only: the caller must be acting as the
+  // order's buyer/wholesaler side through their selected business.
+  // Capabilities from any unselected business grant nothing here.
+  function transitionsFor(order) {
     if (user?.global_role === "platform_admin") {
-      return actions;
+      return [];
     }
-    // Actions are scoped to the ACTIVE business only: the caller must be acting
-    // as the order's buyer/wholesaler side through their selected business.
-    // Capabilities from any unselected business grant nothing here.
+
+    const status = normalizeStatus(order.status);
     const ownsBuyerSide =
       activeBusinessId === order.buyer_business_id && activeRoles.includes("buyer");
     const ownsWholesalerSide =
@@ -219,28 +221,40 @@ export default function OrdersPage() {
 
     if (status === "pending") {
       if (ownsWholesalerSide) {
-        actions.push({ label: "Accept", nextStatus: "accepted" });
-        actions.push({ label: "Reject", nextStatus: "cancelled" });
-      } else if (ownsBuyerSide) {
-        actions.push({ label: "Cancel", nextStatus: "cancelled" });
+        return [
+          { label: "Accept order", value: "accepted" },
+          { label: "Reject order", value: "cancelled" },
+        ];
       }
-      return actions;
+      if (ownsBuyerSide) {
+        return [{ label: "Cancel order", value: "cancelled" }];
+      }
+      return [];
     }
 
     if (!ownsWholesalerSide) {
-      return actions;
+      return [];
     }
 
     if (status === "accepted") {
-      actions.push({ label: "Preparing", nextStatus: "preparing" });
-    } else if (status === "preparing") {
-      // Ship collects the real weight at handoff — open the modal, don't PATCH.
-      actions.push({ label: "Ship", onClick: () => setShipOrder(order) });
+      return [{ label: "Mark as preparing", value: "preparing" }];
+    }
+    if (status === "preparing") {
+      return [{ label: "Mark as shipped", value: "shipped" }];
     }
     // Past "shipped" the courier owns the parcel; delivery is confirmed by
     // their tracking scan, not the wholesaler.
+    return [];
+  }
 
-    return actions;
+  function handleStatusSelect(order, value) {
+    if (!value) return;
+    if (value === "shipped") {
+      // Ship collects the real weight at handoff — open the modal, don't PATCH.
+      setShipOrder(order);
+      return;
+    }
+    void updateOrderStatus(order.order_id, value);
   }
 
   return (
@@ -279,7 +293,7 @@ export default function OrdersPage() {
           ))}
         </div>
 
-        <main className="table-card">
+        <main className="orders-table-wrap">
           {loading ? (
             <div className="page-empty">Loading orders...</div>
           ) : error ? (
@@ -305,7 +319,8 @@ export default function OrdersPage() {
               </thead>
               <tbody>
                 {visibleOrders.map((order) => {
-                  const orderActions = actionsFor(order);
+                  const transitions = transitionsFor(order);
+                  const trackable = canTrack(order);
                   const disabled = updatingId === order.order_id;
 
                   return (
@@ -338,31 +353,43 @@ export default function OrdersPage() {
                         )}
                       </td>
                       <td>
-                        {orderActions.length > 0 ? (
+                        {trackable || transitions.length > 0 ? (
                           <div
                             className="order-actions"
                             aria-label={`Actions for order ${order.order_id}`}
                           >
-                            {orderActions.map((action) => (
+                            {trackable && (
                               <button
-                                key={`${action.label}-${action.nextStatus ?? "fn"}`}
                                 className="track-link action-button"
                                 type="button"
-                                disabled={disabled && !action.onClick}
-                                onClick={
-                                  action.onClick ??
-                                  (() =>
-                                    updateOrderStatus(
-                                      order.order_id,
-                                      action.nextStatus,
-                                    ))
+                                onClick={() => openTracking(order)}
+                              >
+                                Track parcel
+                              </button>
+                            )}
+                            {transitions.length > 0 && (
+                              <select
+                                className="status-select"
+                                value=""
+                                disabled={disabled}
+                                aria-label={`Update status for order ${order.order_id}`}
+                                onChange={(event) =>
+                                  handleStatusSelect(order, event.target.value)
                                 }
                               >
-                                {disabled && !action.onClick
-                                  ? "Updating"
-                                  : action.label}
-                              </button>
-                            ))}
+                                <option value="" disabled>
+                                  {disabled ? "Updating…" : "Update status"}
+                                </option>
+                                {transitions.map((transition) => (
+                                  <option
+                                    key={transition.value + transition.label}
+                                    value={transition.value}
+                                  >
+                                    {transition.label}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
                           </div>
                         ) : (
                           <span className="muted-cell">—</span>
