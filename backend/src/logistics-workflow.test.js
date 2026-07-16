@@ -4,7 +4,7 @@ import test from "node:test";
 import createApp from "./app.js";
 import { createPool } from "./db.js";
 
-// Courier delivery workflow (docs/delivery-status-logistics.md): wholesaler
+// Courier delivery workflow (docs/API_CONTRACTS.md §3.6): wholesaler
 // stops at 'shipped', courier claims from the pickup pool and their
 // 'Delivered' scan completes the order. DB-backed, skips without
 // DATABASE_URL, relies on the dev seed accounts.

@@ -114,7 +114,8 @@ export default function ParcelDetailPage() {
         if (formCourier) body.courier_id = Number(formCourier);
       } else {
         // Courier: fixed remark per status; Delivery Failed carries the picked
-        // reason; terminal scans send nothing (backend auto-generates the POD).
+        // reason; terminal scans and branch checkpoints send nothing (backend
+        // auto-generates the POD / branch-name remark).
         const remark =
           selectedStatus === "Delivery Failed" ? formRemarks : ONE_TAP_REMARKS[selectedStatus];
         if (remark) body.remarks = remark;

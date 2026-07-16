@@ -17,6 +17,7 @@ const STATUS_TABS = [
   "Departed Branch",
   "Out for Delivery",
   "Delivery Failed",
+  "Out for Return",
   "Delivered",
   "Returned",
   "Cancelled",
