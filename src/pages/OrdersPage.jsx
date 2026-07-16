@@ -34,6 +34,28 @@ const STATUS_LABELS = {
   canceled: "Cancelled",
 };
 
+// Every order status, in workflow order — the update dropdown lists them all.
+const ALL_STATUSES = [
+  "pending",
+  "accepted",
+  "preparing",
+  "shipped",
+  "delivered",
+  "returned",
+  "cancelled",
+];
+
+// Same transition graph the backend enforces in assertTransitionAllowed.
+const STATUS_FLOW = {
+  pending: ["accepted", "cancelled"],
+  accepted: ["preparing"],
+  preparing: ["shipped"],
+  shipped: ["delivered", "returned"],
+  delivered: [],
+  cancelled: [],
+  returned: [],
+};
+
 function normalizeStatus(status) {
   return String(status ?? "")
     .trim()
@@ -203,52 +225,38 @@ export default function OrdersPage() {
     );
   }
 
-  // Status transitions the caller may apply, rendered as dropdown options.
-  // Scoped to the ACTIVE business only: the caller must be acting as the
-  // order's buyer/wholesaler side through their selected business.
-  // Capabilities from any unselected business grant nothing here.
-  function transitionsFor(order) {
+  // Mirrors the backend's assertTransitionAllowed: the order-status graph,
+  // filtered by what the caller's ACTIVE business may do. The dropdown shows
+  // every status; anything outside this set renders disabled.
+  function allowedTransitions(order) {
+    const status = normalizeStatus(order.status);
+    const graph = STATUS_FLOW[status] ?? [];
+
+    // platform_admin keeps a manual override for stuck or legacy orders.
     if (user?.global_role === "platform_admin") {
-      return [];
+      return graph;
     }
 
-    const status = normalizeStatus(order.status);
     const ownsBuyerSide =
       activeBusinessId === order.buyer_business_id && activeRoles.includes("buyer");
     const ownsWholesalerSide =
       activeBusinessId === order.wholesaler_business_id &&
       activeRoles.includes("wholesaler");
 
-    if (status === "pending") {
-      if (ownsWholesalerSide) {
-        return [
-          { label: "Accept order", value: "accepted" },
-          { label: "Reject order", value: "cancelled" },
-        ];
+    return graph.filter((next) => {
+      // Buyers may only cancel (the graph already limits that to pending).
+      if (next === "cancelled" && ownsBuyerSide) return true;
+      // Delivery outcomes are confirmed by parcel tracking, never the
+      // wholesaler.
+      if (ownsWholesalerSide && next !== "delivered" && next !== "returned") {
+        return true;
       }
-      if (ownsBuyerSide) {
-        return [{ label: "Cancel order", value: "cancelled" }];
-      }
-      return [];
-    }
-
-    if (!ownsWholesalerSide) {
-      return [];
-    }
-
-    if (status === "accepted") {
-      return [{ label: "Mark as preparing", value: "preparing" }];
-    }
-    if (status === "preparing") {
-      return [{ label: "Mark as shipped", value: "shipped" }];
-    }
-    // Past "shipped" the courier owns the parcel; delivery is confirmed by
-    // their tracking scan, not the wholesaler.
-    return [];
+      return false;
+    });
   }
 
   function handleStatusSelect(order, value) {
-    if (!value) return;
+    if (!value || value === normalizeStatus(order.status)) return;
     if (value === "shipped") {
       // Ship collects the real weight at handoff — open the modal, don't PATCH.
       setShipOrder(order);
@@ -319,7 +327,8 @@ export default function OrdersPage() {
               </thead>
               <tbody>
                 {visibleOrders.map((order) => {
-                  const transitions = transitionsFor(order);
+                  const allowed = allowedTransitions(order);
+                  const currentStatus = normalizeStatus(order.status);
                   const trackable = canTrack(order);
                   const disabled = updatingId === order.order_id;
 
@@ -353,7 +362,7 @@ export default function OrdersPage() {
                         )}
                       </td>
                       <td>
-                        {trackable || transitions.length > 0 ? (
+                        {trackable || allowed.length > 0 ? (
                           <div
                             className="order-actions"
                             aria-label={`Actions for order ${order.order_id}`}
@@ -367,25 +376,26 @@ export default function OrdersPage() {
                                 Track parcel
                               </button>
                             )}
-                            {transitions.length > 0 && (
+                            {allowed.length > 0 && (
                               <select
                                 className="status-select"
-                                value=""
+                                value={currentStatus}
                                 disabled={disabled}
                                 aria-label={`Update status for order ${order.order_id}`}
                                 onChange={(event) =>
                                   handleStatusSelect(order, event.target.value)
                                 }
                               >
-                                <option value="" disabled>
-                                  {disabled ? "Updating…" : "Update status"}
-                                </option>
-                                {transitions.map((transition) => (
+                                {ALL_STATUSES.map((statusOption) => (
                                   <option
-                                    key={transition.value + transition.label}
-                                    value={transition.value}
+                                    key={statusOption}
+                                    value={statusOption}
+                                    disabled={
+                                      statusOption !== currentStatus &&
+                                      !allowed.includes(statusOption)
+                                    }
                                   >
-                                    {transition.label}
+                                    {STATUS_LABELS[statusOption]}
                                   </option>
                                 ))}
                               </select>
