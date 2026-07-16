@@ -125,7 +125,7 @@ function SupplierDiscoveryPage() {
     .slice(0, 4);
 
   return (
-    <AppLayout showSubNav showSearch>
+    <AppLayout showSubNav showSearch showCategories>
       <div className="discovery-page">
         {!isFiltered && (
           <>

@@ -4,11 +4,16 @@ import SubNav from "../components/navigation/SubNav";
 import Footer from "../components/navigation/Footer";
 import MobileNav from "../components/navigation/MobileNav";
 
-function AppLayout({ children, showSubNav = false, showSearch = false }) {
+function AppLayout({
+  children,
+  showSubNav = false,
+  showSearch = false,
+  showCategories = false,
+}) {
   return (
     <div className="app-shell">
       <div className="app-layout">
-        <Topbar showSearch={showSearch} />
+        <Topbar showSearch={showSearch} showCategories={showCategories} />
         {showSubNav && <SubNav />}
         <main className="app-layout__content">{children}</main>
         <Footer />
