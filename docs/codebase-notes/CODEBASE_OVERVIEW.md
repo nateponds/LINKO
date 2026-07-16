@@ -68,8 +68,8 @@ The backend starts in this order:
 1. `backend/src/server.js` imports `createApp()`.
 2. `backend/src/app.js` creates and configures the Express app.
 3. `server.js` calls `app.listen(...)` to open the HTTP port.
-4. A request like `GET /api/inventory` enters `app.js`.
-5. `app.js` sends that request to `backend/src/routes/inventory.js`.
+4. A request like `GET /api/products` enters `app.js`.
+5. `app.js` sends that request to `backend/src/routes/products.js`.
 6. If no route matches, `app.js` returns a JSON `404`.
 7. If a route throws an error later, `errorHandler.js` formats the error response.
 
@@ -96,18 +96,6 @@ Creates a PostgreSQL connection pool. Future route code should use the exported 
 Runs SQL files from `backend/migrations/`.
 
 It also creates a `schema_migrations` table. That table records which migration filenames already ran, so running `npm run migrate` again will skip completed migration files.
-
-### `backend/src/routes/inventory.js`
-
-Owns routes under `/api/inventory`.
-
-Current routes:
-
-- `GET /api/inventory` returns `[]`.
-- `POST /api/inventory` returns `501 Not Implemented`.
-- `PATCH /api/inventory/:id` returns `501 Not Implemented`.
-
-The next backend step is to connect these routes to `inventory_items`, `products`, `categories`, and `warehouses`.
 
 ### `backend/src/routes/suppliers.js`
 
@@ -145,14 +133,15 @@ It creates these tables:
 - `warehouses`
 - `categories`
 - `products`
-- `inventory_items`
-- `inventory_transactions`
 - `supplier_profiles`
+
+(The `inventory_items` and `inventory_transactions` tables, their mutation
+trigger, and their indexes were created here originally but dropped in
+migration `019` — stock lives on `products.stock_quantity` instead.)
 
 It also creates:
 
-- an inventory mutation trigger
-- indexes for SKU lookup, inventory lookup, and transaction history
+- an index for SKU lookup
 
 The migration uses lowercase `snake_case` table names because that is the normal PostgreSQL style and avoids quoting table names later.
 
@@ -160,9 +149,6 @@ The migration uses lowercase `snake_case` table names because that is the normal
 
 ```text
 GET    /health
-GET    /api/inventory
-POST   /api/inventory
-PATCH  /api/inventory/:id
 GET    /api/suppliers
 POST   /api/suppliers
 PATCH  /api/suppliers/:id
@@ -174,9 +160,8 @@ The API shape is guided by `docs/API_CONTRACTS.md`. The current backend does not
 
 Build in this order:
 
-1. Add database reads for `GET /api/inventory`.
-2. Add database reads for `GET /api/suppliers`.
-3. Add validation for request bodies.
+1. Add database reads for `GET /api/suppliers`.
+2. Add validation for request bodies.
 4. Implement `POST` and `PATCH` routes.
 5. Add tests for successful and failed API calls.
 6. Add authentication only after the basic data routes are working.
