@@ -64,22 +64,29 @@ function ProductCard({ product }) {
 
 function WholesalerCard({ supplier, index }) {
   const initial = supplier.business_name?.charAt(0).toUpperCase() ?? "?";
+  const accent = AVATAR_PALETTE[index % AVATAR_PALETTE.length];
 
   return (
     <Link to={`/suppliers/${supplier.business_id}`} className="home-wholesaler-card">
       <span
         className="home-wholesaler-avatar"
-        style={{ background: AVATAR_PALETTE[index % AVATAR_PALETTE.length] }}
+        style={{
+          background: `color-mix(in srgb, ${accent} 14%, white)`,
+          color: accent,
+        }}
       >
         {initial}
       </span>
-      <span className="home-wholesaler-name">
-        {supplier.business_name}
-        {supplier.is_verified && <BadgeCheck size={14} className="verified-badge" />}
+      <span className="home-wholesaler-info">
+        <span className="home-wholesaler-name">
+          {supplier.business_name}
+          {supplier.is_verified && <BadgeCheck size={15} className="verified-badge" />}
+        </span>
+        <span className="home-wholesaler-meta">
+          {supplier.product_count} product{supplier.product_count === 1 ? "" : "s"}
+        </span>
       </span>
-      <span className="home-wholesaler-meta">
-        {supplier.product_count} product{supplier.product_count === 1 ? "" : "s"}
-      </span>
+      <ArrowRight size={16} className="home-wholesaler-arrow" />
     </Link>
   );
 }
