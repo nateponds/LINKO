@@ -5,6 +5,7 @@ export const TRACKING_STATUSES = [
   "Departed Branch",
   "Out for Delivery",
   "Delivery Failed",
+  "Out for Return",
   "Delivered",
   "Returned",
   "Cancelled",
@@ -13,12 +14,12 @@ export const TRACKING_STATUSES = [
 export const RETURN_TRIGGER_FAILS = 3;
 
 // One tap = status + fixed remark (handoff 2026-07-16 §5). Delivered/Returned
-// send nothing — the backend auto-generates the proof of delivery from accounts.
+// and the branch checkpoints (Arrived/Departed) send nothing — the backend
+// auto-generates proof of delivery and branch-name remarks from accounts.
 export const ONE_TAP_REMARKS = {
   "Picked Up": "Picked up by courier",
-  "Arrived at Branch": "Arrived at branch checkpoint",
-  "Departed Branch": "Departed branch for next transit",
   "Out for Delivery": "Out for delivery",
+  "Out for Return": "Out for return to sender",
 };
 
 export const FAIL_REASONS = ["Nobody home", "Delivery refused", "Bad address"];
@@ -32,9 +33,8 @@ const COURIER_TRANSITIONS = {
   "Order Created": ["Picked Up"],
   "Picked Up": ["Arrived at Branch", "Out for Delivery"],
   // Arrived can depart for another hub or go straight out for delivery at the
-  // final hub -- no redundant Departed Branch before Out for Delivery. The
-  // count-gated 'Returned' edge (Arrived -> Returned, fails>=3) is injected in
-  // allowedNext, not here (mirrors backend logistics.js).
+  // final hub -- no redundant Departed Branch before Out for Delivery.
+  // Count-gated return-leg edges are injected in allowedNext.
   "Arrived at Branch": ["Departed Branch", "Out for Delivery"],
   // Departed is never terminal -- no 'Returned' edge off it.
   "Departed Branch": ["Arrived at Branch", "Out for Delivery"],
@@ -51,10 +51,13 @@ export function allowedNext(currentStatus, failedAttempts = 0) {
       ? ["Arrived at Branch"]
       : ["Out for Delivery"];
   }
-  // Return leg: 'Returned' is only reachable from a branch arrival at fails>=3.
-  // Injected here (not in COURIER_TRANSITIONS) because it is count-gated.
+  // Count-gated return leg: branch arrival -> Out for Return -> Returned.
   if (currentStatus === "Arrived at Branch" && failedAttempts >= RETURN_TRIGGER_FAILS) {
-    return [...COURIER_TRANSITIONS["Arrived at Branch"], "Returned"];
+    // Return leg is one-way: leave the return branch for the sender next.
+    return ["Out for Return"];
+  }
+  if (currentStatus === "Out for Return") {
+    return failedAttempts >= RETURN_TRIGGER_FAILS ? ["Returned"] : [];
   }
   return COURIER_TRANSITIONS[currentStatus] ?? [];
 }

@@ -181,7 +181,7 @@ test("unknown parcel returns 404", { skip: !hasDb }, async () => {
   assert.equal(response.status, 404);
 });
 
-test("parcel detail resolves equal tracking timestamps by insertion order", { skip: !hasDb }, async () => {
+test("parcel detail returns the seeded return journey in event order", { skip: !hasDb }, async () => {
   const cookie = await loginAs("logistics@linko.test");
   const detail = await request("/api/parcels/LKO-00000003", {
     headers: { Cookie: cookie },
@@ -190,8 +190,8 @@ test("parcel detail resolves equal tracking timestamps by insertion order", { sk
   assert.equal(detail.status, 200);
   assert.equal(detail.body.current_status, "Returned");
   assert.deepEqual(
-    detail.body.tracking_history.slice(-2).map((entry) => entry.status_update),
-    ["Arrived at Branch", "Returned"],
+    detail.body.tracking_history.slice(-3).map((entry) => entry.status_update),
+    ["Arrived at Branch", "Out for Return", "Returned"],
   );
 });
 
@@ -973,7 +973,7 @@ test("order status transitions and ownership are enforced", { skip: !hasDb }, as
     assert.equal(buyerAccept.status, 403);
 
     // Wholesalers can never set delivered -- that's the courier's scan
-    // (docs/delivery-status-logistics.md) -- so this 403s before transition
+    // (docs/API_CONTRACTS.md §3.6) -- so this 403s before transition
     // validity is even considered.
     const wholesalerDelivers = await request(`/api/orders/${orderId}/status`, {
       method: "PATCH",
@@ -1072,7 +1072,7 @@ test("platform admin can view all orders and override order status", { skip: !ha
     assert.equal(adminList.status, 200);
     assert.ok(adminList.body.some((order) => order.order_id === orderId));
 
-    // Admin override (docs/delivery-status-logistics.md): valid transitions
+    // Admin override (docs/API_CONTRACTS.md §2c.4): valid transitions
     // succeed with full side effects...
     const adminAccept = await request(`/api/orders/${orderId}/status`, {
       method: "PATCH",
@@ -1221,8 +1221,7 @@ test("3-fail return path: count-gated edges, auto-POD, split order side effects"
         body: JSON.stringify(body),
       });
 
-    // Couriers can no longer jump straight to Returned from Out for Delivery:
-    // the return path is fail x3 -> checkpoints back -> Returned.
+    // Couriers cannot jump straight to Returned from Out for Delivery.
     const shortcut = await scan({ status_update: "Returned" });
     assert.equal(shortcut.status, 400);
 
@@ -1276,17 +1275,40 @@ test("3-fail return path: count-gated edges, auto-POD, split order side effects"
     const blockedRetry = await scan({ status_update: "Out for Delivery" });
     assert.equal(blockedRetry.status, 400);
 
-    // fails>=3 opens the return leg: Arrived at Branch -> Returned. Departing a
-    // hub is never terminal, so there is no Departed hop before the return scan.
+    // fails>=3 opens the locked return leg. Branch-checkpoint remarks are
+    // auto-generated from branches.branch_name, not client input.
     const returnArrive = await scan({ status_update: "Arrived at Branch" });
     assert.equal(returnArrive.status, 201);
+    assert.equal(returnArrive.body.remarks, "Arrived at LINKO Cebu Central Hub");
 
-    // Terminal scan back at the sender. Remark is auto-generated proof of
-    // delivery (courier full_name -> receiver business_name), no client input.
+    const directReturn = await scan({ status_update: "Returned" });
+    assert.equal(directReturn.status, 400);
+    const blockedDeparture = await scan({ status_update: "Departed Branch" });
+    assert.equal(blockedDeparture.status, 400);
+
+    const outForReturn = await scan({ status_update: "Out for Return" });
+    assert.equal(outForReturn.status, 201);
+
+    const beforeReturnSettlement = await pool.query(
+      "SELECT status FROM orders WHERE order_id = $1",
+      [orderId],
+    );
+    assert.equal(beforeReturnSettlement.rows[0].status, "shipped");
+    const prematureSettleNotifications = await pool.query(
+      `SELECT COUNT(*)::int AS n
+         FROM notifications
+        WHERE title = 'Parcel Returned to You'
+          AND message ILIKE $1`,
+      [`%order #${orderId}%`],
+    );
+    assert.equal(prematureSettleNotifications.rows[0].n, 0);
+
+    // Terminal handoff to the sender. Remark is auto-generated proof of
+    // return (courier full_name -> sender business_name), no client input.
     const returned = await scan({ status_update: "Returned" });
     assert.equal(returned.status, 201);
     assert.equal(returned.body.status_update, "Returned");
-    assert.equal(returned.body.remarks, "Cory Courier → Sunrise Retail Cooperative");
+    assert.equal(returned.body.remarks, "Cory Courier → Cebu Fresh Wholesale");
 
     const updatedOrder = await pool.query(
       "SELECT status FROM orders WHERE order_id = $1",

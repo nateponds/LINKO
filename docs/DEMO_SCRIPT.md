@@ -105,19 +105,19 @@ Routes referenced below all exist in `src/App.jsx` and are protected by
 4. Open the parcel detail (`/logistics/:parcelId`) to see the tracking history update.
 5. Record **Delivered** on the final parcel. The proof-of-delivery remark is
    **auto-generated from accounts** ("{courier name} → {receiver business}") — no typing.
-6. Return path: after **3× Delivery Failed** the retry option closes and the parcel retraces
-   branch checkpoints back to the sender — the detail page shows the red **returning** cue —
-   until **Returned**, the terminal scan at the sender. Seeded parcel `LKO-00000003` carries
-   the full 3-fail → return journey for a read-only walkthrough.
-7. Re-open the parcel to confirm the full tracking chain is present and the auto-POD remark
-   shows on the terminal event.
+6. Return path: after **3× Delivery Failed** the retry option closes. The locked path is
+   **Arrived at Branch → Out for Return → Returned**. `Out for Return` means the parcel left
+   the return branch for the wholesaler; `Returned` means the wholesaler physically received
+   it. Seeded parcel `LKO-00000003` carries the full journey.
+7. Re-open the parcel to confirm the full tracking chain and the generated proof of return
+   (`courier → sender business`) on the terminal event.
 
 **Grader should observe:**
 - A courier is **scoped to assigned parcels only** (row-level ownership) — they cannot
   view or update parcels assigned to another courier.
 - Status updates append to the tracking log with the courier/branch recorded.
-- **Terminal courier scans carry evidence** — Delivered/Returned require remarks
-  (proof of delivery / failure reason); the API enforces it (`400` without).
+- **Terminal courier scans carry generated evidence** — Delivered names the receiver
+  business; Returned names the sender business. Courier free text cannot replace it.
 
 ---
 

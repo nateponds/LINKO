@@ -61,8 +61,8 @@ export default function CourierDashboardPage() {
     }
     setFailingParcelId(null);
 
-    // Delivered/Returned send no remark: the backend generates the proof of
-    // delivery ("courier → receiver business") from accounts.
+    // Delivered/Returned and branch checkpoints send no remark: the backend
+    // generates the proof of delivery / branch-name remark from accounts.
     const body = { status_update: statusUpdate };
     if (remarks ?? ONE_TAP_REMARKS[statusUpdate]) {
       body.remarks = remarks ?? ONE_TAP_REMARKS[statusUpdate];

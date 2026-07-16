@@ -29,7 +29,7 @@ and soft-delete semantics (migration 015) that can strand live parcels.
       unassigned pool of their assigned branch — the same rule as read
       visibility. Out of scope → `404` (matches read-side anti-leak
       behavior). Handoffs keep going through coordinator unassign
-      (`docs/delivery-status-logistics.md` decision 5).
+      (`docs/API_CONTRACTS.md` §3.6, courier identity/branch pool).
 - [x] Lock the parcel (`SELECT … FOR UPDATE`) inside the tracking-scan
       transaction so the pool-claim race and the forward-only status check are
       serialized (two couriers can currently both claim the same parcel).
@@ -111,8 +111,8 @@ Depends on nothing in Sprint 7; the two ship as separate reviewable PRs.
       ship-time weight entry, payment status transitions, POD remarks, buyer
       tracking modal, coordinator correction (salvaged from retired Sprint 4).
 - [x] Update docs: API_CONTRACTS (§3.6 POD rule + buyer scope, orders
-      `parcel_id`, §3.5 removal) and delivery-status-logistics.md (courier
-      write scope, POD, payment lifecycle, buyer modal).
+      `parcel_id`, §3.5 removal, courier write scope, payment lifecycle,
+      buyer modal).
 - [x] Tests: buyer sees own parcel via its order and `404`s on others';
       remarks enforcement on terminal courier scans; payment transitions per
       method; shipped order carries the entered weight.
@@ -182,8 +182,7 @@ distinct-business 400-gate rationale become dead code on this branch.
       Reassigned products, warehouse, address, and order references
       accordingly. The business switcher demo is now a legitimate
       multi-business user instead of a single both-role business.
-- [x] Docs: updated `DEMO_ACCOUNTS.md`, `seeded accounts.md`, `DEMO_SCRIPT.md`,
-      `API_CONTRACTS.md`, `delivery-status-logistics.md`,
+- [x] Docs: updated `DEMO_ACCOUNTS.md`, `DEMO_SCRIPT.md`, `API_CONTRACTS.md`,
       `linko_database_specification.md`, `LINKO_ERD.md`, `glossary.md`, and
       this file.
 - [x] Simplification pass: `groupMemberships`/`ROLE_ORDER` stay — migration
@@ -274,10 +273,10 @@ scope.
 - [ ] Frontend: coordinator/admin parcel view gains a "Cancel parcel" action on
       non-terminal parcels that prompts for a reason and posts the `Cancelled`
       scan. No new route. Buyer/courier surfaces unchanged.
-- [ ] Docs: `delivery-status-logistics.md` (cancellation as an operational
-      override and its order/payment side-effects), `API_CONTRACTS.md` (Cancelled in the
-      tracking-scan contract), and update `LINKO_USE-CASE.puml`'s UC14 to match
-      what actually ships.
+- [ ] Docs: `API_CONTRACTS.md` §3.6 (Cancelled as an operational override,
+      its order/payment side-effects, and its place in the tracking-scan
+      contract), and update `LINKO_USE-CASE.puml`'s UC14 to match what
+      actually ships.
 - [ ] Tests: courier cannot submit `Cancelled` (already true — assert it);
       cancelling a terminal parcel is rejected `400`; a `Cancelled` scan on a
       shipped-order parcel moves the order to `cancelled` and fails a COD

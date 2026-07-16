@@ -239,7 +239,7 @@ function assertTransitionAllowed(auth, order, nextStatus) {
   };
 
   // Delivery outcomes are confirmed by parcel tracking (see
-  // docs/delivery-status-logistics.md), never by the wholesaler.
+  // docs/API_CONTRACTS.md §3.6), never by the wholesaler.
   // platform_admin keeps a manual override for stuck or legacy orders.
   const canUpdate =
     isAdmin(auth) ||
