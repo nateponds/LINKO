@@ -1,25 +1,18 @@
 import { useState, useEffect } from "react";
 import { Boxes, ClipboardList, PhilippinePeso, TriangleAlert } from "lucide-react";
 import { Link } from "react-router-dom";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import AppLayout from "../layouts/AppLayout";
 import { apiGet } from "../lib/api";
 import "./DashboardPage.css";
-
-/* Mock data layer — swap for /api/dashboard?range=7d later; keep the shape. */
-const MOCK_STATS = {
-  today: {
-    revenue: 12450, orders: 8, lowStock: 3, products: 128,
-    sales: [4, 7, 3, 8, 6, 9, 5, 10, 7, 6, 8, 12],
-  },
-  "7d": {
-    revenue: 86200, orders: 47, lowStock: 3, products: 128,
-    sales: [22, 31, 18, 40, 35, 52, 47, 38, 44, 50, 41, 55],
-  },
-  "30d": {
-    revenue: 342800, orders: 213, lowStock: 3, products: 128,
-    sales: [120, 145, 98, 160, 175, 140, 190, 165, 180, 210, 195, 213],
-  },
-};
 
 const RANGES = [
   { key: "today", label: "Today" },
@@ -27,47 +20,95 @@ const RANGES = [
   { key: "30d", label: "30 Days" },
 ];
 
-const RECENT_ACTIVITY = [
-  { id: 1, text: "Order #21374 delivered to Marielle Ocampo", time: "2 hours ago", type: "order" },
-  { id: 2, text: "Stock low: Something Product Name (A2G51) — 8 left", time: "5 hours ago", type: "alert" },
-  { id: 3, text: "New quote request from Sunhome Hardware Supplies", time: "Yesterday", type: "order" },
-  { id: 4, text: "Out of stock: Something Product Name (AF41W)", time: "Yesterday", type: "alert" },
-  { id: 5, text: "Order #21358 shipped from Manila, PH", time: "2 days ago", type: "order" },
-];
+const EMPTY_STATS = {
+  revenue: 0,
+  orders: 0,
+  lowStock: 0,
+  products: 0,
+  sales: [],
+  topProducts: [],
+  recentActivity: [],
+};
 
-const TOP_PRODUCTS = [
-  { name: "Something Product Name", sku: "A2G51", sold: 64, revenue: 12800 },
-  { name: "Something Product Name", sku: "AF41W", sold: 41, revenue: 8200 },
-  { name: "Something Product Name", sku: "B7K02", sold: 27, revenue: 5400 },
-];
+const ALERT_STATUSES = new Set(["cancelled", "canceled", "returned", "rejected"]);
 
-const peso = (n) => `₱${n.toLocaleString("en-PH")}`;
+const peso = (n) => `₱${Number(n ?? 0).toLocaleString("en-PH")}`;
+
+function timeAgo(timestamp) {
+  const seconds = Math.max(0, (Date.now() - new Date(timestamp).getTime()) / 1000);
+  if (seconds < 60) return "Just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return "Yesterday";
+  if (days < 30) return `${days} days ago`;
+  return new Date(timestamp).toLocaleDateString("en-PH", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function activityText(entry) {
+  const status = String(entry.status ?? "").toLowerCase();
+  const phrasing = {
+    pending: "placed by",
+    accepted: "accepted for",
+    preparing: "being prepared for",
+    shipped: "shipped to",
+    delivered: "delivered to",
+    returned: "returned by",
+    cancelled: "cancelled by",
+  };
+  const verb = phrasing[status] ?? `${status} —`;
+  return `Order #${entry.order_id} ${verb} ${entry.buyer_business_name}`;
+}
+
+function SalesTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="chart-tooltip">
+      <span className="chart-tooltip-label">{label}</span>
+      <span className="chart-tooltip-value">
+        <span className="chart-tooltip-swatch" />
+        {payload[0].value} order{payload[0].value === 1 ? "" : "s"}
+      </span>
+    </div>
+  );
+}
 
 export default function DashboardPage() {
   const [range, setRange] = useState("7d");
-  const [dashboardData, setDashboardData] = useState(null);
+  const [stats, setStats] = useState(EMPTY_STATS);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
+      setLoading(true);
+      setError(null);
       try {
-        const data = await apiGet("/api/dashboard");
+        const data = await apiGet(`/api/dashboard?range=${range}`);
         if (cancelled) return;
-        setDashboardData(data);
+        setStats({ ...EMPTY_STATS, ...data });
       } catch (e) {
-        console.error(e);
+        if (cancelled) return;
+        setError(e.message);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     }
     load();
     return () => { cancelled = true; };
-  }, []);
+  }, [range]);
 
-  const stats = dashboardData || MOCK_STATS[range];
-  const maxSale = Math.max(...(stats.sales || [0]));
+  const rangeLabel = RANGES.find((r) => r.key === range).label;
 
   return (
     <AppLayout>
-      <div className="dashboard-page">
+      <div className="dashboard-page" aria-busy={loading}>
         <div className="page-head">
           <h1>Dashboard</h1>
           <div className="range-toggle" role="tablist" aria-label="Time range">
@@ -85,30 +126,34 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {error && (
+          <p className="dashboard-error">Could not load dashboard: {error}</p>
+        )}
+
         <div className="stat-grid">
           <div className="stat-card">
-            <span className="stat-icon revenue"><PhilippinePeso size={20} /></span>
+            <span className="stat-icon revenue"><PhilippinePeso size={26} /></span>
             <div>
               <span className="stat-value">{peso(stats.revenue)}</span>
-              <span className="stat-label">Revenue</span>
+              <span className="stat-label">Revenue · {rangeLabel}</span>
             </div>
           </div>
           <div className="stat-card">
-            <span className="stat-icon orders"><ClipboardList size={20} /></span>
+            <span className="stat-icon orders"><ClipboardList size={26} /></span>
             <div>
               <span className="stat-value">{stats.orders}</span>
-              <span className="stat-label">Orders</span>
+              <span className="stat-label">Orders · {rangeLabel}</span>
             </div>
           </div>
           <div className="stat-card">
-            <span className="stat-icon alert"><TriangleAlert size={20} /></span>
+            <span className="stat-icon alert"><TriangleAlert size={26} /></span>
             <div>
               <span className="stat-value">{stats.lowStock}</span>
               <span className="stat-label">Low-stock Items</span>
             </div>
           </div>
           <div className="stat-card">
-            <span className="stat-icon products"><Boxes size={20} /></span>
+            <span className="stat-icon products"><Boxes size={26} /></span>
             <div>
               <span className="stat-value">{stats.products}</span>
               <span className="stat-label">Products Listed</span>
@@ -119,17 +164,53 @@ export default function DashboardPage() {
         <div className="dashboard-columns">
           <section className="panel">
             <div className="panel-head">
-              <h2>Sales Trend</h2>
-              <span className="panel-sub">{RANGES.find((r) => r.key === range).label}</span>
+              <h2>Orders Trend</h2>
+              <span className="panel-sub">{rangeLabel}</span>
             </div>
-            {/* ponytail: pure-CSS bar chart, add a chart lib only if real analytics land */}
-            <div className="bar-chart" aria-hidden="true">
-              {stats.sales.map((v, i) => (
-                <div className="bar-col" key={i}>
-                  <div className="bar" style={{ height: `${(v / (maxSale || 1)) * 100}%` }} title={v} />
-                </div>
-              ))}
-            </div>
+            {stats.sales.length === 0 ? (
+              <p className="panel-empty">No orders in this period yet.</p>
+            ) : (
+              <div className="chart-wrap">
+                <ResponsiveContainer width="100%" height={240}>
+                  <AreaChart
+                    data={stats.sales}
+                    margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid vertical={false} stroke="#eceff5" />
+                    <XAxis
+                      dataKey="label"
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fontSize: 12, fill: "#52617d" }}
+                      minTickGap={28}
+                      dy={6}
+                    />
+                    <YAxis
+                      allowDecimals={false}
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fontSize: 12, fill: "#52617d" }}
+                      width={36}
+                    />
+                    <Tooltip
+                      content={<SalesTooltip />}
+                      cursor={{ stroke: "#c4cfe2", strokeWidth: 1 }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="value"
+                      stroke="var(--color-primary)"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      fill="var(--color-primary)"
+                      fillOpacity={0.1}
+                      dot={false}
+                      activeDot={{ r: 5, stroke: "#ffffff", strokeWidth: 2 }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </section>
 
           <section className="panel">
@@ -137,45 +218,60 @@ export default function DashboardPage() {
               <h2>Recent Activity</h2>
               <Link to="/orders" className="panel-link">View orders</Link>
             </div>
-            <ul className="activity-list">
-              {RECENT_ACTIVITY.map((a) => (
-                <li key={a.id} className={`activity-item ${a.type}`}>
-                  <span className="activity-dot" />
-                  <div>
-                    <span className="activity-text">{a.text}</span>
-                    <span className="activity-time">{a.time}</span>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            {stats.recentActivity.length === 0 ? (
+              <p className="panel-empty">No order activity yet.</p>
+            ) : (
+              <ul className="activity-list">
+                {stats.recentActivity.map((entry) => (
+                  <li
+                    key={entry.order_id}
+                    className={`activity-item ${
+                      ALERT_STATUSES.has(String(entry.status).toLowerCase())
+                        ? "alert"
+                        : "order"
+                    }`}
+                  >
+                    <span className="activity-dot" />
+                    <div>
+                      <span className="activity-text">{activityText(entry)}</span>
+                      <span className="activity-time">{timeAgo(entry.updated_at)}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
         </div>
 
         <section className="panel">
           <div className="panel-head">
-            <h2>Top Products</h2>
+            <h2>Top Products · {rangeLabel}</h2>
             <Link to="/inventory" className="panel-link">View inventory</Link>
           </div>
-          <table className="dashboard-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>SKU</th>
-                <th>Units Sold</th>
-                <th>Revenue</th>
-              </tr>
-            </thead>
-            <tbody>
-              {TOP_PRODUCTS.map((p) => (
-                <tr key={p.sku}>
-                  <td><strong>{p.name}</strong></td>
-                  <td>{p.sku}</td>
-                  <td>{p.sold}</td>
-                  <td>{peso(p.revenue)}</td>
+          {stats.topProducts.length === 0 ? (
+            <p className="panel-empty">No products sold in this period yet.</p>
+          ) : (
+            <table className="dashboard-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>SKU</th>
+                  <th>Units Sold</th>
+                  <th>Revenue</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {stats.topProducts.map((p) => (
+                  <tr key={`${p.name}-${p.sku}`}>
+                    <td><strong>{p.name}</strong></td>
+                    <td>{p.sku ?? "—"}</td>
+                    <td>{p.sold}</td>
+                    <td>{peso(p.revenue)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </section>
       </div>
     </AppLayout>

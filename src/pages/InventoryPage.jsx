@@ -290,9 +290,9 @@ export default function InventoryPage() {
 
             <div className="filter-wrap" ref={filterWrapRef}>
               <button className="filter-btn" onClick={handleFilterBtnClick}>
-                <Filter size={14} className="filter-btn-icon" />
-                <span className="filter-btn-label">FILTER</span>
-                <ChevronDown size={14} className="filter-btn-chevron" />
+                <Filter size={15} className="filter-btn-icon" />
+                <span className="filter-btn-label">Filter</span>
+                <ChevronDown size={15} className="filter-btn-chevron" />
               </button>
               <div
                 className={`filter-panel${filterPanelOpen ? " open" : ""}`}
@@ -382,8 +382,8 @@ export default function InventoryPage() {
 
             {ownBusinessId && (
               <button className="add-btn" onClick={openAddModal}>
-                <span className="add-btn-label">ADD ITEMS</span>
                 <Plus size={16} />
+                <span className="add-btn-label">Add Item</span>
               </button>
             )}
           </div>
