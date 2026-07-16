@@ -14,73 +14,135 @@ function createHttpError(statusCode, message) {
   return error;
 }
 
-// GET /api/dashboard
-// Returns stats for the active user's businesses
+// GET /api/dashboard?range=today|7d|30d
+// Returns stats for the active user's businesses, windowed to the range:
+// revenue/orders/sales-trend/top-products cover the window; low-stock and
+// product counts are current state. Bucket labels are formatted by Postgres
+// so the API and the DB never disagree about bucket boundaries.
+const RANGE_CONFIG = {
+  today: { bucket: "hour", count: 24, labelFormat: "FMHH12 AM" },
+  "7d": { bucket: "day", count: 7, labelFormat: "FMMon FMDD" },
+  "30d": { bucket: "day", count: 30, labelFormat: "FMMon FMDD" },
+};
+
 router.get("/dashboard", requireAuth, async (req, res, next) => {
   try {
     const { user, memberships } = req.auth;
     const businessIds = memberships.map(m => m.business_id);
-    
-    if (businessIds.length === 0 && user.global_role !== "platform_admin") {
-       return res.json({
-         revenue: 0,
-         orders: 0,
-         lowStock: 0,
-         products: 0,
-         sales: [0,0,0,0,0,0,0,0,0,0,0,0]
-       });
+    const isAdmin = user.global_role === "platform_admin";
+
+    const { bucket, count, labelFormat } =
+      RANGE_CONFIG[req.query.range] ?? RANGE_CONFIG["7d"];
+    // bucket/count come from the fixed map above, never from user input,
+    // so interpolating them into SQL is safe.
+    const windowStart = `date_trunc('${bucket}', CURRENT_TIMESTAMP) - INTERVAL '${count - 1} ${bucket}'`;
+
+    if (businessIds.length === 0 && !isAdmin) {
+      return res.json({
+        revenue: 0,
+        orders: 0,
+        lowStock: 0,
+        products: 0,
+        sales: [],
+        topProducts: [],
+        recentActivity: [],
+      });
     }
 
-    let revenueQuery = "SELECT 0 AS val";
-    let ordersQuery = "SELECT 0 AS val";
-    let lowStockQuery = "SELECT 0 AS val";
-    let productsQuery = "SELECT 0 AS val";
-    let params = [];
+    const orderScope = isAdmin
+      ? "TRUE"
+      : "(o.wholesaler_business_id = ANY($1::int[]) OR o.buyer_business_id = ANY($1::int[]))";
+    const params = isAdmin ? [] : [businessIds];
 
-    if (user.global_role === "platform_admin") {
-      revenueQuery = `SELECT COALESCE(SUM(total), 0) AS val FROM invoices`;
-      ordersQuery = `SELECT COUNT(*) AS val FROM orders`;
-      lowStockQuery = `SELECT COUNT(*) AS val FROM products WHERE stock_quantity < 10`;
-      productsQuery = `SELECT COUNT(*) AS val FROM products`;
-    } else {
-      params = [businessIds];
-      revenueQuery = `
-        SELECT COALESCE(SUM(i.total), 0) AS val
-          FROM invoices i
-          JOIN orders o ON o.order_id = i.order_id
-         WHERE o.wholesaler_business_id = ANY($1::int[])`;
-      
-      ordersQuery = `
-        SELECT COUNT(*) AS val 
-          FROM orders 
-         WHERE wholesaler_business_id = ANY($1::int[]) OR buyer_business_id = ANY($1::int[])`;
-         
-      lowStockQuery = `
-        SELECT COUNT(*) AS val 
-          FROM products 
-         WHERE business_id = ANY($1::int[]) AND stock_quantity < 10`;
-         
-      productsQuery = `
-        SELECT COUNT(*) AS val 
-          FROM products 
-         WHERE business_id = ANY($1::int[])`;
-    }
+    const revenueQuery = isAdmin
+      ? `SELECT COALESCE(SUM(total), 0) AS val FROM invoices WHERE issued_at >= ${windowStart}`
+      : `SELECT COALESCE(SUM(i.total), 0) AS val
+           FROM invoices i
+           JOIN orders o ON o.order_id = i.order_id
+          WHERE o.wholesaler_business_id = ANY($1::int[])
+            AND i.issued_at >= ${windowStart}`;
 
-    const [revRes, ordRes, lowRes, prodRes] = await Promise.all([
-      query(revenueQuery, params),
-      query(ordersQuery, params),
-      query(lowStockQuery, params),
-      query(productsQuery, params)
-    ]);
+    const ordersQuery = `
+      SELECT COUNT(*) AS val
+        FROM orders o
+       WHERE ${orderScope} AND o.created_at >= ${windowStart}`;
 
-    const revVal = parseFloat(revRes.rows[0].val);
+    const lowStockQuery = isAdmin
+      ? "SELECT COUNT(*) AS val FROM products WHERE stock_quantity < 10"
+      : "SELECT COUNT(*) AS val FROM products WHERE business_id = ANY($1::int[]) AND stock_quantity < 10";
+
+    const productsQuery = isAdmin
+      ? "SELECT COUNT(*) AS val FROM products"
+      : "SELECT COUNT(*) AS val FROM products WHERE business_id = ANY($1::int[])";
+
+    // Orders per bucket across the whole window; generate_series fills the
+    // quiet buckets with zero so the chart never has gaps.
+    const salesQuery = `
+      SELECT to_char(gs.bucket, '${labelFormat}') AS label,
+             COALESCE(counts.val, 0)::int AS value
+        FROM generate_series(
+               ${windowStart},
+               date_trunc('${bucket}', CURRENT_TIMESTAMP),
+               INTERVAL '1 ${bucket}'
+             ) AS gs(bucket)
+        LEFT JOIN (
+          SELECT date_trunc('${bucket}', o.created_at) AS bucket, COUNT(*) AS val
+            FROM orders o
+           WHERE ${orderScope} AND o.created_at >= ${windowStart}
+           GROUP BY 1
+        ) counts ON counts.bucket = gs.bucket
+       ORDER BY gs.bucket`;
+
+    const topProductsQuery = `
+      SELECT p.product_name AS name,
+             p.sku,
+             SUM(oi.quantity)::int AS sold,
+             SUM(oi.quantity * oi.unit_price_snapshot) AS revenue
+        FROM order_items oi
+        JOIN orders o ON o.order_id = oi.order_id
+        JOIN products p ON p.product_id = oi.product_id
+       WHERE ${orderScope}
+         AND o.status <> 'cancelled'
+         AND o.created_at >= ${windowStart}
+       GROUP BY p.product_id, p.product_name, p.sku
+       ORDER BY sold DESC
+       LIMIT 5`;
+
+    const recentActivityQuery = `
+      SELECT o.order_id,
+             o.status,
+             o.updated_at,
+             bb.business_name AS buyer_business_name,
+             wb.business_name AS wholesaler_business_name
+        FROM orders o
+        JOIN businesses bb ON bb.business_id = o.buyer_business_id
+        JOIN businesses wb ON wb.business_id = o.wholesaler_business_id
+       WHERE ${orderScope}
+       ORDER BY o.updated_at DESC
+       LIMIT 6`;
+
+    const [revRes, ordRes, lowRes, prodRes, salesRes, topRes, activityRes] =
+      await Promise.all([
+        query(revenueQuery, params),
+        query(ordersQuery, params),
+        query(lowStockQuery, params),
+        query(productsQuery, params),
+        query(salesQuery, params),
+        query(topProductsQuery, params),
+        query(recentActivityQuery, params),
+      ]);
 
     res.json({
-      revenue: revVal,
+      revenue: parseFloat(revRes.rows[0].val),
       orders: parseInt(ordRes.rows[0].val, 10),
       lowStock: parseInt(lowRes.rows[0].val, 10),
       products: parseInt(prodRes.rows[0].val, 10),
-      sales: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, revVal * 0.4, revVal] // Fake trend for the chart
+      sales: salesRes.rows,
+      topProducts: topRes.rows.map((row) => ({
+        ...row,
+        revenue: parseFloat(row.revenue),
+      })),
+      recentActivity: activityRes.rows,
     });
   } catch (err) {
     next(asClientError(err));
