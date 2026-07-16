@@ -7,136 +7,59 @@
   --color-plum-dark: #5a3f96;
 
   /* ------------------------------------------------------------------ */
-  /* Hero row (hidden while a search/category filter is active)          */
+  /* Promo image banners (hidden while a search/category filter is active) */
   /* ------------------------------------------------------------------ */
-  .home-hero-row {
-    display: grid;
-    grid-template-columns: 1.4fr 1fr;
-    gap: 20px;
-    margin: 28px 70px 0;
+  .home-banner {
+    margin: 44px 70px 0;
   }
 
-  .home-hero {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 20px;
-    flex-wrap: wrap;
-    padding: 28px 32px;
+  .home-banner--hero {
+    margin-top: 28px;
+  }
+
+  .home-banner a {
+    position: relative;
+    display: block;
     border-radius: 14px;
-    color: white;
-  }
-
-  .home-hero--primary {
-    background: linear-gradient(
-      120deg,
-      var(--color-primary),
-      var(--color-plum-dark)
-    );
-  }
-
-  .home-hero h1 {
-    margin: 0 0 6px;
-    font-size: 1.5rem;
-  }
-
-  .home-hero-eyebrow {
-    display: inline-block;
-    margin-bottom: 10px;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.8);
-  }
-
-  .home-hero-eyebrow--dark {
-    color: var(--color-primary-dark);
-  }
-
-  .home-hero p {
-    margin: 0;
-    color: rgba(255, 255, 255, 0.85);
-    font-size: 0.95rem;
-    max-width: 520px;
-  }
-
-  .home-hero-stack {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-  }
-
-  .home-hero-stack .home-hero {
-    flex: 1;
-    align-items: flex-start;
-    flex-wrap: nowrap;
-    padding: 22px 24px;
-  }
-
-  .home-hero--sell {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    background: linear-gradient(
-      135deg,
-      var(--color-accent-dark),
-      var(--color-accent)
-    );
-    text-decoration: none;
+    overflow: hidden;
     transition: box-shadow 0.15s ease;
   }
 
-  .home-hero--sell:hover {
+  .home-banner a:hover {
     box-shadow: 0 8px 24px rgba(23, 33, 61, 0.15);
   }
 
-  .home-hero--sell h2 {
-    margin: 0 0 4px;
-    font-size: 1.05rem;
+  .home-banner img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 3 / 1;
+    object-fit: cover;
   }
 
-  .home-hero--sell p {
-    font-size: 0.85rem;
-  }
-
-  .home-hero--trust {
-    background: var(--color-sunset);
-  }
-
-  .home-hero--trust h2 {
-    margin: 0 0 4px;
-    font-size: 1.05rem;
-  }
-
-  .home-hero--trust p {
-    font-size: 0.85rem;
-  }
-
-  .hero-cta {
-    display: inline-flex;
+  /* Navigation pill overlaid on the artwork; position/size/colors come from
+     each banner's config so it lands in that image's empty space. */
+  .home-banner-btn {
+    position: absolute;
+    display: flex;
     align-items: center;
-    gap: 8px;
-    background: var(--color-accent);
-    color: var(--color-primary-dark);
+    justify-content: center;
+    gap: 6px;
+    border-radius: 999px;
     font-weight: 700;
-    padding: 12px 22px;
-    border-radius: 25px;
-    text-decoration: none;
-    flex-shrink: 0;
-    transition: box-shadow 0.15s ease;
+    font-size: clamp(0.68rem, 1.2vw, 1rem);
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(23, 33, 61, 0.18);
+    transition: filter 0.15s ease, transform 0.15s ease;
   }
 
-  .hero-cta:hover {
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  .home-banner-btn svg {
+    width: 1em;
+    height: 1em;
   }
 
-  .hero-cta--ghost {
-    align-self: flex-start;
-    background: rgba(255, 255, 255, 0.9);
-    color: var(--color-accent-dark);
-    padding: 8px 16px;
-    font-size: 0.82rem;
+  .home-banner a:hover .home-banner-btn {
+    filter: brightness(1.08);
+    transform: scale(1.03);
   }
 
   /* ------------------------------------------------------------------ */
@@ -294,49 +217,59 @@
   /* ------------------------------------------------------------------ */
   .home-wholesaler-row {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
   }
 
   .home-wholesaler-card {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    text-align: center;
-    gap: 8px;
+    gap: 14px;
     background: white;
-    /* border: 4px solid rgba(48, 80, 160, 0.3); */
-    border: 1px solid rgba(0, 0, 0, 0.062);
-    border-radius: 0.5rem;
-    padding: 20px 12px;
+    border: 1px solid #e8edf5;
+    border-radius: 12px;
+    padding: 16px 18px;
     text-decoration: none;
     color: inherit;
-    transition: box-shadow 0.15s ease;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease,
+      transform 0.15s ease;
   }
 
   .home-wholesaler-card:hover {
-    box-shadow: 0 10px 20px rgba(23, 33, 61, 0.1);
+    border-color: #c4cfe2;
+    box-shadow: 0 8px 20px rgba(23, 33, 61, 0.1);
+    transform: translateY(-2px);
   }
 
   .home-wholesaler-avatar {
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: white;
     font-weight: 800;
-    font-size: 1.2rem;
+    font-size: 1.15rem;
+    flex-shrink: 0;
+  }
+
+  .home-wholesaler-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
   }
 
   .home-wholesaler-name {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 5px;
     font-weight: 700;
-    font-size: 0.88rem;
-    color: var(--color-text);
+    font-size: 0.92rem;
+    color: var(--color-primary-dark);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .home-wholesaler-name .verified-badge {
@@ -345,170 +278,111 @@
   }
 
   .home-wholesaler-meta {
-    font-size: 0.76rem;
+    font-size: 0.78rem;
     color: var(--color-muted);
   }
 
-  /* ------------------------------------------------------------------ */
-  /* Value-prop + bottom CTA banners                                      */
-  /* ------------------------------------------------------------------ */
-  .home-value-banner {
-    margin: 44px 70px 0;
-    padding: 30px 36px;
-    border-radius: 14px;
-    background: linear-gradient(
-      120deg,
-      var(--color-plum),
-      var(--color-plum-dark)
-    );
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 20px;
-  }
-
-  .home-value-banner h2 {
-    margin: 0;
-    font-size: 1.3rem;
-    max-width: 320px;
-  }
-
-  .home-value-banner ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .home-value-banner li {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 0.9rem;
-    color: rgba(255, 255, 255, 0.92);
-  }
-
-  .home-value-banner svg {
-    color: var(--color-sunset);
+  .home-wholesaler-arrow {
+    margin-left: auto;
+    color: var(--color-muted);
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: opacity 0.15s ease, transform 0.15s ease;
     flex-shrink: 0;
   }
 
-  .home-cta-banner {
-    margin: 44px 70px 0;
-    padding: 30px 36px;
-    border-radius: 14px;
-    background: linear-gradient(
-      120deg,
-      var(--color-sunset),
-      var(--color-sunset-dark)
-    );
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 20px;
-  }
-
-  .home-cta-banner h2 {
-    margin: 0 0 6px;
-    font-size: 1.3rem;
-  }
-
-  .home-cta-banner p {
-    margin: 0;
-    color: rgba(255, 255, 255, 0.88);
+  .home-wholesaler-card:hover .home-wholesaler-arrow {
+    opacity: 1;
+    transform: translateX(0);
+    color: var(--color-primary);
   }
 
   /* ------------------------------------------------------------------ */
   /* Supplier directory grid (existing)                                   */
   /* ------------------------------------------------------------------ */
   .content-grid {
-    background: white;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 55px;
-    padding: 70px;
-  }
-
-  .supplier-box {
-    background: var(--color-card);
-    /* border: 4px solid rgba(48, 80, 160, 0.3); */
-    border: 1px solid rgba(0, 0, 0, 0.044);
-    border-radius: 8px;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .supplier-box:hover {
-    cursor: pointer;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+    padding: 20px 70px 70px;
   }
 
   /* supplier cards are router links; keep the card look */
   a.supplier-box {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    background: white;
+    border: 1px solid #e8edf5;
+    border-radius: 12px;
+    overflow: hidden;
     text-decoration: none;
     color: inherit;
-    max-width: 500px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease,
+      transform 0.15s ease;
+  }
+
+  a.supplier-box:hover {
+    border-color: #c4cfe2;
+    box-shadow: 0 8px 20px rgba(23, 33, 61, 0.1);
+    transform: translateY(-2px);
   }
 
   .supplier-box-image {
-    height: 350px;
-    background: transparent;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 1.4rem;
-    font-weight: 700;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    background: var(--color-primary-soft);
     overflow: hidden;
-    padding: 0;
-    text-align: center;
   }
 
   .supplier-box-image img {
+    display: block;
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition:
-      transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1),
-      filter 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   }
 
   .supplier-box:hover .supplier-box-image img {
     transform: scale(1.04);
-    filter: grayscale(12%) brightness(88%);
   }
 
   .supplier-box-info {
-    /* background: #eef9de; */
-    /* border-top: 4px solid #7fe04e; */
-    background: white;
-    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 16px 18px 18px;
   }
 
   .supplier-box-info h3 {
-    color: var(--color-primary-dark);
-    margin: 0 0 10px 0;
-    font-size: 1.1rem;
+    margin: 0;
     display: flex;
-    gap: 0.5rem;
+    gap: 6px;
     align-items: center;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-primary-dark);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 
     .verified-badge {
-      color: green;
+      color: var(--color-accent-dark);
+      flex-shrink: 0;
     }
   }
 
-  .supplier-box-info p {
-    margin: 5px 0;
-    font-size: 0.9rem;
+  .supplier-box-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    font-size: 0.84rem;
     color: var(--color-muted);
+  }
+
+  .supplier-box-meta svg {
+    flex-shrink: 0;
+    color: #8a94ab;
   }
 
   .grid-filter-bar {
@@ -529,26 +403,14 @@
     color: var(--color-muted);
   }
 
-  @media (max-width: 900px) {
-    .home-hero-row {
-      grid-template-columns: 1fr;
-    }
-  }
-
   @media (max-width: 700px) {
-    .home-hero-row {
-      margin: 16px 16px 0;
-      gap: 12px;
-    }
-
-    .home-hero {
-      padding: 20px;
+    .home-banner--hero {
+      margin-top: 16px;
     }
 
     .home-section,
     .home-section-head--browse,
-    .home-value-banner,
-    .home-cta-banner {
+    .home-banner {
       margin-left: 16px;
       margin-right: 16px;
     }
@@ -557,14 +419,6 @@
       gap: 12px;
       padding: 16px;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .supplier-box {
-      border-radius: 2px;
-    }
-
-    .supplier-box-image {
-      height: 220px;
     }
   }
 }

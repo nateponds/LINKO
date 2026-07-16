@@ -1,25 +1,30 @@
 import "./SupplierDiscoveryPage.css";
 import { useEffect, useState } from "react";
-import {
-  ArrowRight,
-  BadgeCheck,
-  Handshake,
-  MapPin,
-  ShieldCheck,
-  Sprout,
-} from "lucide-react";
+import { ArrowRight, BadgeCheck } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
 import SupplierGrid from "../features/suppliers/SupplierGrid";
 import { apiGet } from "../lib/api";
 import { peso, stockBadge } from "../lib/format";
 import { imageForCategory } from "../lib/categoryImages";
+import { pickRandomBanners, productForBanner } from "../lib/productBanners";
 
-const VALUE_PROPS = [
-  { Icon: MapPin, text: "Wholesalers matched to your location" },
-  { Icon: Handshake, text: "Direct buyer-wholesaler connections" },
-  { Icon: ShieldCheck, text: "Verified supplier profiles" },
-];
+function PromoBanner({ banner, products, className = "" }) {
+  const product = productForBanner(banner, products);
+  const target = product ? `/suppliers/${product.business_id}` : "/suppliers";
+  const { background, color, ...position } = banner.button;
+
+  return (
+    <section className={`home-banner ${className}`.trim()}>
+      <Link to={target}>
+        <img src={banner.image} alt={banner.alt} />
+        <span className="home-banner-btn" style={{ ...position, background, color }}>
+          Shop Now <ArrowRight size={16} />
+        </span>
+      </Link>
+    </section>
+  );
+}
 
 const AVATAR_PALETTE = [
   "var(--color-primary)",
@@ -59,22 +64,29 @@ function ProductCard({ product }) {
 
 function WholesalerCard({ supplier, index }) {
   const initial = supplier.business_name?.charAt(0).toUpperCase() ?? "?";
+  const accent = AVATAR_PALETTE[index % AVATAR_PALETTE.length];
 
   return (
     <Link to={`/suppliers/${supplier.business_id}`} className="home-wholesaler-card">
       <span
         className="home-wholesaler-avatar"
-        style={{ background: AVATAR_PALETTE[index % AVATAR_PALETTE.length] }}
+        style={{
+          background: `color-mix(in srgb, ${accent} 14%, white)`,
+          color: accent,
+        }}
       >
         {initial}
       </span>
-      <span className="home-wholesaler-name">
-        {supplier.business_name}
-        {supplier.is_verified && <BadgeCheck size={14} className="verified-badge" />}
+      <span className="home-wholesaler-info">
+        <span className="home-wholesaler-name">
+          {supplier.business_name}
+          {supplier.is_verified && <BadgeCheck size={15} className="verified-badge" />}
+        </span>
+        <span className="home-wholesaler-meta">
+          {supplier.product_count} product{supplier.product_count === 1 ? "" : "s"}
+        </span>
       </span>
-      <span className="home-wholesaler-meta">
-        {supplier.product_count} product{supplier.product_count === 1 ? "" : "s"}
-      </span>
+      <ArrowRight size={16} className="home-wholesaler-arrow" />
     </Link>
   );
 }
@@ -85,6 +97,9 @@ function SupplierDiscoveryPage() {
 
   const [products, setProducts] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
+  // Lazy initializer so the pick survives re-renders and only changes on a
+  // fresh mount (i.e., navigating back to the page).
+  const [banners] = useState(() => pickRandomBanners(2));
 
   useEffect(() => {
     if (isFiltered) return undefined;
@@ -117,46 +132,15 @@ function SupplierDiscoveryPage() {
     .slice(0, 4);
 
   return (
-    <AppLayout showSubNav showSearch>
+    <AppLayout showSubNav showSearch showCategories>
       <div className="discovery-page">
         {!isFiltered && (
           <>
-            <section className="home-hero-row">
-              <div className="home-hero home-hero--primary">
-                <div>
-                  <span className="home-hero-eyebrow">LINKO Marketplace</span>
-                  <h1>Wholesale for your business, sourced nearby</h1>
-                  <p>
-                    Browse trusted wholesalers and compare offers from
-                    suppliers close to you.
-                  </p>
-                </div>
-                <Link to="/suppliers" className="hero-cta">
-                  Browse wholesalers <ArrowRight size={16} />
-                </Link>
-              </div>
-
-              <div className="home-hero-stack">
-                <Link to="/become-a-supplier" className="home-hero home-hero--sell">
-                  <Sprout size={22} />
-                  <div>
-                    <h2>Got inventory to move?</h2>
-                    <p>List your business and start getting orders.</p>
-                  </div>
-                  <span className="hero-cta hero-cta--ghost">
-                    Become a Supplier <ArrowRight size={14} />
-                  </span>
-                </Link>
-
-                <div className="home-hero home-hero--trust">
-                  <ShieldCheck size={22} />
-                  <div>
-                    <h2>Verified &amp; reliable</h2>
-                    <p>Every wholesaler is reviewed before they can list.</p>
-                  </div>
-                </div>
-              </div>
-            </section>
+            <PromoBanner
+              banner={banners[0]}
+              products={products}
+              className="home-banner--hero"
+            />
 
             {featuredProducts.length > 0 && (
               <section className="home-section">
@@ -185,16 +169,7 @@ function SupplierDiscoveryPage() {
               </section>
             )}
 
-            <section className="home-value-banner">
-              <h2>Built for trust, priced for growth.</h2>
-              <ul>
-                {VALUE_PROPS.map(({ Icon, text }) => (
-                  <li key={text}>
-                    <Icon size={18} /> {text}
-                  </li>
-                ))}
-              </ul>
-            </section>
+            <PromoBanner banner={banners[1]} products={products} />
 
             {moreProducts.length > 0 && (
               <section className="home-section">
@@ -208,17 +183,6 @@ function SupplierDiscoveryPage() {
                 </div>
               </section>
             )}
-
-            <section className="home-cta-banner">
-              <div>
-                <span className="home-hero-eyebrow home-hero-eyebrow--dark">Only on LINKO</span>
-                <h2>Turn your inventory into orders</h2>
-                <p>Join the wholesalers already selling to buyers near them.</p>
-              </div>
-              <Link to="/become-a-supplier" className="hero-cta">
-                Become a Supplier <ArrowRight size={16} />
-              </Link>
-            </section>
 
             <div className="home-section-head home-section-head--browse">
               <h2>Browse All Wholesalers</h2>
