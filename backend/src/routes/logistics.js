@@ -541,7 +541,7 @@ router.post(
 
     // Method-honest status: Prepaid/Online are settled at booking; COD stays
     // Pending until the terminal scan. The dispatch gate remains modeled, not
-    // enforced (docs/course-deliverable.md).
+    // enforced (local-notes/course-deliverable.md).
     const paymentStatus = payment_method === "COD" ? "Pending" : "Paid";
     await client.query(
       `INSERT INTO payments (parcel_id, method, payment_status, amount, paid_at)
@@ -1029,10 +1029,18 @@ router.post("/branches", requireAnyRole(["logistics_coordinator", "platform_admi
   }
 });
 
-router.post("/couriers", requireAnyRole(["logistics_coordinator", "platform_admin"]), async (req, res, next) => {
+// Couriers are minted only via POST /api/admin/users (kind=courier), which
+// creates the linked login. Here coordinators/admins edit an existing courier's
+// logistics fields. full_name is not editable -- it mirrors the user account.
+// Partial: omitted keys are left unchanged; an explicit assigned_branch_id:null
+// unassigns (COALESCE cannot write null, so the branch column uses a presence
+// flag + CASE WHEN).
+router.patch("/couriers/:id", requireAnyRole(["logistics_coordinator", "platform_admin"]), async (req, res, next) => {
   try {
-    const { full_name, phone_number, vehicle_type, assigned_branch_id } = req.body;
-    if (assigned_branch_id) {
+    const { phone_number, vehicle_type, assigned_branch_id } = req.body ?? {};
+    const branchProvided = Object.prototype.hasOwnProperty.call(req.body ?? {}, "assigned_branch_id");
+
+    if (branchProvided && assigned_branch_id != null) {
       const active = await query(
         "SELECT 1 FROM branches WHERE branch_id = $1 AND is_active",
         [assigned_branch_id],
@@ -1043,12 +1051,20 @@ router.post("/couriers", requireAnyRole(["logistics_coordinator", "platform_admi
         });
       }
     }
+
     const { rows } = await query(
-      `INSERT INTO couriers (full_name, phone_number, vehicle_type, assigned_branch_id)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [full_name, phone_number, vehicle_type, assigned_branch_id || null]
+      `UPDATE couriers SET
+         phone_number = COALESCE($2, phone_number),
+         vehicle_type = COALESCE($3, vehicle_type),
+         assigned_branch_id = CASE WHEN $4 THEN $5 ELSE assigned_branch_id END
+       WHERE courier_id = $1 AND is_active
+       RETURNING courier_id, full_name, phone_number, vehicle_type, assigned_branch_id`,
+      [req.params.id, phone_number ?? null, vehicle_type ?? null, branchProvided, assigned_branch_id ?? null],
     );
-    res.status(201).json(rows[0]);
+    if (!rows.length) {
+      return res.status(404).json({ error: { message: `Courier ${req.params.id} not found` } });
+    }
+    res.json(rows[0]);
   } catch(e) {
     next(asClientError(e));
   }

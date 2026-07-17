@@ -376,3 +376,61 @@ test("deactivated courier loses list and write access", { skip: !hasDb }, async 
     await pool.end();
   }
 });
+
+test("coordinator edits a courier's logistics fields via PATCH", { skip: !hasDb }, async () => {
+  const coordinatorCookie = await loginAs("logistics@linko.test");
+  const pool = createPool();
+  let courierId;
+  try {
+    // Disposable courier assigned to branch 1.
+    courierId = (
+      await pool.query(
+        `INSERT INTO couriers (full_name, phone_number, vehicle_type, assigned_branch_id)
+         VALUES ('PATCH Fixture', '+639170000000', 'bike', 1)
+         RETURNING courier_id`,
+      )
+    ).rows[0].courier_id;
+
+    // Reassign branch + update vehicle. Branch 2 exists in the seed.
+    const updated = await request(`/api/couriers/${courierId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: coordinatorCookie },
+      body: JSON.stringify({ vehicle_type: "Van", assigned_branch_id: 2 }),
+    });
+    assert.equal(updated.status, 200);
+    assert.equal(updated.body.vehicle_type, "Van");
+    assert.equal(updated.body.assigned_branch_id, 2);
+    assert.equal(updated.body.phone_number, "+639170000000", "omitted field unchanged");
+
+    // Explicit null unassigns the branch.
+    const unassigned = await request(`/api/couriers/${courierId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: coordinatorCookie },
+      body: JSON.stringify({ assigned_branch_id: null }),
+    });
+    assert.equal(unassigned.status, 200);
+    assert.equal(unassigned.body.assigned_branch_id, null);
+
+    // Unknown courier -> 404.
+    const missing = await request("/api/couriers/999999", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: coordinatorCookie },
+      body: JSON.stringify({ vehicle_type: "Truck" }),
+    });
+    assert.equal(missing.status, 404);
+
+    // Inactive/unknown branch -> 400.
+    const badBranch = await request(`/api/couriers/${courierId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: coordinatorCookie },
+      body: JSON.stringify({ assigned_branch_id: 999999 }),
+    });
+    assert.equal(badBranch.status, 400);
+    assert.match(badBranch.body.error.message, /active branch/i);
+  } finally {
+    if (courierId) {
+      await pool.query("DELETE FROM couriers WHERE courier_id = $1", [courierId]);
+    }
+    await pool.end();
+  }
+});

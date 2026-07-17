@@ -81,7 +81,7 @@ Depends on nothing in Sprint 7; the two ship as separate reviewable PRs.
       at handoff"). Distance becomes `NULL`; ETA derives from the tier's
       `estimated_days`, not `CURRENT_DATE + 5`.
 - [x] Method-honest payment lifecycle (gate stays unenforced per
-      `docs/course-deliverable.md`): `Prepaid`/`Online` → `Paid` + `paid_at`
+      `local-notes/course-deliverable.md`): `Prepaid`/`Online` → `Paid` + `paid_at`
       at booking; `COD` → `Paid` on the `Delivered` scan, `Failed` on
       `Returned`. All inside the existing transactions.
 - [x] Remarks-as-POD: courier `Delivered` and `Returned` scans require
@@ -223,7 +223,7 @@ is the missing operational counterpart for a parcel that must be pulled before
 delivery.
 
 Course-relevance: **graded** — parcel tracking is the graded workflow focus  
-(`docs/course-deliverable.md`). Cancellation is a tracking-state operation, in  
+(`local-notes/course-deliverable.md`). Cancellation is a tracking-state operation, in  
 scope.
 
 ### Scope boundary (read first)
@@ -237,7 +237,7 @@ scope.
   (`LINKO_ERD.md` tracking-logs note; couriers are already blocked at  
   `COURIER_TRACKING_STATUSES`). Keep that.
 - **No commissions/remittances.** They were removed entirely (migration `018`,  
-  `docs/course-deliverable.md`) — no `commissions`/`commission_brackets` tables,  
+  `local-notes/course-deliverable.md`) — no `commissions`/`commission_brackets` tables,  
   no remittance view. The cancel path has nothing to reverse or adjust on that  
   front; there is simply no commission concept left.
 - Payment: mirror the `Returned` handling that already exists — a COD parcel  

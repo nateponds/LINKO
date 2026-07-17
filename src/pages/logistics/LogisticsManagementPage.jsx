@@ -13,6 +13,10 @@ export default function LogisticsManagementPage() {
   const [error, setError] = useState(null);
   const [submittingBranch, setSubmittingBranch] = useState(false);
   const [submittingCourier, setSubmittingCourier] = useState(false);
+  const [editingCourierId, setEditingCourierId] = useState(null);
+  const [courierForm, setCourierForm] = useState({
+    phone_number: "", vehicle_type: "", assigned_branch_id: ""
+  });
   const [submittingTier, setSubmittingTier] = useState(false);
   const [branchError, setBranchError] = useState(null);
   const [courierError, setCourierError] = useState(null);
@@ -21,9 +25,6 @@ export default function LogisticsManagementPage() {
   // Form states
   const [newBranch, setNewBranch] = useState({
     branch_name: "", contact_number: "", province: "", city_municipality: "", barangay: "", street_address: "", postal_code: ""
-  });
-  const [newCourier, setNewCourier] = useState({
-    full_name: "", phone_number: "", vehicle_type: "", assigned_branch_id: ""
   });
   const [editingTierId, setEditingTierId] = useState(null);
   const [editForm, setEditForm] = useState({
@@ -98,17 +99,31 @@ export default function LogisticsManagementPage() {
     }
   };
 
-  const handleAddCourier = async (e) => {
+  const startEditingCourier = (courier) => {
+    setCourierError(null);
+    setEditingCourierId(courier.courier_id);
+    setCourierForm({
+      phone_number: courier.phone_number ?? "",
+      vehicle_type: courier.vehicle_type ?? "",
+      assigned_branch_id: courier.assigned_branch_id ?? "",
+    });
+  };
+
+  const handleEditCourierSubmit = async (e) => {
     e.preventDefault();
     setSubmittingCourier(true);
     setCourierError(null);
     try {
-      const payload = { ...newCourier };
-      if (!payload.assigned_branch_id) delete payload.assigned_branch_id;
-      else payload.assigned_branch_id = Number(payload.assigned_branch_id);
-
-      await apiSend("/api/couriers", { body: payload });
-      setNewCourier({ full_name: "", phone_number: "", vehicle_type: "", assigned_branch_id: "" });
+      // assigned_branch_id is always sent: "" means unassign (null).
+      const body = {
+        phone_number: courierForm.phone_number.trim() || null,
+        vehicle_type: courierForm.vehicle_type.trim() || null,
+        assigned_branch_id: courierForm.assigned_branch_id
+          ? Number(courierForm.assigned_branch_id)
+          : null,
+      };
+      await apiSend(`/api/couriers/${editingCourierId}`, { method: "PATCH", body });
+      setEditingCourierId(null);
       await refreshData();
     } catch (err) {
       setCourierError(err.message);
@@ -222,32 +237,48 @@ export default function LogisticsManagementPage() {
             {/* Couriers Section */}
             <div>
               <h2 style={{ textAlign: 'center' }}>Couriers</h2>
-              <div className="logistics-form-card">
-                <form onSubmit={handleAddCourier}>
-                  <input type="text" placeholder="Full Name" required value={newCourier.full_name} onChange={e => setNewCourier({...newCourier, full_name: e.target.value})} />
-                  <input type="text" placeholder="Phone Number" required value={newCourier.phone_number} onChange={e => setNewCourier({...newCourier, phone_number: e.target.value})} />
-                  <input type="text" placeholder="Vehicle Type (e.g. Van, Motorcycle)" value={newCourier.vehicle_type} onChange={e => setNewCourier({...newCourier, vehicle_type: e.target.value})} />
-                  <select value={newCourier.assigned_branch_id} onChange={e => setNewCourier({...newCourier, assigned_branch_id: e.target.value})}>
-                    <option value="">-- Assign to Branch (Optional) --</option>
-                    {branches.map(b => <option key={b.branch_id} value={b.branch_id}>{b.branch_name}</option>)}
-                  </select>
-                  <button type="submit" disabled={submittingCourier}>
-                    <Plus size={16} /> {submittingCourier ? "Adding…" : "Add Courier"}
-                  </button>
-                  {courierError && <p className="logistics-form-error">{courierError}</p>}
-                </form>
-              </div>
+              <p style={{ textAlign: 'center', fontSize: '0.85rem', opacity: 0.7, marginBottom: '1rem' }}>
+                Couriers are created from the Admin dashboard.
+              </p>
+              {courierError && <p className="logistics-form-error" style={{ marginBottom: '1rem' }}>{courierError}</p>}
               <ul className="logistics-list">
                 {couriers.map(c => (
-                  <li key={c.courier_id} className="logistics-list-row">
-                    <div>
-                      <strong>{c.full_name}</strong> - {c.phone_number}<br/>
-                      <small>{c.vehicle_type} • Branch: {branches.find(b => b.branch_id === c.assigned_branch_id)?.branch_name || 'None'}</small>
-                    </div>
-                    <button type="button" className="logistics-delete-btn" title="Delete courier"
-                      onClick={() => handleDelete("courier", c.courier_id, c.full_name)}>
-                      <Trash2 size={16} />
-                    </button>
+                  <li key={c.courier_id} className="logistics-list-row" style={{ alignItems: 'flex-start' }}>
+                    {editingCourierId === c.courier_id ? (
+                      <form className="logistics-edit-form" onSubmit={handleEditCourierSubmit} style={{ width: '100%' }}>
+                        <input type="text" placeholder="Phone Number" value={courierForm.phone_number} onChange={e => setCourierForm({...courierForm, phone_number: e.target.value})} />
+                        <input type="text" placeholder="Vehicle Type (e.g. Van, Motorcycle)" value={courierForm.vehicle_type} onChange={e => setCourierForm({...courierForm, vehicle_type: e.target.value})} />
+                        <select value={courierForm.assigned_branch_id} onChange={e => setCourierForm({...courierForm, assigned_branch_id: e.target.value})}>
+                          <option value="">-- Unassign --</option>
+                          {branches.map(b => <option key={b.branch_id} value={b.branch_id}>{b.branch_name}</option>)}
+                        </select>
+                        <div className="logistics-edit-actions" style={{ justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+                          <button type="submit" className="logistics-save-btn" disabled={submittingCourier} title="Save">
+                            <Check size={16} />
+                          </button>
+                          <button type="button" className="logistics-delete-btn" disabled={submittingCourier} onClick={() => setEditingCourierId(null)} title="Cancel">
+                            <X size={16} />
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <>
+                        <div>
+                          <strong>{c.full_name}</strong> - {c.phone_number}<br/>
+                          <small>{c.vehicle_type} • Branch: {branches.find(b => b.branch_id === c.assigned_branch_id)?.branch_name || 'None'}</small>
+                        </div>
+                        <div className="logistics-edit-actions">
+                          <button type="button" className="logistics-edit-btn" title="Edit courier"
+                            onClick={() => startEditingCourier(c)}>
+                            <Pencil size={16} />
+                          </button>
+                          <button type="button" className="logistics-delete-btn" title="Delete courier"
+                            onClick={() => handleDelete("courier", c.courier_id, c.full_name)}>
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </li>
                 ))}
               </ul>

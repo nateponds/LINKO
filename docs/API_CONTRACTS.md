@@ -370,7 +370,7 @@ New parcels are stamped into the pickup pool for the origin city: `origin_addres
 
 ```json
 [
-  { "tier_id": 1, "tier_name": "Standard", "base_fee": 45, "base_rate_per_kg": 20, "rate_per_km": 2, "estimated_days": 5 }
+  { "tier_id": 1, "tier_name": "Standard", "base_fee": 50, "base_rate_per_kg": 20, "rate_per_km": 2, "estimated_days": 5 }
 ]
 ```
 
@@ -444,3 +444,113 @@ Side effects on a parcel with an `order_id` (transactional, all roles): `Deliver
 `GET /api/parcels/:id` gains a **buyer** scope: a buyer may read a single parcel when its `receiver_id` is one of their buyer businesses — this backs the read-only "Track parcel" modal on the Orders screen. As with every other role, an out-of-scope parcel returns **404** (existence is not leaked), and the internal `sender_id` / `receiver_id` fields are stripped from the response.
 
 The parcel **list** (`GET /api/parcels`) stays **operator-only**: a buyer-only caller receives an empty list — buyers can never enumerate parcels, only read their own delivery by id. The tracking **write** route (§3.6) is unchanged and still excludes `buyer`. A business is exactly one of buyer or wholesaler; a user holding both roles does so via two distinct businesses, and only the active business's roles apply to a given request.
+
+### 3.7 Branches (`/api/branches`)
+
+`GET /api/branches` — any authenticated logistics reader. Active branches with their address, joined for display.
+
+```json
+[
+  { "branch_id": 1, "branch_name": "LINKO Cebu Central Hub", "contact_number": "+639170000001",
+    "province": "Cebu", "city_municipality": "Cebu City", "barangay": "Lahug", "street_address": "1 Hub St" }
+]
+```
+
+`POST /api/branches` — roles: `logistics_coordinator`, `platform_admin`. Transactional: inserts an `addresses` row then the `branches` row referencing it.
+
+**Request Body:**
+
+```json
+{ "branch_name": "New Branch", "contact_number": "+639170000009",
+  "province": "Cebu", "city_municipality": "Mandaue", "barangay": "Centro",
+  "street_address": "2 Test St", "postal_code": "6014" }
+```
+
+**Response (`201 Created`):** the inserted `branches` row (`branch_id`, `branch_name`, `contact_number`, `address_id`, `is_active`).
+
+`DELETE /api/branches/:id` — roles: `logistics_coordinator`, `platform_admin`. Soft delete (`is_active = false`); parcel history is preserved. **`409`** if the branch's unassigned pool still holds live (non-terminal) parcels — reassign them first. On success it also unassigns (`assigned_branch_id = NULL`) any couriers pointing at the branch. Returns **`204`** (or `404` if not found/already inactive).
+
+### 3.8 Couriers (`/api/couriers`)
+
+Couriers are **created only via `POST /api/admin/users` with `kind = "courier"`** (§4) — that path mints the login and the linked `couriers` row (with optional logistics fields) in one transaction. There is no `POST /api/couriers`.
+
+`GET /api/couriers` — any authenticated logistics reader. Active couriers.
+
+```json
+[
+  { "courier_id": 1, "full_name": "Cory Dela Cruz", "phone_number": "+639170000004",
+    "vehicle_type": "Motorcycle", "assigned_branch_id": 1 }
+]
+```
+
+`PATCH /api/couriers/:id` — roles: `logistics_coordinator`, `platform_admin`. Edits an existing courier's logistics fields. `full_name` is **not** editable (it mirrors the linked user account).
+
+**Request Body (all optional, partial update):**
+
+```json
+{ "phone_number": "+639170000010", "vehicle_type": "Van", "assigned_branch_id": 2 }
+```
+
+Omitted keys are left unchanged. An explicit `"assigned_branch_id": null` unassigns the courier from any branch. A non-null `assigned_branch_id` that does not reference an **active** branch returns **`400`**.
+
+**Response (`200 OK`):** the updated courier in the `GET` shape. **`404`** if no active courier with that id.
+
+`DELETE /api/couriers/:id` — roles: `logistics_coordinator`, `platform_admin`. Soft delete (`is_active = false`); tracking history is preserved. Returns **`204`** (or `404` if not found/already inactive).
+
+## 4. Admin Domain (`/api/admin`)
+
+Every route is mounted behind `requireAuth` + `requireGlobalRole("platform_admin")` — non-admins get `403`, unauthenticated get `401`.
+
+### 4.1 `GET /api/admin/users`
+
+All users with aggregated business memberships, newest first.
+
+```json
+[
+  { "user_id": 7, "full_name": "Jane Dela Cruz", "email": "jane@linko.test",
+    "global_role": null, "is_active": true, "created_at": "2026-07-17T00:00:00.000Z",
+    "memberships": [ { "business_id": 1, "business_name": "Cebu Fresh Wholesale", "role": "courier" } ] }
+]
+```
+
+### 4.2 `POST /api/admin/users`
+
+Create a privileged user. `kind` ∈ `logistics_coordinator | courier | platform_admin` (buyers/wholesalers self-register).
+
+`business_id` handling depends on `kind`:
+
+- **`logistics_coordinator`** — **required**; inserts a membership row on that business. Missing/invalid → `400`. Admin UIs should offer only `business_type = 'logistics'` businesses (filter client-side; §4.4 intentionally returns all businesses).
+- **`courier`** — **ignored if sent.** Couriers are staff of the canonical `LINKO Logistics` org, which the server resolves by name (migration 022); the membership always lands there. If that business is missing → `500`.
+- **`platform_admin`** — takes no business; no membership row.
+
+**Request Body:**
+
+```json
+{ "full_name": "Jane Dela Cruz", "email": "jane@linko.test", "password": "min8chars",
+  "kind": "courier",
+  "phone_number": "+639170000010", "vehicle_type": "Motorcycle", "assigned_branch_id": 1 }
+```
+
+The last three fields are **courier-only** and all optional; they populate the linked `couriers` row (ignored for other kinds). `assigned_branch_id` must reference an active branch or the whole create rolls back with **`400`**. `409` on duplicate email; `400` on missing/invalid fields or a password under 8 characters.
+
+**Response (`201 Created`):** the created user (`user_id`, `full_name`, `email`, `global_role`, `is_active`, `created_at`, `memberships: []`).
+
+### 4.3 `PATCH /api/admin/users/:id`
+
+Body `{ "is_active": boolean }`. Deactivating (`false`) also deletes the user's live sessions so the lockout is immediate. **Response (`200 OK`):** the updated user. `404` if not found.
+
+### 4.4 `GET /api/admin/businesses`
+
+All businesses with a summary of their member users, newest first.
+
+```json
+[
+  { "business_id": 1, "business_name": "Cebu Fresh Wholesale", "business_type": "wholesaler",
+    "is_verified": true, "created_at": "2026-07-17T00:00:00.000Z",
+    "members": [ { "user_id": 3, "full_name": "Owner", "email": "wholesaler@linko.test", "role": "wholesaler" } ] }
+]
+```
+
+### 4.5 `PATCH /api/admin/businesses/:id`
+
+Body `{ "is_verified": boolean }`. **Response (`200 OK`):** the updated business. `404` if not found.
