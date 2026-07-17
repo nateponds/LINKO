@@ -1551,13 +1551,14 @@ test("PUT /api/service-tiers/:id is admin-only and validates inputs (Sprint 12)"
   });
   assert.equal(zeroDaysRes.status, 400);
 
-  // Revert the tier 1 to its original state so we don't break other tests permanently.
+  // Revert tier 1 to its seed state (dev_seed.sql: base_fee 50) so we don't
+  // break other tests permanently.
   await request("/api/service-tiers/1", {
     method: "PUT",
     headers: { "Content-Type": "application/json", Cookie: adminCookie },
     body: JSON.stringify({
       tier_name: "Standard",
-      base_fee: 45,
+      base_fee: 50,
       base_rate_per_kg: 20,
       rate_per_km: 2,
       estimated_days: 5

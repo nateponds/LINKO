@@ -17,6 +17,9 @@ const EMPTY_FORM = {
   password: "",
   kind: "logistics_coordinator",
   business_id: "",
+  phone_number: "",
+  vehicle_type: "",
+  assigned_branch_id: "",
 };
 
 function membershipSummary(memberships) {
@@ -46,6 +49,7 @@ function memberSummary(members) {
 export default function AdminDashboardPage() {
   const [users, setUsers] = useState([]);
   const [businesses, setBusinesses] = useState([]);
+  const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [mutatingId, setMutatingId] = useState(null);
@@ -59,12 +63,14 @@ export default function AdminDashboardPage() {
     setError(null);
 
     try {
-      const [userData, businessData] = await Promise.all([
+      const [userData, businessData, branchData] = await Promise.all([
         apiGet("/api/admin/users"),
         apiGet("/api/admin/businesses"),
+        apiGet("/api/branches"),
       ]);
       setUsers(Array.isArray(userData) ? userData : []);
       setBusinesses(Array.isArray(businessData) ? businessData : []);
+      setBranches(Array.isArray(branchData) ? branchData : []);
     } catch (caughtError) {
       setError(caughtError.message);
     } finally {
@@ -80,13 +86,15 @@ export default function AdminDashboardPage() {
       setError(null);
 
       try {
-        const [userData, businessData] = await Promise.all([
+        const [userData, businessData, branchData] = await Promise.all([
           apiGet("/api/admin/users"),
           apiGet("/api/admin/businesses"),
+          apiGet("/api/branches"),
         ]);
         if (active) {
           setUsers(Array.isArray(userData) ? userData : []);
           setBusinesses(Array.isArray(businessData) ? businessData : []);
+          setBranches(Array.isArray(branchData) ? branchData : []);
         }
       } catch (caughtError) {
         if (active) {
@@ -106,12 +114,17 @@ export default function AdminDashboardPage() {
     };
   }, []);
 
+  // Only logistics orgs can take a coordinator. Filtered here rather than in
+  // the API because /api/admin/businesses also feeds the businesses table and
+  // its verify toggle, which need every business.
   const businessOptions = useMemo(
     () =>
-      businesses.map((business) => ({
-        id: business.id,
-        name: business.name,
-      })),
+      businesses
+        .filter((business) => business.business_type === "logistics")
+        .map((business) => ({
+          id: business.business_id,
+          name: business.business_name,
+        })),
     [businesses],
   );
 
@@ -126,7 +139,7 @@ export default function AdminDashboardPage() {
       });
       setUsers((current) =>
         current.map((entry) =>
-          entry.id === userId ? { ...entry, ...updated } : entry,
+          entry.user_id === userId ? { ...entry, ...updated } : entry,
         ),
       );
       void loadData();
@@ -148,7 +161,7 @@ export default function AdminDashboardPage() {
       });
       setBusinesses((current) =>
         current.map((entry) =>
-          entry.id === businessId ? { ...entry, ...updated } : entry,
+          entry.business_id === businessId ? { ...entry, ...updated } : entry,
         ),
       );
       void loadData();
@@ -170,7 +183,8 @@ export default function AdminDashboardPage() {
     const fullName = form.full_name.trim();
     const email = form.email.trim();
     const password = form.password;
-    const needsBusiness = form.kind !== "platform_admin";
+    // Couriers auto-attach to the canonical logistics org server-side.
+    const needsBusiness = form.kind === "logistics_coordinator";
 
     if (!fullName || !email || !password) {
       setFormError("Full name, email, and password are required.");
@@ -189,6 +203,15 @@ export default function AdminDashboardPage() {
     };
     if (needsBusiness) {
       body.business_id = Number(form.business_id);
+    }
+    if (form.kind === "courier") {
+      const phone = form.phone_number.trim();
+      const vehicle = form.vehicle_type.trim();
+      if (phone) body.phone_number = phone;
+      if (vehicle) body.vehicle_type = vehicle;
+      if (form.assigned_branch_id) {
+        body.assigned_branch_id = Number(form.assigned_branch_id);
+      }
     }
 
     setCreating(true);
@@ -263,7 +286,7 @@ export default function AdminDashboardPage() {
                   ))}
                 </select>
               </label>
-              {form.kind !== "platform_admin" ? (
+              {form.kind === "logistics_coordinator" ? (
                 <label>
                   <span>Business</span>
                   <select
@@ -280,6 +303,48 @@ export default function AdminDashboardPage() {
                     ))}
                   </select>
                 </label>
+              ) : null}
+              {form.kind === "courier" ? (
+                <>
+                  <label>
+                    <span>Phone</span>
+                    <input
+                      type="text"
+                      value={form.phone_number}
+                      onChange={(event) =>
+                        updateForm("phone_number", event.target.value)
+                      }
+                      placeholder="+639170000000"
+                    />
+                  </label>
+                  <label>
+                    <span>Vehicle</span>
+                    <input
+                      type="text"
+                      value={form.vehicle_type}
+                      onChange={(event) =>
+                        updateForm("vehicle_type", event.target.value)
+                      }
+                      placeholder="Motorcycle"
+                    />
+                  </label>
+                  <label>
+                    <span>Branch</span>
+                    <select
+                      value={form.assigned_branch_id}
+                      onChange={(event) =>
+                        updateForm("assigned_branch_id", event.target.value)
+                      }
+                    >
+                      <option value="">No branch</option>
+                      {branches.map((branch) => (
+                        <option key={branch.branch_id} value={branch.branch_id}>
+                          {branch.branch_name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </>
               ) : null}
             </div>
             <div className="admin-form-actions">
@@ -316,9 +381,9 @@ export default function AdminDashboardPage() {
                 </thead>
                 <tbody>
                   {users.map((entry) => {
-                    const busy = mutatingId === `user-${entry.id}`;
+                    const busy = mutatingId === `user-${entry.user_id}`;
                     return (
-                      <tr key={entry.id}>
+                      <tr key={entry.user_id}>
                         <td>
                           <strong>{entry.full_name ?? "—"}</strong>
                         </td>
@@ -345,7 +410,7 @@ export default function AdminDashboardPage() {
                             className="admin-action-btn"
                             disabled={busy}
                             onClick={() =>
-                              toggleUserActive(entry.id, !entry.is_active)
+                              toggleUserActive(entry.user_id, !entry.is_active)
                             }
                           >
                             {busy
@@ -388,13 +453,13 @@ export default function AdminDashboardPage() {
                 </thead>
                 <tbody>
                   {businesses.map((business) => {
-                    const busy = mutatingId === `business-${business.id}`;
+                    const busy = mutatingId === `business-${business.business_id}`;
                     return (
-                      <tr key={business.id}>
+                      <tr key={business.business_id}>
                         <td>
-                          <strong>{business.name}</strong>
+                          <strong>{business.business_name}</strong>
                         </td>
-                        <td>{business.type ?? "—"}</td>
+                        <td>{business.business_type ?? "—"}</td>
                         <td className="admin-memberships">
                           {memberSummary(business.members)}
                         </td>
@@ -413,7 +478,7 @@ export default function AdminDashboardPage() {
                             disabled={busy}
                             onClick={() =>
                               toggleBusinessVerified(
-                                business.id,
+                                business.business_id,
                                 !business.is_verified,
                               )
                             }

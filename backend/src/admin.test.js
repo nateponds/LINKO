@@ -82,8 +82,12 @@ test("admin creates a courier user who can then log in", { skip: !hasDb }, async
   const email = `courier-created-${Date.now()}@example.com`;
 
   try {
-    const harborId = await getBusinessIdByName(pool, "Cebu Fresh Wholesale");
+    const branch = await pool.query(
+      "SELECT branch_id FROM branches WHERE is_active ORDER BY branch_id LIMIT 1",
+    );
+    const branchId = branch.rows[0].branch_id;
 
+    // No business_id: the server attaches couriers to the canonical org.
     const created = await request("/api/admin/users", {
       method: "POST",
       headers: { "Content-Type": "application/json", Cookie: adminCookie },
@@ -92,18 +96,36 @@ test("admin creates a courier user who can then log in", { skip: !hasDb }, async
         email,
         password: "Password123!",
         kind: "courier",
-        business_id: harborId,
+        phone_number: "+639170001234",
+        vehicle_type: "Motorcycle",
+        assigned_branch_id: branchId,
       }),
     });
     assert.equal(created.status, 201);
     assert.equal(created.body.email, email);
     assert.equal(created.body.global_role, null);
 
-    // Newly created privileged user can authenticate.
+    // The linked couriers row carries the logistics fields sent above.
+    const courierRow = await pool.query(
+      "SELECT phone_number, vehicle_type, assigned_branch_id FROM couriers WHERE user_id = $1",
+      [created.body.user_id],
+    );
+    assert.equal(courierRow.rowCount, 1);
+    assert.equal(courierRow.rows[0].phone_number, "+639170001234");
+    assert.equal(courierRow.rows[0].vehicle_type, "Motorcycle");
+    assert.equal(courierRow.rows[0].assigned_branch_id, branchId);
+
+    // Newly created privileged user can authenticate, and the membership
+    // landed on the canonical logistics org.
     const cookie = await loginAs(email);
     const me = await request("/api/auth/me", { headers: { Cookie: cookie } });
     assert.equal(me.status, 200);
-    assert.ok(me.body.memberships.some((m) => m.role === "courier"));
+    assert.ok(
+      me.body.memberships.some(
+        (m) => m.role === "courier" && m.business_name === "LINKO Logistics",
+      ),
+      "courier membership should land on LINKO Logistics",
+    );
 
     // Duplicate email -> 409.
     const dup = await request("/api/admin/users", {
@@ -114,7 +136,6 @@ test("admin creates a courier user who can then log in", { skip: !hasDb }, async
         email,
         password: "Password123!",
         kind: "courier",
-        business_id: harborId,
       }),
     });
     assert.equal(dup.status, 409);
@@ -124,21 +145,76 @@ test("admin creates a courier user who can then log in", { skip: !hasDb }, async
   }
 });
 
-test("courier kind without a business_id is rejected", { skip: !hasDb }, async () => {
+test("courier create ignores a client-sent business_id", { skip: !hasDb }, async () => {
   const adminCookie = await loginAs("admin@linko.test");
-  const response = await request("/api/admin/users", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Cookie: adminCookie },
-    body: JSON.stringify({
-      full_name: "No Business Courier",
-      email: `no-biz-${Date.now()}@example.com`,
-      password: "Password123!",
-      kind: "courier",
-    }),
-  });
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+  const email = `courier-stray-biz-${Date.now()}@example.com`;
 
-  assert.equal(response.status, 400);
-  assert.match(response.body.error.message, /business_id/i);
+  try {
+    // A wholesaler business: if the server trusted this, the courier's
+    // membership would land on it instead of the canonical logistics org.
+    const wholesalerId = await getBusinessIdByName(pool, "Cebu Fresh Wholesale");
+
+    const created = await request("/api/admin/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: adminCookie },
+      body: JSON.stringify({
+        full_name: "Stray Business Courier",
+        email,
+        password: "Password123!",
+        kind: "courier",
+        business_id: wholesalerId,
+      }),
+    });
+    assert.equal(created.status, 201);
+
+    const membership = await pool.query(
+      `SELECT b.business_name
+         FROM business_memberships bm
+         JOIN businesses b ON b.business_id = bm.business_id
+        WHERE bm.user_id = $1 AND bm.role = 'courier'`,
+      [created.body.user_id],
+    );
+    assert.equal(membership.rowCount, 1);
+    assert.equal(membership.rows[0].business_name, "LINKO Logistics");
+  } finally {
+    await pool.query("DELETE FROM users WHERE email = $1", [email]);
+    await pool.end();
+  }
+});
+
+test("courier create rejects an inactive/unknown branch", { skip: !hasDb }, async () => {
+  const adminCookie = await loginAs("admin@linko.test");
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+  const email = `bad-branch-${Date.now()}@example.com`;
+
+  try {
+    const harborId = await getBusinessIdByName(pool, "Cebu Fresh Wholesale");
+    const response = await request("/api/admin/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: adminCookie },
+      body: JSON.stringify({
+        full_name: "Bad Branch Courier",
+        email,
+        password: "Password123!",
+        kind: "courier",
+        business_id: harborId,
+        assigned_branch_id: 999999,
+      }),
+    });
+
+    assert.equal(response.status, 400);
+    assert.match(response.body.error.message, /active branch/i);
+
+    // Nothing was created (transaction rolled back).
+    const users = await pool.query("SELECT 1 FROM users WHERE email = $1", [email]);
+    assert.equal(users.rowCount, 0);
+  } finally {
+    await pool.query("DELETE FROM users WHERE email = $1", [email]);
+    await pool.end();
+  }
 });
 
 test("admin deactivation blocks login and reactivation restores it", { skip: !hasDb }, async () => {
