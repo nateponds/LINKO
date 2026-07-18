@@ -51,7 +51,8 @@ export async function getSessionUser(sessionToken, db = getPool()) {
              'business_id', b.business_id,
              'business_name', b.business_name,
              'business_type', b.business_type,
-             'role', bm.role
+             'role', bm.role,
+             'has_coordinates', (ba.latitude IS NOT NULL AND ba.longitude IS NOT NULL)
            )
            ORDER BY b.business_id, bm.role
          ) FILTER (WHERE bm.membership_id IS NOT NULL),
@@ -61,6 +62,7 @@ export async function getSessionUser(sessionToken, db = getPool()) {
      JOIN users u ON u.user_id = s.user_id
      LEFT JOIN business_memberships bm ON bm.user_id = u.user_id
      LEFT JOIN businesses b ON b.business_id = bm.business_id
+     LEFT JOIN addresses ba ON ba.address_id = b.logistics_address_id
      WHERE s.token_hash = $1
        AND s.expires_at > CURRENT_TIMESTAMP
        AND u.is_active

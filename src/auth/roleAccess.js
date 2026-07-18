@@ -41,6 +41,8 @@ export function groupMemberships(memberships = []) {
       byBusiness.set(m.business_id, {
         business_id: m.business_id,
         business_name: m.business_name,
+        business_type: m.business_type ?? null,
+        has_coordinates: m.has_coordinates ?? false,
         roles: [m.role],
       });
     }
