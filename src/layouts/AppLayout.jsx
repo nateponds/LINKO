@@ -41,7 +41,7 @@ function MissingLocationBanner() {
         {isBuyer ? "orders can't be placed" : "orders can't be shipped"} until
         it is set.
       </span>
-      <Link to="/settings" style={{ fontWeight: 600, color: "inherit" }}>
+      <Link to="/settings/business-location" style={{ fontWeight: 600, color: "inherit" }}>
         Set location
       </Link>
     </div>
