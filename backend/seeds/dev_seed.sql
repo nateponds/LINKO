@@ -150,29 +150,29 @@ INSERT INTO business_memberships (user_id, business_id, role) VALUES
 -- ids by literal, and a shift silently reroutes parcels (or fails the seed
 -- outright on the warehouse FK).
 -- ---------------------------------------------------------------------------
-INSERT INTO addresses (address_id, business_id, province, city_municipality, barangay, street_address, postal_code) VALUES
+INSERT INTO addresses (address_id, business_id, province, city_municipality, barangay, street_address, postal_code, latitude, longitude) VALUES
   -- Business 1 (Sunrise Retail — buyer)
-  (1,  1, 'Cebu',   'Cebu City',    'Lahug',      '123 Salinas Dr',        '6000'),
+  (1,  1, 'Cebu',   'Cebu City',    'Lahug',      '123 Salinas Dr',        '6000', 10.3283, 123.8988),
   -- Business 2 (Cebu Fresh Wholesale) — 2 addresses
-  (2,  2, 'Cebu',   'Cebu City',    'Mabolo',     '45 AS Fortuna St',      '6000'),    -- main office
-  (3,  2, 'Cebu',   'Cebu City',    'Banilad',    '88 Gov. Cuenco Ave',    '6000'),    -- warehouse loc
+  (2,  2, 'Cebu',   'Cebu City',    'Mabolo',     '45 AS Fortuna St',      '6000', 10.3182, 123.9161),    -- main office
+  (3,  2, 'Cebu',   'Cebu City',    'Banilad',    '88 Gov. Cuenco Ave',    '6000', 10.3444, 123.9137),    -- warehouse loc
   -- Business 3 (LINKO Logistics)
-  (4,  3, 'Cebu',   'Cebu City',    'Subangdaku', '10 Ouano Ave',          '6000'),
+  (4,  3, 'Cebu',   'Cebu City',    'Subangdaku', '10 Ouano Ave',          '6000', 10.3243, 123.9234),
   -- 5 absent: was Cory Express Delivery (courier business, dropped in 022)
   -- Business 5 (LINKO Platform — admin)
-  (6,  5, 'Cebu',   'Cebu City',    'Lahug',      'Cebu IT Park Tower 1',  '6000'),
+  (6,  5, 'Cebu',   'Cebu City',    'Lahug',      'Cebu IT Park Tower 1',  '6000', 10.3291, 123.9056),
   -- Business 6 (Davao Sari-Sari — buyer2)
-  (7,  6, 'Davao del Sur', 'Davao City', 'Poblacion', '77 Roxas Ave',      '8000'),
+  (7,  6, 'Davao del Sur', 'Davao City', 'Poblacion', '77 Roxas Ave',      '8000',  7.0700, 125.6128),
   -- Business 7 (Mandaue Agri Supply) — 2 addresses
-  (8,  7, 'Cebu',   'Mandaue City', 'Tipolo',     '32 Plaridel St',        '6014'),    -- main office
-  (9,  7, 'Cebu',   'Mandaue City', 'Casuntingan','Lot 9 NRA Compound',    '6014'),    -- warehouse loc
+  (8,  7, 'Cebu',   'Mandaue City', 'Tipolo',     '32 Plaridel St',        '6014', 10.3320, 123.9351),    -- main office
+  (9,  7, 'Cebu',   'Mandaue City', 'Casuntingan','Lot 9 NRA Compound',    '6014', 10.3421, 123.9332),    -- warehouse loc
   -- Business 8 (Metro Cebu Trading — Retail, buyer side of bizswitch_demo)
-  (10, 8, 'Cebu',   'Cebu City',    'Guadalupe',  '55 V. Rama Ave',        '6000'),
+  (10, 8, 'Cebu',   'Cebu City',    'Guadalupe',  '55 V. Rama Ave',        '6000', 10.3157, 123.8854),
   -- 11 absent: was Carlo Quick Haul (courier business, dropped in 022)
   -- Ownerless branch address
-  (12, NULL, 'Cebu','Mandaue City', 'Centro',     'National Highway Hub',  '6014'),
+  (12, NULL, 'Cebu','Mandaue City', 'Centro',     'National Highway Hub',  '6014', 10.3280, 123.9400),
   -- Business 10 (Metro Cebu Trading — Wholesale, wholesaler side of bizswitch_demo)
-  (13, 10,'Cebu',   'Cebu City',    'Guadalupe',  '55 V. Rama Ave Bldg B', '6000');
+  (13, 10,'Cebu',   'Cebu City',    'Guadalupe',  '55 V. Rama Ave Bldg B', '6000', 10.3157, 123.8854);
 
 SELECT setval('addresses_address_id_seq', 13, true);
 
@@ -339,11 +339,11 @@ INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id, courier
   ('LKO-00000003', 'Picked Up',         'Picked up from Mandaue Agri warehouse', 2,    2,   NOW() - INTERVAL '5 days'),
   ('LKO-00000003', 'Departed Branch',   'Departed from LINKO Mandaue Hub',        2,    2,   NOW() - INTERVAL '4 days'),
   ('LKO-00000003', 'Out for Delivery',  'Delivery attempt 1',                     2,    2,   NOW() - INTERVAL '3 days 12 hours'),
-  ('LKO-00000003', 'Delivery Failed',   'Nobody home',                            2,    2,   NOW() - INTERVAL '3 days 10 hours'),
+  ('LKO-00000003', 'Delivery Failed',   'Receiver unavailable',                   2,    2,   NOW() - INTERVAL '3 days 10 hours'),
   ('LKO-00000003', 'Out for Delivery',  'Delivery attempt 2',                     2,    2,   NOW() - INTERVAL '3 days'),
-  ('LKO-00000003', 'Delivery Failed',   'Nobody home',                            2,    2,   NOW() - INTERVAL '2 days 22 hours'),
+  ('LKO-00000003', 'Delivery Failed',   'Receiver unavailable',                   2,    2,   NOW() - INTERVAL '2 days 22 hours'),
   ('LKO-00000003', 'Out for Delivery',  'Delivery attempt 3',                     2,    2,   NOW() - INTERVAL '2 days 12 hours'),
-  ('LKO-00000003', 'Delivery Failed',   'Receiver refused delivery',              2,    2,   NOW() - INTERVAL '2 days 10 hours'),
+  ('LKO-00000003', 'Delivery Failed',   'Delivery refused',                       2,    2,   NOW() - INTERVAL '2 days 10 hours'),
   ('LKO-00000003', 'Arrived at Branch', 'Arrived at LINKO Mandaue Hub',           2,    2,   NOW() - INTERVAL '2 days 2 hours'),
   ('LKO-00000003', 'Out for Return',    'Out for return to Mandaue Agri Supply',  2,    2,   NOW() - INTERVAL '2 days 1 hour'),
   ('LKO-00000003', 'Returned',          'Carlo Courier → Mandaue Agri Supply',    2,    2,   NOW() - INTERVAL '2 days');

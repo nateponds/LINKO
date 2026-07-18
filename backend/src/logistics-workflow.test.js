@@ -33,36 +33,50 @@ async function loginAs(email, password = "Password123!") {
   return response.setCookie.split(";")[0];
 }
 
+async function createWorkflowProduct(pool, productName) {
+  const refs = await pool.query(
+    `SELECT m.business_id, st.tier_id, st.base_fee::float8
+       FROM business_memberships m
+       JOIN users u ON u.user_id = m.user_id
+       CROSS JOIN LATERAL (SELECT tier_id, base_fee FROM service_tiers ORDER BY tier_id LIMIT 1) st
+      WHERE u.email = 'wholesaler@linko.test' AND m.role = 'wholesaler'
+      LIMIT 1`,
+  );
+  assert.ok(refs.rows[0], "expected a seeded wholesaler business");
+  const product = await pool.query(
+    `INSERT INTO products (business_id, product_name, sku, unit_price, stock_quantity)
+     VALUES ($1, $2, $3, 100, 2)
+     RETURNING product_id, unit_price::float8`,
+    [
+      refs.rows[0].business_id,
+      productName,
+      `WORKFLOW-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    ],
+  );
+  return {
+    productId: product.rows[0].product_id,
+    unitPrice: product.rows[0].unit_price,
+    tierId: refs.rows[0].tier_id,
+    baseFee: refs.rows[0].base_fee,
+  };
+}
+
 test("courier picks up from the pool and delivering the parcel completes the order", { skip: !hasDb }, async () => {
   const pool = createPool();
   let orderId;
+  let productId;
   try {
     const buyerCookie = await loginAs("buyer@linko.test");
     const wholesalerCookie = await loginAs("wholesaler@linko.test");
     const courierCookie = await loginAs("courier@linko.test");
 
-    const seedRefs = await pool.query(
-      `SELECT p.product_id, p.unit_price::float8,
-              st.tier_id, st.base_fee::float8
-         FROM products p
-         JOIN business_memberships m ON m.business_id = p.business_id AND m.role = 'wholesaler'
-         JOIN users u ON u.user_id = m.user_id
-         CROSS JOIN LATERAL (
-           SELECT tier_id, base_fee
-             FROM service_tiers
-            ORDER BY tier_id
-            LIMIT 1
-         ) st
-        WHERE u.email = 'wholesaler@linko.test' AND p.is_active = TRUE
-        LIMIT 1`,
-    );
-    assert.ok(seedRefs.rows[0], "expected a seeded wholesaler product");
     const {
-      product_id: productId,
-      unit_price: goodsSubtotal,
-      tier_id: tierId,
-      base_fee: quotedShippingFee,
-    } = seedRefs.rows[0];
+      productId: createdProductId,
+      unitPrice: goodsSubtotal,
+      tierId,
+      baseFee,
+    } = await createWorkflowProduct(pool, "Courier Delivery Workflow Product");
+    productId = createdProductId;
 
     const created = await request("/api/orders", {
       method: "POST",
@@ -73,7 +87,9 @@ test("courier picks up from the pool and delivering the parcel completes the ord
     orderId = created.body.order_id;
 
     for (const status of ["accepted", "preparing", "shipped"]) {
-      const body = status === "shipped" ? { status, weight_kg: 3.5 } : { status };
+      const body = status === "shipped"
+        ? { status, weight_kg: 3.5, total_distance_km: 10 }
+        : { status };
       const step = await request(`/api/orders/${orderId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Cookie: wholesalerCookie },
@@ -96,10 +112,11 @@ test("courier picks up from the pool and delivering the parcel completes the ord
     assert.ok(parcelRow.rows[0], "shipping should create a parcel with order_id set");
     const parcelId = parcelRow.rows[0].parcel_id;
     assert.equal(parcelRow.rows[0].declared_value, goodsSubtotal);
-    assert.equal(parcelRow.rows[0].shipping_fee, quotedShippingFee);
+    const expectedShippingFee = baseFee + (3.5 * 20) + (10 * 2);
+    assert.equal(parcelRow.rows[0].shipping_fee, expectedShippingFee);
     assert.equal(
       parcelRow.rows[0].payment_total,
-      goodsSubtotal + quotedShippingFee,
+      goodsSubtotal + expectedShippingFee,
     );
 
     // Delivery is the courier's call now, not the wholesaler's.
@@ -171,6 +188,7 @@ test("courier picks up from the pool and delivering the parcel completes the ord
       await pool.query("DELETE FROM notifications WHERE message LIKE $1", [`%#${orderId}%`]);
       await pool.query("DELETE FROM orders WHERE order_id = $1", [orderId]);
     }
+    if (productId) await pool.query("DELETE FROM products WHERE product_id = $1", [productId]);
     await pool.end();
   }
 });
@@ -178,23 +196,16 @@ test("courier picks up from the pool and delivering the parcel completes the ord
 test("Cancelled scan requires a reason, cancels the order, notifies both parties", { skip: !hasDb }, async () => {
   const pool = createPool();
   let orderId;
+  let productId;
   try {
     const buyerCookie = await loginAs("buyer@linko.test");
     const wholesalerCookie = await loginAs("wholesaler@linko.test");
     const courierCookie = await loginAs("courier@linko.test");
     const coordinatorCookie = await loginAs("logistics@linko.test");
 
-    const seedRefs = await pool.query(
-      `SELECT p.product_id, st.tier_id
-         FROM products p
-         JOIN business_memberships m ON m.business_id = p.business_id AND m.role = 'wholesaler'
-         JOIN users u ON u.user_id = m.user_id
-         CROSS JOIN LATERAL (SELECT tier_id FROM service_tiers ORDER BY tier_id LIMIT 1) st
-        WHERE u.email = 'wholesaler@linko.test' AND p.is_active = TRUE
-        LIMIT 1`,
-    );
-    assert.ok(seedRefs.rows[0], "expected a seeded wholesaler product");
-    const { product_id: productId, tier_id: tierId } = seedRefs.rows[0];
+    const workflowProduct = await createWorkflowProduct(pool, "Cancellation Workflow Product");
+    productId = workflowProduct.productId;
+    const { tierId } = workflowProduct;
 
     const created = await request("/api/orders", {
       method: "POST",
@@ -208,7 +219,9 @@ test("Cancelled scan requires a reason, cancels the order, notifies both parties
     orderId = created.body.order_id;
 
     for (const status of ["accepted", "preparing", "shipped"]) {
-      const body = status === "shipped" ? { status, weight_kg: 2.0 } : { status };
+      const body = status === "shipped"
+        ? { status, weight_kg: 2.0, total_distance_km: 10 }
+        : { status };
       const step = await request(`/api/orders/${orderId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Cookie: wholesalerCookie },
@@ -278,6 +291,108 @@ test("Cancelled scan requires a reason, cancels the order, notifies both parties
       await pool.query("DELETE FROM parcels WHERE order_id = $1", [orderId]);
       await pool.query("DELETE FROM notifications WHERE message LIKE $1", [`%#${orderId}%`]);
       await pool.query("DELETE FROM orders WHERE order_id = $1", [orderId]);
+    }
+    if (productId) await pool.query("DELETE FROM products WHERE product_id = $1", [productId]);
+    await pool.end();
+  }
+});
+
+test("Delivery Failed requires a known failure reason in remarks", { skip: !hasDb }, async () => {
+  const pool = createPool();
+  let orderId;
+  let productId;
+  try {
+    const buyerCookie = await loginAs("buyer@linko.test");
+    const wholesalerCookie = await loginAs("wholesaler@linko.test");
+    const courierCookie = await loginAs("courier@linko.test");
+
+    const seedRefs = await pool.query(
+      `SELECT m.business_id, st.tier_id
+         FROM business_memberships m
+         JOIN users u ON u.user_id = m.user_id
+         CROSS JOIN LATERAL (SELECT tier_id FROM service_tiers ORDER BY tier_id LIMIT 1) st
+        WHERE u.email = 'wholesaler@linko.test' AND m.role = 'wholesaler'
+        LIMIT 1`,
+    );
+    assert.ok(seedRefs.rows[0], "expected a seeded wholesaler business");
+    const { business_id: wholesalerBusinessId, tier_id: tierId } = seedRefs.rows[0];
+    const product = await pool.query(
+      `INSERT INTO products
+         (business_id, product_name, sku, unit_price, stock_quantity)
+       VALUES ($1, 'Delivery Failure Reason Test Product', $2, 100, 2)
+       RETURNING product_id`,
+      [wholesalerBusinessId, `FAIL-REASON-${Date.now()}`],
+    );
+    productId = product.rows[0].product_id;
+
+    const created = await request("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: buyerCookie },
+      body: JSON.stringify({ items: [{ product_id: productId, quantity: 1 }], tier_id: tierId }),
+    });
+    assert.equal(created.status, 201);
+    orderId = created.body.order_id;
+
+    for (const status of ["accepted", "preparing", "shipped"]) {
+      const body = status === "shipped"
+        ? { status, weight_kg: 2.0, total_distance_km: 10 }
+        : { status };
+      const step = await request(`/api/orders/${orderId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Cookie: wholesalerCookie },
+        body: JSON.stringify(body),
+      });
+      assert.equal(step.status, 200, `wholesaler should reach ${status}`);
+    }
+
+    const parcelRow = await pool.query(
+      "SELECT parcel_id FROM parcels WHERE order_id = $1",
+      [orderId],
+    );
+    assert.ok(parcelRow.rows[0], "shipping should create a parcel");
+    const parcelId = parcelRow.rows[0].parcel_id;
+
+    // Get to a valid Out for Delivery state.
+    for (const status_update of ["Picked Up", "Out for Delivery"]) {
+      const step = await request(`/api/parcels/${parcelId}/tracking`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Cookie: courierCookie },
+        body: JSON.stringify({ status_update }),
+      });
+      assert.equal(step.status, 201, `courier should reach ${status_update}`);
+    }
+
+    // Delivery Failed with no reason is rejected.
+    const noReason = await request(`/api/parcels/${parcelId}/tracking`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: courierCookie },
+      body: JSON.stringify({ status_update: "Delivery Failed" }),
+    });
+    assert.equal(noReason.status, 400);
+
+    // An unrecognized reason is rejected too.
+    const badReason = await request(`/api/parcels/${parcelId}/tracking`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: courierCookie },
+      body: JSON.stringify({ status_update: "Delivery Failed", remarks: "Package wet" }),
+    });
+    assert.equal(badReason.status, 400);
+
+    // A known soft reason is accepted.
+    const ok = await request(`/api/parcels/${parcelId}/tracking`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: courierCookie },
+      body: JSON.stringify({ status_update: "Delivery Failed", remarks: "Receiver unavailable" }),
+    });
+    assert.equal(ok.status, 201);
+  } finally {
+    if (orderId) {
+      await pool.query("DELETE FROM parcels WHERE order_id = $1", [orderId]);
+      await pool.query("DELETE FROM notifications WHERE message LIKE $1", [`%#${orderId}%`]);
+      await pool.query("DELETE FROM orders WHERE order_id = $1", [orderId]);
+    }
+    if (productId) {
+      await pool.query("DELETE FROM products WHERE product_id = $1", [productId]);
     }
     await pool.end();
   }

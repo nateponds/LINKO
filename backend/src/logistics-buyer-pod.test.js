@@ -149,6 +149,7 @@ test("shipping records the entered weight and the buyer can track their own parc
       status: "shipped",
       weight_kg: 7.5,
       dimensions: "40x30x20 cm",
+      total_distance_km: 10,
     });
     assert.equal(shipped.status, 200);
 
@@ -167,7 +168,7 @@ test("shipping records the entered weight and the buyer can track their own parc
     const parcel = parcelRow.rows[0];
     assert.equal(parcel.weight_kg, 7.5);
     assert.equal(parcel.dimensions, "40x30x20 cm");
-    assert.equal(parcel.total_distance_km, null);
+    assert.equal(Number(parcel.total_distance_km), 10);
     assert.equal(parcel.eta_from_tier, true);
 
     // Marketplace checkout is an online payment: settled at booking.
@@ -229,9 +230,11 @@ test("courier terminal scans auto-generate POD; coordinators keep manual remarks
 
     const walk = async (parcelId, statuses) => {
       for (const status_update of statuses) {
-        const step = await postJson(`/api/parcels/${parcelId}/tracking`, courierCookie, {
-          status_update,
-        });
+        const body =
+          status_update === "Delivery Failed"
+            ? { status_update, remarks: "Receiver unavailable" }
+            : { status_update };
+        const step = await postJson(`/api/parcels/${parcelId}/tracking`, courierCookie, body);
         assert.equal(step.status, 201, `courier should reach ${status_update}`);
       }
     };
@@ -309,9 +312,11 @@ test("payment lifecycle follows the method", { skip: !hasDb }, async () => {
     // through valid edges before settling the payment.
     const walkTo = async (parcelId, statuses) => {
       for (const status_update of statuses) {
-        const step = await postJson(`/api/parcels/${parcelId}/tracking`, coordinatorCookie, {
-          status_update,
-        });
+        const body =
+          status_update === "Delivery Failed"
+            ? { status_update, remarks: "Receiver unavailable" }
+            : { status_update };
+        const step = await postJson(`/api/parcels/${parcelId}/tracking`, coordinatorCookie, body);
         assert.equal(step.status, 201, `should reach ${status_update}`);
       }
     };
@@ -469,5 +474,56 @@ test(
       staffStatuses.length > buyerStatuses.length,
       "staff history is longer than the buyer's truncated view",
     );
+  },
+);
+
+test(
+  "buyer timeline ends at the first hard-reason Delivery Failed (return leg opens immediately)",
+  { skip: !hasDb },
+  async () => {
+    const pool = createPool();
+    let parcelId;
+    try {
+      const courierCookie = await loginAs("courier@linko.test");
+      parcelId = await createPoolParcel(pool);
+
+      // One hard-reason fail opens the return leg; walk it into the return leg.
+      const walk = async (statuses) => {
+        for (const status_update of statuses) {
+          const body =
+            status_update === "Delivery Failed"
+              ? { status_update, remarks: "Bad address" }
+              : { status_update };
+          const step = await postJson(`/api/parcels/${parcelId}/tracking`, courierCookie, body);
+          assert.equal(step.status, 201, `courier should reach ${status_update}`);
+        }
+      };
+      await walk(["Picked Up", "Out for Delivery", "Delivery Failed", "Arrived at Branch", "Out for Return"]);
+
+      // Buyer (receiver = Sunrise Retail Cooperative) sees only up to the hard fail.
+      const buyerCookie = await loginAs("buyer@linko.test");
+      const buyerView = await request(`/api/parcels/${parcelId}`, {
+        headers: { Cookie: buyerCookie },
+      });
+      assert.equal(buyerView.status, 200, "buyer receives their own parcel");
+      const buyerStatuses = buyerView.body.tracking_history.map((r) => r.status_update);
+      assert.equal(
+        buyerStatuses[buyerStatuses.length - 1],
+        "Delivery Failed",
+        "buyer timeline ends at the first (hard-reason) Delivery Failed",
+      );
+      assert.equal(
+        buyerStatuses.filter((s) => s === "Delivery Failed").length,
+        1,
+        "only the single hard fail is visible",
+      );
+      assert.ok(!buyerStatuses.includes("Out for Return"), "return leg is hidden");
+      assert.equal(buyerView.body.current_status, "Delivery Failed");
+    } finally {
+      if (parcelId) {
+        await pool.query("DELETE FROM parcels WHERE parcel_id = $1", [parcelId]);
+      }
+      await pool.end();
+    }
   },
 );

@@ -1104,7 +1104,7 @@ test("platform admin can view all orders and override order status", { skip: !ha
     const adminShipped = await request(`/api/orders/${orderId}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Cookie: adminCookie },
-      body: JSON.stringify({ status: "shipped", weight_kg: 4.2 }),
+      body: JSON.stringify({ status: "shipped", weight_kg: 4.2, total_distance_km: 10 }),
     });
     assert.equal(adminShipped.status, 200);
 
@@ -1183,7 +1183,7 @@ test("shipped -> cancelled is an admin-only manual override (Sprint 11)", { skip
     const shipped = await request(`/api/orders/${orderId}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Cookie: wholesalerCookie },
-      body: JSON.stringify({ status: "shipped", weight_kg: 2.0 }),
+      body: JSON.stringify({ status: "shipped", weight_kg: 2.0, total_distance_km: 10 }),
     });
     assert.equal(shipped.status, 200);
 
@@ -1293,16 +1293,16 @@ test("3-fail return path: count-gated edges, auto-POD, split order side effects"
     const shortcut = await scan({ status_update: "Returned" });
     assert.equal(shortcut.status, 400);
 
-    // Attempt 1 + 2: Delivery Failed then retry.
+    // Attempt 1 + 2: soft-reason Delivery Failed then retry.
     for (const attempt of [1, 2]) {
-      const failed = await scan({ status_update: "Delivery Failed", remarks: "Nobody home" });
+      const failed = await scan({ status_update: "Delivery Failed", remarks: "Receiver unavailable" });
       assert.equal(failed.status, 201, `fail attempt ${attempt}`);
       const retry = await scan({ status_update: "Out for Delivery" });
       assert.equal(retry.status, 201, `retry after attempt ${attempt}`);
     }
 
-    // 3rd fail: notification fires for both businesses, order stays shipped.
-    const thirdFail = await scan({ status_update: "Delivery Failed", remarks: "Receiver refused delivery" });
+    // 3rd soft fail: notification fires for both businesses, order stays shipped.
+    const thirdFail = await scan({ status_update: "Delivery Failed", remarks: "Receiver unavailable" });
     assert.equal(thirdFail.status, 201);
 
     const stillShipped = await pool.query(
@@ -1327,7 +1327,7 @@ test("3-fail return path: count-gated edges, auto-POD, split order side effects"
         (row) =>
           row.type === "warning" &&
           row.message.includes("after 3 attempts") &&
-          row.message.includes("Receiver refused delivery"),
+          row.message.includes("Receiver unavailable"),
       ),
     );
     const buyerNotificationsBeforeSettle = await pool.query(
@@ -1339,11 +1339,11 @@ test("3-fail return path: count-gated edges, auto-POD, split order side effects"
       [buyerBusinessId, `%order #${orderId}%`],
     );
 
-    // Count-gated edge: after the 3rd fail the retry closes, return leg opens.
+    // Trigger-gated edge: after the 3rd soft fail the retry closes, return leg opens.
     const blockedRetry = await scan({ status_update: "Out for Delivery" });
     assert.equal(blockedRetry.status, 400);
 
-    // fails>=3 opens the locked return leg. Branch-checkpoint remarks are
+    // return leg triggered opens the locked return leg. Branch-checkpoint remarks are
     // auto-generated from branches.branch_name, not client input.
     const returnArrive = await scan({ status_update: "Arrived at Branch" });
     assert.equal(returnArrive.status, 201);
@@ -1419,6 +1419,115 @@ test("3-fail return path: count-gated edges, auto-POD, split order side effects"
       buyerNotificationsBeforeSettle.rows[0].n,
       "Returned settlement must not create another buyer notification",
     );
+  } finally {
+    if (orderId) {
+      await pool.query("DELETE FROM notifications WHERE message LIKE $1", [
+        `%order #${orderId}%`,
+      ]);
+    }
+    if (parcelId) {
+      await pool.query("DELETE FROM parcels WHERE parcel_id = $1", [parcelId]);
+    }
+    if (orderId) {
+      await pool.query("DELETE FROM orders WHERE order_id = $1", [orderId]);
+    }
+    await pool.end();
+  }
+});
+
+test("hard-fail reason opens the return leg on the first fail", { skip: !hasDb }, async () => {
+  const courierCookie = await loginAs("courier@linko.test");
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+  let orderId;
+  let parcelId;
+
+  try {
+    const buyerBusinessId = await getBusinessIdByName(
+      pool,
+      "Sunrise Retail Cooperative",
+    );
+    const wholesalerBusinessId = await getBusinessIdByName(
+      pool,
+      "Cebu Fresh Wholesale",
+    );
+    const buyerAddress = await pool.query(
+      "SELECT address_id FROM addresses WHERE business_id = $1 LIMIT 1",
+      [buyerBusinessId],
+    );
+    const wholesalerAddress = await pool.query(
+      "SELECT address_id FROM addresses WHERE business_id = $1 LIMIT 1",
+      [wholesalerBusinessId],
+    );
+
+    const order = await pool.query(
+      `INSERT INTO orders
+         (buyer_business_id, wholesaler_business_id, status, tier_id)
+       VALUES ($1, $2, 'shipped', 1)
+       RETURNING order_id`,
+      [buyerBusinessId, wholesalerBusinessId],
+    );
+    orderId = order.rows[0].order_id;
+    parcelId = `HRD-${Date.now()}`;
+
+    await pool.query(
+      `INSERT INTO parcels
+         (parcel_id, order_id, sender_id, receiver_id, tier_id,
+          origin_address_id, destination_address_id, weight_kg,
+          total_distance_km, estimated_delivery_date)
+       VALUES ($1, $2, $3, $4, 1, $5, $6, 2, 10, CURRENT_DATE + 1)`,
+      [
+        parcelId,
+        orderId,
+        wholesalerBusinessId,
+        buyerBusinessId,
+        wholesalerAddress.rows[0].address_id,
+        buyerAddress.rows[0].address_id,
+      ],
+    );
+    await pool.query(
+      `INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id)
+       VALUES ($1, 'Out for Delivery', 'Courier attempted delivery', 1)`,
+      [parcelId],
+    );
+
+    const scan = (body) =>
+      request(`/api/parcels/${parcelId}/tracking`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Cookie: courierCookie },
+        body: JSON.stringify(body),
+      });
+
+    // A single hard-reason fail opens the return leg immediately.
+    const hardFail = await scan({ status_update: "Delivery Failed", remarks: "Bad address" });
+    assert.equal(hardFail.status, 201);
+
+    // Hard-reason notification fires for both parties on this first fail.
+    const hardFailNotifications = await pool.query(
+      `SELECT n.message, n.type, bm.business_id
+         FROM notifications n
+         JOIN business_memberships bm ON bm.user_id = n.user_id
+        WHERE n.message ILIKE $1
+          AND n.title = 'Delivery Failed — Parcel Returning to Sender'`,
+      [`%order #${orderId}%`],
+    );
+    const notifiedBusinesses = hardFailNotifications.rows.map((row) => row.business_id);
+    assert.ok(notifiedBusinesses.includes(buyerBusinessId));
+    assert.ok(notifiedBusinesses.includes(wholesalerBusinessId));
+    assert.ok(
+      hardFailNotifications.rows.every(
+        (row) =>
+          row.type === "warning" &&
+          row.message.includes("Delivery cannot be completed") &&
+          row.message.includes("Bad address"),
+      ),
+    );
+
+    // Retry is closed; the return leg is open even though there is only one fail.
+    const blockedRetry = await scan({ status_update: "Out for Delivery" });
+    assert.equal(blockedRetry.status, 400);
+    const returnArrive = await scan({ status_update: "Arrived at Branch" });
+    assert.equal(returnArrive.status, 201);
   } finally {
     if (orderId) {
       await pool.query("DELETE FROM notifications WHERE message LIKE $1", [
@@ -1570,6 +1679,7 @@ test("Frozen shipping_fee: editing a tier does not affect already-booked parcels
   const { createPool } = await import("./db.js");
   const pool = createPool();
   let orderId1, orderId2;
+  let productId;
 
   try {
     const buyerCookie = await loginAs("buyer@linko.test");
@@ -1577,17 +1687,16 @@ test("Frozen shipping_fee: editing a tier does not affect already-booked parcels
     const adminCookie = await loginAs("admin@linko.test");
 
     const seedRefs = await pool.query(
-      `SELECT p.product_id, st.tier_id, st.base_fee::float8
-         FROM products p
-         JOIN business_memberships m ON m.business_id = p.business_id AND m.role = 'wholesaler'
-         JOIN users u ON u.user_id = m.user_id
-         CROSS JOIN LATERAL (
-           SELECT tier_id, base_fee FROM service_tiers ORDER BY tier_id LIMIT 1
-         ) st
-        WHERE u.email = 'wholesaler@linko.test' AND p.is_active = TRUE
+      `SELECT tier_id, base_fee::float8
+         FROM service_tiers
+        ORDER BY tier_id
         LIMIT 1`,
     );
-    const { product_id: productId, tier_id: tierId, base_fee: originalFee } = seedRefs.rows[0];
+    const { tier_id: tierId, base_fee: originalFee } = seedRefs.rows[0];
+    productId = await createTestProduct(pool, {
+      product_name: "Frozen Shipping Fee Test Product",
+      stock_quantity: 2,
+    });
 
     // Book parcel 1 (BEFORE edit)
     const created1 = await request("/api/orders", {
@@ -1600,7 +1709,11 @@ test("Frozen shipping_fee: editing a tier does not affect already-booked parcels
       await request(`/api/orders/${orderId1}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Cookie: wholesalerCookie },
-        body: JSON.stringify(status === "shipped" ? { status, weight_kg: 1 } : { status }),
+        body: JSON.stringify(
+          status === "shipped"
+            ? { status, weight_kg: 1, total_distance_km: 10 }
+            : { status },
+        ),
       });
     }
 
@@ -1633,7 +1746,11 @@ test("Frozen shipping_fee: editing a tier does not affect already-booked parcels
       await request(`/api/orders/${orderId2}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Cookie: wholesalerCookie },
-        body: JSON.stringify(status === "shipped" ? { status, weight_kg: 1 } : { status }),
+        body: JSON.stringify(
+          status === "shipped"
+            ? { status, weight_kg: 1, total_distance_km: 10 }
+            : { status },
+        ),
       });
     }
 
@@ -1661,6 +1778,9 @@ test("Frozen shipping_fee: editing a tier does not affect already-booked parcels
       await pool.query("DELETE FROM parcels WHERE order_id = $1", [orderId2]);
       await pool.query("DELETE FROM order_items WHERE order_id = $1", [orderId2]);
       await pool.query("DELETE FROM orders WHERE order_id = $1", [orderId2]);
+    }
+    if (productId) {
+      await pool.query("DELETE FROM products WHERE product_id = $1", [productId]);
     }
     await pool.end();
   }

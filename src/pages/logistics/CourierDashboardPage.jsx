@@ -135,7 +135,7 @@ export default function CourierDashboardPage() {
                   {reason}
                 </button>
               ))
-            : allowedNext(p.current_status, p.failed_attempts).map((status) => (
+            : allowedNext(p.current_status, p.return_triggered).map((status) => (
                 <button
                   key={status}
                   className={status === "Delivered" ? "courier-action-primary" : "courier-action"}

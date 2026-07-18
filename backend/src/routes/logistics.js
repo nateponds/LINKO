@@ -25,6 +25,16 @@ const VALID_TRACKING_STATUSES = [
 const TERMINAL_TRACKING_STATUSES = new Set(["Delivered", "Returned", "Cancelled"]);
 const RETURN_TRIGGER_FAILS = 3;
 
+// Delivery failure reasons. A Delivery Failed scan must carry exactly one of
+// these as its remark (enforced in POST /parcels/:id/tracking). Mirrors
+// src/lib/statusWorkflow.js — keep both lists in sync.
+const FAIL_REASONS = ["Receiver unavailable", "Delivery refused", "Bad address"];
+// Hard reasons open the return leg immediately on the fail they occur, skipping
+// the retry loop. Soft reasons (the remainder) get retries up to RETURN_TRIGGER_FAILS.
+const HARD_FAIL_REASONS = ["Bad address", "Delivery refused"];
+const isHardFailReason = (remarks) =>
+  HARD_FAIL_REASONS.includes(typeof remarks === "string" ? remarks.trim() : remarks);
+
 // The flow is non-linear (checkpoints repeat, delivery retries, the return leg
 // retraces hubs "backwards"), so courier moves are an explicit transition map
 // rather than an integer rank. The 'Delivery Failed' edge is count-aware:
@@ -44,26 +54,27 @@ const COURIER_TRANSITIONS = {
   "Out for Delivery": ["Delivered", "Delivery Failed"],
 };
 
-export function courierAllowedNextStatuses(currentStatus, failedAttempts = 0) {
+// returnTriggered is the derived return-leg signal: true once the retry cap is
+// hit OR any prior fail carried a hard reason. Computed by the caller (the
+// POST handler and the list query) — see isHardFailReason / RETURN_TRIGGER_FAILS.
+export function courierAllowedNextStatuses(currentStatus, returnTriggered = false) {
   if (!currentStatus) return VALID_TRACKING_STATUSES.filter((s) => s !== "Cancelled");
   if (TERMINAL_TRACKING_STATUSES.has(currentStatus)) return [];
   if (currentStatus === "Delivery Failed") {
-    return failedAttempts >= RETURN_TRIGGER_FAILS
-      ? ["Arrived at Branch"]
-      : ["Out for Delivery"];
+    return returnTriggered ? ["Arrived at Branch"] : ["Out for Delivery"];
   }
-  // Return-leg movement is count-gated here because the static forward map has
-  // no fail count: branch arrival -> Out for Return -> Returned.
+  // Return-leg movement is return-triggered here because the static forward map
+  // has no fail state: branch arrival -> Out for Return -> Returned.
   // Ceiling: any Arrived-at-Branch scan qualifies -- the system does NOT verify
   // the branch is the sender's serving hub. Strict-hub enforcement (a
   // branch-service-area model) is deferred, see DETAILED_HANDOFF §7.
-  if (currentStatus === "Arrived at Branch" && failedAttempts >= RETURN_TRIGGER_FAILS) {
+  if (currentStatus === "Arrived at Branch" && returnTriggered) {
     // Return leg is one-way: no redelivery or hub departure once the parcel
     // reaches the return branch. It must leave for the sender next.
     return ["Out for Return"];
   }
   if (currentStatus === "Out for Return") {
-    return failedAttempts >= RETURN_TRIGGER_FAILS ? ["Returned"] : [];
+    return returnTriggered ? ["Returned"] : [];
   }
   return COURIER_TRANSITIONS[currentStatus] ?? [];
 }
@@ -81,7 +92,7 @@ function asClientError(error) {
   return error;
 }
 
-export function canCourierSubmitTrackingStatus(currentStatus, nextStatus, failedAttempts = 0) {
+export function canCourierSubmitTrackingStatus(currentStatus, nextStatus, returnTriggered = false) {
   if (nextStatus === "Cancelled") {
     return {
       allowed: false,
@@ -89,14 +100,14 @@ export function canCourierSubmitTrackingStatus(currentStatus, nextStatus, failed
     };
   }
 
-  return canSubmitTrackingStatus(currentStatus, nextStatus, failedAttempts);
+  return canSubmitTrackingStatus(currentStatus, nextStatus, returnTriggered);
 }
 
 // The checkpoint transition map binds every role -- a coordinator/admin cannot
 // skip 'Arrived at Branch'/'Departed Branch' either (handoff 2026-07-16 s2).
 // The only privileged-exclusive move is 'Cancelled', a terminal escape hatch
 // couriers are separately barred from (see canCourierSubmitTrackingStatus).
-export function canSubmitTrackingStatus(currentStatus, nextStatus, failedAttempts = 0) {
+export function canSubmitTrackingStatus(currentStatus, nextStatus, returnTriggered = false) {
   if (nextStatus === "Cancelled") {
     return currentStatus && TERMINAL_TRACKING_STATUSES.has(currentStatus)
       ? { allowed: false, message: `Cannot update terminal parcel status ${currentStatus}` }
@@ -112,7 +123,7 @@ export function canSubmitTrackingStatus(currentStatus, nextStatus, failedAttempt
     };
   }
 
-  const allowed = courierAllowedNextStatuses(currentStatus, failedAttempts);
+  const allowed = courierAllowedNextStatuses(currentStatus, returnTriggered);
   if (!allowed.includes(nextStatus)) {
     return {
       allowed: false,
@@ -278,6 +289,9 @@ router.get("/parcels", async (req, res) => {
     }
   }
 
+  // return_triggered subquery reads the hard-reason list as the last bind param.
+  const hardParam = params.length + 1;
+  params.push(HARD_FAIL_REASONS);
   const { rows } = await query(`
     SELECT p.parcel_id,
            json_build_object('business_id', s.business_id, 'business_name', s.business_name) AS sender,
@@ -291,7 +305,12 @@ router.get("/parcels", async (req, res) => {
            latest.courier_id    AS latest_courier_id,
            (SELECT COUNT(*)::int FROM tracking_logs f
              WHERE f.parcel_id = p.parcel_id
-               AND f.status_update = 'Delivery Failed') AS failed_attempts
+               AND f.status_update = 'Delivery Failed') AS failed_attempts,
+           (SELECT (COUNT(*) FILTER (WHERE f.status_update = 'Delivery Failed') >= ${RETURN_TRIGGER_FAILS}
+                    OR bool_or(f.status_update = 'Delivery Failed'
+                               AND TRIM(f.remarks) = ANY($${hardParam}::text[])))
+              FROM tracking_logs f
+             WHERE f.parcel_id = p.parcel_id) AS return_triggered
       FROM parcels p
       JOIN businesses s      ON s.business_id = p.sender_id
       JOIN businesses r      ON r.business_id = p.receiver_id
@@ -398,10 +417,12 @@ router.get("/parcels/:id", async (req, res) => {
 
   // Buyer visibility cutoff (AGENT_HANDOFF §9.3): a caller who sees this parcel
   // ONLY as its receiver (buyer-side) must not see the return leg. Once the
-  // return leg exists (fails >= 3), truncate their tracking_history at and
-  // including the 3rd 'Delivery Failed' row -- everything after it is the
-  // internal LINKO<->wholesaler return journey. All other callers
-  // (sender/wholesaler, courier, coordinator, admin) get the full history.
+  // return leg is triggered, truncate their tracking_history at and including
+  // the fail that triggered it -- everything after is the internal
+  // LINKO<->wholesaler return journey. The trigger is the 3rd 'Delivery Failed'
+  // (soft-retry cap) OR the first fail carrying a hard reason, whichever comes
+  // first. All other callers (sender/wholesaler, courier, coordinator, admin)
+  // get the full history.
   const isReceiverOnlyView =
     !scope.all &&
     !(scope.businessIds && scope.businessIds.includes(parcel.sender_id)) &&
@@ -411,16 +432,17 @@ router.get("/parcels/:id", async (req, res) => {
     let failsSeen = 0;
     let cutoffIndex = -1;
     for (let i = 0; i < parcel.tracking_history.length; i += 1) {
-      if (parcel.tracking_history[i].status_update === "Delivery Failed") {
+      const row = parcel.tracking_history[i];
+      if (row.status_update === "Delivery Failed") {
         failsSeen += 1;
-        if (failsSeen === 3) {
+        if (failsSeen >= RETURN_TRIGGER_FAILS || isHardFailReason(row.remarks)) {
           cutoffIndex = i;
           break;
         }
       }
     }
-    // Only truncate when the 3rd fail was actually found (return leg exists).
-    // fails < 3 -> full timeline, including in-progress retries.
+    // Only truncate when a triggering fail was actually found (return leg
+    // exists). No trigger -> full timeline, including in-progress soft retries.
     if (cutoffIndex !== -1) {
       parcel.current_status =
         parcel.tracking_history[cutoffIndex].status_update;
@@ -710,6 +732,11 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
     // Fail count is derived, never stored on parcels — parcel state lives only
     // in tracking_logs (docs/LINKO_ERD.md design notes). It gates the courier
     // Delivery Failed edge and fires the 3rd-fail notification below.
+    // Counts 'Delivery Failed' rows, not 'Out for Delivery' rows: OFD is
+    // ambiguous (≠ failure) and counting it would trip the return leg the instant
+    // the 3rd OFD scans — before attempt #3 actually fails. The explicit failure
+    // event is recorded, not inferred. A derived count also can't drift the way a
+    // stored delivery_attempts column would.
     const failCount = await client.query(
       `SELECT COUNT(*)::int AS n
          FROM tracking_logs
@@ -717,6 +744,23 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
       [parcelId],
     );
     const failedAttempts = failCount.rows[0].n;
+
+    // Return-leg signal for gating, derived from history BEFORE this insert:
+    // the retry cap was already reached, OR a prior fail carried a hard reason.
+    // A parcel still in the retry loop can only have soft fails (a hard reason
+    // would already have triggered the return), so this and failedAttempts stay
+    // coherent. The current scan's own reason is folded into the notification
+    // guard below, not here.
+    const priorHardFail = await client.query(
+      `SELECT EXISTS (
+         SELECT 1 FROM tracking_logs
+          WHERE parcel_id = $1 AND status_update = 'Delivery Failed'
+            AND TRIM(remarks) = ANY($2::text[])
+       ) AS hard`,
+      [parcelId, HARD_FAIL_REASONS],
+    );
+    const returnTriggered =
+      failedAttempts >= RETURN_TRIGGER_FAILS || priorHardFail.rows[0].hard;
 
     // Coordinators/admins may assign branch_id/courier_id explicitly from the
     // body (unlike the courier path below, which is server-stamped) -- so
@@ -785,8 +829,8 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
     // The checkpoint transition map binds every role. Couriers additionally
     // cannot submit 'Cancelled'; that split lives in canCourierSubmitTrackingStatus.
     const statusRule = isPrivileged
-      ? canSubmitTrackingStatus(currentStatus, status_update, failedAttempts)
-      : canCourierSubmitTrackingStatus(currentStatus, status_update, failedAttempts);
+      ? canSubmitTrackingStatus(currentStatus, status_update, returnTriggered)
+      : canCourierSubmitTrackingStatus(currentStatus, status_update, returnTriggered);
     if (!statusRule.allowed) {
       const error = new Error(statusRule.message);
       error.statusCode = 400;
@@ -808,7 +852,10 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
     // Terminal courier scans auto-generate proof from accounts. Delivered names
     // the receiver business; Returned names the sender business that physically
     // receives the parcel back. Businesses, not individual users, are the parcel
-    // parties. Coordinators/admins keep the manual-remark override.
+    // parties: parcels.receiver_id -> businesses (no person), and businesses<->users
+    // is many-to-many, so picking any single users.full_name would be a fabricated
+    // POD. The business name is the only non-invented party we can name.
+    // Coordinators/admins keep the manual-remark override.
     // Cancelled is coordinator/admin-only (never courier-submitted) and, unlike
     // Delivered/Returned, has no account data to auto-generate a reason from --
     // the remark IS the cancellation reason, so it's required here explicitly.
@@ -816,6 +863,21 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
       const error = new Error("remarks (cancellation reason) is required to cancel a parcel");
       error.statusCode = 400;
       throw error;
+    }
+
+    // A Delivery Failed scan must name the reason: it drives the retry-vs-return
+    // decision (hard reason opens the return leg immediately). Require exactly
+    // one of the known reasons, all roles -- the courier UI's picker already
+    // sends these; free text from a coordinator/admin is rejected here.
+    if (status_update === "Delivery Failed") {
+      const trimmed = typeof remarks === "string" ? remarks.trim() : "";
+      if (!FAIL_REASONS.includes(trimmed)) {
+        const error = new Error(
+          `remarks (failure reason) is required for Delivery Failed and must be one of: ${FAIL_REASONS.join(", ")}`,
+        );
+        error.statusCode = 400;
+        throw error;
+      }
     }
 
     let effectiveRemarks = typeof remarks === "string" && remarks.trim() ? remarks.trim() : null;
@@ -913,7 +975,15 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
     // the 3rd Delivery Failed notifies both parties that the return leg is
     // beginning (no money/order change), and the final Returned scan — the
     // terminal scan back at the sender — settles the order and payment.
-    if (status_update === "Delivery Failed" && failedAttempts + 1 === RETURN_TRIGGER_FAILS) {
+    // Fire the return-leg notification exactly once, on the fail that triggers
+    // the return. Trigger = this fail carries a hard reason, OR it is the
+    // RETURN_TRIGGER_FAILS-th fail. !returnTriggered is the fire-once guard:
+    // returnTriggered was computed from history BEFORE this insert, so it is
+    // false on the triggering fail and true on any fail after it.
+    const thisFailTriggersReturn =
+      isHardFailReason(effectiveRemarks) ||
+      failedAttempts + 1 >= RETURN_TRIGGER_FAILS;
+    if (status_update === "Delivery Failed" && !returnTriggered && thisFailTriggersReturn) {
       const { rows: orderRows } = await client.query(
         `SELECT o.order_id, o.buyer_business_id, o.wholesaler_business_id
            FROM parcels p
@@ -926,7 +996,9 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
         const reason = effectiveRemarks
           ? effectiveRemarks.replace(/[.]+$/, "")
           : "reason not recorded";
-        const message = `Delivery failed after 3 attempts: ${reason}. No further attempts will be made; the parcel for order #${order.order_id} is being returned to the wholesaler.`;
+        const message = isHardFailReason(effectiveRemarks)
+          ? `Delivery cannot be completed: ${reason}. No further attempts will be made; the parcel for order #${order.order_id} is being returned to the wholesaler.`
+          : `Delivery failed after 3 attempts: ${reason}. No further attempts will be made; the parcel for order #${order.order_id} is being returned to the wholesaler.`;
         await notifyBusiness(
           client,
           order.buyer_business_id,
