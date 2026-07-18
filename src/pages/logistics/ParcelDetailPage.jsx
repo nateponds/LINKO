@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import AppLayout from "../../layouts/AppLayout";
 import TrackingTimeline from "../../features/logistics/TrackingTimeline";
 import SupportModal from "../../components/ui/SupportModal";
+import { ParcelRouteMap } from "../../components/ui/MapPicker";
 import { peso, shortDate, statusClass } from "../../lib/format";
 import {
   returnTriggeredFromHistory,
@@ -229,6 +230,11 @@ export default function ParcelDetailPage() {
                   {parcel.current_status ?? "—"}
                 </span>
               </div>
+
+              <ParcelRouteMap
+                key={`${parcel.parcel_id}-${parcel.planned_route?.length ? "planned" : "empty"}`}
+                stops={parcel.planned_route}
+              />
 
               {hasAnyRole(["logistics_coordinator", "platform_admin", "courier"]) && (
                 <div className="update-status-form">

@@ -396,7 +396,20 @@ router.get("/parcels/:id", async (req, res) => {
               FROM tracking_logs tl
               LEFT JOIN branches b ON b.branch_id = tl.branch_id
               LEFT JOIN couriers c ON c.courier_id = tl.courier_id
-             WHERE tl.parcel_id = p.parcel_id) AS tracking_history
+             WHERE tl.parcel_id = p.parcel_id) AS tracking_history,
+           COALESCE(
+             (SELECT json_agg(json_build_object(
+                        'stop_order', prs.stop_order,
+                        'stop_type', prs.stop_type,
+                        'branch_id', prs.branch_id,
+                        'label', prs.label,
+                        'latitude', prs.latitude::float8,
+                        'longitude', prs.longitude::float8)
+                      ORDER BY prs.stop_order)
+                FROM parcel_route_stops prs
+               WHERE prs.parcel_id = p.parcel_id),
+             '[]'::json
+           ) AS planned_route
       FROM parcels p
       JOIN businesses s      ON s.business_id = p.sender_id
       JOIN businesses r      ON r.business_id = p.receiver_id

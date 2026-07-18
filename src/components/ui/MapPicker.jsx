@@ -175,3 +175,153 @@ export default function MapPicker({ latitude, longitude, onChange }) {
     </div>
   );
 }
+
+export function ParcelRouteMap({ stops }) {
+  const containerRef = useRef(null);
+  const mapRef = useRef(null);
+  const [status, setStatus] = useState(TOKEN ? "loading" : "no-token");
+
+  const routeStops = Array.isArray(stops) ? stops : [];
+  const mappedStops = routeStops.filter(
+    (stop) => toFinite(stop.latitude) !== null && toFinite(stop.longitude) !== null,
+  );
+
+  useEffect(() => {
+    if (!TOKEN || mappedStops.length === 0) return undefined;
+    let cancelled = false;
+
+    async function init() {
+      try {
+        const [mapboxModule] = await Promise.all([
+          import("mapbox-gl"),
+          import("mapbox-gl/dist/mapbox-gl.css"),
+        ]);
+        if (cancelled || !containerRef.current) return;
+
+        const mapboxgl = mapboxModule.default ?? mapboxModule;
+        mapboxgl.accessToken = TOKEN;
+        const coordinates = mappedStops.map((stop) => [
+          Number(stop.longitude),
+          Number(stop.latitude),
+        ]);
+        const map = new mapboxgl.Map({
+          container: containerRef.current,
+          style: "mapbox://styles/mapbox/streets-v12",
+          center: coordinates[0],
+          zoom: 11,
+        });
+        mapRef.current = map;
+
+        map.on("load", () => {
+          if (cancelled) return;
+
+          if (coordinates.length > 1) {
+            map.addSource("planned-route", {
+              type: "geojson",
+              data: {
+                type: "Feature",
+                properties: {},
+                geometry: { type: "LineString", coordinates },
+              },
+            });
+            map.addLayer({
+              id: "planned-route",
+              type: "line",
+              source: "planned-route",
+              paint: {
+                "line-color": "#176b5b",
+                "line-width": 3,
+                "line-dasharray": [2, 2],
+              },
+            });
+          }
+
+          coordinates.forEach((coordinate, index) => {
+            const marker = document.createElement("span");
+            marker.className = "parcel-route-marker";
+            marker.textContent = String(mappedStops[index].stop_order);
+            marker.title = mappedStops[index].label;
+            new mapboxgl.Marker({ element: marker }).setLngLat(coordinate).addTo(map);
+          });
+
+          const bounds = coordinates.reduce(
+            (box, coordinate) => box.extend(coordinate),
+            new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]),
+          );
+          map.fitBounds(bounds, { padding: 50, maxZoom: 13, duration: 0 });
+          map.addControl(new mapboxgl.NavigationControl(), "bottom-right");
+          setStatus("ready");
+        });
+        map.on("error", () => {
+          if (!cancelled) {
+            setStatus((current) => (current === "loading" ? "failed" : current));
+          }
+        });
+      } catch {
+        if (!cancelled) setStatus("failed");
+      }
+    }
+
+    init();
+    return () => {
+      cancelled = true;
+      mapRef.current?.remove();
+      mapRef.current = null;
+    };
+    // Route snapshots are immutable; initialize once for this parcel.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (routeStops.length === 0) {
+    return (
+      <section className="parcel-route" aria-labelledby="planned-route-heading">
+        <h2 id="planned-route-heading">Planned route</h2>
+        <p className="parcel-route-empty">
+          No planned route is available. Branchless and legacy parcels may not have a saved plan.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="parcel-route" aria-labelledby="planned-route-heading">
+      <h2 id="planned-route-heading">Planned route</h2>
+      {mappedStops.length > 0 && status !== "no-token" && status !== "failed" && (
+        <div
+          ref={containerRef}
+          className="parcel-route-map"
+          role="img"
+          aria-label="Map of planned parcel route"
+        />
+      )}
+      {mappedStops.length === 0 ? (
+        <p className="parcel-route-map-note">No stops with coordinates are available to map.</p>
+      ) : status === "no-token" ? (
+        <p className="parcel-route-map-note">Map unavailable (no Mapbox token configured).</p>
+      ) : status === "failed" ? (
+        <p className="parcel-route-map-note">Map failed to load.</p>
+      ) : status === "loading" ? (
+        <p className="parcel-route-map-note">Loading planned route map…</p>
+      ) : null}
+      <p className="parcel-route-caption">approximate route — not road directions</p>
+      <ol className="parcel-route-stops">
+        {routeStops.map((stop) => {
+          const hasCoordinates =
+            toFinite(stop.latitude) !== null && toFinite(stop.longitude) !== null;
+          return (
+            <li key={`${stop.stop_order}-${stop.stop_type}`}>
+              <span className="parcel-route-stop-number">{stop.stop_order}</span>
+              <span>
+                <strong>{stop.label}</strong>
+                <small>
+                  {stop.stop_type}
+                  {!hasCoordinates ? " — location not mapped" : ""}
+                </small>
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
