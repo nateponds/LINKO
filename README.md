@@ -15,6 +15,9 @@
 
 The product is designed for small and growing businesses that need practical tools for procurement and stock visibility without taking on the complexity of a full enterprise supply-chain system. LINKO focuses on the direct buyer-wholesaler relationship: *who can supply, where they can serve, how buyers can connect with them, and how those connections can become operational workflows over time.*
 
+> [!IMPORTANT]
+> **Pre-launch status.** LINKO is not production-launched. The public deployment at `linko.nateponds.com` is a showcase, and every database in use (local development, staging, and the showcase itself) contains disposable development fixtures — seeded demo data, not real customer records. Schema and seed changes may reset these databases at any time; do not build migrations, backfills, or compatibility layers around preserving them.
+
 ---
 
 ## Checkpoint Implementation Focus: Courier/Parcel Tracking
