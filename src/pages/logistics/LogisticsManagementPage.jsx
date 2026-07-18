@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import AppLayout from "../../layouts/AppLayout";
+import MapPicker from "../../components/ui/MapPicker";
 import { apiGet, apiSend } from "../../lib/api";
 import { Plus, Trash2, Pencil, Check, X } from "lucide-react";
 import { useAuth } from "../../auth/AuthProvider";
@@ -323,6 +324,15 @@ export default function LogisticsManagementPage() {
                         <input type="text" placeholder="Barangay" value={branchForm.barangay} onChange={e => setBranchForm({...branchForm, barangay: e.target.value})} />
                         <input type="text" placeholder="Street Address" value={branchForm.street_address} onChange={e => setBranchForm({...branchForm, street_address: e.target.value})} />
                         <input type="text" placeholder="Postal Code" value={branchForm.postal_code} onChange={e => setBranchForm({...branchForm, postal_code: e.target.value})} />
+                        <MapPicker
+                          latitude={branchForm.latitude}
+                          longitude={branchForm.longitude}
+                          onChange={({ latitude, longitude }) => setBranchForm(current => ({
+                            ...current,
+                            latitude: String(latitude),
+                            longitude: String(longitude),
+                          }))}
+                        />
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
                           <input type="number" step="any" min="-90" max="90" placeholder="Latitude" value={branchForm.latitude} onChange={e => setBranchForm({...branchForm, latitude: e.target.value})} />
                           <input type="number" step="any" min="-180" max="180" placeholder="Longitude" value={branchForm.longitude} onChange={e => setBranchForm({...branchForm, longitude: e.target.value})} />

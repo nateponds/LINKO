@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import AppLayout from "../layouts/AppLayout";
+import MapPicker from "../components/ui/MapPicker";
 import { useAuth } from "../auth/AuthProvider";
 import { apiGet, apiSend } from "../lib/api";
 
 // Business location settings (Sprint 13 §9.1). Active-business scoped: a
 // business switch remounts the routed subtree (ProtectedRoute key), so the
 // form refetches against the new X-Active-Business automatically. Numeric
-// coordinate inputs are the permanent accessible fallback — MapPicker lands
-// on top of this form later (T12), it never replaces it.
+// coordinate inputs are the permanent accessible fallback — MapPicker sits
+// on top of this form, it never replaces it.
 
 const TEXT_FIELDS = [
   ["province", "Province"],
@@ -137,6 +138,18 @@ export default function SettingsPage() {
                   onChange={update(key)}
                 />
               ))}
+              <MapPicker
+                latitude={form.latitude}
+                longitude={form.longitude}
+                onChange={({ latitude, longitude }) => {
+                  setForm((current) => ({
+                    ...current,
+                    latitude: String(latitude),
+                    longitude: String(longitude),
+                  }));
+                  setSaveSuccess(false);
+                }}
+              />
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
                 <input type="number" step="any" min="-90" max="90" placeholder="Latitude"
                   value={form.latitude} onChange={update("latitude")} />
@@ -144,7 +157,7 @@ export default function SettingsPage() {
                   value={form.longitude} onChange={update("longitude")} />
               </div>
               <p style={{ fontSize: "0.8rem", opacity: 0.7, margin: "0.5rem 0" }}>
-                Enter coordinates directly (map picker coming soon) — both or
+                Pick on the map or enter coordinates directly — both or
                 neither. Clearing both unpins the business and re-enables the
                 reminder.
               </p>
