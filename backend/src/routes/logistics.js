@@ -7,6 +7,7 @@ import {
   resolveActiveBusinessId,
 } from "../middleware/ownership.js";
 import { notifyBusiness } from "../services/notify.js";
+import { resolveInitialBranchId } from "../services/parcelRouting.js";
 
 const router = Router();
 
@@ -144,19 +145,6 @@ const LATEST_LOG = `
      ORDER BY tl.scanned_at DESC, tl.log_id DESC
      LIMIT 1
   ) latest ON TRUE`;
-
-async function findBranchIdByCity(client, cityMunicipality) {
-  if (!cityMunicipality) return null;
-  const { rows } = await client.query(
-    `SELECT b.branch_id
-       FROM branches b
-       JOIN addresses a ON a.address_id = b.address_id
-      WHERE LOWER(a.city_municipality) = LOWER($1)
-      LIMIT 1`,
-    [cityMunicipality],
-  );
-  return rows[0]?.branch_id ?? null;
-}
 
 // Buyers pass the gate only for the single-parcel read (track-my-order);
 // the list below yields nothing for a buyer-only caller and every write
@@ -572,14 +560,7 @@ router.post(
       [parcelId, payment_method, paymentStatus],
     );
 
-    const originAddress = await client.query(
-      "SELECT city_municipality FROM addresses WHERE address_id = $1",
-      [origin_address_id],
-    );
-    const originBranchId = await findBranchIdByCity(
-      client,
-      originAddress.rows[0]?.city_municipality,
-    );
+    const originBranchId = await resolveInitialBranchId(client, origin_address_id);
 
     await client.query(
       `INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id)
