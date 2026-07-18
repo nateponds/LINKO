@@ -29,7 +29,7 @@ erDiagram
         VARCHAR business_name
         VARCHAR contact_number
         VARCHAR email
-        VARCHAR business_type "buyer, wholesaler, individual, msme, corporation, other"
+        VARCHAR business_type "buyer, wholesaler, individual, msme, corporation, other, logistics"
     }
 
     BRANCHES {
@@ -133,14 +133,14 @@ Structured, granular address parts (Philippine hierarchy). Referenced by busines
 
 ### BUSINESSES
 
-Unified directory for marketplace companies, wholesalers, and logistics customers. `business_type` classifies what kind of account it is (buyer, wholesaler, individual, msme, corporation, other). Sprint 9 dropped the prior `both` value: a single business can no longer be both buyer and wholesaler at once. A user who needs both capabilities registers two separate businesses and switches between them via the top-bar business switcher. Buy-vs-sell logistics role is not strictly stored here; it is read from which FK slot the business occupies on a parcel (`sender_id` = selling, `receiver_id` = buying), so one actor can freely switch sides on different parcels. Addresses live in `ADDRESSES` (1:N).
+Unified directory for marketplace companies, wholesalers, and logistics customers. `business_type` classifies what kind of account it is (buyer, wholesaler, individual, msme, corporation, other, logistics). Sprint 9 dropped the prior `both` value: a single business can no longer be both buyer and wholesaler at once. Migration 022 added `logistics` for delivery organizations: `LINKO Logistics` is the canonical one, holding the coordinator and every courier as staff (couriers have no business of their own — see `COURIERS`). A logistics org is not a marketplace actor, so it never appears in supplier discovery and never places an order. A user who needs both capabilities registers two separate businesses and switches between them via the top-bar business switcher. Buy-vs-sell logistics role is not strictly stored here; it is read from which FK slot the business occupies on a parcel (`sender_id` = selling, `receiver_id` = buying), so one actor can freely switch sides on different parcels. Addresses live in `ADDRESSES` (1:N).
 
 | Column        | Type         | Constraints                                                                         | Notes                                                          |
 | ------------- | ------------ | ----------------------------------------------------------------------------------- | -------------------------------------------------------------- |
 | business_id   | SERIAL       | PK                                                                                  |                                                                |
 | business_name | VARCHAR(100) | NOT NULL                                                                            |                                                                |
 | contact_number| VARCHAR(20)  | NOT NULL                                                                            | E.164 format                                                   |
-| business_type | VARCHAR(20)  | NOT NULL, CHECK IN (buyer, wholesaler, individual, msme, corporation, other) | Account classification                                         | account classification, not transaction role; role is per-parcel via FK. Sprint 9 dropped the `both` value. |
+| business_type | VARCHAR(20)  | NOT NULL, CHECK IN (buyer, wholesaler, individual, msme, corporation, other, logistics) | Account classification                                         | account classification, not transaction role; role is per-parcel via FK. Sprint 9 dropped the `both` value; migration 022 added `logistics`. |
 
 ---
 

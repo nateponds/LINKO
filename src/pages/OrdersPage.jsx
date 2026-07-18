@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import AppLayout from "../layouts/AppLayout";
 import TrackingTimeline from "../features/logistics/TrackingTimeline";
+import SupportModal from "../components/ui/SupportModal";
 import { apiGet, apiSend } from "../lib/api";
 import { peso, shortDate, statusClass } from "../lib/format";
 import "./OrdersPage.css";
@@ -59,6 +60,42 @@ export default function OrdersPage() {
   const [updatingId, setUpdatingId] = useState(null);
   const [statusFilter, setStatusFilter] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
+  const tabsContainerRef = useRef(null);
+  const [pillStyle, setPillStyle] = useState({ opacity: 0 });
+
+  const tableContentRef = useRef(null);
+  const [tableHeight, setTableHeight] = useState("auto");
+
+  useEffect(() => {
+    if (!tableContentRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      setTableHeight(entries[0].target.offsetHeight);
+    });
+    observer.observe(tableContentRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    function updatePill() {
+      if (!tabsContainerRef.current) return;
+      const activeBtn = tabsContainerRef.current.querySelector('button[aria-selected="true"]');
+      if (activeBtn) {
+        setPillStyle({
+          left: activeBtn.offsetLeft,
+          top: activeBtn.offsetTop,
+          width: activeBtn.offsetWidth,
+          height: activeBtn.offsetHeight,
+          opacity: 1,
+        });
+      }
+    }
+    const timer = setTimeout(updatePill, 0);
+    window.addEventListener("resize", updatePill);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("resize", updatePill);
+    };
+  }, [statusFilter, orders.length]);
 
   // Ship-order modal (wholesaler enters weight at handoff).
   const [shipOrder, setShipOrder] = useState(null);
@@ -70,6 +107,7 @@ export default function OrdersPage() {
   const [trackParcel, setTrackParcel] = useState(null);
   const [trackLoading, setTrackLoading] = useState(false);
   const [trackError, setTrackError] = useState(null);
+  const [supportOpen, setSupportOpen] = useState(false);
 
   const loadOrders = useCallback(async () => {
     setLoading(true);
@@ -265,7 +303,9 @@ export default function OrdersPage() {
           className="status-tabs"
           role="tablist"
           aria-label="Filter by status"
+          ref={tabsContainerRef}
         >
+          <div className="sliding-pill" style={pillStyle} />
           {STATUS_TABS.map((tab) => (
             <button
               key={tab}
@@ -280,100 +320,113 @@ export default function OrdersPage() {
         </div>
 
         <main className="table-card">
-          {loading ? (
-            <div className="page-empty">Loading orders...</div>
-          ) : error ? (
-            <div className="page-empty">
-              Could not load orders: {error}
-            </div>
-          ) : visibleOrders.length === 0 ? (
-            <div className="page-empty">No orders match your search.</div>
-          ) : (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Order No.</th>
-                  <th>Customer</th>
-                  <th>Seller</th>
-                  <th>Date</th>
-                  <th>Items</th>
-                  <th>Total</th>
-                  <th>Status</th>
-                  <th>Invoice</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleOrders.map((order) => {
-                  const orderActions = actionsFor(order);
-                  const disabled = updatingId === order.order_id;
+          <div
+            className="table-height-animator"
+            style={{
+              height: tableHeight === "auto" ? "auto" : `${tableHeight}px`,
+              overflow: "hidden",
+              transition: "height 0.4s cubic-bezier(0.25, 1, 0.5, 1)",
+            }}
+          >
+            <div ref={tableContentRef}>
+              {loading ? (
+                <div className="page-empty">Loading orders...</div>
+              ) : error ? (
+                <div className="page-empty">
+                  Could not load orders: {error}
+                </div>
+              ) : visibleOrders.length === 0 ? (
+                <div className="page-empty">No orders match your search.</div>
+              ) : (
+                <div className="orders-table-wrap">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Order No.</th>
+                        <th>Customer</th>
+                        <th>Seller</th>
+                        <th>Date</th>
+                        <th>Items</th>
+                        <th>Total</th>
+                        <th>Status</th>
+                        <th>Invoice</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visibleOrders.map((order) => {
+                        const orderActions = actionsFor(order);
+                        const disabled = updatingId === order.order_id;
 
-                  return (
-                    <tr key={order.order_id}>
-                      <td>#{order.order_id}</td>
-                      <td>
-                        <strong>{order.buyer_business_name ?? "—"}</strong>
-                      </td>
-                      <td>{order.wholesaler_business_name ?? "—"}</td>
-                      <td>{shortDate(order.created_at)}</td>
-                      <td>{itemCount(order)}</td>
-                      <td>{peso(order.total)}</td>
-                      <td>
-                        <span
-                          className={`status ${statusClass(statusLabel(order.status))}`}
-                        >
-                          {statusLabel(order.status)}
-                        </span>
-                      </td>
-                      <td>
-                        {order.invoice?.invoice_id ? (
-                          <Link
-                            className="track-link"
-                            to={`/invoices?invoice=${order.invoice.invoice_id}`}
-                          >
-                            {order.invoice.invoice_number ?? "Invoice"}
-                          </Link>
-                        ) : (
-                          <span className="muted-cell">—</span>
-                        )}
-                      </td>
-                      <td>
-                        {orderActions.length > 0 ? (
-                          <div
-                            className="order-actions"
-                            aria-label={`Actions for order ${order.order_id}`}
-                          >
-                            {orderActions.map((action) => (
-                              <button
-                                key={`${action.label}-${action.nextStatus ?? "fn"}`}
-                                className="track-link action-button"
-                                type="button"
-                                disabled={disabled && !action.onClick}
-                                onClick={
-                                  action.onClick ??
-                                  (() =>
-                                    updateOrderStatus(
-                                      order.order_id,
-                                      action.nextStatus,
-                                    ))
-                                }
+                        return (
+                          <tr key={order.order_id}>
+                            <td>#{order.order_id}</td>
+                            <td>
+                              <strong>{order.buyer_business_name ?? "—"}</strong>
+                            </td>
+                            <td>{order.wholesaler_business_name ?? "—"}</td>
+                            <td>{shortDate(order.created_at)}</td>
+                            <td>{itemCount(order)}</td>
+                            <td>{peso(order.total)}</td>
+                            <td>
+                              <span
+                                className={`status ${statusClass(statusLabel(order.status))}`}
                               >
-                                {disabled && !action.onClick
-                                  ? "Updating"
-                                  : action.label}
-                              </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="muted-cell">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
+                                {statusLabel(order.status)}
+                              </span>
+                            </td>
+                            <td>
+                              {order.invoice?.invoice_id ? (
+                                <Link
+                                  className="track-link"
+                                  to={`/invoices?invoice=${order.invoice.invoice_id}`}
+                                >
+                                  {order.invoice.invoice_number ?? "Invoice"}
+                                </Link>
+                              ) : (
+                                <span className="muted-cell">—</span>
+                              )}
+                            </td>
+                            <td>
+                              {orderActions.length > 0 ? (
+                                <div
+                                  className="order-actions"
+                                  aria-label={`Actions for order ${order.order_id}`}
+                                >
+                                  {orderActions.map((action) => (
+                                    <button
+                                      key={`${action.label}-${action.nextStatus ?? "fn"}`}
+                                      className="track-link action-button"
+                                      type="button"
+                                      disabled={disabled && !action.onClick}
+                                      onClick={
+                                        action.onClick ??
+                                        (() =>
+                                          updateOrderStatus(
+                                            order.order_id,
+                                            action.nextStatus,
+                                          ))
+                                      }
+                                    >
+                                      {disabled && !action.onClick
+                                        ? "Updating"
+                                        : action.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="muted-cell">—</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
         </main>
 
         {/* Ship order: wholesaler records the parcel weight at handoff. */}
@@ -473,9 +526,18 @@ export default function OrdersPage() {
               ) : (
                 <p className="form-note">No tracking available.</p>
               )}
+              <button
+                type="button"
+                className="support-link-btn"
+                onClick={() => setSupportOpen(true)}
+              >
+                Need help? Contact customer service
+              </button>
             </div>
           )}
         </div>
+
+        <SupportModal open={supportOpen} onClose={() => setSupportOpen(false)} />
       </div>
     </AppLayout>
   );

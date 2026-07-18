@@ -70,6 +70,42 @@
     font-size: 0.85rem;
   }
 
+  .admin-form-success {
+    color: var(--color-primary-dark);
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .cs-tools-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+  }
+
+  .cs-tool-title {
+    margin: 0 0 12px;
+    color: var(--color-primary-dark);
+    font-size: 1rem;
+  }
+
+  .cs-tool-text {
+    margin: 0 0 12px;
+    font-size: 0.85rem;
+    color: var(--color-muted);
+  }
+
+  .cs-tool-links {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.88rem;
+    font-weight: 600;
+  }
+
+  .cs-tool-links a {
+    color: var(--color-primary);
+  }
+
   .admin-primary-btn {
     border: none;
     background: var(--color-primary);

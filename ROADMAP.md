@@ -2,7 +2,7 @@
 
 ## Checkpoint Implementation Focus
 
-The first checkpoint-ready slice of LINKO is the **Courier/Parcel Tracking** workflow documented in [docs/course-deliverable.md](./docs/course-deliverable.md). It serves as the platform's fulfillment foundation: once buyers, wholesalers, or businesses create operational demand, LINKO can represent the package, sender, receiver, service tier, route events, and delivery status.
+The first checkpoint-ready slice of LINKO is the **Courier/Parcel Tracking** workflow documented in [local-notes/course-deliverable.md](./local-notes/course-deliverable.md). It serves as the platform's fulfillment foundation: once buyers, wholesalers, or businesses create operational demand, LINKO can represent the package, sender, receiver, service tier, route events, and delivery status.
 
 The implemented system covers the required lifecycle:
 

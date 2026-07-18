@@ -110,8 +110,11 @@ export function AuthProvider({ children }) {
     [activeBusinessId, memberships],
   );
 
+  // Silent re-sync of the session (e.g. after a Settings save so membership
+  // has_coordinates updates). Deliberately does NOT flip the global loading
+  // flag: that would remount the whole routed subtree via ProtectedRoute and
+  // wipe the in-page state of whoever triggered the refresh.
   const refreshAuth = useCallback(async () => {
-    setLoading(true);
     setError(null);
 
     try {
@@ -135,8 +138,6 @@ export function AuthProvider({ children }) {
       applySession(null);
       setError(caughtError);
       return null;
-    } finally {
-      setLoading(false);
     }
   }, [applySession]);
 

@@ -3,9 +3,11 @@ import { ArrowLeft } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import AppLayout from "../../layouts/AppLayout";
 import TrackingTimeline from "../../features/logistics/TrackingTimeline";
+import SupportModal from "../../components/ui/SupportModal";
+import { ParcelRouteMap } from "../../components/ui/MapPicker";
 import { peso, shortDate, statusClass } from "../../lib/format";
 import {
-  countFailedAttempts,
+  returnTriggeredFromHistory,
   isReturning,
   selectableTrackingStatuses,
   ONE_TAP_REMARKS,
@@ -35,7 +37,8 @@ export default function ParcelDetailPage() {
   const [branches, setBranches] = useState([]);
   const [couriers, setCouriers] = useState([]);
   const { hasAnyRole } = useAuth();
-  
+  const [supportOpen, setSupportOpen] = useState(false);
+
   // Update form state
   const [updating, setUpdating] = useState(false);
   const [updateError, setUpdateError] = useState(null);
@@ -85,12 +88,13 @@ export default function ParcelDetailPage() {
   const filteredCouriers = formBranch
     ? couriers.filter((courier) => courier.assigned_branch_id === Number(formBranch))
     : couriers;
-  // Fail count is derived from the rendered history — no new API field needed.
-  const failedAttempts = countFailedAttempts(parcel?.tracking_history);
+  // Return leg is derived from the rendered history — retry cap or a hard-fail
+  // reason opens it. Mirrors the backend's return_triggered list field.
+  const returnTriggered = returnTriggeredFromHistory(parcel?.tracking_history);
   const statusOptions = selectableTrackingStatuses(
     parcel?.current_status,
     canUpdateAssignment,
-    failedAttempts,
+    returnTriggered,
   );
   const canLogTrackingUpdate = canUpdateAssignment || statusOptions.length > 0;
   const selectedStatus = statusOptions.includes(formStatus)
@@ -98,13 +102,17 @@ export default function ParcelDetailPage() {
     : statusOptions.includes(parcel?.current_status)
       ? parcel.current_status
       : statusOptions[0] ?? "";
-  // Return-leg red cue: post-3rd-fail and not yet back at the sender.
-  const returning = isReturning(parcel?.current_status, failedAttempts);
+  // Return-leg red cue: return triggered and not yet back at the sender.
+  const returning = isReturning(parcel?.current_status, returnTriggered);
 
   async function handleTrackingSubmit() {
     if (updating) return;
     if (selectedStatus === "Cancelled" && !formRemarks.trim()) {
       setUpdateError("A cancellation reason is required.");
+      return;
+    }
+    if (selectedStatus === "Delivery Failed" && !FAIL_REASONS.includes(formRemarks)) {
+      setUpdateError("A failure reason is required.");
       return;
     }
     setUpdating(true);
@@ -223,6 +231,11 @@ export default function ParcelDetailPage() {
                 </span>
               </div>
 
+              <ParcelRouteMap
+                key={`${parcel.parcel_id}-${parcel.planned_route?.length ? "planned" : "empty"}`}
+                stops={parcel.planned_route}
+              />
+
               {hasAnyRole(["logistics_coordinator", "platform_admin", "courier"]) && (
                 <div className="update-status-form">
                   <h3>Log Delivery Event</h3>
@@ -269,11 +282,24 @@ export default function ParcelDetailPage() {
                         )}
                       </div>
 
-                      {/* Couriers never free-type (handoff 2026-07-16 §5): the
-                          status carries a fixed remark, Delivery Failed a canned
-                          reason, terminal scans an auto-generated POD. Only the
-                          coordinator/admin override keeps a manual remarks box. */}
-                      {canUpdateAssignment ? (
+                      {/* Delivery Failed always uses the canned reason picker,
+                          every role — hard reasons drive the return-leg gate, so
+                          free text is never allowed here. Couriers never free-type
+                          (handoff 2026-07-16 §5): the status carries a fixed remark,
+                          terminal scans an auto-generated POD. Only the
+                          coordinator/admin override keeps a manual remarks box for
+                          the other statuses. */}
+                      {selectedStatus === "Delivery Failed" ? (
+                        <label className="update-remarks">
+                          <span>Reason</span>
+                          <select value={formRemarks} onChange={e => setFormRemarks(e.target.value)}>
+                            <option value="">-- Select reason --</option>
+                            {FAIL_REASONS.map((reason) => (
+                              <option key={reason} value={reason}>{reason}</option>
+                            ))}
+                          </select>
+                        </label>
+                      ) : canUpdateAssignment ? (
                         <label className="update-remarks">
                           <span>{selectedStatus === "Cancelled" ? "Cancellation reason" : "Remarks"}</span>
                           <input
@@ -289,16 +315,6 @@ export default function ParcelDetailPage() {
                                   : "Optional delivery notes"
                             }
                           />
-                        </label>
-                      ) : selectedStatus === "Delivery Failed" ? (
-                        <label className="update-remarks">
-                          <span>Reason</span>
-                          <select value={formRemarks} onChange={e => setFormRemarks(e.target.value)}>
-                            <option value="">-- Select reason --</option>
-                            {FAIL_REASONS.map((reason) => (
-                              <option key={reason} value={reason}>{reason}</option>
-                            ))}
-                          </select>
                         </label>
                       ) : null}
 
@@ -316,10 +332,20 @@ export default function ParcelDetailPage() {
                 </div>
               )}
 
+              <button
+                type="button"
+                className="support-link-btn"
+                onClick={() => setSupportOpen(true)}
+              >
+                Need help? Contact customer service
+              </button>
+
               <TrackingTimeline parcel={parcel} />
             </section>
           </main>
         )}
+
+        <SupportModal open={supportOpen} onClose={() => setSupportOpen(false)} />
       </div>
     </AppLayout>
   );

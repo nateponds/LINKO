@@ -77,10 +77,18 @@ router.get("/users", async (_req, res, next) => {
   }
 });
 
+// The single org every courier belongs to. Couriers are staff of this one
+// business, not businesses of their own, so the server resolves it rather than
+// trusting a client business_id. Looked up by name because ids differ per
+// environment (migration 022 seeds/renames it).
+const CANONICAL_LOGISTICS_BUSINESS = "LINKO Logistics";
+
 // POST /api/admin/users
 // Create a privileged user. body: { full_name, email, password, kind, business_id? }
 //   kind = platform_admin       -> users.global_role = 'platform_admin', no membership
-//   kind = logistics_coordinator | courier -> needs business_id, inserts a membership row
+//   kind = logistics_coordinator -> needs business_id, inserts a membership row
+//   kind = courier               -> business_id ignored; membership lands on
+//                                   CANONICAL_LOGISTICS_BUSINESS
 router.post("/users", async (req, res, next) => {
   const fullName = typeof req.body?.full_name === "string" ? req.body.full_name.trim() : "";
   const email = normalizeEmail(req.body?.email);
@@ -100,11 +108,33 @@ router.post("/users", async (req, res, next) => {
   }
 
   const isAdminKind = kind === "platform_admin";
+  const isCourier = kind === "courier";
+
+  // Couriers resolve their business server-side (below); a client-sent
+  // business_id is ignored, not rejected. Coordinators still choose one.
   let businessId = null;
-  if (!isAdminKind) {
+  if (!isAdminKind && !isCourier) {
     businessId = Number(req.body?.business_id);
     if (!Number.isInteger(businessId) || businessId <= 0) {
       return next(createHttpError(400, "business_id is required for this kind"));
+    }
+  }
+
+  // Optional courier logistics fields. Ignored for non-courier kinds. Trim empty
+  // strings to null so the couriers row keeps NULLs rather than "".
+  const phoneNumber =
+    typeof req.body?.phone_number === "string" && req.body.phone_number.trim()
+      ? req.body.phone_number.trim()
+      : null;
+  const vehicleType =
+    typeof req.body?.vehicle_type === "string" && req.body.vehicle_type.trim()
+      ? req.body.vehicle_type.trim()
+      : null;
+  let assignedBranchId = null;
+  if (isCourier && req.body?.assigned_branch_id != null && req.body.assigned_branch_id !== "") {
+    assignedBranchId = Number(req.body.assigned_branch_id);
+    if (!Number.isInteger(assignedBranchId) || assignedBranchId <= 0) {
+      return next(createHttpError(400, "assigned_branch_id must be a positive integer"));
     }
   }
 
@@ -133,19 +163,44 @@ router.post("/users", async (req, res, next) => {
     const user = userResult.rows[0];
 
     if (!isAdminKind) {
+      let membershipBusinessId = businessId;
+      if (isCourier) {
+        const canonical = await client.query(
+          "SELECT business_id FROM businesses WHERE business_name = $1",
+          [CANONICAL_LOGISTICS_BUSINESS],
+        );
+        if (canonical.rowCount === 0) {
+          throw createHttpError(
+            500,
+            "canonical logistics business missing — run migration 022",
+          );
+        }
+        membershipBusinessId = canonical.rows[0].business_id;
+      }
       await client.query(
         "INSERT INTO business_memberships (user_id, business_id, role) VALUES ($1, $2, $3)",
-        [user.user_id, businessId, kind],
+        [user.user_id, membershipBusinessId, kind],
       );
     }
 
     // A courier login is useless without a linked couriers row: parcel
     // visibility and tracking scans resolve through couriers.user_id
-    // (docs/API_CONTRACTS.md §3.6).
-    if (kind === "courier") {
+    // (docs/API_CONTRACTS.md §3.6). This is the sole path that mints a courier
+    // with both a login and logistics assignment.
+    if (isCourier) {
+      if (assignedBranchId !== null) {
+        const branch = await client.query(
+          "SELECT 1 FROM branches WHERE branch_id = $1 AND is_active",
+          [assignedBranchId],
+        );
+        if (branch.rowCount === 0) {
+          throw createHttpError(400, "assigned_branch_id must reference an active branch");
+        }
+      }
       await client.query(
-        "INSERT INTO couriers (full_name, user_id) VALUES ($1, $2)",
-        [fullName, user.user_id],
+        `INSERT INTO couriers (full_name, user_id, phone_number, vehicle_type, assigned_branch_id)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [fullName, user.user_id, phoneNumber, vehicleType, assignedBranchId],
       );
     }
 

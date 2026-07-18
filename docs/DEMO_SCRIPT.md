@@ -56,8 +56,9 @@ Routes referenced below all exist in `src/App.jsx` and are protected by
    parcel's **weight (kg)** — this is required; submitting without it is rejected. Enter a real
    weight (e.g. `8.5`) and optional dimensions, then confirm. This is the honest-weight beat:
    the shipping fee stays the quote frozen at checkout, while the real weight is recorded
-   **at handoff**. Shipping auto-creates the parcel (distance is left
-   `NULL` — checkout never measured a route).
+   **at handoff**. Shipping auto-creates the parcel with its distance recorded on the
+   parcel row (Sprint 13 makes this server-computed from the pinned business locations —
+   see `docs/LOCATION_ROUTING.md`).
 6. Confirm an invoice/shipment is associated with the progressed order (visible via the
    order detail and, for parcels, the logistics surface).
 

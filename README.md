@@ -15,11 +15,14 @@
 
 The product is designed for small and growing businesses that need practical tools for procurement and stock visibility without taking on the complexity of a full enterprise supply-chain system. LINKO focuses on the direct buyer-wholesaler relationship: *who can supply, where they can serve, how buyers can connect with them, and how those connections can become operational workflows over time.*
 
+> [!IMPORTANT]
+> **Pre-launch status.** LINKO is not production-launched. The public deployment at `linko.nateponds.com` is a showcase, and every database in use (local development, staging, and the showcase itself) contains disposable development fixtures — seeded demo data, not real customer records. Schema and seed changes may reset these databases at any time; do not build migrations, backfills, or compatibility layers around preserving them.
+
 ---
 
 ## Checkpoint Implementation Focus: Courier/Parcel Tracking
 
-LINKO's first checkpoint-ready module is the **Courier/Parcel Tracking** workflow described in [docs/course-deliverable.md](./docs/course-deliverable.md). This fits the marketplace concept as the fulfillment layer that handles what happens after a buyer, wholesaler, or business needs a package moved: sender and receiver details, package weight, shipping fee calculation, current delivery status, and a tracking history from pickup through delivery.
+LINKO's first checkpoint-ready module is the **Courier/Parcel Tracking** workflow described in [local-notes/course-deliverable.md](./local-notes/course-deliverable.md). This fits the marketplace concept as the fulfillment layer that handles what happens after a buyer, wholesaler, or business needs a package moved: sender and receiver details, package weight, shipping fee calculation, current delivery status, and a tracking history from pickup through delivery.
 
 ### Required Core Tables
 
@@ -35,7 +38,7 @@ LINKO's first checkpoint-ready module is the **Courier/Parcel Tracking** workflo
 
 - Database implementation: [backend/migrations/002_logistics_schema.sql](./backend/migrations/002_logistics_schema.sql), [backend/migrations/003_linko_schema.sql](./backend/migrations/003_linko_schema.sql), and later logistics/auth integration migrations.
 - ERD and table explanations: [docs/LINKO_ERD.md](./docs/LINKO_ERD.md).
-- Course requirement summary: [docs/course-deliverable.md](./docs/course-deliverable.md).
+- Course requirement summary: [local-notes/course-deliverable.md](./local-notes/course-deliverable.md).
 - Demo walkthrough: [docs/DEMO_SCRIPT.md](./docs/DEMO_SCRIPT.md), especially the Logistics Coordinator and Courier journeys.
 - Backend routes and tests: [backend/src/routes/logistics.js](./backend/src/routes/logistics.js), [backend/src/app.test.js](./backend/src/app.test.js), [backend/src/logistics-workflow.test.js](./backend/src/logistics-workflow.test.js), and [backend/src/ownership.test.js](./backend/src/ownership.test.js).
 
@@ -107,7 +110,7 @@ npm start
 
 Start here if you are evaluating, contributing to, or extending the project:
 
-- **[Course Deliverable](./docs/course-deliverable.md)**: Checkpoint summary of the courier/parcel tracking requirements.
+- **[Course Deliverable](./local-notes/course-deliverable.md)**: Checkpoint summary of the courier/parcel tracking requirements.
 - **[LINKO ERD](./docs/LINKO_ERD.md)**: Database design for the logistics foundation and integrated LINKO marketplace schema.
 - **[Demo Script](./docs/DEMO_SCRIPT.md)**: Role-based live demo checklist for grading.
 - **[ROADMAP.md](./ROADMAP.md)**: Explains product direction and development phases.

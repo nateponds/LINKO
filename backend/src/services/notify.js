@@ -1,5 +1,10 @@
 // Inserts one notification per member of a business. Pass the route's
 // transaction client so the insert commits/rolls back with the action.
+//
+// Note: Even though row-level authz doesn't strictly query a courier's 
+// business_id, couriers must retain their membership link to the logistics 
+// org. If their business_id were omitted, business-wide features like this 
+// would silently fail to reach them.
 export async function notifyBusiness(client, businessId, title, message, type = "info") {
   await client.query(
     `INSERT INTO notifications (user_id, title, message, type)

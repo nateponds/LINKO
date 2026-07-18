@@ -221,6 +221,85 @@
     padding-bottom: 20px;
   }
 
+  .parcel-route {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    border: 1px solid var(--color-primary-soft);
+    border-radius: 10px;
+    background: var(--color-surface);
+  }
+
+  .parcel-route h2 {
+    margin: 0 0 0.75rem;
+    font-size: 1rem;
+    color: var(--color-primary-dark);
+  }
+
+  .parcel-route-map {
+    height: 280px;
+    overflow: hidden;
+    border-radius: 8px;
+  }
+
+  .parcel-route-marker {
+    display: grid;
+    width: 28px;
+    height: 28px;
+    place-items: center;
+    border: 2px solid white;
+    border-radius: 50%;
+    background: var(--color-primary);
+    box-shadow: 0 1px 5px rgba(23, 33, 61, 0.35);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+
+  .parcel-route-caption,
+  .parcel-route-map-note,
+  .parcel-route-empty {
+    margin: 0.65rem 0 0;
+    color: var(--color-muted);
+    font-size: 0.82rem;
+  }
+
+  .parcel-route-stops {
+    display: grid;
+    gap: 0.65rem;
+    margin: 0.9rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .parcel-route-stops li {
+    display: flex;
+    gap: 0.65rem;
+    align-items: center;
+  }
+
+  .parcel-route-stops li > span:last-child {
+    display: grid;
+    gap: 0.1rem;
+  }
+
+  .parcel-route-stops small {
+    color: var(--color-muted);
+    text-transform: capitalize;
+  }
+
+  .parcel-route-stop-number {
+    display: grid;
+    width: 24px;
+    height: 24px;
+    flex: 0 0 24px;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--color-primary-soft);
+    color: var(--color-primary-dark);
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+
   .status-eyebrow {
     font-size: 0.8rem;
     color: var(--color-muted);
