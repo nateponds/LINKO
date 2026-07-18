@@ -77,10 +77,19 @@ router.post("/register", async (req, res, next) => {
       [businessName, businessType],
     );
 
-    await client.query(
+    // The placeholder address becomes the canonical logistics pin. It has no
+    // coordinates, so the new business correctly hits the pin gates and the
+    // missing-location banner until it saves a real location in Settings.
+    const addressResult = await client.query(
       `INSERT INTO addresses (business_id, province, city_municipality, barangay, street_address, postal_code)
-       VALUES ($1, 'Not provided', 'Not provided', 'Not provided', 'Not provided', '0000')`,
+       VALUES ($1, 'Not provided', 'Not provided', 'Not provided', 'Not provided', '0000')
+       RETURNING address_id`,
       [businessResult.rows[0].business_id],
+    );
+
+    await client.query(
+      "UPDATE businesses SET logistics_address_id = $1 WHERE business_id = $2",
+      [addressResult.rows[0].address_id, businessResult.rows[0].business_id],
     );
 
     await client.query(
