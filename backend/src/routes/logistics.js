@@ -7,6 +7,12 @@ import {
   resolveActiveBusinessId,
 } from "../middleware/ownership.js";
 import { notifyBusiness } from "../services/notify.js";
+import {
+  computeRouteDistanceKm,
+  createInitialRouteSnapshot,
+  resolveInitialBranchId,
+} from "../services/parcelRouting.js";
+import { validateCoordinatePair } from "../services/location.js";
 
 const router = Router();
 
@@ -24,6 +30,61 @@ const VALID_TRACKING_STATUSES = [
 ];
 const TERMINAL_TRACKING_STATUSES = new Set(["Delivered", "Returned", "Cancelled"]);
 const RETURN_TRIGGER_FAILS = 3;
+const BRANCH_ADDRESS_FIELDS = [
+  "province",
+  "city_municipality",
+  "barangay",
+  "street_address",
+  "postal_code",
+];
+const REQUIRED_BRANCH_FIELDS = ["branch_name", "province", "city_municipality"];
+
+const hasOwn = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
+
+function clientError(message) {
+  const error = new Error(message);
+  error.statusCode = 400;
+  return error;
+}
+
+function normalizeBranchText(body, field, { required = false } = {}) {
+  if (!hasOwn(body, field)) {
+    return undefined;
+  }
+  const value = body[field];
+  if (value === null && !required) {
+    return null;
+  }
+  if (typeof value !== "string" || (required && value.trim() === "")) {
+    throw clientError(`${field} must be ${required ? "a non-empty string" : "a string or null"}`);
+  }
+  return value.trim();
+}
+
+async function selectBranch(db, branchId, { includeActive = false } = {}) {
+  const { rows } = await db.query(
+    `SELECT b.branch_id, b.branch_name, b.contact_number, b.address_id,
+            b.is_available${includeActive ? ", b.is_active" : ""},
+            a.province, a.city_municipality, a.barangay, a.street_address,
+            a.postal_code, a.latitude::float8 AS latitude,
+            a.longitude::float8 AS longitude
+       FROM branches b
+       JOIN addresses a ON a.address_id = b.address_id
+      WHERE b.branch_id = $1 AND b.is_active`,
+    [branchId],
+  );
+  return rows[0] ?? null;
+}
+
+// Delivery failure reasons. A Delivery Failed scan must carry exactly one of
+// these as its remark (enforced in POST /parcels/:id/tracking). Mirrors
+// src/lib/statusWorkflow.js — keep both lists in sync.
+const FAIL_REASONS = ["Receiver unavailable", "Delivery refused", "Bad address"];
+// Hard reasons open the return leg immediately on the fail they occur, skipping
+// the retry loop. Soft reasons (the remainder) get retries up to RETURN_TRIGGER_FAILS.
+const HARD_FAIL_REASONS = ["Bad address", "Delivery refused"];
+const isHardFailReason = (remarks) =>
+  HARD_FAIL_REASONS.includes(typeof remarks === "string" ? remarks.trim() : remarks);
 
 // The flow is non-linear (checkpoints repeat, delivery retries, the return leg
 // retraces hubs "backwards"), so courier moves are an explicit transition map
@@ -44,26 +105,27 @@ const COURIER_TRANSITIONS = {
   "Out for Delivery": ["Delivered", "Delivery Failed"],
 };
 
-export function courierAllowedNextStatuses(currentStatus, failedAttempts = 0) {
+// returnTriggered is the derived return-leg signal: true once the retry cap is
+// hit OR any prior fail carried a hard reason. Computed by the caller (the
+// POST handler and the list query) — see isHardFailReason / RETURN_TRIGGER_FAILS.
+export function courierAllowedNextStatuses(currentStatus, returnTriggered = false) {
   if (!currentStatus) return VALID_TRACKING_STATUSES.filter((s) => s !== "Cancelled");
   if (TERMINAL_TRACKING_STATUSES.has(currentStatus)) return [];
   if (currentStatus === "Delivery Failed") {
-    return failedAttempts >= RETURN_TRIGGER_FAILS
-      ? ["Arrived at Branch"]
-      : ["Out for Delivery"];
+    return returnTriggered ? ["Arrived at Branch"] : ["Out for Delivery"];
   }
-  // Return-leg movement is count-gated here because the static forward map has
-  // no fail count: branch arrival -> Out for Return -> Returned.
+  // Return-leg movement is return-triggered here because the static forward map
+  // has no fail state: branch arrival -> Out for Return -> Returned.
   // Ceiling: any Arrived-at-Branch scan qualifies -- the system does NOT verify
   // the branch is the sender's serving hub. Strict-hub enforcement (a
   // branch-service-area model) is deferred, see DETAILED_HANDOFF §7.
-  if (currentStatus === "Arrived at Branch" && failedAttempts >= RETURN_TRIGGER_FAILS) {
+  if (currentStatus === "Arrived at Branch" && returnTriggered) {
     // Return leg is one-way: no redelivery or hub departure once the parcel
     // reaches the return branch. It must leave for the sender next.
     return ["Out for Return"];
   }
   if (currentStatus === "Out for Return") {
-    return failedAttempts >= RETURN_TRIGGER_FAILS ? ["Returned"] : [];
+    return returnTriggered ? ["Returned"] : [];
   }
   return COURIER_TRANSITIONS[currentStatus] ?? [];
 }
@@ -81,7 +143,7 @@ function asClientError(error) {
   return error;
 }
 
-export function canCourierSubmitTrackingStatus(currentStatus, nextStatus, failedAttempts = 0) {
+export function canCourierSubmitTrackingStatus(currentStatus, nextStatus, returnTriggered = false) {
   if (nextStatus === "Cancelled") {
     return {
       allowed: false,
@@ -89,14 +151,14 @@ export function canCourierSubmitTrackingStatus(currentStatus, nextStatus, failed
     };
   }
 
-  return canSubmitTrackingStatus(currentStatus, nextStatus, failedAttempts);
+  return canSubmitTrackingStatus(currentStatus, nextStatus, returnTriggered);
 }
 
 // The checkpoint transition map binds every role -- a coordinator/admin cannot
 // skip 'Arrived at Branch'/'Departed Branch' either (handoff 2026-07-16 s2).
 // The only privileged-exclusive move is 'Cancelled', a terminal escape hatch
 // couriers are separately barred from (see canCourierSubmitTrackingStatus).
-export function canSubmitTrackingStatus(currentStatus, nextStatus, failedAttempts = 0) {
+export function canSubmitTrackingStatus(currentStatus, nextStatus, returnTriggered = false) {
   if (nextStatus === "Cancelled") {
     return currentStatus && TERMINAL_TRACKING_STATUSES.has(currentStatus)
       ? { allowed: false, message: `Cannot update terminal parcel status ${currentStatus}` }
@@ -112,7 +174,7 @@ export function canSubmitTrackingStatus(currentStatus, nextStatus, failedAttempt
     };
   }
 
-  const allowed = courierAllowedNextStatuses(currentStatus, failedAttempts);
+  const allowed = courierAllowedNextStatuses(currentStatus, returnTriggered);
   if (!allowed.includes(nextStatus)) {
     return {
       allowed: false,
@@ -133,19 +195,6 @@ const LATEST_LOG = `
      ORDER BY tl.scanned_at DESC, tl.log_id DESC
      LIMIT 1
   ) latest ON TRUE`;
-
-async function findBranchIdByCity(client, cityMunicipality) {
-  if (!cityMunicipality) return null;
-  const { rows } = await client.query(
-    `SELECT b.branch_id
-       FROM branches b
-       JOIN addresses a ON a.address_id = b.address_id
-      WHERE LOWER(a.city_municipality) = LOWER($1)
-      LIMIT 1`,
-    [cityMunicipality],
-  );
-  return rows[0]?.branch_id ?? null;
-}
 
 // Buyers pass the gate only for the single-parcel read (track-my-order);
 // the list below yields nothing for a buyer-only caller and every write
@@ -278,6 +327,9 @@ router.get("/parcels", async (req, res) => {
     }
   }
 
+  // return_triggered subquery reads the hard-reason list as the last bind param.
+  const hardParam = params.length + 1;
+  params.push(HARD_FAIL_REASONS);
   const { rows } = await query(`
     SELECT p.parcel_id,
            json_build_object('business_id', s.business_id, 'business_name', s.business_name) AS sender,
@@ -291,7 +343,12 @@ router.get("/parcels", async (req, res) => {
            latest.courier_id    AS latest_courier_id,
            (SELECT COUNT(*)::int FROM tracking_logs f
              WHERE f.parcel_id = p.parcel_id
-               AND f.status_update = 'Delivery Failed') AS failed_attempts
+               AND f.status_update = 'Delivery Failed') AS failed_attempts,
+           (SELECT (COUNT(*) FILTER (WHERE f.status_update = 'Delivery Failed') >= ${RETURN_TRIGGER_FAILS}
+                    OR bool_or(f.status_update = 'Delivery Failed'
+                               AND TRIM(f.remarks) = ANY($${hardParam}::text[])))
+              FROM tracking_logs f
+             WHERE f.parcel_id = p.parcel_id) AS return_triggered
       FROM parcels p
       JOIN businesses s      ON s.business_id = p.sender_id
       JOIN businesses r      ON r.business_id = p.receiver_id
@@ -339,7 +396,20 @@ router.get("/parcels/:id", async (req, res) => {
               FROM tracking_logs tl
               LEFT JOIN branches b ON b.branch_id = tl.branch_id
               LEFT JOIN couriers c ON c.courier_id = tl.courier_id
-             WHERE tl.parcel_id = p.parcel_id) AS tracking_history
+             WHERE tl.parcel_id = p.parcel_id) AS tracking_history,
+           COALESCE(
+             (SELECT json_agg(json_build_object(
+                        'stop_order', prs.stop_order,
+                        'stop_type', prs.stop_type,
+                        'branch_id', prs.branch_id,
+                        'label', prs.label,
+                        'latitude', prs.latitude::float8,
+                        'longitude', prs.longitude::float8)
+                      ORDER BY prs.stop_order)
+                FROM parcel_route_stops prs
+               WHERE prs.parcel_id = p.parcel_id),
+             '[]'::json
+           ) AS planned_route
       FROM parcels p
       JOIN businesses s      ON s.business_id = p.sender_id
       JOIN businesses r      ON r.business_id = p.receiver_id
@@ -398,10 +468,12 @@ router.get("/parcels/:id", async (req, res) => {
 
   // Buyer visibility cutoff (AGENT_HANDOFF §9.3): a caller who sees this parcel
   // ONLY as its receiver (buyer-side) must not see the return leg. Once the
-  // return leg exists (fails >= 3), truncate their tracking_history at and
-  // including the 3rd 'Delivery Failed' row -- everything after it is the
-  // internal LINKO<->wholesaler return journey. All other callers
-  // (sender/wholesaler, courier, coordinator, admin) get the full history.
+  // return leg is triggered, truncate their tracking_history at and including
+  // the fail that triggered it -- everything after is the internal
+  // LINKO<->wholesaler return journey. The trigger is the 3rd 'Delivery Failed'
+  // (soft-retry cap) OR the first fail carrying a hard reason, whichever comes
+  // first. All other callers (sender/wholesaler, courier, coordinator, admin)
+  // get the full history.
   const isReceiverOnlyView =
     !scope.all &&
     !(scope.businessIds && scope.businessIds.includes(parcel.sender_id)) &&
@@ -411,16 +483,17 @@ router.get("/parcels/:id", async (req, res) => {
     let failsSeen = 0;
     let cutoffIndex = -1;
     for (let i = 0; i < parcel.tracking_history.length; i += 1) {
-      if (parcel.tracking_history[i].status_update === "Delivery Failed") {
+      const row = parcel.tracking_history[i];
+      if (row.status_update === "Delivery Failed") {
         failsSeen += 1;
-        if (failsSeen === 3) {
+        if (failsSeen >= RETURN_TRIGGER_FAILS || isHardFailReason(row.remarks)) {
           cutoffIndex = i;
           break;
         }
       }
     }
-    // Only truncate when the 3rd fail was actually found (return leg exists).
-    // fails < 3 -> full timeline, including in-progress retries.
+    // Only truncate when a triggering fail was actually found (return leg
+    // exists). No trigger -> full timeline, including in-progress soft retries.
     if (cutoffIndex !== -1) {
       parcel.current_status =
         parcel.tracking_history[cutoffIndex].status_update;
@@ -441,6 +514,8 @@ router.post(
   "/parcels",
   requireAnyRole(["wholesaler", "logistics_coordinator", "platform_admin"]),
   async (req, res, next) => {
+  // Sprint 13: total_distance_km is no longer read from the body — the
+  // server computes the pricing distance itself (ignored if sent).
   const {
     sender_id,
     receiver_id,
@@ -450,7 +525,6 @@ router.post(
     weight_kg,
     dimensions,
     declared_value,
-    total_distance_km,
     payment_method,
   } = req.body ?? {};
 
@@ -507,14 +581,53 @@ router.post(
     effectiveSenderId = ownBusinessId;
   }
 
-  // One transaction: parcel + payment + first tracking log all appear or
-  // none do. The 003 triggers fill shipping_fee and payments.amount along
-  // the way.
+  // One transaction: parcel + payment + first tracking log + route snapshot
+  // all appear or none do. The 003 triggers fill shipping_fee and
+  // payments.amount along the way.
   const client = await getPool().connect();
   try {
     await client.query("BEGIN");
 
+    // Ownership validation (Sprint 13): a caller could otherwise steer
+    // branch assignment and pricing with a foreign address ID.
+    const endpoints = await client.query(
+      `SELECT address_id, business_id, latitude, longitude
+         FROM addresses
+        WHERE address_id IN ($1, $2)`,
+      [origin_address_id, destination_address_id],
+    );
+    const byId = new Map(endpoints.rows.map((row) => [row.address_id, row]));
+    const origin = byId.get(Number(origin_address_id));
+    const destination = byId.get(Number(destination_address_id));
+    if (!origin || origin.business_id !== Number(effectiveSenderId)) {
+      throw Object.assign(new Error("origin_address_id must belong to the sender business"), {
+        statusCode: 400,
+      });
+    }
+    if (!destination || destination.business_id !== Number(receiver_id)) {
+      throw Object.assign(new Error("destination_address_id must belong to the receiver business"), {
+        statusCode: 400,
+      });
+    }
+
+    // Pin gate (Sprint 13): pricing distance needs both endpoints. BLOCK,
+    // not degrade — pre-launch means there is no legacy class to grandfather.
+    if (
+      origin.latitude === null || origin.longitude === null ||
+      destination.latitude === null || destination.longitude === null
+    ) {
+      throw Object.assign(
+        new Error("Origin and destination addresses must have coordinates before booking"),
+        { statusCode: 409 },
+      );
+    }
+
     const parcelId = await nextParcelId(client);
+    const distanceKm = await computeRouteDistanceKm(
+      client,
+      origin_address_id,
+      destination_address_id,
+    );
 
     const { rows } = await client.query(
       `
@@ -535,13 +648,13 @@ router.post(
         weight_kg,
         dimensions ?? null,
         declared_value ?? null,
-        total_distance_km ?? null,
+        distanceKm,
       ],
     );
 
     // Method-honest status: Prepaid/Online are settled at booking; COD stays
     // Pending until the terminal scan. The dispatch gate remains modeled, not
-    // enforced (docs/course-deliverable.md).
+    // enforced (local-notes/course-deliverable.md).
     const paymentStatus = payment_method === "COD" ? "Pending" : "Paid";
     await client.query(
       `INSERT INTO payments (parcel_id, method, payment_status, amount, paid_at)
@@ -550,20 +663,17 @@ router.post(
       [parcelId, payment_method, paymentStatus],
     );
 
-    const originAddress = await client.query(
-      "SELECT city_municipality FROM addresses WHERE address_id = $1",
-      [origin_address_id],
-    );
-    const originBranchId = await findBranchIdByCity(
-      client,
-      originAddress.rows[0]?.city_municipality,
-    );
+    // Assignment miss never fails the booking: a NULL branch leaves the
+    // parcel branchless (invisible to courier pools) for manual assignment.
+    const originBranchId = await resolveInitialBranchId(client, origin_address_id);
 
     await client.query(
       `INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id)
        VALUES ($1, 'Order Created', 'Booking confirmed', $2)`,
       [parcelId, originBranchId],
     );
+
+    await createInitialRouteSnapshot(client, parcelId, originBranchId);
 
     await client.query("COMMIT");
 
@@ -642,8 +752,11 @@ router.put(
 
 router.get("/branches", async (_req, res) => {
   const { rows } = await query(`
-    SELECT b.branch_id, b.branch_name, b.contact_number,
-           a.province, a.city_municipality, a.barangay, a.street_address
+    SELECT b.branch_id, b.branch_name, b.contact_number, b.address_id,
+           b.is_available,
+           a.province, a.city_municipality, a.barangay, a.street_address,
+           a.postal_code, a.latitude::float8 AS latitude,
+           a.longitude::float8 AS longitude
       FROM branches b
       JOIN addresses a ON a.address_id = b.address_id
      WHERE b.is_active
@@ -710,6 +823,11 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
     // Fail count is derived, never stored on parcels — parcel state lives only
     // in tracking_logs (docs/LINKO_ERD.md design notes). It gates the courier
     // Delivery Failed edge and fires the 3rd-fail notification below.
+    // Counts 'Delivery Failed' rows, not 'Out for Delivery' rows: OFD is
+    // ambiguous (≠ failure) and counting it would trip the return leg the instant
+    // the 3rd OFD scans — before attempt #3 actually fails. The explicit failure
+    // event is recorded, not inferred. A derived count also can't drift the way a
+    // stored delivery_attempts column would.
     const failCount = await client.query(
       `SELECT COUNT(*)::int AS n
          FROM tracking_logs
@@ -717,6 +835,23 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
       [parcelId],
     );
     const failedAttempts = failCount.rows[0].n;
+
+    // Return-leg signal for gating, derived from history BEFORE this insert:
+    // the retry cap was already reached, OR a prior fail carried a hard reason.
+    // A parcel still in the retry loop can only have soft fails (a hard reason
+    // would already have triggered the return), so this and failedAttempts stay
+    // coherent. The current scan's own reason is folded into the notification
+    // guard below, not here.
+    const priorHardFail = await client.query(
+      `SELECT EXISTS (
+         SELECT 1 FROM tracking_logs
+          WHERE parcel_id = $1 AND status_update = 'Delivery Failed'
+            AND TRIM(remarks) = ANY($2::text[])
+       ) AS hard`,
+      [parcelId, HARD_FAIL_REASONS],
+    );
+    const returnTriggered =
+      failedAttempts >= RETURN_TRIGGER_FAILS || priorHardFail.rows[0].hard;
 
     // Coordinators/admins may assign branch_id/courier_id explicitly from the
     // body (unlike the courier path below, which is server-stamped) -- so
@@ -785,8 +920,8 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
     // The checkpoint transition map binds every role. Couriers additionally
     // cannot submit 'Cancelled'; that split lives in canCourierSubmitTrackingStatus.
     const statusRule = isPrivileged
-      ? canSubmitTrackingStatus(currentStatus, status_update, failedAttempts)
-      : canCourierSubmitTrackingStatus(currentStatus, status_update, failedAttempts);
+      ? canSubmitTrackingStatus(currentStatus, status_update, returnTriggered)
+      : canCourierSubmitTrackingStatus(currentStatus, status_update, returnTriggered);
     if (!statusRule.allowed) {
       const error = new Error(statusRule.message);
       error.statusCode = 400;
@@ -808,7 +943,10 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
     // Terminal courier scans auto-generate proof from accounts. Delivered names
     // the receiver business; Returned names the sender business that physically
     // receives the parcel back. Businesses, not individual users, are the parcel
-    // parties. Coordinators/admins keep the manual-remark override.
+    // parties: parcels.receiver_id -> businesses (no person), and businesses<->users
+    // is many-to-many, so picking any single users.full_name would be a fabricated
+    // POD. The business name is the only non-invented party we can name.
+    // Coordinators/admins keep the manual-remark override.
     // Cancelled is coordinator/admin-only (never courier-submitted) and, unlike
     // Delivered/Returned, has no account data to auto-generate a reason from --
     // the remark IS the cancellation reason, so it's required here explicitly.
@@ -816,6 +954,21 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
       const error = new Error("remarks (cancellation reason) is required to cancel a parcel");
       error.statusCode = 400;
       throw error;
+    }
+
+    // A Delivery Failed scan must name the reason: it drives the retry-vs-return
+    // decision (hard reason opens the return leg immediately). Require exactly
+    // one of the known reasons, all roles -- the courier UI's picker already
+    // sends these; free text from a coordinator/admin is rejected here.
+    if (status_update === "Delivery Failed") {
+      const trimmed = typeof remarks === "string" ? remarks.trim() : "";
+      if (!FAIL_REASONS.includes(trimmed)) {
+        const error = new Error(
+          `remarks (failure reason) is required for Delivery Failed and must be one of: ${FAIL_REASONS.join(", ")}`,
+        );
+        error.statusCode = 400;
+        throw error;
+      }
     }
 
     let effectiveRemarks = typeof remarks === "string" && remarks.trim() ? remarks.trim() : null;
@@ -863,6 +1016,22 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
        RETURNING *`,
       [parcelId, status_update, effectiveRemarks, effectiveBranchId, effectiveCourierId]
     );
+
+    // Late routing (Sprint 13 §8.3): a parcel created branchless (resolver
+    // miss) gets its planned-route snapshot on the FIRST scan that carries a
+    // branch, inside this same transaction. Guarded on no-snapshot-exists so
+    // later reassignments and hub transfers never touch the original plan;
+    // the (parcel_id, stop_order) PK conflict clause makes retries idempotent
+    // even if two scans race past this check.
+    if (effectiveBranchId !== null) {
+      const hasSnapshot = await client.query(
+        "SELECT 1 FROM parcel_route_stops WHERE parcel_id = $1 LIMIT 1",
+        [parcelId],
+      );
+      if (!hasSnapshot.rowCount) {
+        await createInitialRouteSnapshot(client, parcelId, effectiveBranchId);
+      }
+    }
 
     // Terminal delivery scans complete the linked marketplace order -- the
     // wholesaler's fulfillment control ended at 'shipped'
@@ -913,7 +1082,15 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
     // the 3rd Delivery Failed notifies both parties that the return leg is
     // beginning (no money/order change), and the final Returned scan — the
     // terminal scan back at the sender — settles the order and payment.
-    if (status_update === "Delivery Failed" && failedAttempts + 1 === RETURN_TRIGGER_FAILS) {
+    // Fire the return-leg notification exactly once, on the fail that triggers
+    // the return. Trigger = this fail carries a hard reason, OR it is the
+    // RETURN_TRIGGER_FAILS-th fail. !returnTriggered is the fire-once guard:
+    // returnTriggered was computed from history BEFORE this insert, so it is
+    // false on the triggering fail and true on any fail after it.
+    const thisFailTriggersReturn =
+      isHardFailReason(effectiveRemarks) ||
+      failedAttempts + 1 >= RETURN_TRIGGER_FAILS;
+    if (status_update === "Delivery Failed" && !returnTriggered && thisFailTriggersReturn) {
       const { rows: orderRows } = await client.query(
         `SELECT o.order_id, o.buyer_business_id, o.wholesaler_business_id
            FROM parcels p
@@ -926,7 +1103,9 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
         const reason = effectiveRemarks
           ? effectiveRemarks.replace(/[.]+$/, "")
           : "reason not recorded";
-        const message = `Delivery failed after 3 attempts: ${reason}. No further attempts will be made; the parcel for order #${order.order_id} is being returned to the wholesaler.`;
+        const message = isHardFailReason(effectiveRemarks)
+          ? `Delivery cannot be completed: ${reason}. No further attempts will be made; the parcel for order #${order.order_id} is being returned to the wholesaler.`
+          : `Delivery failed after 3 attempts: ${reason}. No further attempts will be made; the parcel for order #${order.order_id} is being returned to the wholesaler.`;
         await notifyBusiness(
           client,
           order.buyer_business_id,
@@ -1007,32 +1186,175 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
 router.post("/branches", requireAnyRole(["logistics_coordinator", "platform_admin"]), async (req, res, next) => {
   const client = await getPool().connect();
   try {
-    const { branch_name, contact_number, province, city_municipality, barangay, street_address, postal_code } = req.body;
+    const body = req.body ?? {};
+    const text = {};
+    for (const field of ["branch_name", "contact_number", ...BRANCH_ADDRESS_FIELDS]) {
+      text[field] = normalizeBranchText(body, field, {
+        required: REQUIRED_BRANCH_FIELDS.includes(field),
+      });
+    }
+    for (const field of REQUIRED_BRANCH_FIELDS) {
+      if (text[field] === undefined) {
+        throw clientError(`${field} is required`);
+      }
+    }
+
+    const latitudeProvided = hasOwn(body, "latitude");
+    const longitudeProvided = hasOwn(body, "longitude");
+    if (latitudeProvided !== longitudeProvided) {
+      throw clientError("latitude and longitude must be provided together");
+    }
+    const coords = validateCoordinatePair(body.latitude, body.longitude);
+    if (!coords.ok) {
+      throw clientError(coords.error);
+    }
+
     await client.query("BEGIN");
     const addr = await client.query(
-      `INSERT INTO addresses (province, city_municipality, barangay, street_address, postal_code)
-       VALUES ($1, $2, $3, $4, $5) RETURNING address_id`,
-      [province, city_municipality, barangay, street_address, postal_code]
+      `INSERT INTO addresses
+         (province, city_municipality, barangay, street_address, postal_code, latitude, longitude)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING address_id`,
+      [
+        text.province,
+        text.city_municipality,
+        text.barangay ?? null,
+        text.street_address ?? null,
+        text.postal_code ?? null,
+        coords.latitude,
+        coords.longitude,
+      ],
     );
     const branch = await client.query(
       `INSERT INTO branches (branch_name, contact_number, address_id)
-       VALUES ($1, $2, $3) RETURNING *`,
-      [branch_name, contact_number, addr.rows[0].address_id]
+       VALUES ($1, $2, $3) RETURNING branch_id`,
+      [text.branch_name, text.contact_number ?? null, addr.rows[0].address_id],
     );
+    const created = await selectBranch(client, branch.rows[0].branch_id, {
+      includeActive: true,
+    });
     await client.query("COMMIT");
-    res.status(201).json(branch.rows[0]);
-  } catch(e) {
-    await client.query("ROLLBACK").catch(()=>{});
+    res.status(201).json(created);
+  } catch (e) {
+    await client.query("ROLLBACK").catch(() => {});
     next(asClientError(e));
   } finally {
     client.release();
   }
 });
 
-router.post("/couriers", requireAnyRole(["logistics_coordinator", "platform_admin"]), async (req, res, next) => {
+// Partial branch management update. Branch metadata and its ownerless address
+// are locked and changed in one transaction so callers never observe a mixed
+// old/new location. An availability-only PATCH deliberately leaves the address
+// untouched; an explicit null coordinate pair unpins the branch.
+router.patch("/branches/:id", requireAnyRole(["logistics_coordinator", "platform_admin"]), async (req, res, next) => {
+  const client = await getPool().connect();
   try {
-    const { full_name, phone_number, vehicle_type, assigned_branch_id } = req.body;
-    if (assigned_branch_id) {
+    const body = req.body ?? {};
+    const text = {};
+    for (const field of ["branch_name", "contact_number", ...BRANCH_ADDRESS_FIELDS]) {
+      text[field] = normalizeBranchText(body, field, {
+        required: REQUIRED_BRANCH_FIELDS.includes(field),
+      });
+    }
+    if (hasOwn(body, "is_available") && typeof body.is_available !== "boolean") {
+      throw clientError("is_available must be a boolean");
+    }
+
+    const latitudeProvided = hasOwn(body, "latitude");
+    const longitudeProvided = hasOwn(body, "longitude");
+    if (latitudeProvided !== longitudeProvided) {
+      throw clientError("latitude and longitude must be provided together");
+    }
+    const coordinatesProvided = latitudeProvided;
+    const coords = coordinatesProvided
+      ? validateCoordinatePair(body.latitude, body.longitude)
+      : null;
+    if (coords && !coords.ok) {
+      throw clientError(coords.error);
+    }
+    const addressUpdateProvided =
+      BRANCH_ADDRESS_FIELDS.some((field) => hasOwn(body, field)) || coordinatesProvided;
+    const branchUpdateProvided =
+      hasOwn(body, "branch_name") ||
+      hasOwn(body, "contact_number") ||
+      hasOwn(body, "is_available");
+
+    await client.query("BEGIN");
+    const { rows } = await client.query(
+      `SELECT b.branch_id, b.branch_name, b.contact_number, b.address_id,
+              b.is_available, a.province, a.city_municipality, a.barangay,
+              a.street_address, a.postal_code, a.latitude, a.longitude
+         FROM branches b
+         JOIN addresses a ON a.address_id = b.address_id
+        WHERE b.branch_id = $1 AND b.is_active
+        FOR UPDATE OF b, a`,
+      [req.params.id],
+    );
+    const current = rows[0];
+    if (!current) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({
+        error: { message: `Branch ${req.params.id} not found` },
+      });
+    }
+
+    const valueFor = (field) => text[field] === undefined ? current[field] : text[field];
+    if (addressUpdateProvided) {
+      await client.query(
+        `UPDATE addresses
+            SET province = $2, city_municipality = $3, barangay = $4,
+                street_address = $5, postal_code = $6, latitude = $7, longitude = $8
+          WHERE address_id = $1`,
+        [
+          current.address_id,
+          valueFor("province"),
+          valueFor("city_municipality"),
+          valueFor("barangay"),
+          valueFor("street_address"),
+          valueFor("postal_code"),
+          coords ? coords.latitude : current.latitude,
+          coords ? coords.longitude : current.longitude,
+        ],
+      );
+    }
+    if (branchUpdateProvided) {
+      await client.query(
+        `UPDATE branches
+            SET branch_name = $2, contact_number = $3, is_available = $4
+          WHERE branch_id = $1`,
+        [
+          current.branch_id,
+          valueFor("branch_name"),
+          valueFor("contact_number"),
+          hasOwn(body, "is_available") ? body.is_available : current.is_available,
+        ],
+      );
+    }
+
+    const updated = await selectBranch(client, current.branch_id);
+    await client.query("COMMIT");
+    res.json(updated);
+  } catch (e) {
+    await client.query("ROLLBACK").catch(() => {});
+    next(asClientError(e));
+  } finally {
+    client.release();
+  }
+});
+
+// Couriers are minted only via POST /api/admin/users (kind=courier), which
+// creates the linked login. Here coordinators/admins edit an existing courier's
+// logistics fields. full_name is not editable -- it mirrors the user account.
+// Partial: omitted keys are left unchanged; an explicit assigned_branch_id:null
+// unassigns (COALESCE cannot write null, so the branch column uses a presence
+// flag + CASE WHEN).
+router.patch("/couriers/:id", requireAnyRole(["logistics_coordinator", "platform_admin"]), async (req, res, next) => {
+  try {
+    const { phone_number, vehicle_type, assigned_branch_id } = req.body ?? {};
+    const branchProvided = Object.prototype.hasOwnProperty.call(req.body ?? {}, "assigned_branch_id");
+
+    if (branchProvided && assigned_branch_id != null) {
       const active = await query(
         "SELECT 1 FROM branches WHERE branch_id = $1 AND is_active",
         [assigned_branch_id],
@@ -1043,12 +1365,20 @@ router.post("/couriers", requireAnyRole(["logistics_coordinator", "platform_admi
         });
       }
     }
+
     const { rows } = await query(
-      `INSERT INTO couriers (full_name, phone_number, vehicle_type, assigned_branch_id)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [full_name, phone_number, vehicle_type, assigned_branch_id || null]
+      `UPDATE couriers SET
+         phone_number = COALESCE($2, phone_number),
+         vehicle_type = COALESCE($3, vehicle_type),
+         assigned_branch_id = CASE WHEN $4 THEN $5 ELSE assigned_branch_id END
+       WHERE courier_id = $1 AND is_active
+       RETURNING courier_id, full_name, phone_number, vehicle_type, assigned_branch_id`,
+      [req.params.id, phone_number ?? null, vehicle_type ?? null, branchProvided, assigned_branch_id ?? null],
     );
-    res.status(201).json(rows[0]);
+    if (!rows.length) {
+      return res.status(404).json({ error: { message: `Courier ${req.params.id} not found` } });
+    }
+    res.json(rows[0]);
   } catch(e) {
     next(asClientError(e));
   }

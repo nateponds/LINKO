@@ -52,6 +52,17 @@ export default function InventoryPage() {
   const [stockPopover, setStockPopover] = useState(null);
 
   const filterWrapRef = useRef(null);
+  const tableContentRef = useRef(null);
+  const [tableHeight, setTableHeight] = useState("auto");
+
+  useEffect(() => {
+    if (!tableContentRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      setTableHeight(entries[0].target.offsetHeight);
+    });
+    observer.observe(tableContentRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   const loadProducts = useCallback(async () => {
     const path =
@@ -390,86 +401,97 @@ export default function InventoryPage() {
         </div>
 
         <main className="inventory-container">
-          {loading ? (
-            <p className="grid-empty">Loading products…</p>
-          ) : error ? (
-            <p className="grid-empty">
-              Could not load products: {error}
-            </p>
-          ) : visibleProducts.length === 0 ? (
-            <p className="grid-empty">No products yet.</p>
-          ) : (
-            <table className="inventory-table">
-              <thead>
-                <tr>
-                  <th className="col-sku">SKU</th>
-                  <th>Name</th>
-                  <th>Price</th>
-                  <th>Stock</th>
-                  <th className="col-status">Status</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleProducts.map((item) => {
-                  const status = statusFor(item.stock_status);
-                  const canManage =
-                    isAdmin || item.business_id === ownBusinessId;
-                  return (
-                    <tr key={item.product_id}>
-                      <td className="col-sku">{item.sku ?? "—"}</td>
-                      <td>
-                        <strong>{item.product_name}</strong>
-                      </td>
-                      <td>{peso(item.unit_price)}</td>
-                      <td className="stock-cell">
-                        <span className="stock-value">
-                          {item.stock_quantity}
-                          {canManage && (
-                            <button
-                              type="button"
-                              className="stock-edit-btn"
-                              title="Edit stock"
-                              onClick={(e) => handleStockEditClick(e, item)}
-                            >
-                              <Pencil size={14} />
-                            </button>
-                          )}
-                        </span>
-                      </td>
-                      <td className="col-status">
-                        <span className={`status ${status.cls}`}>
-                          {status.label}
-                        </span>
-                      </td>
-                      <td>
-                        {canManage && (
-                          <>
-                            <button
-                              type="button"
-                              className="stock-edit-btn"
-                              title="Edit item"
-                              onClick={() => openEditModal(item)}
-                            >
-                              <Pencil size={14} />
-                            </button>
-                            <button
-                              type="button"
-                              className="stock-edit-btn"
-                              title="Delete item"
-                              onClick={() => handleDelete(item)}
-                            >
-                              <X size={14} />
-                            </button>
-                          </>
-                        )}
-                      </td>
+          <div
+            className="table-height-animator"
+            style={{
+              height: tableHeight === "auto" ? "auto" : `${tableHeight}px`,
+              overflow: "hidden",
+              transition: "height 0.4s cubic-bezier(0.25, 1, 0.5, 1)",
+            }}
+          >
+            <div ref={tableContentRef}>
+              {loading ? (
+                <p className="grid-empty">Loading products…</p>
+              ) : error ? (
+                <p className="grid-empty">
+                  Could not load products: {error}
+                </p>
+              ) : visibleProducts.length === 0 ? (
+                <p className="grid-empty">No products yet.</p>
+              ) : (
+                <table className="inventory-table">
+                  <thead>
+                    <tr>
+                      <th className="col-sku">SKU</th>
+                      <th>Name</th>
+                      <th>Price</th>
+                      <th>Stock</th>
+                      <th className="col-status">Status</th>
+                      <th></th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
+                  </thead>
+                  <tbody>
+                    {visibleProducts.map((item) => {
+                      const status = statusFor(item.stock_status);
+                      const canManage =
+                        isAdmin || item.business_id === ownBusinessId;
+                      return (
+                        <tr key={item.product_id}>
+                          <td className="col-sku">{item.sku ?? "—"}</td>
+                          <td>
+                            <strong>{item.product_name}</strong>
+                          </td>
+                          <td>{peso(item.unit_price)}</td>
+                          <td className="stock-cell">
+                            <span className="stock-value">
+                              {item.stock_quantity}
+                              {canManage && (
+                                <button
+                                  type="button"
+                                  className="stock-edit-btn"
+                                  title="Edit stock"
+                                  onClick={(e) => handleStockEditClick(e, item)}
+                                >
+                                  <Pencil size={14} />
+                                </button>
+                              )}
+                            </span>
+                          </td>
+                          <td className="col-status">
+                            <span className={`status ${status.cls}`}>
+                              {status.label}
+                            </span>
+                          </td>
+                          <td>
+                            {canManage && (
+                              <>
+                                <button
+                                  type="button"
+                                  className="stock-edit-btn"
+                                  title="Edit item"
+                                  onClick={() => openEditModal(item)}
+                                >
+                                  <Pencil size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="stock-edit-btn"
+                                  title="Delete item"
+                                  onClick={() => handleDelete(item)}
+                                >
+                                  <X size={14} />
+                                </button>
+                              </>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
         </main>
 
         {/* ===== Add/Edit item modal ===== */}

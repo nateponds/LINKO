@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import AppLayout from "../../layouts/AppLayout";
+import MapPicker from "../../components/ui/MapPicker";
 import { apiGet, apiSend } from "../../lib/api";
 import { Plus, Trash2, Pencil, Check, X } from "lucide-react";
 import { useAuth } from "../../auth/AuthProvider";
@@ -13,6 +14,10 @@ export default function LogisticsManagementPage() {
   const [error, setError] = useState(null);
   const [submittingBranch, setSubmittingBranch] = useState(false);
   const [submittingCourier, setSubmittingCourier] = useState(false);
+  const [editingCourierId, setEditingCourierId] = useState(null);
+  const [courierForm, setCourierForm] = useState({
+    phone_number: "", vehicle_type: "", assigned_branch_id: ""
+  });
   const [submittingTier, setSubmittingTier] = useState(false);
   const [branchError, setBranchError] = useState(null);
   const [courierError, setCourierError] = useState(null);
@@ -22,9 +27,11 @@ export default function LogisticsManagementPage() {
   const [newBranch, setNewBranch] = useState({
     branch_name: "", contact_number: "", province: "", city_municipality: "", barangay: "", street_address: "", postal_code: ""
   });
-  const [newCourier, setNewCourier] = useState({
-    full_name: "", phone_number: "", vehicle_type: "", assigned_branch_id: ""
+  const [editingBranchId, setEditingBranchId] = useState(null);
+  const [branchForm, setBranchForm] = useState({
+    branch_name: "", contact_number: "", province: "", city_municipality: "", barangay: "", street_address: "", postal_code: "", latitude: "", longitude: ""
   });
+  const [togglingBranchId, setTogglingBranchId] = useState(null);
   const [editingTierId, setEditingTierId] = useState(null);
   const [editForm, setEditForm] = useState({
     tier_name: "", base_fee: "", base_rate_per_kg: "", rate_per_km: "", estimated_days: ""
@@ -71,15 +78,14 @@ export default function LogisticsManagementPage() {
     };
   }, []);
 
-  const handleDelete = async (kind, id, name) => {
-    if (!window.confirm(`Delete ${kind} "${name}"?`)) return;
-    const setScopedError = kind === "branch" ? setBranchError : setCourierError;
-    setScopedError(null);
+  const handleDeleteCourier = async (id, name) => {
+    if (!window.confirm(`Delete courier "${name}"?`)) return;
+    setCourierError(null);
     try {
-      await apiSend(`/api/${kind === "branch" ? "branches" : "couriers"}/${id}`, { method: "DELETE" });
+      await apiSend(`/api/couriers/${id}`, { method: "DELETE" });
       await refreshData();
     } catch (err) {
-      setScopedError(err.message);
+      setCourierError(err.message);
     }
   };
 
@@ -98,17 +104,116 @@ export default function LogisticsManagementPage() {
     }
   };
 
-  const handleAddCourier = async (e) => {
+  const startEditingBranch = (branch) => {
+    setBranchError(null);
+    setEditingBranchId(branch.branch_id);
+    setBranchForm({
+      branch_name: branch.branch_name ?? "",
+      contact_number: branch.contact_number ?? "",
+      province: branch.province ?? "",
+      city_municipality: branch.city_municipality ?? "",
+      barangay: branch.barangay ?? "",
+      street_address: branch.street_address ?? "",
+      postal_code: branch.postal_code ?? "",
+      latitude: branch.latitude ?? "",
+      longitude: branch.longitude ?? "",
+    });
+  };
+
+  const handleEditBranchSubmit = async (e) => {
+    e.preventDefault();
+    setSubmittingBranch(true);
+    setBranchError(null);
+
+    // Both coordinates or neither; an empty pair explicitly unpins the branch
+    // (it drops out of automatic assignment). The backend validator is the
+    // authority — this only catches the obvious one-sided case early.
+    const lat = String(branchForm.latitude).trim();
+    const lng = String(branchForm.longitude).trim();
+    if ((lat === "") !== (lng === "")) {
+      setBranchError("Provide both latitude and longitude, or neither");
+      setSubmittingBranch(false);
+      return;
+    }
+
+    try {
+      await apiSend(`/api/branches/${editingBranchId}`, {
+        method: "PATCH",
+        body: {
+          branch_name: branchForm.branch_name,
+          contact_number: branchForm.contact_number,
+          province: branchForm.province,
+          city_municipality: branchForm.city_municipality,
+          barangay: branchForm.barangay,
+          street_address: branchForm.street_address,
+          postal_code: branchForm.postal_code,
+          latitude: lat === "" ? null : Number(lat),
+          longitude: lng === "" ? null : Number(lng),
+        },
+      });
+      setEditingBranchId(null);
+      await refreshData();
+    } catch (err) {
+      setBranchError(err.message);
+    } finally {
+      setSubmittingBranch(false);
+    }
+  };
+
+  const handleToggleAvailability = async (branch) => {
+    setTogglingBranchId(branch.branch_id);
+    setBranchError(null);
+    try {
+      await apiSend(`/api/branches/${branch.branch_id}`, {
+        method: "PATCH",
+        body: { is_available: !(branch.is_available ?? true) },
+      });
+      await refreshData();
+    } catch (err) {
+      setBranchError(err.message);
+    } finally {
+      setTogglingBranchId(null);
+    }
+  };
+
+  const handleRetireBranch = async (branch) => {
+    if (!window.confirm(
+      `Retire branch "${branch.branch_name}"? This permanently removes it from all use (not just automatic assignment). Parcel history is kept.`,
+    )) return;
+    setBranchError(null);
+    try {
+      await apiSend(`/api/branches/${branch.branch_id}`, { method: "DELETE" });
+      await refreshData();
+    } catch (err) {
+      setBranchError(err.message);
+    }
+  };
+
+  const startEditingCourier = (courier) => {
+    setCourierError(null);
+    setEditingCourierId(courier.courier_id);
+    setCourierForm({
+      phone_number: courier.phone_number ?? "",
+      vehicle_type: courier.vehicle_type ?? "",
+      assigned_branch_id: courier.assigned_branch_id ?? "",
+    });
+  };
+
+  const handleEditCourierSubmit = async (e) => {
     e.preventDefault();
     setSubmittingCourier(true);
     setCourierError(null);
     try {
-      const payload = { ...newCourier };
-      if (!payload.assigned_branch_id) delete payload.assigned_branch_id;
-      else payload.assigned_branch_id = Number(payload.assigned_branch_id);
-
-      await apiSend("/api/couriers", { body: payload });
-      setNewCourier({ full_name: "", phone_number: "", vehicle_type: "", assigned_branch_id: "" });
+      // assigned_branch_id is always sent: "" means unassign (null).
+      const body = {
+        phone_number: courierForm.phone_number.trim() || null,
+        vehicle_type: courierForm.vehicle_type.trim() || null,
+        assigned_branch_id: courierForm.assigned_branch_id
+          ? Number(courierForm.assigned_branch_id)
+          : null,
+      };
+      await apiSend(`/api/couriers/${editingCourierId}`, { method: "PATCH", body });
+      setEditingCourierId(null);
       await refreshData();
     } catch (err) {
       setCourierError(err.message);
@@ -203,17 +308,76 @@ export default function LogisticsManagementPage() {
                   {branchError && <p className="logistics-form-error">{branchError}</p>}
                 </form>
               </div>
+              <p style={{ textAlign: 'center', fontSize: '0.85rem', opacity: 0.7, margin: '1rem 0' }}>
+                Availability stops new automatic assignments only — in-flight
+                parcels and manual assignment are unaffected.
+              </p>
               <ul className="logistics-list">
                 {branches.map(b => (
-                  <li key={b.branch_id} className="logistics-list-row">
-                    <div>
-                      <strong>{b.branch_name}</strong> - {b.contact_number}<br/>
-                      <small>{b.city_municipality}, {b.province}</small>
-                    </div>
-                    <button type="button" className="logistics-delete-btn" title="Delete branch"
-                      onClick={() => handleDelete("branch", b.branch_id, b.branch_name)}>
-                      <Trash2 size={16} />
-                    </button>
+                  <li key={b.branch_id} className="logistics-list-row" style={{ alignItems: 'flex-start' }}>
+                    {editingBranchId === b.branch_id ? (
+                      <form className="logistics-edit-form" onSubmit={handleEditBranchSubmit} style={{ width: '100%' }}>
+                        <input type="text" placeholder="Branch Name" required value={branchForm.branch_name} onChange={e => setBranchForm({...branchForm, branch_name: e.target.value})} />
+                        <input type="text" placeholder="Contact Number" required value={branchForm.contact_number} onChange={e => setBranchForm({...branchForm, contact_number: e.target.value})} />
+                        <input type="text" placeholder="Province" required value={branchForm.province} onChange={e => setBranchForm({...branchForm, province: e.target.value})} />
+                        <input type="text" placeholder="City" required value={branchForm.city_municipality} onChange={e => setBranchForm({...branchForm, city_municipality: e.target.value})} />
+                        <input type="text" placeholder="Barangay" value={branchForm.barangay} onChange={e => setBranchForm({...branchForm, barangay: e.target.value})} />
+                        <input type="text" placeholder="Street Address" value={branchForm.street_address} onChange={e => setBranchForm({...branchForm, street_address: e.target.value})} />
+                        <input type="text" placeholder="Postal Code" value={branchForm.postal_code} onChange={e => setBranchForm({...branchForm, postal_code: e.target.value})} />
+                        <MapPicker
+                          latitude={branchForm.latitude}
+                          longitude={branchForm.longitude}
+                          onChange={({ latitude, longitude }) => setBranchForm(current => ({
+                            ...current,
+                            latitude: String(latitude),
+                            longitude: String(longitude),
+                          }))}
+                        />
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                          <input type="number" step="any" min="-90" max="90" placeholder="Latitude" value={branchForm.latitude} onChange={e => setBranchForm({...branchForm, latitude: e.target.value})} />
+                          <input type="number" step="any" min="-180" max="180" placeholder="Longitude" value={branchForm.longitude} onChange={e => setBranchForm({...branchForm, longitude: e.target.value})} />
+                        </div>
+                        <div className="logistics-edit-actions" style={{ justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+                          <button type="submit" className="logistics-save-btn" disabled={submittingBranch} title="Save">
+                            <Check size={16} />
+                          </button>
+                          <button type="button" className="logistics-delete-btn" disabled={submittingBranch} onClick={() => setEditingBranchId(null)} title="Cancel">
+                            <X size={16} />
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <>
+                        <div>
+                          <strong>{b.branch_name}</strong> - {b.contact_number}<br/>
+                          <small>{b.city_municipality}, {b.province}</small><br/>
+                          <small style={{ opacity: 0.7 }}>
+                            {b.latitude != null && b.longitude != null
+                              ? `Pinned at ${b.latitude}, ${b.longitude}`
+                              : "No coordinates — excluded from nearest-branch assignment"}
+                          </small>
+                        </div>
+                        <div className="logistics-edit-actions" style={{ alignItems: 'center' }}>
+                          <label title="Stops new automatic assignments only" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem', cursor: 'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={b.is_available ?? true}
+                              disabled={togglingBranchId === b.branch_id}
+                              onChange={() => handleToggleAvailability(b)}
+                            />
+                            {(b.is_available ?? true) ? "Available" : "Paused"}
+                          </label>
+                          <button type="button" className="logistics-edit-btn" title="Edit branch"
+                            onClick={() => startEditingBranch(b)}>
+                            <Pencil size={16} />
+                          </button>
+                          <button type="button" className="logistics-delete-btn" title="Retire branch"
+                            onClick={() => handleRetireBranch(b)}>
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -222,32 +386,48 @@ export default function LogisticsManagementPage() {
             {/* Couriers Section */}
             <div>
               <h2 style={{ textAlign: 'center' }}>Couriers</h2>
-              <div className="logistics-form-card">
-                <form onSubmit={handleAddCourier}>
-                  <input type="text" placeholder="Full Name" required value={newCourier.full_name} onChange={e => setNewCourier({...newCourier, full_name: e.target.value})} />
-                  <input type="text" placeholder="Phone Number" required value={newCourier.phone_number} onChange={e => setNewCourier({...newCourier, phone_number: e.target.value})} />
-                  <input type="text" placeholder="Vehicle Type (e.g. Van, Motorcycle)" value={newCourier.vehicle_type} onChange={e => setNewCourier({...newCourier, vehicle_type: e.target.value})} />
-                  <select value={newCourier.assigned_branch_id} onChange={e => setNewCourier({...newCourier, assigned_branch_id: e.target.value})}>
-                    <option value="">-- Assign to Branch (Optional) --</option>
-                    {branches.map(b => <option key={b.branch_id} value={b.branch_id}>{b.branch_name}</option>)}
-                  </select>
-                  <button type="submit" disabled={submittingCourier}>
-                    <Plus size={16} /> {submittingCourier ? "Adding…" : "Add Courier"}
-                  </button>
-                  {courierError && <p className="logistics-form-error">{courierError}</p>}
-                </form>
-              </div>
+              <p style={{ textAlign: 'center', fontSize: '0.85rem', opacity: 0.7, marginBottom: '1rem' }}>
+                Couriers are created from the Admin dashboard.
+              </p>
+              {courierError && <p className="logistics-form-error" style={{ marginBottom: '1rem' }}>{courierError}</p>}
               <ul className="logistics-list">
                 {couriers.map(c => (
-                  <li key={c.courier_id} className="logistics-list-row">
-                    <div>
-                      <strong>{c.full_name}</strong> - {c.phone_number}<br/>
-                      <small>{c.vehicle_type} • Branch: {branches.find(b => b.branch_id === c.assigned_branch_id)?.branch_name || 'None'}</small>
-                    </div>
-                    <button type="button" className="logistics-delete-btn" title="Delete courier"
-                      onClick={() => handleDelete("courier", c.courier_id, c.full_name)}>
-                      <Trash2 size={16} />
-                    </button>
+                  <li key={c.courier_id} className="logistics-list-row" style={{ alignItems: 'flex-start' }}>
+                    {editingCourierId === c.courier_id ? (
+                      <form className="logistics-edit-form" onSubmit={handleEditCourierSubmit} style={{ width: '100%' }}>
+                        <input type="text" placeholder="Phone Number" value={courierForm.phone_number} onChange={e => setCourierForm({...courierForm, phone_number: e.target.value})} />
+                        <input type="text" placeholder="Vehicle Type (e.g. Van, Motorcycle)" value={courierForm.vehicle_type} onChange={e => setCourierForm({...courierForm, vehicle_type: e.target.value})} />
+                        <select value={courierForm.assigned_branch_id} onChange={e => setCourierForm({...courierForm, assigned_branch_id: e.target.value})}>
+                          <option value="">-- Unassign --</option>
+                          {branches.map(b => <option key={b.branch_id} value={b.branch_id}>{b.branch_name}</option>)}
+                        </select>
+                        <div className="logistics-edit-actions" style={{ justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+                          <button type="submit" className="logistics-save-btn" disabled={submittingCourier} title="Save">
+                            <Check size={16} />
+                          </button>
+                          <button type="button" className="logistics-delete-btn" disabled={submittingCourier} onClick={() => setEditingCourierId(null)} title="Cancel">
+                            <X size={16} />
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <>
+                        <div>
+                          <strong>{c.full_name}</strong> - {c.phone_number}<br/>
+                          <small>{c.vehicle_type} • Branch: {branches.find(b => b.branch_id === c.assigned_branch_id)?.branch_name || 'None'}</small>
+                        </div>
+                        <div className="logistics-edit-actions">
+                          <button type="button" className="logistics-edit-btn" title="Edit courier"
+                            onClick={() => startEditingCourier(c)}>
+                            <Pencil size={16} />
+                          </button>
+                          <button type="button" className="logistics-delete-btn" title="Delete courier"
+                            onClick={() => handleDeleteCourier(c.courier_id, c.full_name)}>
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </li>
                 ))}
               </ul>

@@ -34,20 +34,27 @@ async function loginAs(email, password = "Password123!") {
 test("order lifecycle produces unread notifications for the counterparty", { skip: !hasDb }, async () => {
   const pool = createPool();
   let orderId;
+  let productId;
   try {
     const buyerCookie = await loginAs("buyer@linko.test");
     const wholesalerCookie = await loginAs("wholesaler@linko.test");
 
     const seedRefs = await pool.query(
-      `SELECT p.product_id, (SELECT MIN(tier_id) FROM service_tiers) AS tier_id
-         FROM products p
-         JOIN business_memberships m ON m.business_id = p.business_id AND m.role = 'wholesaler'
+      `SELECT m.business_id, (SELECT MIN(tier_id) FROM service_tiers) AS tier_id
+         FROM business_memberships m
          JOIN users u ON u.user_id = m.user_id
-        WHERE u.email = 'wholesaler@linko.test' AND p.is_active = TRUE
+        WHERE u.email = 'wholesaler@linko.test' AND m.role = 'wholesaler'
         LIMIT 1`,
     );
-    assert.ok(seedRefs.rows[0], "expected a seeded wholesaler product");
-    const { product_id: productId, tier_id: tierId } = seedRefs.rows[0];
+    assert.ok(seedRefs.rows[0], "expected a seeded wholesaler business");
+    const { business_id: businessId, tier_id: tierId } = seedRefs.rows[0];
+    const product = await pool.query(
+      `INSERT INTO products (business_id, product_name, sku, unit_price, stock_quantity)
+       VALUES ($1, 'Notification Lifecycle Test Product', $2, 100, 1)
+       RETURNING product_id`,
+      [businessId, `NOTIFICATION-${Date.now()}`],
+    );
+    productId = product.rows[0].product_id;
 
     // Buyer places an order -> wholesaler members get "New Order".
     const created = await request("/api/orders", {
@@ -105,6 +112,7 @@ test("order lifecycle produces unread notifications for the counterparty", { ski
       await pool.query("DELETE FROM notifications WHERE message LIKE $1", [`%#${orderId}%`]);
       await pool.query("DELETE FROM orders WHERE order_id = $1", [orderId]);
     }
+    if (productId) await pool.query("DELETE FROM products WHERE product_id = $1", [productId]);
     await pool.end();
   }
 });

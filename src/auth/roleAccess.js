@@ -5,6 +5,13 @@ export const ROLE_ACCESS = {
   orders: ["buyer", "wholesaler", "platform_admin"],
   invoices: ["buyer", "wholesaler", "platform_admin"],
   logistics: ["wholesaler", "logistics_coordinator", "courier", "platform_admin"],
+  // /logistics/management only — the broad logistics guard let wholesalers
+  // and couriers reach the page by direct navigation (Sprint 13 §3.8).
+  logisticsManagement: ["logistics_coordinator", "platform_admin"],
+  // Business location settings — marketplace roles only. Platform admins get
+  // no bypass (mirrors the backend: they edit a location only through an
+  // actual buyer/wholesaler membership of their own).
+  settings: ["buyer", "wholesaler"],
   courier: ["courier"],
   admin: ["platform_admin"],
 };
@@ -38,6 +45,8 @@ export function groupMemberships(memberships = []) {
       byBusiness.set(m.business_id, {
         business_id: m.business_id,
         business_name: m.business_name,
+        business_type: m.business_type ?? null,
+        has_coordinates: m.has_coordinates ?? false,
         roles: [m.role],
       });
     }

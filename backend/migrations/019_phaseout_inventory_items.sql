@@ -4,7 +4,7 @@
 -- products.stock_quantity via /api/products, and no page ever called
 -- /api/inventory. The route (GET real, POST/PATCH 501 stubs) is removed in the
 -- same change. Neither table is a graded CIS 2104 core table (see
--- docs/course-deliverable.md, docs/LINKO_ERD.md).
+-- local-notes/course-deliverable.md, docs/LINKO_ERD.md).
 --
 -- Removed: the idx_inventory_lookup / idx_transactions_timeline indexes, the
 -- AFTER UPDATE stock-audit trigger and its function, and the

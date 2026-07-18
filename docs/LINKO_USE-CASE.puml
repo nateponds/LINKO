@@ -20,6 +20,8 @@ rectangle "LINKO Courier & Parcel Tracking System" {
   usecase "Record Tracking Log" as UC12
   usecase "View Parcel Details" as UC13
   usecase "Cancel Parcel" as UC14
+  usecase "Manage Users" as UC15
+  usecase "Manage Businesses" as UC16
 }
 
 Buyer -- UC4
@@ -43,6 +45,8 @@ Admin -- UC9
 Admin -- UC10
 Admin -- UC13
 Admin -- UC14
+Admin -- UC15
+Admin -- UC16
 
 UC1 ..> UC11 : <<include>>
 UC1 ..> UC2 : <<include>>
@@ -60,6 +64,16 @@ note right of UC4
   Read-only, scoped to the buyer's own orders
   (GET /api/parcels/:id buyer scope, API_CONTRACTS §3.6a).
   No parcel list, no cross-order access.
+end note
+
+note right of UC10
+  Courier accounts are minted via Manage Users (UC15):
+  POST /api/admin/users kind=courier creates the login and
+  the linked couriers row in one transaction. Coordinators
+  edit (PATCH) and deactivate couriers only, never create.
+  Couriers auto-attach to the canonical LINKO Logistics org
+  (no business choice at mint); the admin picks a business
+  for coordinators only.
 end note
 
 @enduml

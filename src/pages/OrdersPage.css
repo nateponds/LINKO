@@ -21,6 +21,17 @@
     gap: 4px;
     flex-wrap: wrap;
     margin: 18px 0 8px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .status-tabs .sliding-pill {
+    position: absolute;
+    background: var(--color-primary);
+    border-radius: 20px;
+    transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    z-index: -1;
+    pointer-events: none;
   }
 
   .status-tabs button {
@@ -32,17 +43,18 @@
     padding: 8px 16px;
     border-radius: 20px;
     cursor: pointer;
-    transition: background 0.12s ease, color 0.12s ease;
+    transition: color 0.2s ease, background 0.2s ease;
   }
 
-  .status-tabs button:hover {
+  .status-tabs button:hover:not(.active) {
     background: #f6f8fc;
     color: var(--color-primary-dark);
   }
 
   .status-tabs button.active {
-    background: var(--color-primary);
+    background: transparent;
     color: white;
+    transition: color 0.2s ease 0.15s;
   }
 
   /* table — flat on the page, no card, no shadow */
