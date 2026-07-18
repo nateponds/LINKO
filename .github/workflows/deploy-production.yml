@@ -20,6 +20,8 @@ jobs:
       - name: Deploy Production Services
         env:
           PROD_DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+          # Public pk.* browser token kept out of Git; Vite exposes it after build.
+          # See docs/MAPBOX_SETUP.md. Never place a secret Mapbox sk.* token here.
           VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN }}
         run: |
           docker rm -f linko-backend-production linko-frontend-production || true
