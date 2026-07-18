@@ -24,6 +24,8 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import SettingsPage from "./pages/SettingsPage";
+import Profile from "./features/settings/Profile";
+import BusinessLocation from "./features/settings/BusinessLocation";
 
 const TITLES = [
   ["/register", "Register"],
@@ -113,7 +115,12 @@ function AppRoutes() {
       </Route>
 
       <Route element={<ProtectedRoute roles={ROLE_ACCESS.settings} />}>
-        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/settings" element={<SettingsPage />}>
+          <Route index element={<Navigate to="profile" replace />} />
+          <Route path="profile" element={<Profile />} />
+          <Route path="business-location" element={<BusinessLocation />} />
+          <Route path="*" element={<Navigate to="profile" replace />} />
+        </Route>
       </Route>
 
       <Route path="*" element={<UnknownRouteRedirect />} />

@@ -26,7 +26,7 @@ function toFinite(value) {
   return Number.isFinite(n) ? n : null;
 }
 
-export default function MapPicker({ latitude, longitude, onChange }) {
+export default function MapPicker({ latitude, longitude, onChange, onStatusChange }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const markerRef = useRef(null);
@@ -38,6 +38,16 @@ export default function MapPicker({ latitude, longitude, onChange }) {
   }, [onChange]);
 
   const [status, setStatus] = useState(TOKEN ? "loading" : "no-token");
+
+  const onStatusChangeRef = useRef(onStatusChange);
+  useEffect(() => {
+    onStatusChangeRef.current = onStatusChange;
+  }, [onStatusChange]);
+
+  useEffect(() => {
+    onStatusChangeRef.current?.(status);
+  }, [status]);
+
   const [geocoderHint, setGeocoderHint] = useState(null);
 
   const lat = toFinite(latitude);
