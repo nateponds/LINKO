@@ -6,6 +6,7 @@ import productsRouter from "./routes/products.js";
 import suppliersRouter from "./routes/suppliers.js";
 import dashboardRouter from "./routes/dashboard.js";
 import adminRouter from "./routes/admin.js";
+import settingsRouter from "./routes/settings.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { requireAuth, requireGlobalRole } from "./middleware/auth.js";
 
@@ -48,6 +49,10 @@ export function createApp() {
     requireGlobalRole("platform_admin"),
     adminRouter,
   );
+
+  // Business location settings (Sprint 13). Active-business-scoped; per-route
+  // auth lives inside the router.
+  app.use("/api/settings", settingsRouter);
 
   // Course-deliverable logistics subsystem (Sprint 2-CD). Owns several
   // top-level paths (/api/parcels, /api/service-tiers, /api/customers), so

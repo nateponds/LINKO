@@ -14,7 +14,7 @@ BEGIN;
 -- ---------------------------------------------------------------------------
 -- 0. WIPE — reverse FK order, keep reference tables (service_tiers, categories)
 -- ---------------------------------------------------------------------------
-TRUNCATE notifications, payments, tracking_logs, parcels,
+TRUNCATE notifications, payments, tracking_logs, parcel_route_stops, parcels,
          invoices, order_items, orders,
          auth_sessions,
          products, warehouses,
@@ -175,6 +175,25 @@ INSERT INTO addresses (address_id, business_id, province, city_municipality, bar
   (13, 10,'Cebu',   'Cebu City',    'Guadalupe',  '55 V. Rama Ave Bldg B', '6000', 10.3157, 123.8854);
 
 SELECT setval('addresses_address_id_seq', 13, true);
+
+-- Canonical logistics pins (migration 023). Buyer = delivery address;
+-- wholesaler = WAREHOUSE address (pickup), never the office row — this is
+-- what replaces the old nondeterministic LIMIT 1 pick at ship time. All
+-- pinned addresses above carry coordinates, so every seeded marketplace
+-- actor passes the pin gates. Branch geometry is deliberately unambiguous:
+-- Cebu Fresh's warehouse (addr 3) is nearest the Cebu hub (addr 4), Mandaue
+-- Agri's warehouse (addr 9) is nearest the Mandaue hub (addr 12).
+UPDATE businesses AS b
+SET logistics_address_id = v.address_id
+FROM (VALUES
+  (1,  1),    -- Sunrise Retail (buyer)         -> its Lahug address
+  (2,  3),    -- Cebu Fresh Wholesale           -> Banilad warehouse
+  (6,  7),    -- Davao Sari-Sari (buyer)        -> its Poblacion address
+  (7,  9),    -- Mandaue Agri Supply            -> Casuntingan warehouse
+  (8,  10),   -- Metro Cebu Trading — Retail    -> its Guadalupe address
+  (10, 13)    -- Metro Cebu Trading — Wholesale -> Guadalupe Bldg B warehouse
+) AS v(business_id, address_id)
+WHERE b.business_id = v.business_id;
 
 -- ---------------------------------------------------------------------------
 -- 5. WAREHOUSES (3) — one per wholesaler business (2, 7, 10)

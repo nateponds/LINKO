@@ -428,9 +428,11 @@ function Topbar({ showSearch = false, showCategories = false }) {
                       <ClipboardList size={15} /> Orders
                     </Link>
                   )}
-                  <button type="button">
-                    <Settings size={15} /> Settings
-                  </button>
+                  {hasAnyRole(["buyer", "wholesaler"]) && (
+                    <Link to="/settings" onClick={() => setOpenPanel(null)}>
+                      <Settings size={15} /> Settings
+                    </Link>
+                  )}
                   <button
                     type="button"
                     className="danger"

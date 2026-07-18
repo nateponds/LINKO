@@ -1,5 +1,5 @@
 -- Add coordinate columns to addresses for Mapbox geocoding and Haversine routing
-ALTER TABLE addresses 
+ALTER TABLE addresses
 ADD COLUMN latitude DECIMAL(10, 7),
 ADD COLUMN longitude DECIMAL(10, 7);
 
