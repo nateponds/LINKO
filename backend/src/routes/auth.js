@@ -118,6 +118,8 @@ router.post("/register", async (req, res, next) => {
           business_name: businessResult.rows[0].business_name,
           business_type: businessResult.rows[0].business_type,
           role: membershipRole,
+          // the placeholder address is always unpinned at registration
+          has_coordinates: false,
         },
       ],
     });
