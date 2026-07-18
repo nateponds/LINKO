@@ -7,6 +7,12 @@ import {
   resolveActiveBusinessId,
 } from "../middleware/ownership.js";
 import { notifyBusiness } from "../services/notify.js";
+import {
+  computeRouteDistanceKm,
+  createInitialRouteSnapshot,
+  resolveInitialBranchId,
+} from "../services/parcelRouting.js";
+import { validateCoordinatePair } from "../services/location.js";
 
 const router = Router();
 
@@ -24,6 +30,51 @@ const VALID_TRACKING_STATUSES = [
 ];
 const TERMINAL_TRACKING_STATUSES = new Set(["Delivered", "Returned", "Cancelled"]);
 const RETURN_TRIGGER_FAILS = 3;
+const BRANCH_ADDRESS_FIELDS = [
+  "province",
+  "city_municipality",
+  "barangay",
+  "street_address",
+  "postal_code",
+];
+const REQUIRED_BRANCH_FIELDS = ["branch_name", "province", "city_municipality"];
+
+const hasOwn = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
+
+function clientError(message) {
+  const error = new Error(message);
+  error.statusCode = 400;
+  return error;
+}
+
+function normalizeBranchText(body, field, { required = false } = {}) {
+  if (!hasOwn(body, field)) {
+    return undefined;
+  }
+  const value = body[field];
+  if (value === null && !required) {
+    return null;
+  }
+  if (typeof value !== "string" || (required && value.trim() === "")) {
+    throw clientError(`${field} must be ${required ? "a non-empty string" : "a string or null"}`);
+  }
+  return value.trim();
+}
+
+async function selectBranch(db, branchId, { includeActive = false } = {}) {
+  const { rows } = await db.query(
+    `SELECT b.branch_id, b.branch_name, b.contact_number, b.address_id,
+            b.is_available${includeActive ? ", b.is_active" : ""},
+            a.province, a.city_municipality, a.barangay, a.street_address,
+            a.postal_code, a.latitude::float8 AS latitude,
+            a.longitude::float8 AS longitude
+       FROM branches b
+       JOIN addresses a ON a.address_id = b.address_id
+      WHERE b.branch_id = $1 AND b.is_active`,
+    [branchId],
+  );
+  return rows[0] ?? null;
+}
 
 // Delivery failure reasons. A Delivery Failed scan must carry exactly one of
 // these as its remark (enforced in POST /parcels/:id/tracking). Mirrors
@@ -144,19 +195,6 @@ const LATEST_LOG = `
      ORDER BY tl.scanned_at DESC, tl.log_id DESC
      LIMIT 1
   ) latest ON TRUE`;
-
-async function findBranchIdByCity(client, cityMunicipality) {
-  if (!cityMunicipality) return null;
-  const { rows } = await client.query(
-    `SELECT b.branch_id
-       FROM branches b
-       JOIN addresses a ON a.address_id = b.address_id
-      WHERE LOWER(a.city_municipality) = LOWER($1)
-      LIMIT 1`,
-    [cityMunicipality],
-  );
-  return rows[0]?.branch_id ?? null;
-}
 
 // Buyers pass the gate only for the single-parcel read (track-my-order);
 // the list below yields nothing for a buyer-only caller and every write
@@ -358,7 +396,20 @@ router.get("/parcels/:id", async (req, res) => {
               FROM tracking_logs tl
               LEFT JOIN branches b ON b.branch_id = tl.branch_id
               LEFT JOIN couriers c ON c.courier_id = tl.courier_id
-             WHERE tl.parcel_id = p.parcel_id) AS tracking_history
+             WHERE tl.parcel_id = p.parcel_id) AS tracking_history,
+           COALESCE(
+             (SELECT json_agg(json_build_object(
+                        'stop_order', prs.stop_order,
+                        'stop_type', prs.stop_type,
+                        'branch_id', prs.branch_id,
+                        'label', prs.label,
+                        'latitude', prs.latitude::float8,
+                        'longitude', prs.longitude::float8)
+                      ORDER BY prs.stop_order)
+                FROM parcel_route_stops prs
+               WHERE prs.parcel_id = p.parcel_id),
+             '[]'::json
+           ) AS planned_route
       FROM parcels p
       JOIN businesses s      ON s.business_id = p.sender_id
       JOIN businesses r      ON r.business_id = p.receiver_id
@@ -463,6 +514,8 @@ router.post(
   "/parcels",
   requireAnyRole(["wholesaler", "logistics_coordinator", "platform_admin"]),
   async (req, res, next) => {
+  // Sprint 13: total_distance_km is no longer read from the body — the
+  // server computes the pricing distance itself (ignored if sent).
   const {
     sender_id,
     receiver_id,
@@ -472,7 +525,6 @@ router.post(
     weight_kg,
     dimensions,
     declared_value,
-    total_distance_km,
     payment_method,
   } = req.body ?? {};
 
@@ -529,14 +581,53 @@ router.post(
     effectiveSenderId = ownBusinessId;
   }
 
-  // One transaction: parcel + payment + first tracking log all appear or
-  // none do. The 003 triggers fill shipping_fee and payments.amount along
-  // the way.
+  // One transaction: parcel + payment + first tracking log + route snapshot
+  // all appear or none do. The 003 triggers fill shipping_fee and
+  // payments.amount along the way.
   const client = await getPool().connect();
   try {
     await client.query("BEGIN");
 
+    // Ownership validation (Sprint 13): a caller could otherwise steer
+    // branch assignment and pricing with a foreign address ID.
+    const endpoints = await client.query(
+      `SELECT address_id, business_id, latitude, longitude
+         FROM addresses
+        WHERE address_id IN ($1, $2)`,
+      [origin_address_id, destination_address_id],
+    );
+    const byId = new Map(endpoints.rows.map((row) => [row.address_id, row]));
+    const origin = byId.get(Number(origin_address_id));
+    const destination = byId.get(Number(destination_address_id));
+    if (!origin || origin.business_id !== Number(effectiveSenderId)) {
+      throw Object.assign(new Error("origin_address_id must belong to the sender business"), {
+        statusCode: 400,
+      });
+    }
+    if (!destination || destination.business_id !== Number(receiver_id)) {
+      throw Object.assign(new Error("destination_address_id must belong to the receiver business"), {
+        statusCode: 400,
+      });
+    }
+
+    // Pin gate (Sprint 13): pricing distance needs both endpoints. BLOCK,
+    // not degrade — pre-launch means there is no legacy class to grandfather.
+    if (
+      origin.latitude === null || origin.longitude === null ||
+      destination.latitude === null || destination.longitude === null
+    ) {
+      throw Object.assign(
+        new Error("Origin and destination addresses must have coordinates before booking"),
+        { statusCode: 409 },
+      );
+    }
+
     const parcelId = await nextParcelId(client);
+    const distanceKm = await computeRouteDistanceKm(
+      client,
+      origin_address_id,
+      destination_address_id,
+    );
 
     const { rows } = await client.query(
       `
@@ -557,7 +648,7 @@ router.post(
         weight_kg,
         dimensions ?? null,
         declared_value ?? null,
-        total_distance_km ?? null,
+        distanceKm,
       ],
     );
 
@@ -572,20 +663,17 @@ router.post(
       [parcelId, payment_method, paymentStatus],
     );
 
-    const originAddress = await client.query(
-      "SELECT city_municipality FROM addresses WHERE address_id = $1",
-      [origin_address_id],
-    );
-    const originBranchId = await findBranchIdByCity(
-      client,
-      originAddress.rows[0]?.city_municipality,
-    );
+    // Assignment miss never fails the booking: a NULL branch leaves the
+    // parcel branchless (invisible to courier pools) for manual assignment.
+    const originBranchId = await resolveInitialBranchId(client, origin_address_id);
 
     await client.query(
       `INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id)
        VALUES ($1, 'Order Created', 'Booking confirmed', $2)`,
       [parcelId, originBranchId],
     );
+
+    await createInitialRouteSnapshot(client, parcelId, originBranchId);
 
     await client.query("COMMIT");
 
@@ -664,8 +752,11 @@ router.put(
 
 router.get("/branches", async (_req, res) => {
   const { rows } = await query(`
-    SELECT b.branch_id, b.branch_name, b.contact_number,
-           a.province, a.city_municipality, a.barangay, a.street_address
+    SELECT b.branch_id, b.branch_name, b.contact_number, b.address_id,
+           b.is_available,
+           a.province, a.city_municipality, a.barangay, a.street_address,
+           a.postal_code, a.latitude::float8 AS latitude,
+           a.longitude::float8 AS longitude
       FROM branches b
       JOIN addresses a ON a.address_id = b.address_id
      WHERE b.is_active
@@ -926,6 +1017,22 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
       [parcelId, status_update, effectiveRemarks, effectiveBranchId, effectiveCourierId]
     );
 
+    // Late routing (Sprint 13 §8.3): a parcel created branchless (resolver
+    // miss) gets its planned-route snapshot on the FIRST scan that carries a
+    // branch, inside this same transaction. Guarded on no-snapshot-exists so
+    // later reassignments and hub transfers never touch the original plan;
+    // the (parcel_id, stop_order) PK conflict clause makes retries idempotent
+    // even if two scans race past this check.
+    if (effectiveBranchId !== null) {
+      const hasSnapshot = await client.query(
+        "SELECT 1 FROM parcel_route_stops WHERE parcel_id = $1 LIMIT 1",
+        [parcelId],
+      );
+      if (!hasSnapshot.rowCount) {
+        await createInitialRouteSnapshot(client, parcelId, effectiveBranchId);
+      }
+    }
+
     // Terminal delivery scans complete the linked marketplace order -- the
     // wholesaler's fulfillment control ended at 'shipped'
     // (docs/API_CONTRACTS.md §3.6).
@@ -1079,22 +1186,157 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
 router.post("/branches", requireAnyRole(["logistics_coordinator", "platform_admin"]), async (req, res, next) => {
   const client = await getPool().connect();
   try {
-    const { branch_name, contact_number, province, city_municipality, barangay, street_address, postal_code } = req.body;
+    const body = req.body ?? {};
+    const text = {};
+    for (const field of ["branch_name", "contact_number", ...BRANCH_ADDRESS_FIELDS]) {
+      text[field] = normalizeBranchText(body, field, {
+        required: REQUIRED_BRANCH_FIELDS.includes(field),
+      });
+    }
+    for (const field of REQUIRED_BRANCH_FIELDS) {
+      if (text[field] === undefined) {
+        throw clientError(`${field} is required`);
+      }
+    }
+
+    const latitudeProvided = hasOwn(body, "latitude");
+    const longitudeProvided = hasOwn(body, "longitude");
+    if (latitudeProvided !== longitudeProvided) {
+      throw clientError("latitude and longitude must be provided together");
+    }
+    const coords = validateCoordinatePair(body.latitude, body.longitude);
+    if (!coords.ok) {
+      throw clientError(coords.error);
+    }
+
     await client.query("BEGIN");
     const addr = await client.query(
-      `INSERT INTO addresses (province, city_municipality, barangay, street_address, postal_code)
-       VALUES ($1, $2, $3, $4, $5) RETURNING address_id`,
-      [province, city_municipality, barangay, street_address, postal_code]
+      `INSERT INTO addresses
+         (province, city_municipality, barangay, street_address, postal_code, latitude, longitude)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING address_id`,
+      [
+        text.province,
+        text.city_municipality,
+        text.barangay ?? null,
+        text.street_address ?? null,
+        text.postal_code ?? null,
+        coords.latitude,
+        coords.longitude,
+      ],
     );
     const branch = await client.query(
       `INSERT INTO branches (branch_name, contact_number, address_id)
-       VALUES ($1, $2, $3) RETURNING *`,
-      [branch_name, contact_number, addr.rows[0].address_id]
+       VALUES ($1, $2, $3) RETURNING branch_id`,
+      [text.branch_name, text.contact_number ?? null, addr.rows[0].address_id],
     );
+    const created = await selectBranch(client, branch.rows[0].branch_id, {
+      includeActive: true,
+    });
     await client.query("COMMIT");
-    res.status(201).json(branch.rows[0]);
-  } catch(e) {
-    await client.query("ROLLBACK").catch(()=>{});
+    res.status(201).json(created);
+  } catch (e) {
+    await client.query("ROLLBACK").catch(() => {});
+    next(asClientError(e));
+  } finally {
+    client.release();
+  }
+});
+
+// Partial branch management update. Branch metadata and its ownerless address
+// are locked and changed in one transaction so callers never observe a mixed
+// old/new location. An availability-only PATCH deliberately leaves the address
+// untouched; an explicit null coordinate pair unpins the branch.
+router.patch("/branches/:id", requireAnyRole(["logistics_coordinator", "platform_admin"]), async (req, res, next) => {
+  const client = await getPool().connect();
+  try {
+    const body = req.body ?? {};
+    const text = {};
+    for (const field of ["branch_name", "contact_number", ...BRANCH_ADDRESS_FIELDS]) {
+      text[field] = normalizeBranchText(body, field, {
+        required: REQUIRED_BRANCH_FIELDS.includes(field),
+      });
+    }
+    if (hasOwn(body, "is_available") && typeof body.is_available !== "boolean") {
+      throw clientError("is_available must be a boolean");
+    }
+
+    const latitudeProvided = hasOwn(body, "latitude");
+    const longitudeProvided = hasOwn(body, "longitude");
+    if (latitudeProvided !== longitudeProvided) {
+      throw clientError("latitude and longitude must be provided together");
+    }
+    const coordinatesProvided = latitudeProvided;
+    const coords = coordinatesProvided
+      ? validateCoordinatePair(body.latitude, body.longitude)
+      : null;
+    if (coords && !coords.ok) {
+      throw clientError(coords.error);
+    }
+    const addressUpdateProvided =
+      BRANCH_ADDRESS_FIELDS.some((field) => hasOwn(body, field)) || coordinatesProvided;
+    const branchUpdateProvided =
+      hasOwn(body, "branch_name") ||
+      hasOwn(body, "contact_number") ||
+      hasOwn(body, "is_available");
+
+    await client.query("BEGIN");
+    const { rows } = await client.query(
+      `SELECT b.branch_id, b.branch_name, b.contact_number, b.address_id,
+              b.is_available, a.province, a.city_municipality, a.barangay,
+              a.street_address, a.postal_code, a.latitude, a.longitude
+         FROM branches b
+         JOIN addresses a ON a.address_id = b.address_id
+        WHERE b.branch_id = $1 AND b.is_active
+        FOR UPDATE OF b, a`,
+      [req.params.id],
+    );
+    const current = rows[0];
+    if (!current) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({
+        error: { message: `Branch ${req.params.id} not found` },
+      });
+    }
+
+    const valueFor = (field) => text[field] === undefined ? current[field] : text[field];
+    if (addressUpdateProvided) {
+      await client.query(
+        `UPDATE addresses
+            SET province = $2, city_municipality = $3, barangay = $4,
+                street_address = $5, postal_code = $6, latitude = $7, longitude = $8
+          WHERE address_id = $1`,
+        [
+          current.address_id,
+          valueFor("province"),
+          valueFor("city_municipality"),
+          valueFor("barangay"),
+          valueFor("street_address"),
+          valueFor("postal_code"),
+          coords ? coords.latitude : current.latitude,
+          coords ? coords.longitude : current.longitude,
+        ],
+      );
+    }
+    if (branchUpdateProvided) {
+      await client.query(
+        `UPDATE branches
+            SET branch_name = $2, contact_number = $3, is_available = $4
+          WHERE branch_id = $1`,
+        [
+          current.branch_id,
+          valueFor("branch_name"),
+          valueFor("contact_number"),
+          hasOwn(body, "is_available") ? body.is_available : current.is_available,
+        ],
+      );
+    }
+
+    const updated = await selectBranch(client, current.branch_id);
+    await client.query("COMMIT");
+    res.json(updated);
+  } catch (e) {
+    await client.query("ROLLBACK").catch(() => {});
     next(asClientError(e));
   } finally {
     client.release();

@@ -23,6 +23,9 @@ import BecomeSupplierPage from "./pages/BecomeSupplierPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
+import SettingsPage from "./pages/SettingsPage";
+import Profile from "./features/settings/Profile";
+import BusinessLocation from "./features/settings/BusinessLocation";
 
 const TITLES = [
   ["/register", "Register"],
@@ -34,6 +37,7 @@ const TITLES = [
   ["/orders", "Orders"],
   ["/logistics", "Logistics"],
   ["/admin", "Admin"],
+  ["/settings", "Settings"],
   ["/suppliers/", "Supplier"],
 ];
 
@@ -95,16 +99,28 @@ function AppRoutes() {
 
       <Route element={<ProtectedRoute roles={ROLE_ACCESS.logistics} />}>
         <Route path="/logistics" element={<LogisticsPage />} />
-        <Route
-          path="/logistics/management"
-          element={<LogisticsManagementPage />}
-        />
         <Route path="/logistics/:parcelId" element={<ParcelDetailPage />} />
         <Route path="/courier" element={<CourierDashboardPage />} />
       </Route>
 
+      <Route element={<ProtectedRoute roles={ROLE_ACCESS.logisticsManagement} />}>
+        <Route
+          path="/logistics/management"
+          element={<LogisticsManagementPage />}
+        />
+      </Route>
+
       <Route element={<ProtectedRoute roles={ROLE_ACCESS.admin} />}>
         <Route path="/admin" element={<AdminDashboardPage />} />
+      </Route>
+
+      <Route element={<ProtectedRoute roles={ROLE_ACCESS.settings} />}>
+        <Route path="/settings" element={<SettingsPage />}>
+          <Route index element={<Navigate to="profile" replace />} />
+          <Route path="profile" element={<Profile />} />
+          <Route path="business-location" element={<BusinessLocation />} />
+          <Route path="*" element={<Navigate to="profile" replace />} />
+        </Route>
       </Route>
 
       <Route path="*" element={<UnknownRouteRedirect />} />
