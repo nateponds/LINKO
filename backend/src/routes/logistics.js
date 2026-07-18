@@ -955,6 +955,22 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
       [parcelId, status_update, effectiveRemarks, effectiveBranchId, effectiveCourierId]
     );
 
+    // Late routing (Sprint 13 §8.3): a parcel created branchless (resolver
+    // miss) gets its planned-route snapshot on the FIRST scan that carries a
+    // branch, inside this same transaction. Guarded on no-snapshot-exists so
+    // later reassignments and hub transfers never touch the original plan;
+    // the (parcel_id, stop_order) PK conflict clause makes retries idempotent
+    // even if two scans race past this check.
+    if (effectiveBranchId !== null) {
+      const hasSnapshot = await client.query(
+        "SELECT 1 FROM parcel_route_stops WHERE parcel_id = $1 LIMIT 1",
+        [parcelId],
+      );
+      if (!hasSnapshot.rowCount) {
+        await createInitialRouteSnapshot(client, parcelId, effectiveBranchId);
+      }
+    }
+
     // Terminal delivery scans complete the linked marketplace order -- the
     // wholesaler's fulfillment control ended at 'shipped'
     // (docs/API_CONTRACTS.md §3.6).

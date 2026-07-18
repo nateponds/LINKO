@@ -6,6 +6,7 @@ import { createPool } from "./db.js";
 
 // Sprint 13 T05: standalone parcel booking — ownership validation, pin
 // gates, server-computed distance, shared resolver, route snapshots.
+// Sprint 13 T07 (bottom of file): late branch assignment snapshots.
 // DB-backed tests skip without DATABASE_URL, same as app.test.js.
 const hasDb = Boolean(process.env.DATABASE_URL);
 
@@ -218,5 +219,111 @@ test("assignment miss keeps the booking: branchless parcel, no snapshot", { skip
     } finally {
       await pool.query("UPDATE branches SET is_available = true");
     }
+  });
+});
+
+// --- Sprint 13 T07: late branch assignment snapshots (§8.3) ---
+
+function postTracking(cookie, parcelId, body) {
+  return request(`/api/parcels/${parcelId}/tracking`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: cookie },
+    body: JSON.stringify(body),
+  });
+}
+
+const readStops = (pool, parcelId) =>
+  pool
+    .query(
+      `SELECT stop_order, stop_type, branch_id, label,
+              latitude::float8 AS latitude, longitude::float8 AS longitude
+         FROM parcel_route_stops WHERE parcel_id = $1 ORDER BY stop_order`,
+      [parcelId],
+    )
+    .then(({ rows }) => rows);
+
+test("first non-null branch scan snapshots a branchless parcel; retries stay idempotent", { skip: !hasDb }, async () => {
+  const wholesaler = await loginAs("wholesaler@linko.test");
+  let parcelId;
+  await withPool(async (pool) => {
+    // sideline all branches so the booking resolver misses -> branchless, no snapshot
+    await pool.query("UPDATE branches SET is_available = false");
+    try {
+      const booked = await bookParcel(wholesaler);
+      assert.equal(booked.status, 201);
+      parcelId = booked.body.parcel_id;
+    } finally {
+      await pool.query("UPDATE branches SET is_available = true");
+    }
+    assert.equal((await readStops(pool, parcelId)).length, 0, "branchless booking has no snapshot");
+  });
+
+  const coordinator = await loginAs("logistics@linko.test");
+
+  // a scan that still carries no branch must not snapshot
+  const pickedUp = await postTracking(coordinator, parcelId, { status_update: "Picked Up" });
+  assert.equal(pickedUp.status, 201);
+  await withPool(async (pool) => {
+    assert.equal((await readStops(pool, parcelId)).length, 0, "null-branch scan never snapshots");
+  });
+
+  // first non-null branch -> exactly one 3-stop plan built around THAT branch
+  const assigned = await postTracking(coordinator, parcelId, {
+    status_update: "Arrived at Branch",
+    branch_id: 2,
+  });
+  assert.equal(assigned.status, 201);
+  const snapshot = await withPool(async (pool) => {
+    const stops = await readStops(pool, parcelId);
+    assert.equal(stops.length, 3, "late assignment creates exactly one 3-stop plan");
+    const [origin, branch, destination] = stops;
+    assert.deepEqual(
+      [origin.stop_type, branch.stop_type, destination.stop_type],
+      ["origin", "branch", "destination"],
+    );
+    assert.equal(origin.label, "Cebu Fresh Wholesale");
+    assert.equal(origin.latitude, 10.3444);
+    assert.equal(branch.branch_id, 2, "plan uses the assigned branch, not the resolver's pick");
+    assert.equal(branch.label, "LINKO Mandaue Hub");
+    assert.equal(destination.label, "Sunrise Retail Cooperative");
+    assert.equal(destination.longitude, 123.8988);
+    return stops;
+  });
+
+  // retry-shaped scan (branch 2 carried forward) re-runs the hook; plan must not change
+  const retry = await postTracking(coordinator, parcelId, { status_update: "Departed Branch" });
+  assert.equal(retry.status, 201);
+  await withPool(async (pool) => {
+    assert.deepEqual(await readStops(pool, parcelId), snapshot, "existing plan is never rewritten");
+  });
+});
+
+test("reassignment and hub transfers never mutate an existing plan", { skip: !hasDb }, async () => {
+  const wholesaler = await loginAs("wholesaler@linko.test");
+  // normal booking: resolver assigns branch 1 and snapshots at creation
+  const booked = await bookParcel(wholesaler);
+  assert.equal(booked.status, 201);
+  const parcelId = booked.body.parcel_id;
+
+  const original = await withPool((pool) => readStops(pool, parcelId));
+  assert.equal(original.length, 3);
+  assert.equal(original[1].branch_id, 1);
+
+  const coordinator = await loginAs("logistics@linko.test");
+  const reassigned = await postTracking(coordinator, parcelId, {
+    status_update: "Picked Up",
+    branch_id: 2,
+  });
+  assert.equal(reassigned.status, 201);
+  const transferred = await postTracking(coordinator, parcelId, {
+    status_update: "Arrived at Branch",
+    branch_id: 2,
+  });
+  assert.equal(transferred.status, 201);
+
+  await withPool(async (pool) => {
+    const stops = await readStops(pool, parcelId);
+    assert.deepEqual(stops, original, "plan still routes through the original branch");
+    assert.equal(stops[1].branch_id, 1);
   });
 });
