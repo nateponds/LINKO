@@ -95,12 +95,15 @@ function AppRoutes() {
 
       <Route element={<ProtectedRoute roles={ROLE_ACCESS.logistics} />}>
         <Route path="/logistics" element={<LogisticsPage />} />
+        <Route path="/logistics/:parcelId" element={<ParcelDetailPage />} />
+        <Route path="/courier" element={<CourierDashboardPage />} />
+      </Route>
+
+      <Route element={<ProtectedRoute roles={ROLE_ACCESS.logisticsManagement} />}>
         <Route
           path="/logistics/management"
           element={<LogisticsManagementPage />}
         />
-        <Route path="/logistics/:parcelId" element={<ParcelDetailPage />} />
-        <Route path="/courier" element={<CourierDashboardPage />} />
       </Route>
 
       <Route element={<ProtectedRoute roles={ROLE_ACCESS.admin} />}>

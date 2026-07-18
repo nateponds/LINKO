@@ -5,6 +5,9 @@ export const ROLE_ACCESS = {
   orders: ["buyer", "wholesaler", "platform_admin"],
   invoices: ["buyer", "wholesaler", "platform_admin"],
   logistics: ["wholesaler", "logistics_coordinator", "courier", "platform_admin"],
+  // /logistics/management only — the broad logistics guard let wholesalers
+  // and couriers reach the page by direct navigation (Sprint 13 §3.8).
+  logisticsManagement: ["logistics_coordinator", "platform_admin"],
   courier: ["courier"],
   admin: ["platform_admin"],
 };
