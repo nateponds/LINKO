@@ -7,7 +7,11 @@ import {
   resolveActiveBusinessId,
 } from "../middleware/ownership.js";
 import { notifyBusiness } from "../services/notify.js";
-import { resolveInitialBranchId } from "../services/parcelRouting.js";
+import {
+  computeRouteDistanceKm,
+  createInitialRouteSnapshot,
+  resolveInitialBranchId,
+} from "../services/parcelRouting.js";
 
 const router = Router();
 
@@ -451,6 +455,8 @@ router.post(
   "/parcels",
   requireAnyRole(["wholesaler", "logistics_coordinator", "platform_admin"]),
   async (req, res, next) => {
+  // Sprint 13: total_distance_km is no longer read from the body — the
+  // server computes the pricing distance itself (ignored if sent).
   const {
     sender_id,
     receiver_id,
@@ -460,7 +466,6 @@ router.post(
     weight_kg,
     dimensions,
     declared_value,
-    total_distance_km,
     payment_method,
   } = req.body ?? {};
 
@@ -517,14 +522,53 @@ router.post(
     effectiveSenderId = ownBusinessId;
   }
 
-  // One transaction: parcel + payment + first tracking log all appear or
-  // none do. The 003 triggers fill shipping_fee and payments.amount along
-  // the way.
+  // One transaction: parcel + payment + first tracking log + route snapshot
+  // all appear or none do. The 003 triggers fill shipping_fee and
+  // payments.amount along the way.
   const client = await getPool().connect();
   try {
     await client.query("BEGIN");
 
+    // Ownership validation (Sprint 13): a caller could otherwise steer
+    // branch assignment and pricing with a foreign address ID.
+    const endpoints = await client.query(
+      `SELECT address_id, business_id, latitude, longitude
+         FROM addresses
+        WHERE address_id IN ($1, $2)`,
+      [origin_address_id, destination_address_id],
+    );
+    const byId = new Map(endpoints.rows.map((row) => [row.address_id, row]));
+    const origin = byId.get(Number(origin_address_id));
+    const destination = byId.get(Number(destination_address_id));
+    if (!origin || origin.business_id !== Number(effectiveSenderId)) {
+      throw Object.assign(new Error("origin_address_id must belong to the sender business"), {
+        statusCode: 400,
+      });
+    }
+    if (!destination || destination.business_id !== Number(receiver_id)) {
+      throw Object.assign(new Error("destination_address_id must belong to the receiver business"), {
+        statusCode: 400,
+      });
+    }
+
+    // Pin gate (Sprint 13): pricing distance needs both endpoints. BLOCK,
+    // not degrade — pre-launch means there is no legacy class to grandfather.
+    if (
+      origin.latitude === null || origin.longitude === null ||
+      destination.latitude === null || destination.longitude === null
+    ) {
+      throw Object.assign(
+        new Error("Origin and destination addresses must have coordinates before booking"),
+        { statusCode: 409 },
+      );
+    }
+
     const parcelId = await nextParcelId(client);
+    const distanceKm = await computeRouteDistanceKm(
+      client,
+      origin_address_id,
+      destination_address_id,
+    );
 
     const { rows } = await client.query(
       `
@@ -545,7 +589,7 @@ router.post(
         weight_kg,
         dimensions ?? null,
         declared_value ?? null,
-        total_distance_km ?? null,
+        distanceKm,
       ],
     );
 
@@ -560,6 +604,8 @@ router.post(
       [parcelId, payment_method, paymentStatus],
     );
 
+    // Assignment miss never fails the booking: a NULL branch leaves the
+    // parcel branchless (invisible to courier pools) for manual assignment.
     const originBranchId = await resolveInitialBranchId(client, origin_address_id);
 
     await client.query(
@@ -567,6 +613,8 @@ router.post(
        VALUES ($1, 'Order Created', 'Booking confirmed', $2)`,
       [parcelId, originBranchId],
     );
+
+    await createInitialRouteSnapshot(client, parcelId, originBranchId);
 
     await client.query("COMMIT");
 

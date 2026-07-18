@@ -200,9 +200,34 @@ test("booking a parcel creates payment and first log", { skip: !hasDb }, async (
   const patchPool = createPoolPatch();
   const harborId = await getBusinessIdByName(patchPool, "Cebu Fresh Wholesale");
   const sunriseId = await getBusinessIdByName(patchPool, "Sunrise Retail Cooperative");
-  const harborAddr = (await patchPool.query("SELECT address_id FROM addresses WHERE business_id = $1 LIMIT 1", [harborId])).rows[0].address_id;
-  const sunriseAddr = (await patchPool.query("SELECT address_id FROM addresses WHERE business_id = $1 LIMIT 1", [sunriseId])).rows[0].address_id;
+  const pickAddr = (businessId) =>
+    patchPool
+      .query(
+        `SELECT address_id, latitude::float8 AS latitude, longitude::float8 AS longitude
+           FROM addresses WHERE business_id = $1 ORDER BY address_id LIMIT 1`,
+        [businessId],
+      )
+      .then(({ rows }) => rows[0]);
+  const harbor = await pickAddr(harborId);
+  const sunrise = await pickAddr(sunriseId);
   await patchPool.end();
+
+  // Sprint 13: pricing distance is server-computed (origin -> destination
+  // Haversine); the client total_distance_km below must be ignored.
+  const rad = (deg) => (deg * Math.PI) / 180;
+  const distanceKm =
+    6371 *
+    Math.acos(
+      Math.min(
+        1,
+        Math.max(
+          -1,
+          Math.cos(rad(harbor.latitude)) * Math.cos(rad(sunrise.latitude)) *
+            Math.cos(rad(sunrise.longitude) - rad(harbor.longitude)) +
+            Math.sin(rad(harbor.latitude)) * Math.sin(rad(sunrise.latitude)),
+        ),
+      ),
+    );
 
   const cookie = await loginAs("logistics@linko.test");
   const created = await request("/api/parcels", {
@@ -215,25 +240,32 @@ test("booking a parcel creates payment and first log", { skip: !hasDb }, async (
       sender_id: harborId,
       receiver_id: sunriseId,
       tier_id: 1,
-      origin_address_id: harborAddr,
-      destination_address_id: sunriseAddr,
+      origin_address_id: harbor.address_id,
+      destination_address_id: sunrise.address_id,
       weight_kg: 2.5,
       declared_value: 1000,
-      total_distance_km: 10,
+      total_distance_km: 10, // ignored since Sprint 13
       payment_method: "COD",
     }),
   });
 
   assert.equal(created.status, 201);
   assert.equal(created.body.current_status, "Order Created");
-  // Current seed pricing (tier 1 Standard): 50 base + 2.5kg x 20 + 10km x 2 = 120.00
-  assert.equal(created.body.shipping_fee, 120);
+  // Tier 1 Standard: 50 base + 2.5kg x 20 + server-computed km x 2
+  const expectedFee = 50 + 2.5 * 20 + distanceKm * 2;
+  assert.ok(
+    Math.abs(created.body.shipping_fee - expectedFee) < 0.05,
+    `fee from server distance, got ${created.body.shipping_fee}, expected ~${expectedFee}`,
+  );
 
   const detail = await request(`/api/parcels/${created.body.parcel_id}`, {
     headers: { Cookie: cookie },
   });
   assert.equal(detail.status, 200);
-  assert.equal(detail.body.payment.amount, 1120);
+  assert.ok(
+    Math.abs(detail.body.payment.amount - (1000 + created.body.shipping_fee)) < 0.01,
+    "payment amount is goods + shipping",
+  );
   assert.equal(detail.body.tracking_history.length, 1);
   assert.equal(detail.body.latest_branch_id, 1);
   assert.equal(detail.body.tracking_history[0].branch_name, "LINKO Cebu Central Hub");
