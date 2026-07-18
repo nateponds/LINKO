@@ -187,6 +187,8 @@ Role: `buyer` (or platform admin with explicit `buyer_business_id`).
 
 Owning `buyer_business_id` comes from the caller's buyer membership: 0 memberships → `403`; more than 1 → `400` ("multiple buyer businesses not supported yet"). Order items must reference active products, all from one wholesaler business. Product prices are snapshotted into `order_items.unit_price_snapshot` when the order is created. Stock is not decremented until acceptance.
 
+**Location pin gate (Sprint 13):** placing an order requires the buyer business to be pinned — its canonical logistics address (`businesses.logistics_address_id`, §5) must have both coordinates. Unpinned buyer → **`409`** with message `Pin your business location in Settings before placing orders`. The frontend treats a `409` from this endpoint as the pin gate and links to Settings. Platform admins acting with an explicit `buyer_business_id` are gated on that business the same way.
+
 **Body:**
 
 ```json
@@ -216,7 +218,14 @@ Roles: `buyer`, `wholesaler`, or `platform_admin` (admin acts as a manual overri
 
 Accepting an order decrements each product's `stock_quantity` in the same transaction and generates exactly one invoice. If any line lacks enough stock, the request returns `400` and neither stock nor invoices change. Rejecting an order uses status `cancelled`.
 
-Marking an order `shipped` **requires** `weight_kg` (a number > 0; missing or non-positive → `400`) and accepts optional `dimensions`. Shipping auto-creates a parcel (`order_id` set, migration 009) plus its payment row and an `'Order Created'` tracking log; the parcel then appears in the courier pickup pool (§3.1). `total_distance_km` is `NULL` (checkout never measures a route); ETA derives from the service tier's `estimated_days`. `parcels.declared_value` is the frozen order-item subtotal; `parcels.shipping_fee` is the tier's quoted `base_fee`. The auto-created payment is `Online`/`'Paid'` at ship time (§3.3). Standalone `POST /api/parcels` bookings use the full weight-and-distance shipping formula instead.
+Marking an order `shipped` **requires** `weight_kg` (a number > 0; missing or non-positive → `400`) and accepts optional `dimensions`. Shipping auto-creates a parcel (`order_id` set, migration 009) plus its payment row and an `'Order Created'` tracking log; the parcel then appears in the courier pickup pool (§3.1). ETA derives from the service tier's `estimated_days`. `parcels.declared_value` is the frozen order-item subtotal; `parcels.shipping_fee` comes from the tier pricing trigger (base + weight + distance components — the same formula as standalone bookings; an earlier revision of this document wrongly claimed `total_distance_km` stays `NULL` and the fee is `base_fee` only). The auto-created payment is `Online`/`'Paid'` at ship time (§3.3).
+
+**Distance & routing (Sprint 13):** `parcels.total_distance_km` is **server-computed** — direct origin → destination Haversine between the two canonical business addresses. The request field `total_distance_km` is removed from this contract and ignored if sent (before Sprint 13 lands, the interim code still requires it from the client). Parcel origin = the wholesaler business's canonical logistics address; destination = the buyer business's canonical logistics address (§5) — replacing the previous first-address pick. The initial branch comes from the shared nearest-available-branch resolver (§3.3).
+
+**Ship pin gates (Sprint 13, `409` + full rollback — order stays `preparing`, no parcel/payment/tracking rows):**
+
+- Wholesaler business unpinned → `409`, message `Pin your business location in Settings before shipping orders`.
+- Buyer canonical address missing or unpinned at ship time (defensive — buyers are normally gated at order placement) → `409`, message `Buyer business has no pinned location`.
 
 Returns the updated order.
 
@@ -330,9 +339,16 @@ Parcel detail with full tracking timeline (oldest first). `404` if unknown. `bra
       "remarks": "Booking confirmed",
       "scanned_at": "2026-06-26T15:47:21.662Z"
     }
+  ],
+  "planned_route": [
+    { "stop_order": 1, "stop_type": "origin",      "branch_id": null, "label": "John's Pork",    "latitude": 10.3444, "longitude": 123.9137 },
+    { "stop_order": 2, "stop_type": "branch",      "branch_id": 1,    "label": "Cebu Hub",       "latitude": 10.3243, "longitude": 123.9234 },
+    { "stop_order": 3, "stop_type": "destination", "branch_id": null, "label": "Marielle Ocampo", "latitude": 10.3283, "longitude": 123.8988 }
   ]
 }
 ```
+
+**`planned_route` (Sprint 13):** the immutable route snapshot from `parcel_route_stops`, ordered by `stop_order` (1 = origin, 2 = branch, 3 = destination). `stop_type` ∈ `origin | branch | destination`; `branch_id` is non-null only on the branch stop. `latitude`/`longitude` are JSON numbers or `null` (a NULL-coordinate stop is kept in the array but rendered without a map marker). The array is **`[]`** when no snapshot exists (parcel created branchless and never assigned) — the UI renders an explanatory empty state. Planned stops are display-only reference data and are never mixed into `tracking_history`; actual tracking (hub transfers, reassignment, return leg) diverges freely and never rewrites the snapshot.
 
 ### 3.3 `POST /api/parcels`
 
@@ -350,14 +366,18 @@ Book a parcel. The database fills `shipping_fee` (tier pricing trigger) and `pay
   "weight_kg": 2.5,
   "dimensions": "30x20x15 cm",
   "declared_value": 1000,
-  "total_distance_km": 10,
   "payment_method": "COD"
 }
 ```
 
-`dimensions`, `declared_value` (defaults 0), and `total_distance_km` are optional. `payment_method` ∈ `COD | Prepaid | Online`. Missing fields / bad references → `400`.
+`dimensions` and `declared_value` (defaults 0) are optional. `payment_method` ∈ `COD | Prepaid | Online`. Missing fields / bad references → `400`.
 
-New parcels are stamped into the pickup pool for the origin city: `origin_address.city_municipality` is matched case-insensitively against branch address city; no match leaves `branch_id = NULL` for manual coordinator assignment.
+**Sprint 13 changes to this contract:**
+
+- `total_distance_km` is removed from the request (ignored if sent). The server computes it as the direct origin → destination Haversine between the two addresses and feeds it to the fee trigger.
+- **Address ownership is validated:** `origin_address_id` must belong to `sender_id` and `destination_address_id` to `receiver_id`; a foreign address ID → `400`.
+- **Pin gate:** both addresses must have coordinates. Either endpoint unpinned → **`409`**, message `Origin and destination addresses must have coordinates before booking`.
+- **Branch assignment** uses the shared resolver: Haversine nearest branch among branches that are `is_active`, `is_available`, and have pinned addresses (`ORDER BY distance ASC, branch_id ASC`); if no candidate, case/whitespace-insensitive city match against active + available branches (`ORDER BY branch_id`); if neither resolves, `branch_id = NULL` on the `'Order Created'` log for manual coordinator assignment — assignment miss never fails the booking. When a branch resolves, the parcel's immutable `planned_route` snapshot (§3.2) is created in the same transaction; a branchless parcel gets its snapshot when a coordinator first assigns a branch via the tracking route (§3.6).
 
 **Response Body (`201 Created`):**
 
@@ -452,26 +472,35 @@ The parcel **list** (`GET /api/parcels`) stays **operator-only**: a buyer-only c
 
 ### 3.7 Branches (`/api/branches`)
 
-`GET /api/branches` — any authenticated logistics reader. Active branches with their address, joined for display.
+`GET /api/branches` — any authenticated logistics reader. Active branches with their address, joined for display. Sprint 13 adds `address_id`, `postal_code`, `latitude`, `longitude` (JSON numbers or `null` — `NUMERIC` is cast to `float8`), and `is_available`.
 
 ```json
 [
   { "branch_id": 1, "branch_name": "LINKO Cebu Central Hub", "contact_number": "+639170000001",
-    "province": "Cebu", "city_municipality": "Cebu City", "barangay": "Lahug", "street_address": "1 Hub St" }
+    "address_id": 4, "province": "Cebu", "city_municipality": "Cebu City", "barangay": "Lahug",
+    "street_address": "1 Hub St", "postal_code": "6000",
+    "latitude": 10.3243, "longitude": 123.9234, "is_available": true }
 ]
 ```
 
-`POST /api/branches` — roles: `logistics_coordinator`, `platform_admin`. Transactional: inserts an `addresses` row then the `branches` row referencing it.
+`is_available` gates **new automatic assignment only** (§3.3 resolver). It never blocks manual coordinator assignment via §3.6, never blocks status transitions on in-flight parcels, and toggling it never unassigns couriers. Retirement stays with `is_active`/DELETE below.
+
+`POST /api/branches` — roles: `logistics_coordinator`, `platform_admin`. Transactional: inserts an `addresses` row then the `branches` row referencing it. Sprint 13 adds optional `latitude`/`longitude` to the body — both or neither (shared coordinate validator: finite numbers or numeric strings; latitude ∈ [-90, 90], longitude ∈ [-180, 180]; exact (0,0) rejected; one-sided pair rejected; violations → `400`). New branches start `is_available: true`.
 
 **Request Body:**
 
 ```json
 { "branch_name": "New Branch", "contact_number": "+639170000009",
   "province": "Cebu", "city_municipality": "Mandaue", "barangay": "Centro",
-  "street_address": "2 Test St", "postal_code": "6014" }
+  "street_address": "2 Test St", "postal_code": "6014",
+  "latitude": 10.3236, "longitude": 123.9223 }
 ```
 
-**Response (`201 Created`):** the inserted `branches` row (`branch_id`, `branch_name`, `contact_number`, `address_id`, `is_active`).
+**Response (`201 Created`):** the created branch in the `GET` row shape (plus `is_active: true`).
+
+`PATCH /api/branches/:id` — **Sprint 13, new.** Roles: `logistics_coordinator`, `platform_admin`. Partial update; omitted keys unchanged. Editable: `branch_name`, `contact_number`, `is_available` (boolean), and the address fields (`province`, `city_municipality`, `barangay`, `street_address`, `postal_code`, `latitude`, `longitude`). Branch row and its referenced `addresses` row are updated in one transaction. Coordinates follow the shared validator above; an explicit `latitude: null, longitude: null` pair unpins the branch (it then drops out of Haversine candidacy). Editing a branch address never rewrites existing parcels' `planned_route` snapshots. **`400`** on validation failure; **`404`** if no active branch with that id.
+
+**Response (`200 OK`):** the updated branch in the `GET` row shape.
 
 `DELETE /api/branches/:id` — roles: `logistics_coordinator`, `platform_admin`. Soft delete (`is_active = false`); parcel history is preserved. **`409`** if the branch's unassigned pool still holds live (non-terminal) parcels — reassign them first. On success it also unassigns (`assigned_branch_id = NULL`) any couriers pointing at the branch. Returns **`204`** (or `404` if not found/already inactive).
 
@@ -559,3 +588,77 @@ All businesses with a summary of their member users, newest first.
 ### 4.5 `PATCH /api/admin/businesses/:id`
 
 Body `{ "is_verified": boolean }`. **Response (`200 OK`):** the updated business. `404` if not found.
+
+---
+
+## 5. Business Location Settings & Session Location State (Sprint 13)
+
+The canonical logistics location of a business is the `addresses` row referenced by `businesses.logistics_address_id` — a buyer's delivery location / a wholesaler's pickup location (design record: `docs/LOCATION_ROUTING.md`). Registration points it at the placeholder address it creates; this Settings surface is the one place that repairs/edits it. Coordinates cross the wire as JSON **numbers** (or `null`), always named `latitude`/`longitude`.
+
+### 5.1 `GET /api/settings/location`
+
+Auth: `requireAuth`; the **active business** (resolved via the `X-Active-Business` header and membership ownership: `400` when a multi-business caller omits the header, `403` when selecting a non-member business) must hold a `buyer` or `wholesaler` role — logistics-only and courier-only callers get `403`. Platform admins have no global bypass: they edit a location only through their own buyer/wholesaler membership.
+
+**Response (`200 OK`):**
+
+```json
+{
+  "business_id": 2,
+  "business_type": "wholesaler",
+  "address_id": 3,
+  "province": "Cebu",
+  "city_municipality": "Cebu City",
+  "barangay": "Banilad",
+  "street_address": "88 Gov. Cuenco Ave",
+  "postal_code": "6000",
+  "latitude": 10.3444,
+  "longitude": 123.9137,
+  "has_coordinates": true
+}
+```
+
+When the business has no canonical address yet (`logistics_address_id` NULL), the response is still `200` with `address_id` and every address/coordinate field `null` and `has_coordinates: false` — the Settings form renders empty and the first PUT creates the row.
+
+### 5.2 `PUT /api/settings/location`
+
+Same authorization as GET.
+
+**Request Body:**
+
+```json
+{
+  "province": "Cebu",
+  "city_municipality": "Cebu City",
+  "barangay": "Banilad",
+  "street_address": "88 Gov. Cuenco Ave",
+  "postal_code": "6000",
+  "latitude": 10.3444,
+  "longitude": 123.9137
+}
+```
+
+Behavior: updates the address row referenced by `logistics_address_id`; if the pointer or row is absent, inserts a complete `addresses` row for the business and sets the pointer (create-or-update), all in one transaction.
+
+Validation (`400` with a specific message on failure):
+
+- All five text fields required non-empty strings.
+- Coordinates use the shared validator: both present or both `null` (one-sided pair rejected); finite numbers or numeric strings (empty string is **not** 0); latitude ∈ [-90, 90], longitude ∈ [-180, 180]; exact (0,0) rejected.
+- An explicit `latitude: null, longitude: null` pair is a valid **unpin** — `has_coordinates` returns to `false` and the §2c.3/§2c.4/§3.3 pin gates re-engage. Existing parcels, snapshots, and frozen fees are unaffected.
+
+**Response (`200 OK`):** the §5.1 GET shape with the saved values.
+
+### 5.3 Session membership shape (`/api/auth/me`, login, register)
+
+Each membership object in the session payload (`GET /api/auth/me`, `POST /api/auth/login`, and the `memberships` array of `POST /api/auth/register` — all three share one shape) gains `has_coordinates`:
+
+```json
+{
+  "business_id": 2,
+  "business_name": "Cebu Fresh Wholesale",
+  "business_type": "wholesaler",
+  "role": "wholesaler",
+  "has_coordinates": true
+}
+```
+
+`has_coordinates` is `true` iff the business's canonical logistics address exists **and** has both coordinates. Freshly registered businesses are `false` (the placeholder address is unpinned). The frontend `groupMemberships` helper must carry `business_type` and `has_coordinates` onto each grouped business entry; the AppLayout banner shows for an active buyer/wholesaler business with `has_coordinates: false`, and a Settings save calls `refreshAuth()` to clear it.
