@@ -149,7 +149,7 @@ test("shipping records the entered weight and the buyer can track their own parc
       status: "shipped",
       weight_kg: 7.5,
       dimensions: "40x30x20 cm",
-      total_distance_km: 10,
+      total_distance_km: 10, // ignored since Sprint 13: server computes distance
     });
     assert.equal(shipped.status, 200);
 
@@ -157,7 +157,7 @@ test("shipping records the entered weight and the buyer can track their own parc
       `SELECT p.parcel_id,
               p.weight_kg::float8,
               p.dimensions,
-              p.total_distance_km,
+              p.total_distance_km::float8,
               (p.estimated_delivery_date = CURRENT_DATE + st.estimated_days) AS eta_from_tier
          FROM parcels p
          JOIN service_tiers st ON st.tier_id = p.tier_id
@@ -168,7 +168,11 @@ test("shipping records the entered weight and the buyer can track their own parc
     const parcel = parcelRow.rows[0];
     assert.equal(parcel.weight_kg, 7.5);
     assert.equal(parcel.dimensions, "40x30x20 cm");
-    assert.equal(Number(parcel.total_distance_km), 10);
+    // Server Haversine between the canonical addresses, never the client's 10.
+    assert.ok(
+      parcel.total_distance_km > 0 && Math.abs(parcel.total_distance_km - 10) > 0.5,
+      `distance is server-computed, got ${parcel.total_distance_km}`,
+    );
     assert.equal(parcel.eta_from_tier, true);
 
     // Marketplace checkout is an online payment: settled at booking.

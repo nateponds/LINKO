@@ -3,7 +3,11 @@ import { getPool, query, nextParcelId } from "../db.js";
 import { requireAnyRole, requireAuth } from "../middleware/auth.js";
 import { getActiveMembership } from "../middleware/ownership.js";
 import { notifyBusiness } from "../services/notify.js";
-import { resolveInitialBranchId } from "../services/parcelRouting.js";
+import {
+  computeRouteDistanceKm,
+  createInitialRouteSnapshot,
+  resolveInitialBranchId,
+} from "../services/parcelRouting.js";
 
 const router = Router();
 
@@ -368,6 +372,22 @@ router.post(
         await validateBusinessRole(buyerBusinessId, ["buyer", "wholesaler"]);
       }
 
+      // Sprint 13 pin gate: the buyer business must have a pinned canonical
+      // logistics address before placing orders, so ship time never blocks on
+      // the buyer's missing pin (docs/LOCATION_ROUTING.md).
+      const buyerPin = await client.query(
+        `SELECT 1
+           FROM businesses b
+           JOIN addresses a ON a.address_id = b.logistics_address_id
+          WHERE b.business_id = $1
+            AND a.latitude IS NOT NULL
+            AND a.longitude IS NOT NULL`,
+        [buyerBusinessId],
+      );
+      if (!buyerPin.rows.length) {
+        throw createHttpError(409, "Pin your business location in Settings before placing orders");
+      }
+
       const tierResult = await client.query(
         "SELECT tier_id FROM service_tiers WHERE tier_id = $1",
         [tierId]
@@ -446,7 +466,9 @@ router.patch(
     const client = await pool.connect();
     try {
       const orderId = parsePositiveId(req.params.id, "Order");
-      const { status, weight_kg, dimensions, total_distance_km } = req.body ?? {};
+      // Sprint 13: total_distance_km is no longer read from the body — the
+      // server computes the origin -> destination distance itself.
+      const { status, weight_kg, dimensions } = req.body ?? {};
       const validStatuses = [
         "pending",
         "accepted",
@@ -464,16 +486,6 @@ router.patch(
       if (status === "shipped" && (Number(weight_kg) <= 0 || Number.isNaN(Number(weight_kg)))) {
         throw createHttpError(400, "weight_kg must be a number greater than 0");
       }
-      if (
-        status === "shipped" &&
-        (Number(total_distance_km) < 0 ||
-          total_distance_km === null ||
-          total_distance_km === undefined ||
-          Number.isNaN(Number(total_distance_km)))
-      ) {
-        throw createHttpError(400, "total_distance_km must be a number greater than or equal to 0");
-      }
-
       await client.query("BEGIN");
       const lock = await client.query(
         `SELECT order_id, buyer_business_id, wholesaler_business_id, tier_id, status
@@ -506,56 +518,74 @@ router.patch(
               WHERE o.order_id = $1`,
             [orderId],
           );
-          const originAddress = await client.query(
-            "SELECT address_id FROM addresses WHERE business_id = $1 LIMIT 1",
-            [order.wholesaler_business_id]
+          // Sprint 13: parcel endpoints come from each business's CANONICAL
+          // logistics address (never a LIMIT 1 pick). A missing or unpinned
+          // address hard-rolls-back the whole transition — shipping never
+          // silently skips parcel creation (docs/LOCATION_ROUTING.md).
+          const endpoints = await client.query(
+            `SELECT b.business_id, a.address_id,
+                    (a.latitude IS NOT NULL AND a.longitude IS NOT NULL) AS pinned
+               FROM businesses b
+               LEFT JOIN addresses a ON a.address_id = b.logistics_address_id
+              WHERE b.business_id IN ($1, $2)`,
+            [order.wholesaler_business_id, order.buyer_business_id],
           );
-          const destAddress = await client.query(
-            "SELECT address_id FROM addresses WHERE business_id = $1 LIMIT 1",
-            [order.buyer_business_id]
-          );
-
-          if (originAddress.rows.length > 0 && destAddress.rows.length > 0) {
-            const parcelId = await nextParcelId(client);
-            await client.query(
-              `INSERT INTO parcels (parcel_id, order_id, sender_id, receiver_id, tier_id,
-                                   origin_address_id, destination_address_id,
-                                   weight_kg, dimensions, total_distance_km, declared_value,
-                                   shipping_fee, estimated_delivery_date)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NULL,
-                       CURRENT_DATE + (SELECT estimated_days FROM service_tiers WHERE tier_id = $5))`,
-              [
-                parcelId,
-                orderId,
-                order.wholesaler_business_id,
-                order.buyer_business_id,
-                order.tier_id,
-                originAddress.rows[0].address_id,
-                destAddress.rows[0].address_id,
-                weight_kg,
-                dimensions ?? null,
-                total_distance_km,
-                pricing.rows[0].declared_value,
-              ]
-            );
-
-            // Marketplace checkout is an online payment: settled at booking.
-            // The dispatch gate stays modeled-not-enforced (course-deliverable).
-            await client.query(
-              `INSERT INTO payments (parcel_id, method, payment_status, amount, paid_at)
-               VALUES ($1, 'Online', 'Paid', NULL, CURRENT_TIMESTAMP)`,
-              [parcelId]
-            );
-
-            await client.query(
-              `INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id)
-               VALUES ($1, 'Order Created', 'System-generated from marketplace order', $2)`,
-              [
-                parcelId,
-                await resolveInitialBranchId(client, originAddress.rows[0].address_id),
-              ]
-            );
+          const byBusiness = new Map(endpoints.rows.map((row) => [row.business_id, row]));
+          const origin = byBusiness.get(order.wholesaler_business_id);
+          const destination = byBusiness.get(order.buyer_business_id);
+          if (!origin?.address_id || !origin.pinned) {
+            throw createHttpError(409, "Pin your business location in Settings before shipping orders");
           }
+          // Defensive: buyers are gated at order placement, but the pin may
+          // have been removed between placing and shipping.
+          if (!destination?.address_id || !destination.pinned) {
+            throw createHttpError(409, "Buyer business has no pinned location");
+          }
+
+          const distanceKm = await computeRouteDistanceKm(
+            client,
+            origin.address_id,
+            destination.address_id,
+          );
+
+          const parcelId = await nextParcelId(client);
+          await client.query(
+            `INSERT INTO parcels (parcel_id, order_id, sender_id, receiver_id, tier_id,
+                                 origin_address_id, destination_address_id,
+                                 weight_kg, dimensions, total_distance_km, declared_value,
+                                 shipping_fee, estimated_delivery_date)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NULL,
+                     CURRENT_DATE + (SELECT estimated_days FROM service_tiers WHERE tier_id = $5))`,
+            [
+              parcelId,
+              orderId,
+              order.wholesaler_business_id,
+              order.buyer_business_id,
+              order.tier_id,
+              origin.address_id,
+              destination.address_id,
+              weight_kg,
+              dimensions ?? null,
+              distanceKm,
+              pricing.rows[0].declared_value,
+            ]
+          );
+
+          // Marketplace checkout is an online payment: settled at booking.
+          // The dispatch gate stays modeled-not-enforced (course-deliverable).
+          await client.query(
+            `INSERT INTO payments (parcel_id, method, payment_status, amount, paid_at)
+             VALUES ($1, 'Online', 'Paid', NULL, CURRENT_TIMESTAMP)`,
+            [parcelId]
+          );
+
+          const branchId = await resolveInitialBranchId(client, origin.address_id);
+          await client.query(
+            `INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id)
+             VALUES ($1, 'Order Created', 'System-generated from marketplace order', $2)`,
+            [parcelId, branchId]
+          );
+          await createInitialRouteSnapshot(client, parcelId, branchId);
         }
       }
 
