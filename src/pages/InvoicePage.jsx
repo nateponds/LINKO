@@ -93,49 +93,47 @@ export default function InvoicePage() {
 
   const [invoices, setInvoices] = useState([]);
   const [invoice, setInvoice] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [loadingList, setLoadingList] = useState(true);
+  const [errorList, setErrorList] = useState(null);
+  const [loadingInvoice, setLoadingInvoice] = useState(false);
+  const [errorInvoice, setErrorInvoice] = useState(null);
 
   useEffect(() => {
     let active = true;
-
-    async function loadInvoices() {
-      setLoading(true);
-      setError(null);
-      setInvoice(null);
-
+    async function loadList() {
+      setLoadingList(true);
+      setErrorList(null);
       try {
-        const data = invoiceId
-          ? await apiGet(`/api/invoices/${encodeURIComponent(invoiceId)}`)
-          : await apiGet("/api/invoices");
-
-        if (!active) {
-          return;
-        }
-
-        if (invoiceId) {
-          setInvoice(data);
-          setInvoices([]);
-        } else {
-          setInvoices(Array.isArray(data) ? data : []);
-          setInvoice(null);
-        }
+        const data = await apiGet("/api/invoices");
+        if (active) setInvoices(Array.isArray(data) ? data : []);
       } catch (caughtError) {
-        if (active) {
-          setError(caughtError.message);
-        }
+        if (active) setErrorList(caughtError.message);
       } finally {
-        if (active) {
-          setLoading(false);
-        }
+        if (active) setLoadingList(false);
       }
     }
+    void loadList();
+    return () => { active = false; };
+  }, []);
 
-    void loadInvoices();
+  useEffect(() => {
+    let active = true;
+    if (!invoiceId) return;
 
-    return () => {
-      active = false;
-    };
+    async function loadInvoice() {
+      setLoadingInvoice(true);
+      setErrorInvoice(null);
+      try {
+        const data = await apiGet(`/api/invoices/${encodeURIComponent(invoiceId)}`);
+        if (active) setInvoice(data);
+      } catch (caughtError) {
+        if (active) setErrorInvoice(caughtError.message);
+      } finally {
+        if (active) setLoadingInvoice(false);
+      }
+    }
+    void loadInvoice();
+    return () => { active = false; };
   }, [invoiceId]);
 
   const timeline = useMemo(() => timelineFor(invoice), [invoice]);
@@ -153,9 +151,13 @@ export default function InvoicePage() {
     <AppLayout>
       <div className="invoice-page">
         <div className="invoice-subbar">
-          <button className="back-btn" onClick={handleBack}>
-            <ArrowLeft size={15} /> Back
-          </button>
+          {invoiceId ? (
+            <button className="back-btn" onClick={handleBack}>
+              <ArrowLeft size={15} /> Back
+            </button>
+          ) : (
+            <div />
+          )}
           <div className="invoice-subbar-right">
             <span className="tracking-label">
               {invoiceId ? "Invoice No." : "Invoices"}
@@ -169,7 +171,7 @@ export default function InvoicePage() {
         </div>
 
         {!invoiceId ? (
-          <main className="invoice-list-wrap" aria-busy={loading}>
+          <main className="invoice-list-wrap" aria-busy={loadingList}>
             <div className="invoice-list-head">
               <div>
                 <span className="status-eyebrow">Billing workspace</span>
@@ -178,11 +180,11 @@ export default function InvoicePage() {
               <FileText size={24} aria-hidden="true" />
             </div>
 
-            {loading ? (
+            {loadingList ? (
               <div className="invoice-error">Loading invoices...</div>
-            ) : error ? (
+            ) : errorList ? (
               <div className="invoice-error">
-                Could not load invoices: {error}
+                Could not load invoices: {errorList}
               </div>
             ) : invoices.length === 0 ? (
               <div className="invoice-error">
@@ -230,12 +232,12 @@ export default function InvoicePage() {
               </div>
             )}
           </main>
-        ) : error && !loading ? (
+        ) : errorInvoice && !loadingInvoice ? (
           <div className="invoice-error">
-            We couldn't find that invoice: {error}
+            We couldn't find that invoice: {errorInvoice}
           </div>
         ) : (
-          <main className="invoice-wrap" aria-busy={loading}>
+          <main className="invoice-wrap" aria-busy={loadingInvoice}>
             <aside className="parties">
               <div className="party-card">
                 <div className="shop-name">
