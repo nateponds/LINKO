@@ -5,7 +5,7 @@
 --   psql $DATABASE_URL -f backend/seeds/dev_seed.sql
 --   (or via the Node runner: node seeds/_apply_seed.js)
 --
--- Password for every demo account: "password"
+-- Password for every demo account: "Password123!"
 -- Hash: scrypt(ln=14,r=8,p=1)
 -- ==========================================================================
 

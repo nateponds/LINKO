@@ -383,9 +383,8 @@ async function main() {
     const loginRes = await fetch(`${baseUrl}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      // dev_seed.sql demo accounts share the plaintext password "password"
-      // (hash at seeds/dev_seed.sql). NOT "Password123!" — that is what the API
-      // seeder sets on the personas it registers, a different account set.
+      // logistics@linko.test comes from seeds/dev_seed.sql and shares the demo
+      // password "Password123!" with the personas this seeder registers.
       body: JSON.stringify({ email: 'logistics@linko.test', password: 'Password123!' })
     });
     if (!loginRes.ok) {
