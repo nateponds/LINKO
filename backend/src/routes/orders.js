@@ -458,7 +458,7 @@ router.patch(
     const client = await pool.connect();
     try {
       const orderId = parsePositiveId(req.params.id, "Order");
-      const { status, weight_kg, dimensions } = req.body ?? {};
+      const { status, weight_kg, dimensions, total_distance_km } = req.body ?? {};
       const validStatuses = [
         "pending",
         "accepted",
@@ -475,6 +475,15 @@ router.patch(
       // here, so the shipping fee is set from a real measurement.
       if (status === "shipped" && (Number(weight_kg) <= 0 || Number.isNaN(Number(weight_kg)))) {
         throw createHttpError(400, "weight_kg must be a number greater than 0");
+      }
+      if (
+        status === "shipped" &&
+        (Number(total_distance_km) < 0 ||
+          total_distance_km === null ||
+          total_distance_km === undefined ||
+          Number.isNaN(Number(total_distance_km)))
+      ) {
+        throw createHttpError(400, "total_distance_km must be a number greater than or equal to 0");
       }
 
       await client.query("BEGIN");
@@ -503,11 +512,9 @@ router.patch(
 
         if (status === "shipped") {
           const pricing = await client.query(
-            `SELECT COALESCE(SUM(oi.quantity * oi.unit_price_snapshot), 0) AS declared_value,
-                    COALESCE(MAX(st.base_fee), 0) AS shipping_fee
+            `SELECT COALESCE(SUM(oi.quantity * oi.unit_price_snapshot), 0) AS declared_value
                FROM orders o
                LEFT JOIN order_items oi ON oi.order_id = o.order_id
-               LEFT JOIN service_tiers st ON st.tier_id = o.tier_id
               WHERE o.order_id = $1`,
             [orderId],
           );
@@ -527,7 +534,7 @@ router.patch(
                                    origin_address_id, destination_address_id,
                                    weight_kg, dimensions, total_distance_km, declared_value,
                                    shipping_fee, estimated_delivery_date)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULL, $10, $11,
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NULL,
                        CURRENT_DATE + (SELECT estimated_days FROM service_tiers WHERE tier_id = $5))`,
               [
                 parcelId,
@@ -539,8 +546,8 @@ router.patch(
                 destAddress.rows[0].address_id,
                 weight_kg,
                 dimensions ?? null,
+                total_distance_km,
                 pricing.rows[0].declared_value,
-                pricing.rows[0].shipping_fee,
               ]
             );
 

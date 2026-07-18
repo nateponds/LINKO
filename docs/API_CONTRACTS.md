@@ -274,12 +274,17 @@ List parcels with derived current status, most recently scanned first. Row visib
     "estimated_delivery_date": "2026-07-04",
     "current_status": "Out for Delivery",
     "last_scanned_at": "2026-07-05T09:47:21.662Z",
-    "failed_attempts": 0
+    "failed_attempts": 0,
+    "return_triggered": false
   }
 ]
 ```
 
 `failed_attempts` is the derived count of `'Delivery Failed'` tracking rows for the parcel (never stored on the parcel row); the courier dashboard uses it to gate the retry vs return-leg actions.
+
+`return_triggered` is a derived boolean: `true` once the parcel has 3 `'Delivery Failed'` rows **or** any `'Delivery Failed'` row with a hard-reason remark (`'Bad address'` or `'Delivery refused'`), otherwise `false`. It is the single flag the courier UI reads to switch from retry to return-leg actions.
+
+Failure-reason contract: a `POST .../tracking` submission with `status_update = 'Delivery Failed'` requires `remarks` to be exactly one of `Receiver unavailable`, `Delivery refused`, or `Bad address` (`400` otherwise). Soft reason (`Receiver unavailable`) retries up to 3 attempts; hard reasons (`Bad address`, `Delivery refused`) open the return leg on the first fail. On the buyer/receiver-only parcel detail view, the tracking timeline is truncated at and including the triggering `'Delivery Failed'` row — the internal return leg is hidden.
 
 ### 3.2 `GET /api/parcels/:id`
 
