@@ -45,3 +45,16 @@ export function validateCoordinatePair(latitude, longitude) {
   // -0 === 0, so this normalizes -0 to 0 before it reaches SQL or JSON
   return { ok: true, latitude: lat === 0 ? 0 : lat, longitude: lng === 0 ? 0 : lng };
 }
+
+// Great-circle distance in km as a SQL fragment (docs/LOCATION_ROUTING.md
+// §Haversine). latParam/lngParam are placeholders ($n), latColumn/lngColumn
+// are column references — all fixed strings from code, never user input.
+// The LEAST/GREATEST clamp keeps acos in domain when both points are
+// identical (floating point can push the argument past 1.0 -> NaN).
+export function haversineKmSql(latParam, lngParam, latColumn, lngColumn) {
+  return `6371 * acos(LEAST(1.0, GREATEST(-1.0,
+    cos(radians(${latParam})) * cos(radians(${latColumn})) *
+    cos(radians(${lngColumn}) - radians(${lngParam})) +
+    sin(radians(${latParam})) * sin(radians(${latColumn}))
+  )))`;
+}
