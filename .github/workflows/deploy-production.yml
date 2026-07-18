@@ -20,6 +20,7 @@ jobs:
       - name: Deploy Production Services
         env:
           PROD_DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+          VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN }}
         run: |
           docker rm -f linko-backend-production linko-frontend-production || true
           cd /mnt/Storage2_New/website-hosting/linko-platform

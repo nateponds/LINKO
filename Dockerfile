@@ -4,6 +4,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
+ARG VITE_MAPBOX_TOKEN
 RUN npm run build
 
 # Stage 2: Serve
