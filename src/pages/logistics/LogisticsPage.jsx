@@ -3,6 +3,7 @@ import { Search, PackagePlus } from "lucide-react";
 import { Link } from "react-router-dom";
 import AppLayout from "../../layouts/AppLayout";
 import { useAuth } from "../../auth/AuthProvider";
+import { apiGet } from "../../lib/api";
 import { peso, shortDate, statusClass } from "../../lib/format";
 import "./logistics.css";
 
@@ -34,11 +35,7 @@ export default function LogisticsPage() {
   useEffect(() => {
     let cancelled = false;
 
-    fetch("/api/parcels")
-      .then((res) => {
-        if (!res.ok) throw new Error(`Server responded ${res.status}`);
-        return res.json();
-      })
+    apiGet("/api/parcels")
       .then((data) => {
         if (cancelled) return;
         setParcels(data);
