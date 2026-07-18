@@ -98,11 +98,14 @@ test("courier picks up from the pool and delivering the parcel completes the ord
       assert.equal(step.status, 200, `wholesaler should reach ${status}`);
     }
 
-    // Shipping auto-created a parcel linked back to the order.
+    // Shipping auto-created a parcel linked back to the order. Since Sprint 13
+    // the distance is server-computed from the canonical addresses, so the fee
+    // is derived from the stored distance rather than the ignored client field.
     const parcelRow = await pool.query(
       `SELECT p.parcel_id,
               p.declared_value::float8,
               p.shipping_fee::float8,
+              p.total_distance_km::float8,
               pay.amount::float8 AS payment_total
          FROM parcels p
          JOIN payments pay ON pay.parcel_id = p.parcel_id
@@ -112,11 +115,15 @@ test("courier picks up from the pool and delivering the parcel completes the ord
     assert.ok(parcelRow.rows[0], "shipping should create a parcel with order_id set");
     const parcelId = parcelRow.rows[0].parcel_id;
     assert.equal(parcelRow.rows[0].declared_value, goodsSubtotal);
-    const expectedShippingFee = baseFee + (3.5 * 20) + (10 * 2);
-    assert.equal(parcelRow.rows[0].shipping_fee, expectedShippingFee);
-    assert.equal(
-      parcelRow.rows[0].payment_total,
-      goodsSubtotal + expectedShippingFee,
+    assert.ok(parcelRow.rows[0].total_distance_km > 0, "server should compute a distance");
+    const expectedShippingFee = baseFee + (3.5 * 20) + (parcelRow.rows[0].total_distance_km * 2);
+    assert.ok(
+      Math.abs(parcelRow.rows[0].shipping_fee - expectedShippingFee) < 0.05,
+      `fee from server distance, got ${parcelRow.rows[0].shipping_fee}`,
+    );
+    assert.ok(
+      Math.abs(parcelRow.rows[0].payment_total - (goodsSubtotal + parcelRow.rows[0].shipping_fee)) < 0.01,
+      "payment total = goods + shipping",
     );
 
     // Delivery is the courier's call now, not the wholesaler's.
