@@ -23,6 +23,7 @@ import BecomeSupplierPage from "./pages/BecomeSupplierPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
+import SettingsPage from "./pages/SettingsPage";
 
 const TITLES = [
   ["/register", "Register"],
@@ -34,6 +35,7 @@ const TITLES = [
   ["/orders", "Orders"],
   ["/logistics", "Logistics"],
   ["/admin", "Admin"],
+  ["/settings", "Settings"],
   ["/suppliers/", "Supplier"],
 ];
 
@@ -108,6 +110,10 @@ function AppRoutes() {
 
       <Route element={<ProtectedRoute roles={ROLE_ACCESS.admin} />}>
         <Route path="/admin" element={<AdminDashboardPage />} />
+      </Route>
+
+      <Route element={<ProtectedRoute roles={ROLE_ACCESS.settings} />}>
+        <Route path="/settings" element={<SettingsPage />} />
       </Route>
 
       <Route path="*" element={<UnknownRouteRedirect />} />
