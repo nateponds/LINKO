@@ -63,10 +63,10 @@ You can customize the run by appending standard arguments to `npm run seed:api -
 
 | Option | Default | Description |
 |---|---|---|
-| `--count=<number>` | `2` | Number of personas (split into buyers and wholesalers) to register and process. |
+| `--count=<number>` | all personas in `personas.json` | Number of personas (split into buyers and wholesalers) to register and process; cycles the persona list if larger. |
 | `--depth=<level>` | `delivered` | Funnel gate to stop at (see Depth Levels table below). |
 | `--base-url=<url>` | `http://localhost:5001` | Base URL of the target API. |
-| `--concurrency=<number>`| `5` | Maximum number of concurrent personas processing. |
+| `--concurrency=<number>`| `8` | Maximum number of concurrent personas processing. |
 | `--force` | `false` | Bypass staging/production env check guards (safety feature). |
 | `--dry-run` | `false` | Run through calculations and print mock outputs without sending API requests. |
 
