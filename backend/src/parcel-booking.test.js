@@ -146,6 +146,50 @@ test("booking computes server distance, fee, branch, and a 3-stop snapshot", { s
   });
 });
 
+test("parcel detail returns planned_route separately from tracking_history", { skip: !hasDb }, async () => {
+  const cookie = await loginAs("wholesaler@linko.test");
+  const booked = await bookParcel(cookie);
+  assert.equal(booked.status, 201);
+
+  const detail = await request(`/api/parcels/${booked.body.parcel_id}`, {
+    headers: { Cookie: cookie },
+  });
+
+  assert.equal(detail.status, 200);
+  assert.deepEqual(detail.body.planned_route, [
+    {
+      stop_order: 1,
+      stop_type: "origin",
+      branch_id: null,
+      label: "Cebu Fresh Wholesale",
+      latitude: 10.3444,
+      longitude: 123.9137,
+    },
+    {
+      stop_order: 2,
+      stop_type: "branch",
+      branch_id: 1,
+      label: "LINKO Cebu Central Hub",
+      latitude: 10.3243,
+      longitude: 123.9234,
+    },
+    {
+      stop_order: 3,
+      stop_type: "destination",
+      branch_id: null,
+      label: "Sunrise Retail Cooperative",
+      latitude: 10.3283,
+      longitude: 123.8988,
+    },
+  ]);
+  assert.ok(
+    detail.body.tracking_history.every(
+      (entry) => !("stop_order" in entry) && !("stop_type" in entry),
+    ),
+    "planned stops never leak into tracking history",
+  );
+});
+
 test("foreign origin and destination address IDs are rejected with 400", { skip: !hasDb }, async () => {
   const cookie = await loginAs("wholesaler@linko.test");
   const before = await withPool(countParcels);
@@ -210,6 +254,12 @@ test("assignment miss keeps the booking: branchless parcel, no snapshot", { skip
         [parcelId],
       );
       assert.equal(stops.rows[0].n, 0, "branchless parcel gets no snapshot yet");
+
+      const detail = await request(`/api/parcels/${parcelId}`, {
+        headers: { Cookie: cookie },
+      });
+      assert.equal(detail.status, 200);
+      assert.deepEqual(detail.body.planned_route, []);
 
       const parcel = await pool.query(
         "SELECT total_distance_km::float8 AS distance_km FROM parcels WHERE parcel_id = $1",
