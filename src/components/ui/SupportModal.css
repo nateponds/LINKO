@@ -1,0 +1,145 @@
+.support-modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(23, 33, 61, 0.45);
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+}
+
+.support-modal-overlay.open {
+  display: flex;
+}
+
+.support-modal-overlay .support-modal-box {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 16px 48px rgba(23, 33, 61, 0.2);
+  padding: 32px 30px;
+  width: 100%;
+  max-width: 420px;
+  position: relative;
+  max-height: 90vh;
+  overflow-y: auto;
+  text-align: center;
+}
+
+.support-modal-overlay .support-icon-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--color-primary);
+  margin-bottom: 20px;
+  outline: 2px solid var(--color-accent);
+  outline-offset: 4px;
+}
+
+@keyframes supportIconRingPop {
+  0% { transform: scale(1) translateY(0) rotate(0deg); }
+  8% { transform: scale(1.3, 0.7) translateY(8px) rotate(0deg); }
+  16% { transform: scale(0.8, 1.4) translateY(-35px) rotate(0deg); }
+  22% { transform: scale(1.4, 1.4) translateY(-25px) rotate(-25deg); }
+  32% { transform: scale(1.4, 1.4) translateY(-25px) rotate(25deg); }
+  42% { transform: scale(1.4, 1.4) translateY(-25px) rotate(-25deg); }
+  52% { transform: scale(1.4, 1.4) translateY(-25px) rotate(25deg); }
+  62% { transform: scale(1.4, 1.4) translateY(-25px) rotate(-25deg); }
+  72% { transform: scale(1.4, 1.4) translateY(-25px) rotate(25deg); }
+  80% { transform: scale(1.4, 1.4) translateY(-25px) rotate(0deg); }
+  88% { transform: scale(0.8, 1.4) translateY(5px) rotate(0deg); }
+  94% { transform: scale(1.3, 0.7) translateY(12px) rotate(0deg); }
+  97% { transform: scale(0.95, 1.05) translateY(-4px) rotate(0deg); }
+  100% { transform: scale(1) translateY(0) rotate(0deg); }
+}
+
+.support-modal-overlay .support-icon {
+  width: 32px;
+  height: 32px;
+  animation: supportIconRingPop 1.2s linear 0.2s 1 normal both;
+}
+
+
+.support-modal-overlay .support-modal-box h2 {
+  margin: 0 0 18px;
+  color: var(--color-primary-dark);
+  font-size: 1.15rem;
+}
+
+.support-modal-overlay .support-hotline {
+  margin: 0 0 12px;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.support-modal-overlay .support-hotline a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-decoration-color: var(--color-accent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+.support-modal-overlay .support-blurb {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.support-modal-overlay .support-modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.support-modal-overlay .btn-secondary {
+  background: var(--color-primary);
+  color: #fff;
+  border: none;
+  padding: 10px 28px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: opacity 0.2s;
+}
+
+.support-modal-overlay .btn-secondary:hover {
+  opacity: 0.9;
+}
+
+/* In-page "Need help?" trigger (parcel detail + orders tracking modal). */
+.support-link-btn {
+  display: inline-block;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 4px 0 10px;
+  cursor: pointer;
+  color: var(--color-primary);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+/* Makes a <button> sit inline with the footer's <Link> siblings. */
+.footer-support-link {
+  display: block;
+  background: none;
+  border: none;
+  padding: 5px 0;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.85);
+  font-family: inherit;
+  font-size: 0.88rem;
+  text-align: left;
+}
+
+.footer-support-link:hover {
+  color: var(--color-accent);
+}

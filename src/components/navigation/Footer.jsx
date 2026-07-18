@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../auth/AuthProvider";
 import { APP_NAV_ITEMS, ROLE_ACCESS } from "../../auth/roleAccess";
+import SupportModal from "../ui/SupportModal";
 
 function Footer() {
   const { hasAnyRole } = useAuth();
+  const [supportOpen, setSupportOpen] = useState(false);
   const marketplaceLinks = APP_NAV_ITEMS.filter(
     (item) =>
       ["/", "/orders", "/invoices"].includes(item.link) && hasAnyRole(item.roles),
@@ -15,6 +18,7 @@ function Footer() {
   );
 
   return (
+    <>
     <footer className="app-footer">
       <div className="footer-grid">
         <div className="footer-brand">
@@ -46,10 +50,19 @@ function Footer() {
           {hasAnyRole(["wholesaler", "logistics_coordinator", "courier", "platform_admin"]) && (
             <Link to="/logistics">Logistics</Link>
           )}
+          <button
+            type="button"
+            className="footer-support-link"
+            onClick={() => setSupportOpen(true)}
+          >
+            Customer Service
+          </button>
         </div>
       </div>
       <div className="footer-bottom">© 2026 LINKO. All rights reserved.</div>
     </footer>
+    <SupportModal open={supportOpen} onClose={() => setSupportOpen(false)} />
+    </>
   );
 }
 
