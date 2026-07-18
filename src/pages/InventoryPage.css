@@ -180,6 +180,14 @@
     color: var(--color-text);
   }
 
+  .inventory-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  .table-height-animator {
+    border-bottom: 1px solid var(--hairline);
+  }
+
   .inventory-table td strong {
     color: var(--color-primary-dark);
     font-weight: 700;

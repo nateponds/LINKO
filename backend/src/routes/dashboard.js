@@ -191,4 +191,19 @@ router.patch("/notifications/:id/read", requireAuth, async (req, res, next) => {
   }
 });
 
+// PATCH /api/notifications/read-all
+router.patch("/notifications/read-all", requireAuth, async (req, res, next) => {
+  try {
+    await query(
+      `UPDATE notifications 
+          SET is_read = TRUE 
+        WHERE user_id = $1`,
+      [req.auth.user.user_id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    next(asClientError(err));
+  }
+});
+
 export default router;

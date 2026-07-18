@@ -2,9 +2,13 @@ import { useEffect, useState } from "react";
 import {
   Bell,
   Boxes,
+  ChevronLeft,
+  ChevronRight,
   ClipboardList,
   LayoutDashboard,
   LogOut,
+  Mail,
+  MailOpen,
   Menu,
   Package,
   Search,
@@ -31,7 +35,11 @@ function Topbar({ showSearch = false, showCategories = false }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [openPanel, setOpenPanel] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  const [notificationPage, setNotificationPage] = useState(1);
+  const [isMailHovered, setIsMailHovered] = useState(false);
   const [categories, setCategories] = useState([]);
+  const NOTIFICATIONS_PER_PAGE = 5;
+  const currentNotifPage = Math.min(notificationPage, Math.max(1, Math.ceil(notifications.length / NOTIFICATIONS_PER_PAGE)));
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const {
@@ -152,6 +160,18 @@ function Topbar({ showSearch = false, showCategories = false }) {
     }
   }
 
+  async function clearAllNotifications(event) {
+    event.stopPropagation();
+    try {
+      const { apiSend } = await import("../../lib/api.js");
+      await apiSend(`/api/notifications/read-all`, { method: "PATCH" });
+      setNotifications([]);
+      setNotificationPage(1);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
   function togglePanel(event, name) {
     event.stopPropagation();
     setOpenPanel((current) => (current === name ? null : name));
@@ -262,12 +282,26 @@ function Topbar({ showSearch = false, showCategories = false }) {
                 <span className="notif-badge">{notifications.length}</span>
               )}
             </button>
-            {openPanel === "notifications" && (
-              <div
-                className="dropdown-panel"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <div className="dropdown-head">Notifications</div>
+            <div
+              className={`dropdown-panel animated ${openPanel === "notifications" ? "open" : ""}`}
+              onClick={(event) => event.stopPropagation()}
+            >
+                <div className="dropdown-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span>Notifications</span>
+                  {notifications.length > 0 && (
+                    <button
+                      type="button"
+                      className="icon-action notif-icon-action"
+                      style={{ padding: "0.25rem" }}
+                      onClick={clearAllNotifications}
+                      onMouseEnter={() => setIsMailHovered(true)}
+                      onMouseLeave={() => setIsMailHovered(false)}
+                      title="Mark as Read All"
+                    >
+                      {isMailHovered ? <MailOpen size={16} style={{ transform: "translateY(-2px)" }} /> : <Mail size={16} />}
+                    </button>
+                  )}
+                </div>
                 <ul className="notif-list">
                   {notifications.length === 0 ? (
                     <li
@@ -280,30 +314,71 @@ function Topbar({ showSearch = false, showCategories = false }) {
                       No new notifications
                     </li>
                   ) : (
-                    notifications.map((n) => {
-                      const Icon = getIconForType(n.type);
-                      return (
+                    <>
+                      {notifications
+                        .slice(
+                          (currentNotifPage - 1) * NOTIFICATIONS_PER_PAGE,
+                          currentNotifPage * NOTIFICATIONS_PER_PAGE
+                        )
+                        .map((n) => {
+                          const Icon = getIconForType(n.type);
+                          return (
+                            <li
+                              key={n.notification_id}
+                              onClick={() => markAsRead(n.notification_id)}
+                              className="notif-row"
+                            >
+                              <span className="notif-icon">
+                                <Icon size={16} />
+                              </span>
+                              <div>
+                                <span className="notif-text">{n.message}</span>
+                                <span className="notif-time">
+                                  {new Date(n.created_at).toLocaleDateString()}
+                                </span>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      {notifications.length > NOTIFICATIONS_PER_PAGE && (
                         <li
-                          key={n.notification_id}
-                          onClick={() => markAsRead(n.notification_id)}
-                          style={{ cursor: "pointer" }}
+                          style={{
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            gap: "1rem",
+                            padding: "0.5rem",
+                            background: "transparent",
+                          }}
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          <span className="notif-icon">
-                            <Icon size={16} />
+                          <button
+                            type="button"
+                            className="icon-action notif-icon-action"
+                            disabled={currentNotifPage === 1}
+                            onClick={() => setNotificationPage(currentNotifPage - 1)}
+                            style={{ padding: "0.25rem" }}
+                          >
+                            <ChevronLeft size={16} />
+                          </button>
+                          <span style={{ fontSize: "0.8rem", color: "#666" }}>
+                            {currentNotifPage} / {Math.ceil(notifications.length / NOTIFICATIONS_PER_PAGE)}
                           </span>
-                          <div>
-                            <span className="notif-text">{n.message}</span>
-                            <span className="notif-time">
-                              {new Date(n.created_at).toLocaleDateString()}
-                            </span>
-                          </div>
+                          <button
+                            type="button"
+                            className="icon-action notif-icon-action"
+                            disabled={currentNotifPage === Math.ceil(notifications.length / NOTIFICATIONS_PER_PAGE)}
+                            onClick={() => setNotificationPage(currentNotifPage + 1)}
+                            style={{ padding: "0.25rem" }}
+                          >
+                            <ChevronRight size={16} />
+                          </button>
                         </li>
-                      );
-                    })
+                      )}
+                    </>
                   )}
                 </ul>
-              </div>
-            )}
+            </div>
           </div>
 
           <button
@@ -325,11 +400,10 @@ function Topbar({ showSearch = false, showCategories = false }) {
             >
               <User size={16} />
             </button>
-            {openPanel === "profile" && (
-              <div
-                className="dropdown-panel"
-                onClick={(event) => event.stopPropagation()}
-              >
+            <div
+              className={`dropdown-panel animated ${openPanel === "profile" ? "open" : ""}`}
+              onClick={(event) => event.stopPropagation()}
+            >
                 <div className="profile-head">
                   <span className="profile-avatar">{avatarLetter}</span>
                   <div>
@@ -365,8 +439,7 @@ function Topbar({ showSearch = false, showCategories = false }) {
                     <LogOut size={15} /> Logout
                   </button>
                 </nav>
-              </div>
-            )}
+            </div>
           </div>
         </div>
       </header>
