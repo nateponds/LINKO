@@ -56,7 +56,7 @@ ON CONFLICT (tier_id) DO UPDATE SET
 
 SELECT setval('service_tiers_tier_id_seq', 3, true);
 
--- Shared password hash for all demo accounts — plaintext is "password"
+-- Shared password hash for all demo accounts — plaintext is "Password123!"
 -- Hash: scrypt(ln=14,r=8,p=1)
 
 -- ---------------------------------------------------------------------------
