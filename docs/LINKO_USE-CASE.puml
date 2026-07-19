@@ -2,6 +2,7 @@
 left to right direction
 
 actor "Buyer" as Buyer
+actor "Wholesaler" as Wholesaler
 actor "Courier" as Courier
 actor "Logistics Coordinator" as Coordinator
 actor "Administrator" as Admin
@@ -26,10 +27,12 @@ rectangle "LINKO Courier & Parcel Tracking System" {
 
 Buyer -- UC4
 
+Wholesaler -- UC1
+Wholesaler -- UC13
+
 Courier -- UC6
 Courier -- UC13
 
-Coordinator -- UC1
 Coordinator -- UC6
 Coordinator -- UC7
 Coordinator -- UC9
@@ -37,7 +40,6 @@ Coordinator -- UC10
 Coordinator -- UC13
 Coordinator -- UC14
 
-Admin -- UC1
 Admin -- UC6
 Admin -- UC7
 Admin -- UC8
@@ -54,6 +56,14 @@ UC1 ..> UC3 : <<include>>
 UC1 ..> UC12 : <<include>>
 UC6 ..> UC12 : <<include>>
 UC14 ..> UC12 : <<include>>
+
+note right of UC1
+  Register Parcel is wholesaler-gated: POST /api/parcels and
+  POST /api/orders/:id/ship are R:wholesaler — the shipping
+  wholesaler is the parcel Sender. Coordinators/Admins do not
+  register parcels via the API; the /logistics "Create parcel"
+  button operates within a wholesaler membership context.
+end note
 
 note right of UC8
   Note: Sprint 12 limits UC8 to Edit-Only
