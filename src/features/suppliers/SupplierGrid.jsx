@@ -1,134 +1,122 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { BadgeCheck, MapPin, Package } from "lucide-react";
+import { BadgeCheck, MapPin, Package, Search } from "lucide-react";
 import { apiGet } from "../../lib/api";
+import PaginationControls from "../../components/ui/PaginationControls";
+import { readListUrlState, updateListUrlState } from "../../lib/pagination";
+import { apiPath, normalizePage, shouldClampPage } from "./marketplacePagination";
 
 const PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1586528116311-ad8ed745d44c?auto=format&fit=crop&q=80&w=600";
 
 function SupplierGrid() {
-  const [searchParams] = useSearchParams();
-  const category = searchParams.get("category");
-  const query = (searchParams.get("q") ?? "").trim();
-
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { page, limit, q } = readListUrlState(searchParams);
+  const category = searchParams.get("category") ?? "";
+  const [searchInput, setSearchInput] = useState(q);
   const [suppliers, setSuppliers] = useState([]);
+  const [pagination, setPagination] = useState({ page, limit, total_items: 0, total_pages: 0 });
   const [loading, setLoading] = useState(true);
+  const [fetching, setFetching] = useState(false);
   const [error, setError] = useState(null);
+  const [hasLoaded, setHasLoaded] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (searchInput === q) return;
+      setSearchParams(updateListUrlState(searchParams, { q: searchInput }), { replace: true });
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [q, searchInput, searchParams, setSearchParams]);
 
   useEffect(() => {
     let cancelled = false;
-
     async function load() {
-      setLoading(true);
+      if (hasLoaded) setFetching(true);
+      else setLoading(true);
       setError(null);
       try {
-        // Resolve the category name (from SubNav links) to its id.
-        let categoryId = null;
+        let categoryId;
         if (category) {
-          const categories = await apiGet("/api/categories");
-          const match = (Array.isArray(categories) ? categories : []).find(
-            (c) => c.category_name === category,
-          );
-          categoryId = match ? match.category_id : null;
+          const categories = await apiGet("/api/categories/options");
+          categoryId = (Array.isArray(categories) ? categories : []).find(
+            (item) => item.category_name === category,
+          )?.category_id;
         }
-
-        const params = new URLSearchParams();
-        if (query) params.set("q", query);
-        if (categoryId != null) params.set("category_id", String(categoryId));
-        const qs = params.toString();
-
-        const data = await apiGet(`/api/suppliers${qs ? `?${qs}` : ""}`);
-        if (!cancelled) {
-          setSuppliers(Array.isArray(data) ? data : []);
-          setLoading(false);
+        const data = await apiGet(apiPath("/api/suppliers", { q, page, limit, category_id: categoryId }));
+        if (cancelled) return;
+        const next = normalizePage(data);
+        if (shouldClampPage(next.pagination)) {
+          setSearchParams(updateListUrlState(searchParams, { page: next.pagination.total_pages }), { replace: true });
+          return;
         }
+        setSuppliers(next.items);
+        setPagination(next.pagination);
+        setHasLoaded(true);
       } catch (err) {
+        if (!cancelled) setError(err.message);
+      } finally {
         if (!cancelled) {
-          setError(err.message);
           setLoading(false);
+          setFetching(false);
         }
       }
     }
-
     load();
+    return () => { cancelled = true; };
+  }, [category, hasLoaded, limit, page, q, searchParams, setSearchParams]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [category, query]);
-
-  if (loading) {
-    return <p className="grid-empty">Loading suppliers…</p>;
+  function changeList(changes, replace = false) {
+    setSearchParams(updateListUrlState(searchParams, changes), { replace });
   }
 
-  if (error) {
-    return (
-      <p className="grid-empty">
-        Could not load suppliers: {error}. Is the backend running?
-      </p>
-    );
+  function clearFilters() {
+    const next = updateListUrlState(searchParams, { q: "", page: 1 });
+    next.delete("category");
+    setSearchParams(next);
   }
+
+  const hasFilters = Boolean(category || q);
+  if (loading && !hasLoaded) return <p className="grid-empty">Loading suppliers…</p>;
+  if (error && !hasLoaded) return <p className="grid-empty">Could not load suppliers: {error}. Is the backend running?</p>;
 
   return (
-    <>
-      {(category || query) && (
-        <div className="grid-filter-bar">
-          <span>
-            Showing {suppliers.length} supplier
-            {suppliers.length === 1 ? "" : "s"}
-            {query && <> for &ldquo;{query}&rdquo;</>}
-            {category && (
-              <>
-                {" "}
-                in <strong>{category}</strong>
-              </>
-            )}
-          </span>
-          <Link to="/">Clear</Link>
-        </div>
-      )}
+    <section className="supplier-results" aria-busy={fetching}>
+      <div className="supplier-results__tools">
+        <label className="supplier-results__search">
+          <span className="sr-only">Search suppliers</span>
+          <Search size={16} aria-hidden="true" />
+          <input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search suppliers" />
+        </label>
+        {hasFilters && (
+          <div className="grid-filter-bar">
+            <span>{pagination.total_items} supplier{pagination.total_items === 1 ? "" : "s"}{q && <> for “{q}”</>}{category && <> in <strong>{category}</strong></>}</span>
+            <button type="button" onClick={clearFilters}>Clear filters</button>
+          </div>
+        )}
+      </div>
 
+      {error && <p className="grid-empty" role="alert">Could not refresh suppliers: {error}</p>}
       {suppliers.length === 0 ? (
-        <p className="grid-empty">
-          No suppliers found. Try a different search or category.
-        </p>
+        <div className="grid-empty">
+          <p>{hasFilters ? "No suppliers match these filters." : "No suppliers are available yet."}</p>
+          {hasFilters && <button type="button" className="link-button" onClick={clearFilters}>Clear filters</button>}
+        </div>
       ) : (
         <section className="content-grid" aria-label="Supplier results">
           {suppliers.map((supplier) => (
-            <Link
-              to={`/suppliers/${supplier.business_id}`}
-              className="supplier-box"
-              key={supplier.business_id}
-            >
-              <div className="supplier-box-image">
-                <img
-                  src={PLACEHOLDER_IMAGE}
-                  alt={`${supplier.business_name} supplier`}
-                />
-              </div>
+            <Link to={`/suppliers/${supplier.business_id}`} className="supplier-box" key={supplier.business_id}>
+              <div className="supplier-box-image"><img src={PLACEHOLDER_IMAGE} alt={`${supplier.business_name} supplier`} /></div>
               <div className="supplier-box-info">
-                <h3>
-                  {supplier.business_name}
-                  {supplier.is_verified && (
-                    <BadgeCheck
-                      size={16}
-                      className="verified-badge"
-                      aria-label="Verified"
-                    />
-                  )}
-                </h3>
-                <p className="supplier-box-meta">
-                  <MapPin size={14} /> {supplier.city ?? "—"}
-                </p>
-                <p className="supplier-box-meta">
-                  <Package size={14} /> {supplier.product_count} product
-                  {supplier.product_count === 1 ? "" : "s"}
-                </p>
+                <h3>{supplier.business_name}{supplier.is_verified && <BadgeCheck size={16} className="verified-badge" aria-label="Verified" />}</h3>
+                <p className="supplier-box-meta"><MapPin size={14} /> {supplier.city_municipality ?? supplier.city ?? "—"}</p>
+                <p className="supplier-box-meta"><Package size={14} /> {supplier.product_count} product{supplier.product_count === 1 ? "" : "s"}</p>
               </div>
             </Link>
           ))}
         </section>
       )}
-    </>
+      <PaginationControls pagination={pagination} onPageChange={(nextPage) => changeList({ page: nextPage })} onLimitChange={(nextLimit) => changeList({ limit: nextLimit })} disabled={fetching} ariaLabel="Supplier results pagination" className="supplier-results__pagination" />
+    </section>
   );
 }
 

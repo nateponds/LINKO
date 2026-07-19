@@ -134,10 +134,10 @@ test("a logistics-adjacent role can read couriers and branches", { skip: !hasDb 
   const cookie = await loginAs("wholesaler@linko.test");
   const couriers = await request("/api/couriers", { headers: { Cookie: cookie } });
   assert.equal(couriers.status, 200);
-  assert.ok(Array.isArray(couriers.body));
+  assert.ok(Array.isArray(couriers.body.items));
   const branches = await request("/api/branches", { headers: { Cookie: cookie } });
   assert.equal(branches.status, 200);
-  assert.ok(Array.isArray(branches.body));
+  assert.ok(Array.isArray(branches.body.items));
 });
 
 // ---------------------------------------------------------------------------
@@ -151,7 +151,7 @@ test("wholesaler sees only parcels their business sends or receives", { skip: !h
     const ownId = await getBusinessIdByName(pool, "Cebu Fresh Wholesale");
     const list = await request("/api/parcels", { headers: { Cookie: cookie } });
     assert.equal(list.status, 200);
-    for (const parcel of list.body) {
+    for (const parcel of list.body.items) {
       const involves =
         parcel.sender.business_id === ownId || parcel.receiver.business_id === ownId;
       assert.ok(involves, "wholesaler should only see parcels involving their business");
@@ -247,11 +247,11 @@ test("courier pickup pool is scoped to their assigned branch", { skip: !hasDb },
 
     const branchCourierList = await request("/api/parcels", { headers: { Cookie: courierCookie } });
     assert.equal(branchCourierList.status, 200);
-    assert.ok(branchCourierList.body.some((parcel) => parcel.parcel_id === parcelId));
+    assert.ok(branchCourierList.body.items.some((parcel) => parcel.parcel_id === parcelId));
 
     const otherCourierList = await request("/api/parcels", { headers: { Cookie: courier2Cookie } });
     assert.equal(otherCourierList.status, 200);
-    assert.ok(!otherCourierList.body.some((parcel) => parcel.parcel_id === parcelId));
+    assert.ok(!otherCourierList.body.items.some((parcel) => parcel.parcel_id === parcelId));
 
     const visibleDetail = await request(`/api/parcels/${parcelId}`, {
       headers: { Cookie: courierCookie },
@@ -291,7 +291,7 @@ test("branchless pool is invisible to a null-branch courier", { skip: !hasDb }, 
     const branchCourierList = await request("/api/parcels", {
       headers: { Cookie: branchCourierCookie },
     });
-    assert.ok(!branchCourierList.body.some((parcel) => parcel.parcel_id === parcelId));
+    assert.ok(!branchCourierList.body.items.some((parcel) => parcel.parcel_id === parcelId));
 
     // Sprint 7 anti-leak/pool-strictness: a courier with no assigned branch
     // gets no pool clause at all, so a branchless-latest-log parcel is never
@@ -299,7 +299,7 @@ test("branchless pool is invisible to a null-branch courier", { skip: !hasDb }, 
     const nullCourierList = await request("/api/parcels", {
       headers: { Cookie: nullBranchCookie },
     });
-    assert.ok(!nullCourierList.body.some((parcel) => parcel.parcel_id === parcelId));
+    assert.ok(!nullCourierList.body.items.some((parcel) => parcel.parcel_id === parcelId));
   } finally {
     if (parcelId) {
       await pool.query("DELETE FROM parcels WHERE parcel_id = $1", [parcelId]);
@@ -350,14 +350,14 @@ test("courier history survives reassignment and unassign returns parcel to branc
     assert.equal(reassigned.status, 201);
 
     const courierAList = await request("/api/parcels", { headers: { Cookie: courierCookie } });
-    assert.ok(courierAList.body.some((parcel) => parcel.parcel_id === parcelId));
+    assert.ok(courierAList.body.items.some((parcel) => parcel.parcel_id === parcelId));
     const courierADetail = await request(`/api/parcels/${parcelId}`, {
       headers: { Cookie: courierCookie },
     });
     assert.equal(courierADetail.status, 200);
 
     const courierBList = await request("/api/parcels", { headers: { Cookie: courier2Cookie } });
-    assert.ok(courierBList.body.some((parcel) => parcel.parcel_id === parcelId));
+    assert.ok(courierBList.body.items.some((parcel) => parcel.parcel_id === parcelId));
 
     // Arrived at Branch -> Departed Branch is valid; omitting courier_id
     // unassigns the parcel back to the branch-2 pool.
@@ -371,7 +371,7 @@ test("courier history survives reassignment and unassign returns parcel to branc
     assert.equal(unassigned.body.courier_id, null);
 
     const branchPoolList = await request("/api/parcels", { headers: { Cookie: courier2Cookie } });
-    const pooled = branchPoolList.body.find((parcel) => parcel.parcel_id === parcelId);
+    const pooled = branchPoolList.body.items.find((parcel) => parcel.parcel_id === parcelId);
     assert.ok(pooled);
     assert.equal(pooled.latest_courier_id, null);
   } finally {
@@ -501,7 +501,7 @@ test("active buyer-only context returns an empty parcel list", { skip: !hasDb },
   const cookie = await loginAs("buyer@linko.test"); // business 1, buyer only
   const list = await request("/api/parcels", { headers: { Cookie: cookie } });
   assert.equal(list.status, 200);
-  assert.deepEqual(list.body, []);
+  assert.deepEqual(list.body.items, []);
 });
 
 // A genuinely multi-business caller with no X-Active-Business is ambiguous and

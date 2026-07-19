@@ -126,7 +126,7 @@ test("branch create, list, and partial update expose the T08 management shape", 
       headers: { Cookie: cookie },
     });
     assert.equal(listed.status, 200);
-    const row = listed.body.find((branch) => branch.branch_id === branchId);
+    const row = listed.body.items.find((branch) => branch.branch_id === branchId);
     assert.ok(row);
     assert.equal(row.address_id, addressId);
     assert.equal(row.postal_code, "6000");

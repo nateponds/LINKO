@@ -105,6 +105,48 @@
     color: var(--navy-deep);
   }
 
+  .invoice-list-actions,
+  .invoice-list-search {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .invoice-list-search {
+    min-width: min(300px, 50vw);
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: white;
+    color: var(--text-muted);
+  }
+
+  .invoice-list-search input {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    font: inherit;
+  }
+
+  .clear-list-filters {
+    display: block;
+    margin: 12px auto 0;
+    border: 0;
+    background: none;
+    color: var(--teal);
+    cursor: pointer;
+    font: inherit;
+    font-weight: 700;
+    text-decoration: underline;
+  }
+
+  .invoice-error--inline {
+    margin: 14px 0;
+    padding: 14px;
+    box-shadow: none;
+  }
+
   /* data table flat on the page — no card, no shadow */
   .invoice-list-header,
   .invoice-list-row {
@@ -491,6 +533,9 @@
       border-top: 1px solid var(--border);
     }
     .status-title { font-size: 24px; }
+    .invoice-list-head { align-items: flex-start; }
+    .invoice-list-actions { width: 100%; }
+    .invoice-list-search { min-width: 0; flex: 1; }
     .invoice-items {
       overflow-x: auto;
     }

@@ -13,6 +13,10 @@ import {
   resolveInitialBranchId,
 } from "../services/parcelRouting.js";
 import { validateCoordinatePair } from "../services/location.js";
+import {
+  buildPaginatedResponse,
+  parsePaginationQuery,
+} from "../services/pagination.js";
 
 const router = Router();
 
@@ -29,6 +33,8 @@ const VALID_TRACKING_STATUSES = [
   "Cancelled",
 ];
 const TERMINAL_TRACKING_STATUSES = new Set(["Delivered", "Returned", "Cancelled"]);
+const TERMINAL_TRACKING_STATUS_LIST = [...TERMINAL_TRACKING_STATUSES];
+const PARCEL_ASSIGNMENTS = new Set(["available", "active", "completed"]);
 const RETURN_TRIGGER_FAILS = 3;
 const BRANCH_ADDRESS_FIELDS = [
   "province",
@@ -45,6 +51,31 @@ function clientError(message) {
   const error = new Error(message);
   error.statusCode = 400;
   return error;
+}
+
+function readOptionalQueryString(query, name) {
+  const value = query[name];
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") {
+    throw clientError(`${name} must be a single string`);
+  }
+  return value;
+}
+
+// Filter parsing stays beside the logistics routes because status and
+// assignment are domain concepts; shared page/q parsing lives in pagination.
+export function parseParcelListQuery(query) {
+  const pagination = parsePaginationQuery(query);
+  const status = readOptionalQueryString(query, "status");
+  const assignment = readOptionalQueryString(query, "assignment");
+
+  if (status !== undefined && !VALID_TRACKING_STATUSES.includes(status)) {
+    throw clientError("status must be a valid tracking status");
+  }
+  if (assignment !== undefined && !PARCEL_ASSIGNMENTS.has(assignment)) {
+    throw clientError("assignment must be one of available, active, or completed");
+  }
+  return { ...pagination, status, assignment };
 }
 
 function normalizeBranchText(body, field, { required = false } = {}) {
@@ -283,53 +314,99 @@ async function parcelScope(req) {
   };
 }
 
+function parcelListBaseFilter(scope, filters) {
+  const params = [];
+  const clauses = [];
+
+  if (scope.businessIds) {
+    params.push(scope.businessIds);
+    clauses.push(`(p.sender_id = ANY($${params.length}::int[])
+                  OR p.receiver_id = ANY($${params.length}::int[]))`);
+  } else if (scope.courierId !== undefined && !scope.all) {
+    params.push(scope.courierId);
+    const courierParam = params.length;
+    const historyClause = `EXISTS (SELECT 1 FROM tracking_logs h
+               WHERE h.parcel_id = p.parcel_id AND h.courier_id = $${courierParam})`;
+    if (scope.courierBranchId !== null) {
+      params.push(scope.courierBranchId);
+      clauses.push(`(${historyClause}
+        OR (latest.courier_id IS NULL AND latest.branch_id = $${params.length}))`);
+    } else {
+      clauses.push(`(${historyClause})`);
+    }
+  }
+
+  if (filters.q) {
+    params.push(filters.q);
+    const qParam = params.length;
+    clauses.push(`(p.parcel_id ILIKE '%' || $${qParam} || '%'
+      OR s.business_name ILIKE '%' || $${qParam} || '%'
+      OR r.business_name ILIKE '%' || $${qParam} || '%')`);
+  }
+  if (filters.status) {
+    params.push(filters.status);
+    clauses.push(`latest.status_update = $${params.length}`);
+  }
+  return { params, clause: clauses.join(" AND ") };
+}
+
+function assignmentClause(assignment, terminalParam) {
+  const nonterminal = `(latest.status_update IS NULL
+    OR latest.status_update <> ALL($${terminalParam}::text[]))`;
+  if (assignment === "available") return `latest.courier_id IS NULL AND ${nonterminal}`;
+  if (assignment === "active") return `latest.courier_id IS NOT NULL AND ${nonterminal}`;
+  if (assignment === "completed") return `latest.status_update = ANY($${terminalParam}::text[])`;
+  return null;
+}
+
 router.get("/parcels", async (req, res) => {
+  const filters = parseParcelListQuery(req.query);
   const scope = await parcelScope(req);
 
   // No list scope (e.g. buyer-only active business): empty list, never an
   // unfiltered full-table read.
   if (scope.none) {
-    res.json([]);
+    res.json({
+      ...buildPaginatedResponse([], filters, 0),
+      facets: { assignment_counts: { available: 0, active: 0, completed: 0 } },
+    });
     return;
   }
 
-  let filterClause = "";
-  const params = [];
+  const base = parcelListBaseFilter(scope, filters);
+  const terminalParam = base.params.length + 1;
+  const selectedAssignment = assignmentClause(filters.assignment, terminalParam);
+  const filterClause = [base.clause, selectedAssignment]
+    .filter(Boolean)
+    .join(" AND ");
 
-  if (scope.businessIds) {
-    params.push(scope.businessIds);
-    filterClause = `WHERE (p.sender_id = ANY($${params.length}::int[])
-                       OR p.receiver_id = ANY($${params.length}::int[]))`;
-  } else if (scope.courierId !== undefined && !scope.all) {
-    // Courier sees parcels they have handled plus their branch's unassigned
-    // pickup pool -- docs/API_CONTRACTS.md §3.1. A courier with no
-    // assigned branch sees handling history only; see Sprint 7
-    // anti-leak/pool-strictness contract below.
-    params.push(scope.courierId);
-    const courierParam = params.length;
-    const historyClause = `EXISTS (SELECT 1 FROM tracking_logs h
-               WHERE h.parcel_id = p.parcel_id AND h.courier_id = $${courierParam})`;
-
-    if (scope.courierBranchId !== null) {
-      params.push(scope.courierBranchId);
-      const branchParam = params.length;
-      filterClause = `WHERE (
-        ${historyClause}
-        OR (latest.courier_id IS NULL
-            AND latest.branch_id = $${branchParam})
-      )`;
-    } else {
-      // No assigned branch -> no pool clause at all: a null-branch courier
-      // sees only parcels present in their own handling history, never any
-      // pickup pool (including branchless-latest-log parcels). See Sprint 7
-      // anti-leak/pool-strictness contract.
-      filterClause = `WHERE (${historyClause})`;
-    }
-  }
+  const { rows: countRows } = await query(
+    `SELECT COUNT(*) FILTER (WHERE latest.courier_id IS NULL
+                                  AND (latest.status_update IS NULL
+                                       OR latest.status_update <> ALL($${terminalParam}::text[])))::int
+               AS available,
+            COUNT(*) FILTER (WHERE latest.courier_id IS NOT NULL
+                                  AND (latest.status_update IS NULL
+                                       OR latest.status_update <> ALL($${terminalParam}::text[])))::int
+               AS active,
+            COUNT(*) FILTER (WHERE latest.status_update = ANY($${terminalParam}::text[]))::int
+               AS completed,
+            COUNT(*) FILTER (WHERE ${selectedAssignment ?? "TRUE"})::int AS total_items
+       FROM parcels p
+       JOIN businesses s ON s.business_id = p.sender_id
+       JOIN businesses r ON r.business_id = p.receiver_id
+       ${LATEST_LOG}
+       ${base.clause ? `WHERE ${base.clause}` : ""}`,
+    [...base.params, TERMINAL_TRACKING_STATUS_LIST],
+  );
 
   // return_triggered subquery reads the hard-reason list as the last bind param.
+  const params = [...base.params];
+  if (selectedAssignment) params.push(TERMINAL_TRACKING_STATUS_LIST);
   const hardParam = params.length + 1;
-  params.push(HARD_FAIL_REASONS);
+  params.push(HARD_FAIL_REASONS, filters.limit, filters.offset);
+  const limitParam = params.length - 1;
+  const offsetParam = params.length;
   const { rows } = await query(`
     SELECT p.parcel_id,
            json_build_object('business_id', s.business_id, 'business_name', s.business_name) AS sender,
@@ -354,10 +431,21 @@ router.get("/parcels", async (req, res) => {
       JOIN businesses r      ON r.business_id = p.receiver_id
       JOIN service_tiers st ON st.tier_id = p.tier_id
       ${LATEST_LOG}
-      ${filterClause}
-     ORDER BY latest.scanned_at DESC NULLS LAST`, params);
+      ${filterClause ? `WHERE ${filterClause}` : ""}
+     ORDER BY latest.scanned_at DESC NULLS LAST, p.parcel_id ASC
+     LIMIT $${limitParam} OFFSET $${offsetParam}`, params);
 
-  res.json(rows);
+  const counts = countRows[0];
+  res.json({
+    ...buildPaginatedResponse(rows, filters, counts.total_items),
+    facets: {
+      assignment_counts: {
+        available: counts.available,
+        active: counts.active,
+        completed: counts.completed,
+      },
+    },
+  });
 });
 
 router.get("/parcels/:id", async (req, res) => {
@@ -750,7 +838,28 @@ router.put(
   },
 );
 
-router.get("/branches", async (_req, res) => {
+router.get("/branches", async (req, res) => {
+  const filters = parsePaginationQuery(req.query);
+  const params = [];
+  let search = "";
+  if (filters.q) {
+    params.push(filters.q);
+    const qParam = params.length;
+    search = ` AND (b.branch_name ILIKE '%' || $${qParam} || '%'
+      OR a.province ILIKE '%' || $${qParam} || '%'
+      OR a.city_municipality ILIKE '%' || $${qParam} || '%'
+      OR a.barangay ILIKE '%' || $${qParam} || '%')`;
+  }
+  const { rows: countRows } = await query(
+    `SELECT COUNT(*)::int AS total_items
+       FROM branches b
+       JOIN addresses a ON a.address_id = b.address_id
+      WHERE b.is_active${search}`,
+    params,
+  );
+  params.push(filters.limit, filters.offset);
+  const limitParam = params.length - 1;
+  const offsetParam = params.length;
   const { rows } = await query(`
     SELECT b.branch_id, b.branch_name, b.contact_number, b.address_id,
            b.is_available,
@@ -759,17 +868,60 @@ router.get("/branches", async (_req, res) => {
            a.longitude::float8 AS longitude
       FROM branches b
       JOIN addresses a ON a.address_id = b.address_id
-     WHERE b.is_active
-     ORDER BY b.branch_id`);
+     WHERE b.is_active${search}
+     ORDER BY b.branch_id ASC
+     LIMIT $${limitParam} OFFSET $${offsetParam}`, params);
+  res.json(buildPaginatedResponse(rows, filters, countRows[0].total_items));
+});
+
+router.get("/branches/options", async (_req, res) => {
+  const { rows } = await query(`
+    SELECT branch_id, branch_name
+      FROM branches
+     WHERE is_active
+     ORDER BY branch_name ASC, branch_id ASC`);
   res.json(rows);
 });
 
-router.get("/couriers", async (_req, res) => {
+router.get("/couriers", async (req, res) => {
+  const filters = parsePaginationQuery(req.query);
+  const params = [];
+  let search = "";
+  if (filters.q) {
+    params.push(filters.q);
+    const qParam = params.length;
+    search = ` AND (c.full_name ILIKE '%' || $${qParam} || '%'
+      OR c.phone_number ILIKE '%' || $${qParam} || '%'
+      OR c.vehicle_type ILIKE '%' || $${qParam} || '%'
+      OR b.branch_name ILIKE '%' || $${qParam} || '%')`;
+  }
+  const { rows: countRows } = await query(
+    `SELECT COUNT(*)::int AS total_items
+       FROM couriers c
+       LEFT JOIN branches b ON b.branch_id = c.assigned_branch_id
+      WHERE c.is_active${search}`,
+    params,
+  );
+  params.push(filters.limit, filters.offset);
+  const limitParam = params.length - 1;
+  const offsetParam = params.length;
   const { rows } = await query(`
-    SELECT courier_id, full_name, phone_number, vehicle_type, assigned_branch_id
+    SELECT c.courier_id, c.full_name, c.phone_number, c.vehicle_type,
+           c.assigned_branch_id, b.branch_name AS assigned_branch_name
+      FROM couriers c
+      LEFT JOIN branches b ON b.branch_id = c.assigned_branch_id
+     WHERE c.is_active${search}
+     ORDER BY c.full_name ASC, c.courier_id ASC
+     LIMIT $${limitParam} OFFSET $${offsetParam}`, params);
+  res.json(buildPaginatedResponse(rows, filters, countRows[0].total_items));
+});
+
+router.get("/couriers/options", async (_req, res) => {
+  const { rows } = await query(`
+    SELECT courier_id, full_name
       FROM couriers
      WHERE is_active
-     ORDER BY full_name`);
+     ORDER BY full_name ASC, courier_id ASC`);
   res.json(rows);
 });
 
