@@ -102,7 +102,7 @@ UC14 -.->|<<include>>| UC12
 
 ## Not modeled (by design)
 
-No use case exists for commissions or wholesaler remittances. The ERD has an explicit scope freeze: *"Commissions and the remittance view are ERD-and-report scope... no application workflow (collection, reversal, UI) will be built."*
+No use case exists for commissions or wholesaler remittances. These were an earlier self-added extra, **removed entirely in migration `018`** — no `commissions`/`commission_brackets` tables, no `wholesaler_remittances` view, no trigger (see `docs/LINKO_ERD.md` and `docs/course-deliverable.md`). They are not modeled and must not be reintroduced; the goods payment goes to the wholesaler undivided (`payments.amount` = `declared_value` + `shipping_fee`).
 
 # LINKO Courier & Parcel Tracking System
 
