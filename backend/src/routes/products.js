@@ -2,6 +2,7 @@ import { Router } from "express";
 import { query } from "../db.js";
 import { requireAnyRole, requireAuth } from "../middleware/auth.js";
 import { getActiveMembership } from "../middleware/ownership.js";
+import { buildPaginatedResponse, parsePaginationQuery } from "../services/pagination.js";
 
 const router = Router();
 
@@ -22,6 +23,41 @@ function createHttpError(statusCode, message) {
   const error = new Error(message);
   error.statusCode = statusCode;
   return error;
+}
+
+function readSingletonQueryString(query, name) {
+  const value = query[name];
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") {
+    throw createHttpError(400, `${name} must be a single string`);
+  }
+  return value;
+}
+
+function parsePositiveQueryId(query, name) {
+  const value = readSingletonQueryString(query, name);
+  if (value === undefined) return undefined;
+  if (!/^[1-9]\d*$/.test(value)) {
+    throw createHttpError(400, `${name} must be a positive integer`);
+  }
+  const id = Number(value);
+  if (!Number.isSafeInteger(id)) {
+    throw createHttpError(400, `${name} must be a positive integer`);
+  }
+  return id;
+}
+
+function parseNonNegativePrice(query, name) {
+  const value = readSingletonQueryString(query, name);
+  if (value === undefined) return undefined;
+  if (value.trim() === "") {
+    throw createHttpError(400, `${name} must be a non-negative number`);
+  }
+  const price = Number(value);
+  if (!Number.isFinite(price) || price < 0) {
+    throw createHttpError(400, `${name} must be a non-negative number`);
+  }
+  return price;
 }
 
 // product_id is a positive-integer SERIAL. Reject anything else up front so a
@@ -104,32 +140,90 @@ router.get("/categories", requireAuth, async (_req, res) => {
   res.json(rows);
 });
 
+// Lightweight category choices for forms. Unlike /categories, this omits
+// product counts and deliberately remains a bounded array.
+router.get("/categories/options", requireAuth, async (_req, res, next) => {
+  try {
+    const { rows } = await query(
+      `SELECT category_id, category_name
+         FROM categories
+        ORDER BY category_name ASC, category_id ASC`,
+    );
+    res.json(rows);
+  } catch (error) {
+    next(asClientError(error));
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Product listing / detail -- any authenticated user, active products only.
 // ---------------------------------------------------------------------------
 router.get("/products", requireAuth, async (req, res, next) => {
   try {
+    const { page, limit, offset, q } = parsePaginationQuery(req.query);
     const conditions = ["p.is_active = TRUE"];
     const params = [];
 
-    if (req.query.business_id !== undefined) {
-      params.push(Number(req.query.business_id));
+    const businessId = parsePositiveQueryId(req.query, "business_id");
+    if (businessId !== undefined) {
+      params.push(businessId);
       conditions.push(`p.business_id = $${params.length}`);
     }
-    if (req.query.category_id !== undefined) {
-      params.push(Number(req.query.category_id));
+    const categoryId = parsePositiveQueryId(req.query, "category_id");
+    if (categoryId !== undefined) {
+      params.push(categoryId);
       conditions.push(`p.category_id = $${params.length}`);
     }
-    if (req.query.q !== undefined && req.query.q !== "") {
-      params.push(`%${req.query.q}%`);
-      conditions.push(`p.product_name ILIKE $${params.length}`);
+    const minPrice = parseNonNegativePrice(req.query, "min_price");
+    const maxPrice = parseNonNegativePrice(req.query, "max_price");
+    if (minPrice !== undefined && maxPrice !== undefined && minPrice > maxPrice) {
+      throw createHttpError(400, "min_price must be less than or equal to max_price");
+    }
+    if (minPrice !== undefined) {
+      params.push(minPrice);
+      conditions.push(`p.unit_price >= $${params.length}`);
+    }
+    if (maxPrice !== undefined) {
+      params.push(maxPrice);
+      conditions.push(`p.unit_price <= $${params.length}`);
+    }
+    const stockStatus = readSingletonQueryString(req.query, "stock_status");
+    const stockConditions = {
+      out_of_stock: "p.stock_quantity = 0",
+      low_stock: "p.stock_quantity BETWEEN 1 AND 10",
+      in_stock: "p.stock_quantity > 10",
+    };
+    if (stockStatus !== undefined) {
+      if (!Object.hasOwn(stockConditions, stockStatus)) {
+        throw createHttpError(400, "stock_status must be out_of_stock, low_stock, or in_stock");
+      }
+      conditions.push(stockConditions[stockStatus]);
+    }
+    if (q) {
+      params.push(`%${q}%`);
+      conditions.push(`(
+        p.product_name ILIKE $${params.length}
+        OR p.sku ILIKE $${params.length}
+        OR c.category_name ILIKE $${params.length}
+      )`);
     }
 
-    const { rows } = await query(
-      `${PRODUCT_SELECT} WHERE ${conditions.join(" AND ")} ORDER BY p.product_name`,
+    const where = `WHERE ${conditions.join(" AND ")}`;
+    const countResult = await query(
+      `SELECT COUNT(*)::int AS total_items
+         FROM products p
+         LEFT JOIN categories c ON c.category_id = p.category_id
+         ${where}`,
       params,
     );
-    res.json(rows);
+
+    const { rows } = await query(
+      `${PRODUCT_SELECT} ${where}
+       ORDER BY p.product_name ASC, p.product_id ASC
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, offset],
+    );
+    res.json(buildPaginatedResponse(rows, { page, limit }, countResult.rows[0].total_items));
   } catch (error) {
     next(asClientError(error));
   }

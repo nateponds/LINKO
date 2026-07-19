@@ -62,13 +62,13 @@ test("non-admin cannot reach the admin console", { skip: !hasDb }, async () => {
 
 test("admin lists users with aggregated memberships", { skip: !hasDb }, async () => {
   const cookie = await loginAs("admin@linko.test");
-  const response = await request("/api/admin/users", {
+  const response = await request("/api/admin/users?q=wholesaler%40linko.test", {
     headers: { Cookie: cookie },
   });
 
   assert.equal(response.status, 200);
-  assert.ok(Array.isArray(response.body));
-  const wholesaler = response.body.find((u) => u.email === "wholesaler@linko.test");
+  assert.ok(Array.isArray(response.body.items));
+  const wholesaler = response.body.items.find((u) => u.email === "wholesaler@linko.test");
   assert.ok(wholesaler, "expected the seeded wholesaler in the list");
   assert.ok("is_active" in wholesaler);
   assert.ok(Array.isArray(wholesaler.memberships));
@@ -292,7 +292,7 @@ test("admin toggles business verification", { skip: !hasDb }, async () => {
       headers: { Cookie: adminCookie },
     });
     assert.equal(listed.status, 200);
-    assert.ok(listed.body.some((b) => b.business_id === businessId));
+    assert.ok(listed.body.items.some((b) => b.business_id === businessId));
 
     const verified = await request(`/api/admin/businesses/${businessId}`, {
       method: "PATCH",
