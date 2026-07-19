@@ -58,8 +58,8 @@ export default function ParcelDetailPage() {
             if (e.statusCode === 404) return null;
             throw e;
           }),
-          apiGet("/api/branches").catch(() => []),
-          apiGet("/api/couriers").catch(() => []),
+          apiGet("/api/branches/options").catch(() => []),
+          apiGet("/api/couriers/options").catch(() => []),
         ]);
         if (cancelled) return;
         setParcel(parcelData);
@@ -85,9 +85,9 @@ export default function ParcelDetailPage() {
     };
   }, [parcelId]);
 
-  const filteredCouriers = formBranch
-    ? couriers.filter((courier) => courier.assigned_branch_id === Number(formBranch))
-    : couriers;
+  // The complete options endpoint is intentionally unpaged and exposes the
+  // allowed assignees directly; branch compatibility is enforced server-side.
+  const filteredCouriers = couriers;
   // Return leg is derived from the rendered history — retry cap or a hard-fail
   // reason opens it. Mirrors the backend's return_triggered list field.
   const returnTriggered = returnTriggeredFromHistory(parcel?.tracking_history);
