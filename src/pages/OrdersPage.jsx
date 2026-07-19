@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { Search } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import AppLayout from "../layouts/AppLayout";
 import TrackingTimeline from "../features/logistics/TrackingTimeline";
 import SupportModal from "../components/ui/SupportModal";
 import { apiGet, apiSend } from "../lib/api";
+import PaginationControls from "../components/ui/PaginationControls";
+import { useListUrlState } from "../hooks/useListUrlState";
 import { peso, shortDate, statusClass } from "../lib/format";
 import "./OrdersPage.css";
 
@@ -47,19 +49,56 @@ function statusLabel(status) {
 }
 
 function itemCount(order) {
-  return Array.isArray(order.items)
+  return Number.isFinite(Number(order.item_count))
+    ? Number(order.item_count)
+    : Array.isArray(order.items)
     ? order.items.reduce((sum, item) => sum + Number(item.quantity ?? 0), 0)
     : 0;
 }
 
+function useOrderPage(path) {
+  const [reloadVersion, setReloadVersion] = useState(0);
+  const [state, setState] = useState({ data: null, error: null, key: null });
+  const key = `${path}:${reloadVersion}`;
+
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+    apiGet(path, { signal: controller.signal })
+      .then((data) => active && setState({ data, error: null, key }))
+      .catch((error) => {
+        if (active && error?.name !== "AbortError") {
+          setState((previous) => ({ data: previous.data, error, key }));
+        }
+      });
+    return () => { active = false; controller.abort(); };
+  }, [key, path]);
+
+  const current = state.key === key;
+  return {
+    data: current ? state.data : null,
+    staleData: state.data,
+    error: current ? state.error : null,
+    loading: !current,
+    reload: useCallback(() => setReloadVersion((version) => version + 1), []),
+  };
+}
+
 export default function OrdersPage() {
   const { activeBusinessId, activeRoles, user } = useAuth();
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const location = useLocation();
+  const list = useListUrlState();
+  const statusFilter = new URLSearchParams(location.search).get("status") || "All";
+  const query = new URLSearchParams({ page: String(list.page), limit: String(list.limit) });
+  if (list.q) query.set("q", list.q);
+  if (statusFilter !== "All") query.set("status", statusFilter.toLowerCase());
+  const resource = useOrderPage(`/api/orders?${query.toString()}`);
+  const searchTimerRef = useRef(null);
+  const pageData = resource.data ?? resource.staleData;
+  const orders = pageData?.items ?? null;
+  const pagination = pageData?.pagination ?? null;
   const [updatingId, setUpdatingId] = useState(null);
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [searchTerm, setSearchTerm] = useState("");
+  const [actionError, setActionError] = useState(null);
   const tabsContainerRef = useRef(null);
   const [pillStyle, setPillStyle] = useState({ opacity: 0 });
 
@@ -67,13 +106,29 @@ export default function OrdersPage() {
   const [tableHeight, setTableHeight] = useState("auto");
 
   useEffect(() => {
-    if (!tableContentRef.current) return;
+    if (!tableContentRef.current || !window.ResizeObserver) return undefined;
     const observer = new ResizeObserver((entries) => {
       setTableHeight(entries[0].target.offsetHeight);
     });
     observer.observe(tableContentRef.current);
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    return () => window.clearTimeout(searchTimerRef.current);
+  }, []);
+
+  useEffect(() => {
+    const totalPages = resource.data?.pagination?.total_pages ?? 0;
+    if (totalPages > 0 && list.page > totalPages) {
+      list.update({ page: totalPages }, { replace: true });
+    }
+  }, [list, resource.data]);
+
+  function queueSearch(nextQuery) {
+    window.clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = window.setTimeout(() => list.setQuery(nextQuery), 300);
+  }
 
   useEffect(() => {
     function updatePill() {
@@ -95,7 +150,7 @@ export default function OrdersPage() {
       clearTimeout(timer);
       window.removeEventListener("resize", updatePill);
     };
-  }, [statusFilter, orders.length]);
+  }, [statusFilter, orders?.length]);
 
   // Ship-order modal (wholesaler enters weight at handoff).
   const [shipOrder, setShipOrder] = useState(null);
@@ -109,93 +164,18 @@ export default function OrdersPage() {
   const [trackError, setTrackError] = useState(null);
   const [supportOpen, setSupportOpen] = useState(false);
 
-  const loadOrders = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const data = await apiGet("/api/orders");
-      setOrders(Array.isArray(data) ? data : []);
-    } catch (caughtError) {
-      setError(caughtError.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-
-    async function load() {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const data = await apiGet("/api/orders");
-        if (active) {
-          setOrders(Array.isArray(data) ? data : []);
-        }
-      } catch (caughtError) {
-        if (active) {
-          setError(caughtError.message);
-        }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    }
-
-    void load();
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const visibleOrders = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
-    const selectedStatus = statusFilter.toLowerCase();
-
-    return orders.filter((order) => {
-      const orderStatus = statusLabel(order.status);
-      if (
-        statusFilter !== "All" &&
-        orderStatus.toLowerCase() !== selectedStatus
-      ) {
-        return false;
-      }
-
-      return (
-        !term ||
-        String(order.order_id ?? "")
-          .toLowerCase()
-          .includes(term) ||
-        (order.buyer_business_name ?? "").toLowerCase().includes(term) ||
-        (order.wholesaler_business_name ?? "").toLowerCase().includes(term) ||
-        (order.invoice?.invoice_number ?? "").toLowerCase().includes(term)
-      );
-    });
-  }, [orders, searchTerm, statusFilter]);
-
   async function updateOrderStatus(orderId, nextStatus, extra = {}) {
     setUpdatingId(orderId);
-    setError(null);
+    setActionError(null);
 
     try {
-      const updatedOrder = await apiSend(`/api/orders/${orderId}/status`, {
+      await apiSend(`/api/orders/${orderId}/status`, {
         method: "PATCH",
         body: { status: nextStatus, ...extra },
       });
-
-      setOrders((currentOrders) =>
-        currentOrders.map((order) =>
-          order.order_id === orderId ? { ...order, ...updatedOrder } : order,
-        ),
-      );
-      void loadOrders();
+      resource.reload();
     } catch (caughtError) {
-      setError(caughtError.message);
+      setActionError(caughtError.message);
     } finally {
       setUpdatingId(null);
     }
@@ -290,8 +270,9 @@ export default function OrdersPage() {
             <input
               type="text"
               placeholder="Search order no., customer, seller, invoice"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
+              key={list.q}
+              defaultValue={list.q}
+              onChange={(event) => queueSearch(event.target.value)}
             />
             <button className="search-icon-btn" aria-label="Search">
               <Search size={16} />
@@ -312,14 +293,15 @@ export default function OrdersPage() {
               role="tab"
               aria-selected={statusFilter === tab}
               className={statusFilter === tab ? "active" : ""}
-              onClick={() => setStatusFilter(tab)}
+              onClick={() => list.setFilters({ status: tab === "All" ? "" : tab.toLowerCase() })}
             >
               {tab}
             </button>
           ))}
         </div>
 
-        <main className="table-card">
+        <main className="table-card" aria-busy={resource.loading}>
+          {actionError && <div className="page-empty page-empty--inline">Could not update order: {actionError}</div>}
           <div
             className="table-height-animator"
             style={{
@@ -329,32 +311,45 @@ export default function OrdersPage() {
             }}
           >
             <div ref={tableContentRef}>
-              {loading ? (
+              {orders === null && resource.loading ? (
                 <div className="page-empty">Loading orders...</div>
-              ) : error ? (
+              ) : resource.error && !orders?.length ? (
                 <div className="page-empty">
-                  Could not load orders: {error}
+                  Could not load orders: {resource.error.message}
                 </div>
-              ) : visibleOrders.length === 0 ? (
-                <div className="page-empty">No orders match your search.</div>
+              ) : (orders?.length ?? 0) === 0 ? (
+                <div className="page-empty">
+                  {list.q || statusFilter !== "All" ? "No orders match these filters." : "No orders are visible for this account yet."}
+                  {(list.q || statusFilter !== "All") && (
+                    <button
+                      className="clear-list-filters"
+                      type="button"
+                      onClick={() => list.update({ q: "", filters: { status: "" } })}
+                    >
+                      Clear filters
+                    </button>
+                  )}
+                </div>
               ) : (
-                <div className="orders-table-wrap">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Order No.</th>
-                        <th>Customer</th>
-                        <th>Seller</th>
-                        <th>Date</th>
-                        <th>Items</th>
-                        <th>Total</th>
-                        <th>Status</th>
-                        <th>Invoice</th>
-                        <th></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {visibleOrders.map((order) => {
+                <>
+                  {resource.error && <div className="page-empty page-empty--inline">Could not refresh orders: {resource.error.message}</div>}
+                  <div className="orders-table-wrap">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Order No.</th>
+                          <th>Customer</th>
+                          <th>Seller</th>
+                          <th>Date</th>
+                          <th>Items</th>
+                          <th>Total</th>
+                          <th>Status</th>
+                          <th>Invoice</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {orders.map((order) => {
                         const orderActions = actionsFor(order);
                         const disabled = updatingId === order.order_id;
 
@@ -421,9 +416,17 @@ export default function OrdersPage() {
                           </tr>
                         );
                       })}
-                    </tbody>
-                  </table>
-                </div>
+                      </tbody>
+                    </table>
+                  </div>
+                  <PaginationControls
+                    pagination={pagination}
+                    disabled={resource.loading}
+                    onPageChange={list.setPage}
+                    onLimitChange={list.setLimit}
+                    ariaLabel="Orders pagination"
+                  />
+                </>
               )}
             </div>
           </div>

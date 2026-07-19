@@ -207,7 +207,7 @@ test("shipping records the entered weight and the buyer can track their own parc
     });
     assert.equal(buyerList.status, 200);
     assert.ok(
-      !buyerList.body.some((p) => p.parcel_id === parcel.parcel_id),
+      !buyerList.body.items.some((p) => p.parcel_id === parcel.parcel_id),
       "buyer list must not enumerate buyer-scoped parcels",
     );
   } finally {

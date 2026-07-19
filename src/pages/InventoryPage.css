@@ -154,6 +154,22 @@
     overflow-x: auto;
   }
 
+  .inventory-container > .pagination-controls {
+    margin-top: 16px;
+    overflow: visible;
+  }
+
+  .link-button {
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: var(--color-primary);
+    cursor: pointer;
+    font: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+  }
+
   .inventory-table {
     width: 100%;
     border-collapse: collapse;

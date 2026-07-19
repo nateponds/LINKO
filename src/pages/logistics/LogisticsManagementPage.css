@@ -1,0 +1,19 @@
+.management-page {
+  .management-grid { align-items: start; }
+  .management-section { min-width: 0; }
+  .management-section h2 { margin: 0 0 1rem; color: var(--color-primary-dark); text-align: center; }
+  .management-tiers { grid-column: 1 / -1; }
+  .management-form { display: grid; gap: .65rem; }
+  .management-form button { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; }
+  .management-list-wrap { min-height: 88px; }
+  .management-row { align-items: flex-start; gap: .75rem; }
+  .management-row small { color: var(--color-muted); }
+  .management-note { margin: .75rem 0; color: var(--color-muted); font-size: .85rem; text-align: center; }
+  .management-availability { display: inline-flex; align-items: center; gap: .35rem; font-size: .85rem; }
+  .management-coordinate-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+  .management-tier-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+  .management-tier-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .45rem .8rem; margin-top: .8rem; color: var(--color-muted); font-size: .85rem; }
+  .logistics-edit-form { width: 100%; }
+  .logistics-action-btn { border: 0; background: none; color: var(--color-primary); cursor: pointer; font: inherit; font-weight: 600; }
+  @media (max-width: 700px) { .management-coordinate-grid, .management-tier-details { grid-template-columns: 1fr; } }
+}

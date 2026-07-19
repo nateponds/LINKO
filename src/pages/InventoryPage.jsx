@@ -1,9 +1,13 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ChevronDown, Filter, Pencil, Plus, Search, X } from "lucide-react";
 import AppLayout from "../layouts/AppLayout";
 import { useAuth } from "../auth/AuthProvider";
 import { apiGet, apiSend } from "../lib/api";
 import { peso } from "../lib/format";
+import PaginationControls from "../components/ui/PaginationControls";
+import { readListUrlState, updateListUrlState } from "../lib/pagination";
+import { apiPath, normalizePage, shouldClampPage } from "../features/suppliers/marketplacePagination";
 import "./InventoryPage.css";
 
 const EMPTY_FORM = {
@@ -27,6 +31,8 @@ function statusFor(status) {
 
 export default function InventoryPage() {
   const { user, activeBusinessId, activeRoles } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { page, limit, q } = readListUrlState(searchParams);
 
   const isAdmin = user?.global_role === "platform_admin";
   const ownBusinessId = activeRoles.includes("wholesaler")
@@ -36,12 +42,19 @@ export default function InventoryPage() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [fetching, setFetching] = useState(false);
+  const [pagination, setPagination] = useState({ page, limit, total_items: 0, total_pages: 0 });
   const [error, setError] = useState(null);
 
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState(q);
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [draftFilters, setDraftFilters] = useState(EMPTY_FILTERS);
-  const [activeFilters, setActiveFilters] = useState(EMPTY_FILTERS);
+  const activeFilters = useMemo(() => ({
+    category: searchParams.get("category") ?? "",
+    priceMin: searchParams.get("priceMin") ?? "",
+    priceMax: searchParams.get("priceMax") ?? "",
+    stock: searchParams.get("stock") ?? "",
+  }), [searchParams]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -65,18 +78,29 @@ export default function InventoryPage() {
   }, []);
 
   const loadProducts = useCallback(async () => {
-    const path =
-      isAdmin || !ownBusinessId
-        ? "/api/products"
-        : `/api/products?business_id=${encodeURIComponent(ownBusinessId)}`;
+    const path = apiPath("/api/products", {
+      business_id: isAdmin || !ownBusinessId ? undefined : ownBusinessId,
+      q, page, limit,
+      category_id: activeFilters.category,
+      min_price: activeFilters.priceMin,
+      max_price: activeFilters.priceMax,
+      stock_status: activeFilters.stock === "in" ? "in_stock" : activeFilters.stock === "low" ? "low_stock" : activeFilters.stock === "out" ? "out_of_stock" : undefined,
+    });
     try {
+      if (products.length) setFetching(true);
       const data = await apiGet(path);
-      setProducts(Array.isArray(data) ? data : []);
+      const next = normalizePage(data);
+      if (shouldClampPage(next.pagination)) {
+        setSearchParams(updateListUrlState(searchParams, { page: next.pagination.total_pages }), { replace: true });
+        return;
+      }
+      setProducts(next.items);
+      setPagination(next.pagination);
       setError(null);
     } catch (err) {
       setError(err.message);
-    }
-  }, [isAdmin, ownBusinessId]);
+    } finally { setFetching(false); }
+  }, [activeFilters, isAdmin, limit, ownBusinessId, page, products.length, q, searchParams, setSearchParams]);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,8 +122,15 @@ export default function InventoryPage() {
   }, [loadProducts]);
 
   useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (searchTerm !== q) setSearchParams(updateListUrlState(searchParams, { q: searchTerm }), { replace: true });
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [q, searchParams, searchTerm, setSearchParams]);
+
+  useEffect(() => {
     let cancelled = false;
-    apiGet("/api/categories")
+    apiGet("/api/categories/options")
       .then((data) => {
         if (!cancelled) setCategories(Array.isArray(data) ? data : []);
       })
@@ -121,42 +152,7 @@ export default function InventoryPage() {
     return () => document.removeEventListener("click", handleDocClick);
   }, [filterPanelOpen]);
 
-  /* ===== derived: filtered + searched rows ===== */
-  const visibleProducts = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
-    const priceMin =
-      activeFilters.priceMin === "" ? null : parseFloat(activeFilters.priceMin);
-    const priceMax =
-      activeFilters.priceMax === "" ? null : parseFloat(activeFilters.priceMax);
-
-    return products.filter((item) => {
-      const price = Number(item.unit_price);
-      const matchesSearch =
-        !term ||
-        item.product_name.toLowerCase().includes(term) ||
-        (item.sku || "").toLowerCase().includes(term) ||
-        (item.category_name || "").toLowerCase().includes(term);
-      if (!matchesSearch) return false;
-
-      if (
-        activeFilters.category &&
-        String(item.category_id) !== String(activeFilters.category)
-      )
-        return false;
-      if (priceMin !== null && price < priceMin) return false;
-      if (priceMax !== null && price > priceMax) return false;
-
-      if (activeFilters.stock) {
-        const s = statusFor(item.stock_status);
-        if (activeFilters.stock === "in" && s.cls !== "in-stock") return false;
-        if (activeFilters.stock === "low" && s.cls !== "low-on-stock")
-          return false;
-        if (activeFilters.stock === "out" && s.cls !== "out-of-stock")
-          return false;
-      }
-      return true;
-    });
-  }, [products, searchTerm, activeFilters]);
+  const visibleProducts = products;
 
   /* ===== add/edit item modal ===== */
   function openAddModal() {
@@ -272,13 +268,13 @@ export default function InventoryPage() {
   }
 
   function applyFilters() {
-    setActiveFilters(draftFilters);
+    setSearchParams(updateListUrlState(searchParams, { filters: draftFilters }));
     setFilterPanelOpen(false);
   }
 
   function clearFilters() {
     setDraftFilters(EMPTY_FILTERS);
-    setActiveFilters(EMPTY_FILTERS);
+    setSearchParams(updateListUrlState(searchParams, { filters: EMPTY_FILTERS }));
   }
 
   return (
@@ -400,7 +396,7 @@ export default function InventoryPage() {
           </div>
         </div>
 
-        <main className="inventory-container">
+        <main className="inventory-container" aria-busy={fetching}>
           <div
             className="table-height-animator"
             style={{
@@ -410,14 +406,14 @@ export default function InventoryPage() {
             }}
           >
             <div ref={tableContentRef}>
-              {loading ? (
+              {loading && products.length === 0 ? (
                 <p className="grid-empty">Loading products…</p>
               ) : error ? (
                 <p className="grid-empty">
                   Could not load products: {error}
                 </p>
               ) : visibleProducts.length === 0 ? (
-                <p className="grid-empty">No products yet.</p>
+                <div className="grid-empty"><p>{q || Object.values(activeFilters).some(Boolean) ? "No products match these filters." : "No products yet."}</p>{(q || Object.values(activeFilters).some(Boolean)) && <button type="button" className="link-button" onClick={clearFilters}>Clear filters</button>}</div>
               ) : (
                 <table className="inventory-table">
                   <thead>
@@ -492,6 +488,7 @@ export default function InventoryPage() {
               )}
             </div>
           </div>
+          <PaginationControls pagination={pagination} disabled={fetching} onPageChange={(nextPage) => setSearchParams(updateListUrlState(searchParams, { page: nextPage }))} onLimitChange={(nextLimit) => setSearchParams(updateListUrlState(searchParams, { limit: nextLimit }))} ariaLabel="Inventory pagination" />
         </main>
 
         {/* ===== Add/Edit item modal ===== */}

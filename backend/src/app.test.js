@@ -146,7 +146,7 @@ test("buyer session gets an empty parcel list", { skip: !hasDb }, async () => {
   });
 
   assert.equal(response.status, 200);
-  assert.deepEqual(response.body, []);
+  assert.deepEqual(response.body.items, []);
 });
 
 test("logistics session can access parcel list", { skip: !hasDb }, async () => {
@@ -156,7 +156,7 @@ test("logistics session can access parcel list", { skip: !hasDb }, async () => {
   });
 
   assert.equal(response.status, 200);
-  for (const parcel of response.body) {
+  for (const parcel of response.body.items) {
     assert.ok("current_status" in parcel);
     assert.ok(parcel.sender.business_name);
   }
@@ -169,7 +169,7 @@ test("platform admin can access parcel list without logistics membership", { ski
   });
 
   assert.equal(response.status, 200);
-  assert.ok(Array.isArray(response.body));
+  assert.ok(Array.isArray(response.body.items));
 });
 
 test("unknown parcel returns 404", { skip: !hasDb }, async () => {
@@ -329,9 +329,9 @@ test("buyer session can access suppliers", { skip: !hasDb }, async () => {
   });
 
   assert.equal(response.status, 200);
-  assert.ok(Array.isArray(response.body));
+  assert.ok(Array.isArray(response.body.items));
   // Only wholesaler/both businesses appear, each with a product_count.
-  const harbor = response.body.find((s) => s.business_name === "Cebu Fresh Wholesale");
+  const harbor = response.body.items.find((s) => s.business_name === "Cebu Fresh Wholesale");
   assert.ok(harbor, "Cebu Fresh Wholesale should be listed as a supplier");
   assert.equal(typeof harbor.product_count, "number");
   assert.ok("city_municipality" in harbor && "is_verified" in harbor);
@@ -344,7 +344,7 @@ test("wholesaler session can access suppliers", { skip: !hasDb }, async () => {
   });
 
   assert.equal(response.status, 200);
-  assert.ok(Array.isArray(response.body));
+  assert.ok(Array.isArray(response.body.items));
 });
 
 test("auth me rejects unauthenticated requests", async () => {
@@ -585,8 +585,8 @@ test("buyer can list products but cannot create them", { skip: !hasDb }, async (
 
   const list = await request("/api/products", { headers: { Cookie: cookie } });
   assert.equal(list.status, 200);
-  assert.ok(Array.isArray(list.body));
-  for (const product of list.body) {
+  assert.ok(Array.isArray(list.body.items));
+  for (const product of list.body.items) {
     assert.ok("stock_status" in product);
     assert.ok("business_name" in product);
   }
@@ -619,7 +619,7 @@ test("wholesaler creates, reads, patches, and deletes a product", { skip: !hasDb
     headers: { Cookie: cookie },
   });
   assert.equal(list.status, 200);
-  assert.ok(list.body.some((p) => p.product_id === productId));
+  assert.ok(list.body.items.some((p) => p.product_id === productId));
 
   const detail = await request(`/api/products/${productId}`, {
     headers: { Cookie: cookie },
@@ -649,7 +649,7 @@ test("wholesaler creates, reads, patches, and deletes a product", { skip: !hasDb
   const listAfter = await request("/api/products?business_id=" + created.body.business_id, {
     headers: { Cookie: cookie },
   });
-  assert.ok(!listAfter.body.some((p) => p.product_id === productId));
+  assert.ok(!listAfter.body.items.some((p) => p.product_id === productId));
 });
 
 test("product create rejects missing name or negative price", { skip: !hasDb }, async () => {
@@ -898,13 +898,13 @@ test("buyer creates an order and buyer and wholesaler can see their own sides", 
 
     const buyerList = await request("/api/orders", { headers: { Cookie: buyerCookie } });
     assert.equal(buyerList.status, 200);
-    assert.ok(buyerList.body.some((order) => order.order_id === orderId));
+    assert.ok(buyerList.body.items.some((order) => order.order_id === orderId));
 
     const wholesalerList = await request("/api/orders", {
       headers: { Cookie: wholesalerCookie },
     });
     assert.equal(wholesalerList.status, 200);
-    assert.ok(wholesalerList.body.some((order) => order.order_id === orderId));
+    assert.ok(wholesalerList.body.items.some((order) => order.order_id === orderId));
   } finally {
     if (orderId) {
       await pool.query("DELETE FROM order_items WHERE order_id = $1", [orderId]);
@@ -953,7 +953,7 @@ test("wholesaler accepts an order, decrements stock, and generates one invoice",
 
     const invoices = await request("/api/invoices", { headers: { Cookie: buyerCookie } });
     assert.equal(invoices.status, 200);
-    const invoice = invoices.body.find((row) => row.order_id === orderId);
+    const invoice = invoices.body.items.find((row) => row.order_id === orderId);
     assert.ok(invoice);
     assert.equal(invoice.total, "290.00");
 
@@ -1070,7 +1070,7 @@ test("accepting an order rejects insufficient stock without generating an invoic
 
     const invoices = await request("/api/invoices", { headers: { Cookie: buyerCookie } });
     assert.equal(invoices.status, 200);
-    assert.ok(!invoices.body.some((row) => row.order_id === orderId));
+    assert.ok(!invoices.body.items.some((row) => row.order_id === orderId));
   } finally {
     if (orderId) {
       await pool.query("DELETE FROM order_items WHERE order_id = $1", [orderId]);
@@ -1102,7 +1102,7 @@ test("platform admin can view all orders and override order status", { skip: !ha
 
     const adminList = await request("/api/orders", { headers: { Cookie: adminCookie } });
     assert.equal(adminList.status, 200);
-    assert.ok(adminList.body.some((order) => order.order_id === orderId));
+    assert.ok(adminList.body.items.some((order) => order.order_id === orderId));
 
     // Admin override (docs/API_CONTRACTS.md §2c.4): valid transitions
     // succeed with full side effects...
@@ -1116,7 +1116,7 @@ test("platform admin can view all orders and override order status", { skip: !ha
 
     const invoices = await request("/api/invoices", { headers: { Cookie: adminCookie } });
     assert.equal(invoices.status, 200);
-    assert.ok(invoices.body.some((row) => row.order_id === orderId));
+    assert.ok(invoices.body.items.some((row) => row.order_id === orderId));
 
     // ...but invalid skips are still rejected.
     const adminSkip = await request(`/api/orders/${orderId}/status`, {
