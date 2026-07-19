@@ -1,0 +1,39 @@
+[
+  {
+    "business_name": "Cebu Agro-Fresh Wholesalers",
+    "business_type": "wholesaler",
+    "full_name": "Juan dela Cruz",
+    "email_local_part": "juan.fresh",
+    "contact_number": "+639171234567",
+    "province": "Cebu",
+    "city_municipality": "Cebu City",
+    "barangay": "Mabolo",
+    "street_address": "45 AS Fortuna St",
+    "postal_code": "6000",
+    "latitude": 10.3182,
+    "longitude": 123.9161,
+    "products": [
+      {
+        "product_name": "Fresh Calamansi (5kg bag)",
+        "description": "High-grade calamansi harvested from Mindoro, packed in reusable mesh bags.",
+        "sku": "CAW-CAL-05",
+        "category_hint": "Produce"
+      }
+    ]
+  },
+  {
+    "business_name": "Mandaue Sari-Sari Store",
+    "business_type": "buyer",
+    "full_name": "Maria Santos",
+    "email_local_part": "maria.mandaue",
+    "contact_number": "+639187654321",
+    "province": "Cebu",
+    "city_municipality": "Mandaue City",
+    "barangay": "Tipolo",
+    "street_address": "32 Plaridel St",
+    "postal_code": "6014",
+    "latitude": 10.3320,
+    "longitude": 123.9351,
+    "pairing_hint": "Cebu Agro-Fresh Wholesalers"
+  }
+]
