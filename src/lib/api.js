@@ -19,11 +19,12 @@ function readActiveBusinessId() {
   }
 }
 
-async function request(path, { method = "GET", body } = {}) {
+async function request(path, { method = "GET", body, signal } = {}) {
   const options = {
     method,
     credentials: "same-origin",
     headers: {},
+    signal,
   };
 
   const activeBusinessId = readActiveBusinessId();
@@ -48,8 +49,8 @@ async function request(path, { method = "GET", body } = {}) {
   return payload;
 }
 
-export function apiGet(path) {
-  return request(path);
+export function apiGet(path, { signal } = {}) {
+  return request(path, { signal });
 }
 
 export function apiSend(path, { method = "POST", body } = {}) {
