@@ -733,6 +733,28 @@
     color: var(--color-muted);
   }
 
+  .supplier-list-search {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 16px;
+    color: var(--color-muted);
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+
+  .supplier-list-search input {
+    min-width: 220px;
+    padding: 9px 12px;
+    border: 1px solid rgba(48, 80, 160, 0.2);
+    border-radius: 8px;
+    font: inherit;
+  }
+
+  .supplier-profile-pagination {
+    margin-top: 20px;
+  }
+
   @media (max-width: 980px) {
     .products-with-cart {
       grid-template-columns: 1fr;
@@ -773,6 +795,15 @@
 
     .product-grid {
       grid-template-columns: 1fr;
+    }
+
+    .supplier-list-search {
+      display: flex;
+    }
+
+    .supplier-list-search input {
+      min-width: 0;
+      flex: 1;
     }
   }
 }

@@ -1,5 +1,5 @@
 -- ==========================================================================
--- LINKO dev_seed.sql — Minimal, readable seed for development.
+-- LINKO dev_seed.sql — Extended seed for development with 30 diverse parcels.
 --
 -- Replaces ALL data. Run with:
 --   psql $DATABASE_URL -f backend/seeds/dev_seed.sql
@@ -39,8 +39,7 @@ ALTER SEQUENCE tracking_logs_log_id_seq RESTART WITH 1;
 ALTER SEQUENCE payments_payment_id_seq RESTART WITH 1;
 ALTER SEQUENCE notifications_notification_id_seq RESTART WITH 1;
 
--- A fresh schema contains no delivery tiers. Keep the stable IDs used by the
--- demo orders and parcels, while making this safe to re-run.
+-- A fresh schema contains no delivery tiers.
 INSERT INTO service_tiers
   (tier_id, tier_name, base_fee, base_rate_per_kg, rate_per_km, estimated_days)
 VALUES
@@ -56,331 +55,681 @@ ON CONFLICT (tier_id) DO UPDATE SET
 
 SELECT setval('service_tiers_tier_id_seq', 3, true);
 
--- Shared password hash for all demo accounts — plaintext is "Password123!"
--- Hash: scrypt(ln=14,r=8,p=1)
-
--- ---------------------------------------------------------------------------
--- 1. USERS (9)
---    5 core role accounts + 1 extra buyer + 1 extra wholesaler
---    + 1 multi-business user (was "both", now bizswitch with 2 businesses)
---    + 1 extra courier
---
--- IDs are EXPLICIT. Downstream sections reference users by hardcoded id
--- (user_businesses, business_memberships, orders.created_by, couriers.user_id),
--- so an id must never shift when a row is added, removed, or reordered here.
--- The trailing setval keeps app-minted users from colliding with these.
--- ---------------------------------------------------------------------------
 INSERT INTO users (user_id, username, email, full_name, password_hash, role, global_role) VALUES
-  (1, 'buyer_demo',      'buyer@linko.test',      'Bianca Buyer',        '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff',      NULL),
-  (2, 'wholesaler_demo', 'wholesaler@linko.test', 'Waldo Wholesaler',   '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'wholesaler', NULL),
-  (3, 'logistics_demo',  'logistics@linko.test',  'Lia Logistics',      '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff',      NULL),
-  (4, 'courier_demo',    'courier@linko.test',    'Cory Courier',       '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff',      NULL),
-  (5, 'admin_demo',      'admin@linko.test',      'Pia Platform Admin', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'admin',      'platform_admin'),
-  (6, 'buyer2_demo',     'buyer2@linko.test',     'Ben Buyer Jr',       '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff',      NULL),
-  (7, 'wholesaler2_demo','wholesaler2@linko.test','Wendy Wholesaler',   '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff',      NULL),
-  (8, 'bizswitch_demo',  'bizswitch@linko.test',  'Bo Bizswitch',       '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff',      NULL),
-  (9, 'courier2_demo',   'courier2@linko.test',   'Carlo Courier',      '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff',      NULL);
+  (1, 'buyer_demo', 'buyer@linko.test', 'Bianca Buyer', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
+  (2, 'wholesaler_demo', 'wholesaler@linko.test', 'Waldo Wholesaler', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'wholesaler', NULL),
+  (3, 'logistics_demo', 'logistics@linko.test', 'Lia Logistics', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
+  (4, 'courier_demo', 'courier@linko.test', 'Cory Courier', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
+  (5, 'admin_demo', 'admin@linko.test', 'Pia Platform Admin', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'admin', 'platform_admin'),
+  (6, 'buyer2_demo', 'buyer2@linko.test', 'Ben Buyer Jr', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
+  (7, 'wholesaler2_demo', 'wholesaler2@linko.test', 'Wendy Wholesaler', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
+  (8, 'bizswitch_demo', 'bizswitch@linko.test', 'Bo Bizswitch', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
+  (9, 'courier2_demo', 'courier2@linko.test', 'Carlo Courier', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
+  (10, 'wholesaler3_gen', 'ws3@linko.test', 'Wholesaler Gen 3', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'wholesaler', NULL),
+  (11, 'wholesaler4_gen', 'ws4@linko.test', 'Wholesaler Gen 4', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'wholesaler', NULL),
+  (12, 'wholesaler5_gen', 'ws5@linko.test', 'Wholesaler Gen 5', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'wholesaler', NULL),
+  (13, 'wholesaler6_gen', 'ws6@linko.test', 'Wholesaler Gen 6', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'wholesaler', NULL),
+  (14, 'wholesaler7_gen', 'ws7@linko.test', 'Wholesaler Gen 7', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'wholesaler', NULL),
+  (15, 'buyer3_gen', 'buyer3@linko.test', 'Buyer Gen 3', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
+  (16, 'buyer4_gen', 'buyer4@linko.test', 'Buyer Gen 4', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
+  (17, 'buyer5_gen', 'buyer5@linko.test', 'Buyer Gen 5', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
+  (18, 'buyer6_gen', 'buyer6@linko.test', 'Buyer Gen 6', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
+  (19, 'buyer7_gen', 'buyer7@linko.test', 'Buyer Gen 7', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
+  (20, 'buyer8_gen', 'buyer8@linko.test', 'Buyer Gen 8', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
+  (21, 'buyer9_gen', 'buyer9@linko.test', 'Buyer Gen 9', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
+  (22, 'buyer10_gen', 'buyer10@linko.test', 'Buyer Gen 10', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
+  (23, 'buyer11_gen', 'buyer11@linko.test', 'Buyer Gen 11', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
+  (24, 'buyer12_gen', 'buyer12@linko.test', 'Buyer Gen 12', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
+  (25, 'buyer13_gen', 'buyer13@linko.test', 'Buyer Gen 13', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
+  (26, 'buyer14_gen', 'buyer14@linko.test', 'Buyer Gen 14', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
+  (27, 'buyer15_gen', 'buyer15@linko.test', 'Buyer Gen 15', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
+  (28, 'buyer16_gen', 'buyer16@linko.test', 'Buyer Gen 16', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
+  (29, 'buyer17_gen', 'buyer17@linko.test', 'Buyer Gen 17', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL);
 
-SELECT setval('users_user_id_seq', 9, true);
+SELECT setval('users_user_id_seq', 29, true);
 
--- ---------------------------------------------------------------------------
--- 2. BUSINESSES (8)
---    One per user, except user 8 (bizswitch) who owns TWO businesses
---    (one buyer, one wholesaler) -- exercises the business switcher -- and
---    users 4 + 9 (couriers), who own none: couriers are staff of the shared
---    'LINKO Logistics' org (business 3), not businesses of their own.
---    Sprint 9 (refactor/phaseout-both-role) removed the 'both' business_type;
---    a single business can no longer be both buyer and wholesaler.
---
--- IDs are EXPLICIT, and 4 and 9 are deliberately absent: migration 022 dropped
--- the fake per-driver courier businesses ('Cory Express Delivery', 'Carlo Quick
--- Haul') that used to hold those ids. Keeping the gap means a freshly seeded DB
--- and a 022-migrated DB carry identical ids. Never renumber to close it -- ~28
--- downstream literals (addresses, memberships, warehouses, products, orders,
--- parcels) are keyed to these values and would silently repoint, not error.
--- ---------------------------------------------------------------------------
 INSERT INTO businesses (business_id, business_name, business_type, contact_number, is_verified) VALUES
-  (1,  'Sunrise Retail Cooperative',     'buyer',      '+639170000001', TRUE),   -- buyer_demo
-  (2,  'Cebu Fresh Wholesale',           'wholesaler', '+639170000002', TRUE),   -- wholesaler_demo
-  (3,  'LINKO Logistics',                'logistics',  '+639170000003', TRUE),   -- logistics_demo + both couriers
-  (5,  'LINKO Platform',                 'other',      '+639170000005', TRUE),   -- admin_demo
-  (6,  'Davao Sari-Sari Mart',           'buyer',      '+639170000006', TRUE),   -- buyer2_demo
-  (7,  'Mandaue Agri Supply',            'wholesaler', '+639170000007', TRUE),   -- wholesaler2_demo
-  (8,  'Metro Cebu Trading — Retail',    'buyer',      '+639170000008', TRUE),   -- bizswitch_demo (buyer side)
-  (10, 'Metro Cebu Trading — Wholesale', 'wholesaler', '+639170000010', TRUE);   -- bizswitch_demo (wholesaler side)
+  (1, 'Sunrise Retail Cooperative', 'buyer', '+639170000001', TRUE),
+  (2, 'Cebu Fresh Wholesale', 'wholesaler', '+639170000002', TRUE),
+  (3, 'LINKO Logistics', 'logistics', '+639170000003', TRUE),
+  (5, 'LINKO Platform', 'other', '+639170000005', TRUE),
+  (6, 'Davao Sari-Sari Mart', 'buyer', '+639170000006', TRUE),
+  (7, 'Mandaue Agri Supply', 'wholesaler', '+639170000007', TRUE),
+  (8, 'Metro Cebu Trading — Retail', 'buyer', '+639170000008', TRUE),
+  (10, 'Metro Cebu Trading — Wholesale', 'wholesaler', '+639170000010', TRUE),
+  (14, 'Gen Wholesale Trading 0', 'wholesaler', '+639170001000', TRUE),
+  (15, 'Gen Wholesale Trading 1', 'wholesaler', '+639170001001', TRUE),
+  (16, 'Gen Wholesale Trading 2', 'wholesaler', '+639170001002', TRUE),
+  (17, 'Gen Wholesale Trading 3', 'wholesaler', '+639170001003', TRUE),
+  (18, 'Gen Wholesale Trading 4', 'wholesaler', '+639170001004', TRUE),
+  (19, 'Gen Sari-Sari 0', 'buyer', '+639170002000', TRUE),
+  (20, 'Gen Sari-Sari 1', 'buyer', '+639170002001', TRUE),
+  (21, 'Gen Sari-Sari 2', 'buyer', '+639170002002', TRUE),
+  (22, 'Gen Sari-Sari 3', 'buyer', '+639170002003', TRUE),
+  (23, 'Gen Sari-Sari 4', 'buyer', '+639170002004', TRUE),
+  (24, 'Gen Sari-Sari 5', 'buyer', '+639170002005', TRUE),
+  (25, 'Gen Sari-Sari 6', 'buyer', '+639170002006', TRUE),
+  (26, 'Gen Sari-Sari 7', 'buyer', '+639170002007', TRUE),
+  (27, 'Gen Sari-Sari 8', 'buyer', '+639170002008', TRUE),
+  (28, 'Gen Sari-Sari 9', 'buyer', '+639170002009', TRUE),
+  (29, 'Gen Sari-Sari 10', 'buyer', '+639170002010', TRUE),
+  (30, 'Gen Sari-Sari 11', 'buyer', '+639170002011', TRUE),
+  (31, 'Gen Sari-Sari 12', 'buyer', '+639170002012', TRUE),
+  (32, 'Gen Sari-Sari 13', 'buyer', '+639170002013', TRUE),
+  (33, 'Gen Sari-Sari 14', 'buyer', '+639170002014', TRUE);
 
-SELECT setval('businesses_business_id_seq', 10, true);
+SELECT setval('businesses_business_id_seq', 33, true);
 
--- Link each user to their business(es). User 8 owns two businesses.
--- Users 4 and 9 (couriers) own none -- they are staff of business 3, which
--- user 3 (the logistics coordinator) owns.
 INSERT INTO user_businesses (user_id, business_id) VALUES
-  (1,1),(2,2),(3,3),(5,5),(6,6),(7,7),(8,8),(8,10);
+  (1, 1),
+  (2, 2),
+  (3, 3),
+  (5, 5),
+  (6, 6),
+  (7, 7),
+  (8, 8),
+  (8, 10),
+  (10, 14),
+  (11, 15),
+  (12, 16),
+  (13, 17),
+  (14, 18),
+  (15, 19),
+  (16, 20),
+  (17, 21),
+  (18, 22),
+  (19, 23),
+  (20, 24),
+  (21, 25),
+  (22, 26),
+  (23, 27),
+  (24, 28),
+  (25, 29),
+  (26, 30),
+  (27, 31),
+  (28, 32),
+  (29, 33);
 
--- ---------------------------------------------------------------------------
--- 3. BUSINESS_MEMBERSHIPS — role-based access
---    Sprint 9: one marketplace role per (user, business). User 8 holds buyer
---    on business 8 and wholesaler on business 10 -- two distinct businesses,
---    never two roles on the same business.
---    Path Y1: both couriers hold their membership on business 3 (LINKO
---    Logistics), alongside the coordinator. The membership is an RBAC
---    formality -- authz only asks "is there a courier membership?", never
---    which business -- so courier identity and branch live on the couriers
---    row (section 8), not here.
--- ---------------------------------------------------------------------------
 INSERT INTO business_memberships (user_id, business_id, role) VALUES
   (1, 1, 'buyer'),
   (2, 2, 'wholesaler'),
   (3, 3, 'logistics_coordinator'),
-  (4, 3, 'courier'),      -- courier_demo, staff of LINKO Logistics
-  -- admin (user 5) has no membership row; access comes from users.role = 'admin'
+  (4, 3, 'courier'),
   (6, 6, 'buyer'),
   (7, 7, 'wholesaler'),
-  (8, 8,  'buyer'),       -- bizswitch_demo acting as buyer
-  (8, 10, 'wholesaler'),  -- bizswitch_demo acting as wholesaler
-  (9, 3, 'courier');      -- courier2_demo, staff of LINKO Logistics
+  (8, 8, 'buyer'),
+  (8, 10, 'wholesaler'),
+  (9, 3, 'courier'),
+  (10, 14, 'wholesaler'),
+  (11, 15, 'wholesaler'),
+  (12, 16, 'wholesaler'),
+  (13, 17, 'wholesaler'),
+  (14, 18, 'wholesaler'),
+  (15, 19, 'buyer'),
+  (16, 20, 'buyer'),
+  (17, 21, 'buyer'),
+  (18, 22, 'buyer'),
+  (19, 23, 'buyer'),
+  (20, 24, 'buyer'),
+  (21, 25, 'buyer'),
+  (22, 26, 'buyer'),
+  (23, 27, 'buyer'),
+  (24, 28, 'buyer'),
+  (25, 29, 'buyer'),
+  (26, 30, 'buyer'),
+  (27, 31, 'buyer'),
+  (28, 32, 'buyer'),
+  (29, 33, 'buyer');
 
--- ---------------------------------------------------------------------------
--- 4. ADDRESSES
---    2 per wholesaler business (2,7), 1 per everyone else, +1 ownerless branch
---
--- IDs are EXPLICIT. Addresses 5 and 11 are deliberately absent -- they belonged
--- to the fake courier businesses dropped by migration 022. Never renumber to
--- close the gaps: warehouses, branches, and every parcel route reference these
--- ids by literal, and a shift silently reroutes parcels (or fails the seed
--- outright on the warehouse FK).
--- ---------------------------------------------------------------------------
 INSERT INTO addresses (address_id, business_id, province, city_municipality, barangay, street_address, postal_code, latitude, longitude) VALUES
-  -- Business 1 (Sunrise Retail — buyer)
-  (1,  1, 'Cebu',   'Cebu City',    'Lahug',      '123 Salinas Dr',        '6000', 10.3283, 123.8988),
-  -- Business 2 (Cebu Fresh Wholesale) — 2 addresses
-  (2,  2, 'Cebu',   'Cebu City',    'Mabolo',     '45 AS Fortuna St',      '6000', 10.3182, 123.9161),    -- main office
-  (3,  2, 'Cebu',   'Cebu City',    'Banilad',    '88 Gov. Cuenco Ave',    '6000', 10.3444, 123.9137),    -- warehouse loc
-  -- Business 3 (LINKO Logistics)
-  (4,  3, 'Cebu',   'Cebu City',    'Subangdaku', '10 Ouano Ave',          '6000', 10.3243, 123.9234),
-  -- 5 absent: was Cory Express Delivery (courier business, dropped in 022)
-  -- Business 5 (LINKO Platform — admin)
-  (6,  5, 'Cebu',   'Cebu City',    'Lahug',      'Cebu IT Park Tower 1',  '6000', 10.3291, 123.9056),
-  -- Business 6 (Davao Sari-Sari — buyer2)
-  (7,  6, 'Davao del Sur', 'Davao City', 'Poblacion', '77 Roxas Ave',      '8000',  7.0700, 125.6128),
-  -- Business 7 (Mandaue Agri Supply) — 2 addresses
-  (8,  7, 'Cebu',   'Mandaue City', 'Tipolo',     '32 Plaridel St',        '6014', 10.3320, 123.9351),    -- main office
-  (9,  7, 'Cebu',   'Mandaue City', 'Casuntingan','Lot 9 NRA Compound',    '6014', 10.3421, 123.9332),    -- warehouse loc
-  -- Business 8 (Metro Cebu Trading — Retail, buyer side of bizswitch_demo)
-  (10, 8, 'Cebu',   'Cebu City',    'Guadalupe',  '55 V. Rama Ave',        '6000', 10.3157, 123.8854),
-  -- 11 absent: was Carlo Quick Haul (courier business, dropped in 022)
-  -- Ownerless branch address
-  (12, NULL, 'Cebu','Mandaue City', 'Centro',     'National Highway Hub',  '6014', 10.3280, 123.9400),
-  -- Business 10 (Metro Cebu Trading — Wholesale, wholesaler side of bizswitch_demo)
-  (13, 10,'Cebu',   'Cebu City',    'Guadalupe',  '55 V. Rama Ave Bldg B', '6000', 10.3157, 123.8854);
+  (1, 1, 'Cebu', 'Cebu City', 'Lahug', '123 Salinas Dr', '6000', 10.3283, 123.8988),
+  (2, 2, 'Cebu', 'Cebu City', 'Mabolo', '45 AS Fortuna St', '6000', 10.3182, 123.9161),
+  (3, 2, 'Cebu', 'Cebu City', 'Banilad', '88 Gov. Cuenco Ave', '6000', 10.3444, 123.9137),
+  (4, 3, 'Cebu', 'Cebu City', 'Subangdaku', '10 Ouano Ave', '6000', 10.3243, 123.9234),
+  (6, 5, 'Cebu', 'Cebu City', 'Lahug', 'Cebu IT Park Tower 1', '6000', 10.3291, 123.9056),
+  (7, 6, 'Davao del Sur', 'Davao City', 'Poblacion', '77 Roxas Ave', '8000', 7.07, 125.6128),
+  (8, 7, 'Cebu', 'Mandaue City', 'Tipolo', '32 Plaridel St', '6014', 10.332, 123.9351),
+  (9, 7, 'Cebu', 'Mandaue City', 'Casuntingan', 'Lot 9 NRA Compound', '6014', 10.3421, 123.9332),
+  (10, 8, 'Cebu', 'Cebu City', 'Guadalupe', '55 V. Rama Ave', '6000', 10.3157, 123.8854),
+  (12, NULL, 'Cebu', 'Mandaue City', 'Centro', 'National Highway Hub', '6014', 10.328, 123.94),
+  (13, 10, 'Cebu', 'Cebu City', 'Guadalupe', '55 V. Rama Ave Bldg B', '6000', 10.3157, 123.8854),
+  (14, 14, 'Cebu', 'Talisay City', 'Basak', '535 Main St', '6000', 10.2459, 123.9730),
+  (15, 14, 'Cebu', 'Talisay City', 'Subangdaku', '573 Warehouse Ave', '6000', 10.2906, 123.9083),
+  (16, 15, 'Cebu', 'Cebu City', 'Guadalupe', '476 Main St', '6000', 10.3791, 123.8580),
+  (17, 15, 'Cebu', 'Cebu City', 'Lahug', '816 Warehouse Ave', '6000', 10.2213, 123.8112),
+  (18, 16, 'Cebu', 'Cebu City', 'Talamban', '277 Main St', '6000', 10.3551, 123.9347),
+  (19, 16, 'Cebu', 'Lapu-Lapu City', 'Lahug', '813 Warehouse Ave', '6000', 10.3713, 123.8081),
+  (20, 17, 'Cebu', 'Lapu-Lapu City', 'Opao', '272 Main St', '6000', 10.2562, 123.8081),
+  (21, 17, 'Cebu', 'Cebu City', 'Guadalupe', '325 Warehouse Ave', '6000', 10.2970, 123.8200),
+  (22, 18, 'Cebu', 'Lapu-Lapu City', 'Talamban', '958 Main St', '6000', 10.2444, 123.8690),
+  (23, 18, 'Cebu', 'Mandaue City', 'Guadalupe', '661 Warehouse Ave', '6000', 10.3980, 123.9955),
+  (24, 19, 'Cebu', 'Mandaue City', 'Basak', '156 Retail St', '6000', 10.2596, 123.9372),
+  (25, 20, 'Cebu', 'Talisay City', 'Talamban', '912 Retail St', '6000', 10.3737, 123.8817),
+  (26, 21, 'Cebu', 'Mandaue City', 'Banilad', '95 Retail St', '6000', 10.3291, 123.8114),
+  (27, 22, 'Cebu', 'Mandaue City', 'Banilad', '523 Retail St', '6000', 10.2551, 123.8248),
+  (28, 23, 'Cebu', 'Lapu-Lapu City', 'Banilad', '938 Retail St', '6000', 10.3332, 123.8007),
+  (29, 24, 'Cebu', 'Mandaue City', 'Mabolo', '154 Retail St', '6000', 10.2224, 123.9721),
+  (30, 25, 'Cebu', 'Cebu City', 'Talamban', '605 Retail St', '6000', 10.2601, 123.8816),
+  (31, 26, 'Cebu', 'Cebu City', 'Banilad', '640 Retail St', '6000', 10.2513, 123.8576),
+  (32, 27, 'Cebu', 'Cebu City', 'Talamban', '339 Retail St', '6000', 10.3796, 123.8592),
+  (33, 28, 'Cebu', 'Talisay City', 'Basak', '497 Retail St', '6000', 10.3383, 123.9601),
+  (34, 29, 'Cebu', 'Lapu-Lapu City', 'Lahug', '585 Retail St', '6000', 10.3997, 123.9782),
+  (35, 30, 'Cebu', 'Cebu City', 'Banilad', '206 Retail St', '6000', 10.2474, 123.8877),
+  (36, 31, 'Cebu', 'Talisay City', 'Guadalupe', '790 Retail St', '6000', 10.2678, 123.9087),
+  (37, 32, 'Cebu', 'Lapu-Lapu City', 'Basak', '349 Retail St', '6000', 10.2147, 123.9774),
+  (38, 33, 'Cebu', 'Mandaue City', 'Subangdaku', '538 Retail St', '6000', 10.3181, 123.9233);
 
-SELECT setval('addresses_address_id_seq', 13, true);
+SELECT setval('addresses_address_id_seq', 38, true);
 
--- Canonical logistics pins (migration 023). Buyer = delivery address;
--- wholesaler = WAREHOUSE address (pickup), never the office row — this is
--- what replaces the old nondeterministic LIMIT 1 pick at ship time. All
--- pinned addresses above carry coordinates, so every seeded marketplace
--- actor passes the pin gates. Branch geometry is deliberately unambiguous:
--- Cebu Fresh's warehouse (addr 3) is nearest the Cebu hub (addr 4), Mandaue
--- Agri's warehouse (addr 9) is nearest the Mandaue hub (addr 12).
 UPDATE businesses AS b
 SET logistics_address_id = v.address_id
 FROM (VALUES
-  (1,  1),    -- Sunrise Retail (buyer)         -> its Lahug address
-  (2,  3),    -- Cebu Fresh Wholesale           -> Banilad warehouse
-  (6,  7),    -- Davao Sari-Sari (buyer)        -> its Poblacion address
-  (7,  9),    -- Mandaue Agri Supply            -> Casuntingan warehouse
-  (8,  10),   -- Metro Cebu Trading — Retail    -> its Guadalupe address
-  (10, 13)    -- Metro Cebu Trading — Wholesale -> Guadalupe Bldg B warehouse
+  (1, 1),
+  (2, 3),
+  (6, 7),
+  (7, 9),
+  (8, 10),
+  (10, 13),
+  (14, 15),
+  (15, 17),
+  (16, 19),
+  (17, 21),
+  (18, 23),
+  (19, 24),
+  (20, 25),
+  (21, 26),
+  (22, 27),
+  (23, 28),
+  (24, 29),
+  (25, 30),
+  (26, 31),
+  (27, 32),
+  (28, 33),
+  (29, 34),
+  (30, 35),
+  (31, 36),
+  (32, 37),
+  (33, 38)
 ) AS v(business_id, address_id)
 WHERE b.business_id = v.business_id;
 
--- ---------------------------------------------------------------------------
--- 5. WAREHOUSES (3) — one per wholesaler business (2, 7, 10)
--- ---------------------------------------------------------------------------
 INSERT INTO warehouses (business_id, warehouse_name, address_id) VALUES
-  (2,  'Cebu Fresh Main Warehouse',     3),    -- 1  uses address 3 (Banilad)
-  (7,  'Mandaue Agri Cold Storage',     9),    -- 2  uses address 9 (Casuntingan)
-  (10, 'Metro Cebu Wholesale Warehouse', 13);   -- 3  uses address 13 (Guadalupe Bldg B)
+  (2, 'Cebu Fresh Main Warehouse', 3),
+  (7, 'Mandaue Agri Cold Storage', 9),
+  (10, 'Metro Cebu Wholesale Warehouse', 13),
+  (14, 'Gen WH 0', 15),
+  (15, 'Gen WH 1', 17),
+  (16, 'Gen WH 2', 19),
+  (17, 'Gen WH 3', 21),
+  (18, 'Gen WH 4', 23);
 
--- ---------------------------------------------------------------------------
--- 6. PRODUCTS (13) — 6 per primary wholesaler, 5 for the second wholesaler,
---    2 for bizswitch_demo's wholesaler side. All listings are WHOLESALE bulk
---    packages (cases, sacks, crates, trays).
---    Categories: 1=Pork,2=Beef,3=Chicken,4=Chips,5=Fish,
---    6=Shellfish,7=Produce,8=Bakery,9=Dairy,10=Frozen,11=Packaging,12=Beverages
---
--- IDs are EXPLICIT: section 10 (order_items) references products by literal id.
--- ---------------------------------------------------------------------------
 INSERT INTO products (product_id, business_id, product_name, sku, category_id, description, unit_price, stock_quantity, image_url, is_active) VALUES
-  -- Cebu Fresh Wholesale (business 2) — 6 products
-  (1,  2, 'Pork Belly — 10kg case',           'CFW-PK001', 1,  '10kg vacuum-sealed pork belly slabs, 4-5 pcs per case',           2800.00, 45,  NULL, TRUE),
-  (2,  2, 'Beef Ribeye — 5kg case (10 steaks)','CFW-BF001', 2,  '5kg case, 10x 500g USDA-grade ribeye steaks',                     5200.00, 20,  NULL, TRUE),
-  (3,  2, 'Dressed Chicken — crate of 12',     'CFW-CK001', 3,  'Crate of 12 whole free-range dressed chickens (~1.2kg each)',     2340.00, 60,  NULL, TRUE),
-  (4,  2, 'Bangus Boneless — 10kg box',        'CFW-FS001', 5,  '10kg box of deboned butterflied milkfish (~20 pcs)',             3300.00, 35,  NULL, TRUE),
-  (5,  2, 'Tiger Prawns — 5kg styro box',      'CFW-SH001', 6,  '5kg iced styrofoam box, wild-caught tiger prawns',              3400.00, 15,  NULL, TRUE),
-  (6,  2, 'Carabao Mango — 20kg crate',        'CFW-PR001', 7,  '20kg crate of export-quality Cebu carabao mangoes (~50 pcs)',   2400.00, 80,  NULL, TRUE),
+  (1, 2, 'Pork Belly — 10kg case', 'CFW-PK001', 1, '10kg vacuum-sealed pork belly slabs, 4-5 pcs per case', 2800, 45, NULL, TRUE),
+  (2, 2, 'Beef Ribeye — 5kg case (10 steaks)', 'CFW-BF001', 2, '5kg case, 10x 500g USDA-grade ribeye steaks', 5200, 20, NULL, TRUE),
+  (3, 2, 'Dressed Chicken — crate of 12', 'CFW-CK001', 3, 'Crate of 12 whole free-range dressed chickens (~1.2kg each)', 2340, 60, NULL, TRUE),
+  (4, 2, 'Bangus Boneless — 10kg box', 'CFW-FS001', 5, '10kg box of deboned butterflied milkfish (~20 pcs)', 3300, 35, NULL, TRUE),
+  (5, 2, 'Tiger Prawns — 5kg styro box', 'CFW-SH001', 6, '5kg iced styrofoam box, wild-caught tiger prawns', 3400, 15, NULL, TRUE),
+  (6, 2, 'Carabao Mango — 20kg crate', 'CFW-PR001', 7, '20kg crate of export-quality Cebu carabao mangoes (~50 pcs)', 2400, 80, NULL, TRUE),
+  (7, 7, 'Pandesal — tray of 100 pcs', 'MAS-BK001', 8, 'Tray of 100 freshly baked traditional pandesal rolls', 450, 100, NULL, TRUE),
+  (8, 7, 'Carabao Milk — crate of 12L', 'MAS-DY001', 9, 'Crate of 12x 1L fresh pasteurized carabao milk', 1020, 40, NULL, TRUE),
+  (9, 7, 'Lumpia Shanghai — 5kg bulk pack', 'MAS-FZ001', 10, '5kg bulk pack frozen pork lumpia shanghai (~200 pcs)', 1400, 55, NULL, TRUE),
+  (10, 7, 'Calamansi Juice — case of 24 bottles', 'MAS-BV001', 12, 'Case of 24x 500mL pure calamansi concentrate, no preservatives', 1560, 70, NULL, TRUE),
+  (11, 7, 'Brown Paper Bags — bundle of 500', 'MAS-PK001', 11, 'Bundle of 500 medium kraft paper bags for retail use', 900, 200, NULL, TRUE),
+  (12, 10, 'Chicharon Baboy — box of 48 packs', 'MCT-CHP01', 4, 'Box of 48x 200g crispy pork chicharon, Cebu-style', 3600, 90, NULL, TRUE),
+  (13, 10, 'Dried Pusit — 5kg sack', 'MCT-FS001', 5, '5kg sack of sun-dried squid, ready to grill', 2200, 30, NULL, TRUE),
+  (14, 14, 'Gen Product 14', 'GEN-SKU-14', 6, 'Bulk item 14', 4036.00, 57, NULL, TRUE),
+  (15, 14, 'Gen Product 15', 'GEN-SKU-15', 6, 'Bulk item 15', 658.00, 12, NULL, TRUE),
+  (16, 14, 'Gen Product 16', 'GEN-SKU-16', 1, 'Bulk item 16', 1439.00, 19, NULL, TRUE),
+  (17, 15, 'Gen Product 17', 'GEN-SKU-17', 3, 'Bulk item 17', 2196.00, 27, NULL, TRUE),
+  (18, 15, 'Gen Product 18', 'GEN-SKU-18', 6, 'Bulk item 18', 3217.00, 70, NULL, TRUE),
+  (19, 15, 'Gen Product 19', 'GEN-SKU-19', 2, 'Bulk item 19', 4730.00, 25, NULL, TRUE),
+  (20, 16, 'Gen Product 20', 'GEN-SKU-20', 11, 'Bulk item 20', 3157.00, 87, NULL, TRUE),
+  (21, 16, 'Gen Product 21', 'GEN-SKU-21', 5, 'Bulk item 21', 1883.00, 13, NULL, TRUE),
+  (22, 16, 'Gen Product 22', 'GEN-SKU-22', 8, 'Bulk item 22', 4812.00, 87, NULL, TRUE),
+  (23, 17, 'Gen Product 23', 'GEN-SKU-23', 9, 'Bulk item 23', 4617.00, 83, NULL, TRUE),
+  (24, 17, 'Gen Product 24', 'GEN-SKU-24', 10, 'Bulk item 24', 1868.00, 83, NULL, TRUE),
+  (25, 17, 'Gen Product 25', 'GEN-SKU-25', 10, 'Bulk item 25', 123.00, 34, NULL, TRUE),
+  (26, 18, 'Gen Product 26', 'GEN-SKU-26', 4, 'Bulk item 26', 3101.00, 11, NULL, TRUE),
+  (27, 18, 'Gen Product 27', 'GEN-SKU-27', 9, 'Bulk item 27', 926.00, 37, NULL, TRUE),
+  (28, 18, 'Gen Product 28', 'GEN-SKU-28', 8, 'Bulk item 28', 504.00, 26, NULL, TRUE);
 
-  -- Mandaue Agri Supply (business 7) — 5 products
-  (7,  7, 'Pandesal — tray of 100 pcs',        'MAS-BK001', 8,  'Tray of 100 freshly baked traditional pandesal rolls',           450.00, 100, NULL, TRUE),
-  (8,  7, 'Carabao Milk — crate of 12L',       'MAS-DY001', 9,  'Crate of 12x 1L fresh pasteurized carabao milk',                1020.00, 40,  NULL, TRUE),
-  (9,  7, 'Lumpia Shanghai — 5kg bulk pack',   'MAS-FZ001', 10, '5kg bulk pack frozen pork lumpia shanghai (~200 pcs)',           1400.00, 55,  NULL, TRUE),
-  (10, 7, 'Calamansi Juice — case of 24 bottles','MAS-BV001', 12, 'Case of 24x 500mL pure calamansi concentrate, no preservatives',1560.00, 70,  NULL, TRUE),
-  (11, 7, 'Brown Paper Bags — bundle of 500',  'MAS-PK001', 11, 'Bundle of 500 medium kraft paper bags for retail use',           900.00, 200, NULL, TRUE),
+SELECT setval('products_product_id_seq', 28, true);
 
-  -- Metro Cebu Trading — Wholesale (business 10, bizswitch_demo's wholesaler side) — 2 products
-  (12, 10, 'Chicharon Baboy — box of 48 packs', 'MCT-CHP01', 4,  'Box of 48x 200g crispy pork chicharon, Cebu-style',             3600.00, 90,  NULL, TRUE),
-  (13, 10, 'Dried Pusit — 5kg sack',            'MCT-FS001', 5,  '5kg sack of sun-dried squid, ready to grill',                   2200.00, 30,  NULL, TRUE);
-
-SELECT setval('products_product_id_seq', 13, true);
-
--- ---------------------------------------------------------------------------
--- 7. BRANCHES (2) — Cebu hub + Mandaue hub
---
--- IDs are EXPLICIT: couriers.assigned_branch_id and every tracking_logs row
--- reference branches by literal id.
--- ---------------------------------------------------------------------------
 INSERT INTO branches (branch_id, branch_name, address_id, contact_number) VALUES
-  (1, 'LINKO Cebu Central Hub', 4,  '+639180000001'),   -- uses logistics address
-  (2, 'LINKO Mandaue Hub',      12, '+639180000002');   -- uses ownerless address
+  (1, 'LINKO Cebu Central Hub', 4, '+639180000001'),
+  (2, 'LINKO Mandaue Hub', 12, '+639180000002');
 
 SELECT setval('branches_branch_id_seq', 2, true);
 
--- ---------------------------------------------------------------------------
--- 8. COURIERS (2) — one per branch, linked to user accounts
---    Path Y1: a courier is a person, not a business. Identity and branch live
---    here; the business_memberships row (section 3) exists only so RBAC has a
---    courier role to gate on. There is no couriers.business_id.
---
--- IDs are EXPLICIT: tracking_logs.courier_id references couriers by literal id.
--- ---------------------------------------------------------------------------
 INSERT INTO couriers (courier_id, full_name, phone_number, vehicle_type, assigned_branch_id, user_id) VALUES
-  (1, 'Cory Courier',  '+639170000004', 'Motorcycle', 1, 4),   -- courier_demo, Cebu hub
-  (2, 'Carlo Courier', '+639170000009', 'Van',        2, 9);   -- courier2_demo, Mandaue hub
+  (1, 'Cory Courier', '+639170000004', 'Motorcycle', 1, 4),
+  (2, 'Carlo Courier', '+639170000009', 'Van', 2, 9);
 
 SELECT setval('couriers_courier_id_seq', 2, true);
 
--- ---------------------------------------------------------------------------
--- 9. ORDERS (5) — spread across statuses
---    Buyer 1 (business 1) orders from Wholesaler (business 2)
---    Buyer 2 (business 6) orders from Wholesaler 2 (business 7)
---    bizswitch_demo (business 8, buyer side) orders from Wholesaler (business 2)
---    Buyer 1 orders from Wholesaler 2 (business 7)
---
--- IDs are EXPLICIT: order_items, invoices, and parcels all reference orders by
--- literal id.
--- ---------------------------------------------------------------------------
 INSERT INTO orders (order_id, buyer_business_id, wholesaler_business_id, tier_id, status, created_by, created_at, updated_at) VALUES
-  (1, 1, 2, 1, 'pending',   1, NOW() - INTERVAL '2 days',  NOW() - INTERVAL '2 days'),
-  (2, 6, 7, 2, 'accepted',  6, NOW() - INTERVAL '4 days',  NOW() - INTERVAL '3 days'),
-  (3, 8, 2, 1, 'shipped',   8, NOW() - INTERVAL '6 days',  NOW() - INTERVAL '4 days'),   -- bizswitch as buyer
+  (1, 1, 2, 1, 'pending', 1, NOW() - INTERVAL '2 days', NOW() - INTERVAL '2 days'),
+  (2, 6, 7, 2, 'accepted', 6, NOW() - INTERVAL '4 days', NOW() - INTERVAL '3 days'),
+  (3, 8, 2, 1, 'shipped', 8, NOW() - INTERVAL '6 days', NOW() - INTERVAL '4 days'),
   (4, 1, 7, 3, 'delivered', 1, NOW() - INTERVAL '10 days', NOW() - INTERVAL '7 days'),
-  (5, 6, 7, 2, 'returned',  6, NOW() - INTERVAL '8 days',  NOW() - INTERVAL '2 days');   -- failed delivery
+  (5, 6, 7, 2, 'returned', 6, NOW() - INTERVAL '8 days', NOW() - INTERVAL '2 days'),
+  (6, 31, 14, 3, 'shipped', 27, NOW() - INTERVAL '27 days', NOW() - INTERVAL '4 days'),
+  (7, 21, 7, 3, 'delivered', 17, NOW() - INTERVAL '23 days', NOW() - INTERVAL '4 days'),
+  (8, 33, 17, 3, 'shipped', 29, NOW() - INTERVAL '29 days', NOW() - INTERVAL '8 days'),
+  (9, 31, 18, 2, 'returned', 27, NOW() - INTERVAL '20 days', NOW() - INTERVAL '3 days'),
+  (10, 8, 18, 1, 'shipped', 8, NOW() - INTERVAL '30 days', NOW() - INTERVAL '8 days'),
+  (11, 21, 18, 1, 'returned', 17, NOW() - INTERVAL '18 days', NOW() - INTERVAL '7 days'),
+  (12, 33, 16, 2, 'delivered', 29, NOW() - INTERVAL '15 days', NOW() - INTERVAL '6 days'),
+  (13, 25, 2, 1, 'returned', 21, NOW() - INTERVAL '12 days', NOW() - INTERVAL '3 days'),
+  (14, 25, 18, 3, 'shipped', 21, NOW() - INTERVAL '19 days', NOW() - INTERVAL '6 days'),
+  (15, 23, 14, 1, 'shipped', 19, NOW() - INTERVAL '17 days', NOW() - INTERVAL '8 days'),
+  (16, 28, 15, 2, 'shipped', 24, NOW() - INTERVAL '11 days', NOW() - INTERVAL '4 days'),
+  (17, 31, 7, 3, 'shipped', 27, NOW() - INTERVAL '19 days', NOW() - INTERVAL '9 days'),
+  (18, 20, 14, 1, 'delivered', 16, NOW() - INTERVAL '22 days', NOW() - INTERVAL '4 days'),
+  (19, 22, 15, 3, 'returned', 18, NOW() - INTERVAL '11 days', NOW() - INTERVAL '1 days'),
+  (20, 26, 16, 1, 'shipped', 22, NOW() - INTERVAL '30 days', NOW() - INTERVAL '7 days'),
+  (21, 24, 2, 1, 'delivered', 20, NOW() - INTERVAL '13 days', NOW() - INTERVAL '4 days'),
+  (22, 33, 17, 3, 'delivered', 29, NOW() - INTERVAL '11 days', NOW() - INTERVAL '3 days'),
+  (23, 20, 7, 2, 'returned', 16, NOW() - INTERVAL '28 days', NOW() - INTERVAL '6 days'),
+  (24, 27, 14, 2, 'delivered', 23, NOW() - INTERVAL '23 days', NOW() - INTERVAL '5 days'),
+  (25, 21, 10, 2, 'shipped', 17, NOW() - INTERVAL '29 days', NOW() - INTERVAL '4 days'),
+  (26, 28, 16, 3, 'delivered', 24, NOW() - INTERVAL '12 days', NOW() - INTERVAL '4 days'),
+  (27, 23, 17, 3, 'delivered', 19, NOW() - INTERVAL '18 days', NOW() - INTERVAL '6 days'),
+  (28, 31, 18, 1, 'returned', 27, NOW() - INTERVAL '14 days', NOW() - INTERVAL '5 days'),
+  (29, 1, 2, 3, 'delivered', 1, NOW() - INTERVAL '17 days', NOW() - INTERVAL '8 days'),
+  (30, 29, 2, 2, 'shipped', 25, NOW() - INTERVAL '25 days', NOW() - INTERVAL '6 days'),
+  (31, 30, 15, 2, 'shipped', 26, NOW() - INTERVAL '10 days', NOW() - INTERVAL '6 days'),
+  (32, 23, 16, 1, 'delivered', 19, NOW() - INTERVAL '25 days', NOW() - INTERVAL '8 days');
 
-SELECT setval('orders_order_id_seq', 5, true);
+SELECT setval('orders_order_id_seq', 32, true);
 
--- ---------------------------------------------------------------------------
--- 10. ORDER_ITEMS — varying quantities per order
--- ---------------------------------------------------------------------------
 INSERT INTO order_items (order_id, product_id, quantity, unit_price_snapshot) VALUES
-  -- Order 1 (pending): 1 item
-  (1, 1, 3, 2800.00),                     -- 3x Pork Belly 10kg case = 8,400
+  (1, 1, 3, 2800),
+  (2, 7, 5, 450),
+  (2, 10, 2, 1560),
+  (3, 3, 2, 2340),
+  (3, 4, 1, 3300),
+  (3, 6, 1, 2400),
+  (4, 8, 3, 1020),
+  (4, 11, 1, 900),
+  (5, 9, 2, 1400),
+  (6, 16, 1, 1439.00),
+  (6, 15, 5, 658.00),
+  (7, 7, 1, 450.00),
+  (7, 10, 2, 1560.00),
+  (8, 23, 3, 4617.00),
+  (8, 25, 3, 123.00),
+  (9, 26, 2, 3101.00),
+  (9, 27, 1, 926.00),
+  (10, 26, 2, 3101.00),
+  (10, 27, 4, 926.00),
+  (10, 28, 4, 504.00),
+  (11, 26, 3, 3101.00),
+  (11, 27, 2, 926.00),
+  (12, 20, 5, 3157.00),
+  (12, 22, 4, 4812.00),
+  (13, 4, 1, 3300.00),
+  (14, 28, 3, 504.00),
+  (14, 26, 5, 3101.00),
+  (14, 27, 3, 926.00),
+  (15, 15, 5, 658.00),
+  (16, 19, 5, 4730.00),
+  (17, 9, 1, 1400.00),
+  (18, 15, 1, 658.00),
+  (18, 14, 1, 4036.00),
+  (19, 18, 3, 3217.00),
+  (19, 19, 1, 4730.00),
+  (19, 17, 5, 2196.00),
+  (20, 21, 3, 1883.00),
+  (20, 20, 1, 3157.00),
+  (20, 22, 5, 4812.00),
+  (21, 6, 3, 2400.00),
+  (22, 25, 5, 123.00),
+  (22, 24, 3, 1868.00),
+  (22, 23, 3, 4617.00),
+  (23, 10, 3, 1560.00),
+  (23, 9, 2, 1400.00),
+  (24, 14, 1, 4036.00),
+  (24, 15, 5, 658.00),
+  (25, 12, 2, 3600.00),
+  (25, 13, 1, 2200.00),
+  (26, 20, 3, 3157.00),
+  (26, 21, 4, 1883.00),
+  (26, 22, 5, 4812.00),
+  (27, 24, 1, 1868.00),
+  (27, 23, 5, 4617.00),
+  (27, 25, 4, 123.00),
+  (28, 26, 5, 3101.00),
+  (28, 28, 2, 504.00),
+  (28, 27, 4, 926.00),
+  (29, 1, 1, 2800.00),
+  (29, 4, 1, 3300.00),
+  (29, 6, 3, 2400.00),
+  (30, 4, 3, 3300.00),
+  (30, 6, 5, 2400.00),
+  (31, 19, 3, 4730.00),
+  (31, 17, 3, 2196.00),
+  (32, 20, 3, 3157.00);
 
-  -- Order 2 (accepted): 2 items
-  (2, 7,  5,  450.00),                    -- 5x Pandesal tray = 2,250
-  (2, 10, 2, 1560.00),                    -- 2x Calamansi Juice case = 3,120
-
-  -- Order 3 (shipped): 3 items
-  (3, 3, 2, 2340.00),                     -- 2x Chicken crate = 4,680
-  (3, 4, 1, 3300.00),                     -- 1x Bangus 10kg box = 3,300
-  (3, 6, 1, 2400.00),                     -- 1x Mango 20kg crate = 2,400
-
-  -- Order 4 (delivered): 2 items
-  (4, 8,  3, 1020.00),                    -- 3x Carabao Milk crate = 3,060
-  (4, 11, 1,  900.00),                    -- 1x Paper Bags bundle = 900
-
-  -- Order 5 (returned after failed delivery): 1 item
-  (5, 9, 2, 1400.00);                     -- 2x Lumpia Shanghai bulk pack = 2,800
-
--- ---------------------------------------------------------------------------
--- 11. INVOICES (4) — for accepted, shipped, delivered, returned orders
---     total = SUM(qty * unit_price_snapshot) + service_tier base_fee
--- ---------------------------------------------------------------------------
 INSERT INTO invoices (order_id, invoice_number, total, issued_at) VALUES
-  (2, 'INV-2-001', 5460.00,  NOW() - INTERVAL '3 days'),   -- accepted: 2250+3120+90(express fee)
-  (3, 'INV-3-001', 10430.00, NOW() - INTERVAL '4 days'),   -- shipped:  4680+3300+2400+50(standard fee)
-  (4, 'INV-4-001', 4110.00,  NOW() - INTERVAL '7 days'),   -- delivered: 3060+900+150(next-day fee)
-  (5, 'INV-5-001', 2890.00,  NOW() - INTERVAL '6 days');   -- returned:  2800+90(express fee)
+  (2, 'INV-2-001', 5460, NOW() - INTERVAL '3 days'),
+  (3, 'INV-3-001', 10430, NOW() - INTERVAL '4 days'),
+  (4, 'INV-4-001', 4110, NOW() - INTERVAL '7 days'),
+  (5, 'INV-5-001', 2890, NOW() - INTERVAL '6 days'),
+  (6, 'INV-6-001', 4879.00, NOW() - INTERVAL '27 days'),
+  (7, 'INV-7-001', 3720.00, NOW() - INTERVAL '23 days'),
+  (8, 'INV-8-001', 14370.00, NOW() - INTERVAL '29 days'),
+  (9, 'INV-9-001', 7218.00, NOW() - INTERVAL '20 days'),
+  (10, 'INV-10-001', 11972.00, NOW() - INTERVAL '30 days'),
+  (11, 'INV-11-001', 11205.00, NOW() - INTERVAL '18 days'),
+  (12, 'INV-12-001', 35123.00, NOW() - INTERVAL '15 days'),
+  (13, 'INV-13-001', 3350.00, NOW() - INTERVAL '12 days'),
+  (14, 'INV-14-001', 19945.00, NOW() - INTERVAL '19 days'),
+  (15, 'INV-15-001', 3340.00, NOW() - INTERVAL '17 days'),
+  (16, 'INV-16-001', 23740.00, NOW() - INTERVAL '11 days'),
+  (17, 'INV-17-001', 1550.00, NOW() - INTERVAL '19 days'),
+  (18, 'INV-18-001', 4744.00, NOW() - INTERVAL '22 days'),
+  (19, 'INV-19-001', 25511.00, NOW() - INTERVAL '11 days'),
+  (20, 'INV-20-001', 32916.00, NOW() - INTERVAL '30 days'),
+  (21, 'INV-21-001', 7250.00, NOW() - INTERVAL '13 days'),
+  (22, 'INV-22-001', 20220.00, NOW() - INTERVAL '11 days'),
+  (23, 'INV-23-001', 7570.00, NOW() - INTERVAL '28 days'),
+  (24, 'INV-24-001', 7416.00, NOW() - INTERVAL '23 days'),
+  (25, 'INV-25-001', 9490.00, NOW() - INTERVAL '29 days'),
+  (26, 'INV-26-001', 41213.00, NOW() - INTERVAL '12 days'),
+  (27, 'INV-27-001', 25595.00, NOW() - INTERVAL '18 days'),
+  (28, 'INV-28-001', 20267.00, NOW() - INTERVAL '14 days'),
+  (29, 'INV-29-001', 13450.00, NOW() - INTERVAL '17 days'),
+  (30, 'INV-30-001', 21990.00, NOW() - INTERVAL '25 days'),
+  (31, 'INV-31-001', 20868.00, NOW() - INTERVAL '10 days'),
+  (32, 'INV-32-001', 9521.00, NOW() - INTERVAL '25 days');
 
--- ---------------------------------------------------------------------------
--- 12. PARCELS (3) — for shipped, delivered, and returned orders
--- ---------------------------------------------------------------------------
--- Marketplace parcels carry a real ship-time weight but no route distance
--- (Sprint 8: checkout never measured it) -> total_distance_km is NULL. The
--- shipping_fee stays the frozen checkout quote (tier base fee).
-INSERT INTO parcels (parcel_id, order_id, sender_id, receiver_id, tier_id,
-                     origin_address_id, destination_address_id,
-                     weight_kg, dimensions, total_distance_km,
-                     declared_value, shipping_fee,
-                     estimated_delivery_date) VALUES
-  ('LKO-00000001', 3, 2, 8, 1, 2, 10, 8.50, '40x30x25 cm', NULL, 10380.00, 50.00,  NOW()::date + 3),   -- shipped order 3
-  ('LKO-00000002', 4, 7, 1, 3, 8, 1,  4.20, '30x25x20 cm', NULL,  3960.00, 150.00, NOW()::date - 5),   -- delivered order 4 (clean journey)
-  ('LKO-00000003', 5, 7, 6, 2, 8, 7,  5.50, '35x25x20 cm', NULL,  2800.00, 90.00,  NOW()::date - 2);   -- returned order 5 (failed journey)
+INSERT INTO parcels (parcel_id, order_id, sender_id, receiver_id, tier_id, origin_address_id, destination_address_id, weight_kg, dimensions, total_distance_km, declared_value, shipping_fee, estimated_delivery_date) VALUES
+  ('LKO-00000001', 3, 2, 8, 1, 2, 10, 8.5, '40x30x25 cm', NULL, 10380, 50, NOW()::date + 3),
+  ('LKO-00000002', 4, 7, 1, 3, 8, 1, 4.2, '30x25x20 cm', NULL, 3960, 150, NOW()::date - 5),
+  ('LKO-00000003', 5, 7, 6, 2, 8, 7, 5.5, '35x25x20 cm', NULL, 2800, 90, NOW()::date - 2),
+  ('LKO-00000004', 6, 14, 31, 3, 15, 36, 10.30, '22x49x42 cm', NULL, 4729.00, 150.00, NOW()::date + 3),
+  ('LKO-00000005', 7, 7, 21, 3, 9, 26, 7.50, '48x50x30 cm', NULL, 3570.00, 150.00, NOW()::date + 3),
+  ('LKO-00000006', 8, 17, 33, 3, 21, 38, 14.90, '28x44x49 cm', NULL, 14220.00, 150.00, NOW()::date + 3),
+  ('LKO-00000007', 9, 18, 31, 2, 23, 36, 20.60, '37x45x26 cm', NULL, 7128.00, 90.00, NOW()::date + 3),
+  ('LKO-00000008', 10, 18, 8, 1, 23, 10, 14.00, '30x31x45 cm', NULL, 11922.00, 50.00, NOW()::date + 3),
+  ('LKO-00000009', 11, 18, 21, 1, 23, 26, 23.80, '43x21x42 cm', NULL, 11155.00, 50.00, NOW()::date + 3),
+  ('LKO-00000010', 12, 16, 33, 2, 19, 38, 9.30, '41x33x34 cm', NULL, 35033.00, 90.00, NOW()::date + 3),
+  ('LKO-00000011', 13, 2, 25, 1, 3, 30, 17.90, '36x27x35 cm', NULL, 3300.00, 50.00, NOW()::date + 3),
+  ('LKO-00000012', 14, 18, 25, 3, 23, 30, 3.00, '40x25x35 cm', NULL, 19795.00, 150.00, NOW()::date + 3),
+  ('LKO-00000013', 15, 14, 23, 1, 15, 28, 22.60, '24x41x23 cm', NULL, 3290.00, 50.00, NOW()::date + 3),
+  ('LKO-00000014', 16, 15, 28, 2, 17, 33, 10.50, '28x22x21 cm', NULL, 23650.00, 90.00, NOW()::date + 3),
+  ('LKO-00000015', 17, 7, 31, 3, 9, 36, 21.60, '29x29x46 cm', NULL, 1400.00, 150.00, NOW()::date + 3),
+  ('LKO-00000016', 18, 14, 20, 1, 15, 25, 12.40, '44x45x26 cm', NULL, 4694.00, 50.00, NOW()::date + 3),
+  ('LKO-00000017', 19, 15, 22, 3, 17, 27, 17.90, '40x44x20 cm', NULL, 25361.00, 150.00, NOW()::date + 3),
+  ('LKO-00000018', 20, 16, 26, 1, 19, 31, 8.50, '25x49x28 cm', NULL, 32866.00, 50.00, NOW()::date + 3),
+  ('LKO-00000019', 21, 2, 24, 1, 3, 29, 11.20, '35x45x38 cm', NULL, 7200.00, 50.00, NOW()::date + 3),
+  ('LKO-00000020', 22, 17, 33, 3, 21, 38, 9.50, '35x45x43 cm', NULL, 20070.00, 150.00, NOW()::date + 3),
+  ('LKO-00000021', 23, 7, 20, 2, 9, 25, 22.00, '30x40x44 cm', NULL, 7480.00, 90.00, NOW()::date + 3),
+  ('LKO-00000022', 24, 14, 27, 2, 15, 32, 8.50, '25x34x35 cm', NULL, 7326.00, 90.00, NOW()::date + 3),
+  ('LKO-00000023', 25, 10, 21, 2, 13, 26, 22.40, '22x25x31 cm', NULL, 9400.00, 90.00, NOW()::date + 3),
+  ('LKO-00000024', 26, 16, 28, 3, 19, 33, 9.80, '23x29x47 cm', NULL, 41063.00, 150.00, NOW()::date + 3),
+  ('LKO-00000025', 27, 17, 23, 3, 21, 28, 13.80, '41x34x36 cm', NULL, 25445.00, 150.00, NOW()::date + 3),
+  ('LKO-00000026', 28, 18, 31, 1, 23, 36, 8.30, '48x23x25 cm', NULL, 20217.00, 50.00, NOW()::date + 3),
+  ('LKO-00000027', 29, 2, 1, 3, 3, 1, 22.40, '42x31x27 cm', NULL, 13300.00, 150.00, NOW()::date + 3),
+  ('LKO-00000028', 30, 2, 29, 2, 3, 34, 10.20, '46x50x22 cm', NULL, 21900.00, 90.00, NOW()::date + 3),
+  ('LKO-00000029', 31, 15, 30, 2, 17, 35, 17.70, '38x41x42 cm', NULL, 20778.00, 90.00, NOW()::date + 3),
+  ('LKO-00000030', 32, 16, 23, 1, 19, 28, 13.50, '22x25x45 cm', NULL, 9471.00, 50.00, NOW()::date + 3);
 
--- Advance the parcel-ID sequence past the hardcoded LKO- seeds so the next
--- app-minted nextParcelId() does not collide with parcels_pkey (migration 016
--- setval runs before this seed, so it cannot see these rows).
-SELECT setval('parcel_id_seq', 3, true);
+SELECT setval('parcel_id_seq', 30, true);
 
--- ---------------------------------------------------------------------------
--- 13. TRACKING_LOGS — realistic progression
--- ---------------------------------------------------------------------------
 INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id, courier_id, scanned_at) VALUES
-  -- Parcel LKO-00000001 (shipped/en route): Departed not yet Arrived = in transit
-  ('LKO-00000001', 'Order Created',   'Auto-generated from marketplace order',   1,    NULL, NOW() - INTERVAL '4 days'),
-  ('LKO-00000001', 'Picked Up',       'Picked up from Cebu Fresh warehouse',     1,    1,   NOW() - INTERVAL '3 days'),
-  ('LKO-00000001', 'Departed Branch', 'Departed from LINKO Cebu Central Hub',    1,    1,   NOW() - INTERVAL '2 days'),
+  ('LKO-00000001', 'Order Created', 'Auto-generated from marketplace order', 1, NULL, NOW() - INTERVAL '4 days'),
+  ('LKO-00000001', 'Picked Up', 'Picked up from Cebu Fresh warehouse', 1, 1, NOW() - INTERVAL '3 days'),
+  ('LKO-00000001', 'Departed Branch', 'Departed from LINKO Cebu Central Hub', 1, 1, NOW() - INTERVAL '2 days'),
+  ('LKO-00000002', 'Order Created', 'Auto-generated from marketplace order', 2, NULL, NOW() - INTERVAL '9 days'),
+  ('LKO-00000002', 'Picked Up', 'Picked up from Mandaue Agri warehouse', 2, 2, NOW() - INTERVAL '8 days'),
+  ('LKO-00000002', 'Departed Branch', 'Departed from LINKO Mandaue Hub', 2, 2, NOW() - INTERVAL '8 days'),
+  ('LKO-00000002', 'Arrived at Branch', 'Arrived at LINKO Cebu Central Hub', 1, 1, NOW() - INTERVAL '7 days 12 hours'),
+  ('LKO-00000002', 'Departed Branch', 'Departed from LINKO Cebu Central Hub', 1, 1, NOW() - INTERVAL '7 days 4 hours'),
+  ('LKO-00000002', 'Out for Delivery', 'Last mile to Sunrise Retail', 1, 1, NOW() - INTERVAL '7 days'),
+  ('LKO-00000002', 'Delivered', 'Cory Courier → Sunrise Retail Cooperative', 1, 1, NOW() - INTERVAL '7 days'),
+  ('LKO-00000003', 'Order Created', 'Auto-generated from marketplace order', 2, NULL, NOW() - INTERVAL '6 days'),
+  ('LKO-00000003', 'Picked Up', 'Picked up from Mandaue Agri warehouse', 2, 2, NOW() - INTERVAL '5 days'),
+  ('LKO-00000003', 'Departed Branch', 'Departed from LINKO Mandaue Hub', 2, 2, NOW() - INTERVAL '4 days'),
+  ('LKO-00000003', 'Out for Delivery', 'Delivery attempt 1', 2, 2, NOW() - INTERVAL '3 days 12 hours'),
+  ('LKO-00000003', 'Delivery Failed', 'Receiver unavailable', 2, 2, NOW() - INTERVAL '3 days 10 hours'),
+  ('LKO-00000003', 'Out for Delivery', 'Delivery attempt 2', 2, 2, NOW() - INTERVAL '3 days'),
+  ('LKO-00000003', 'Delivery Failed', 'Receiver unavailable', 2, 2, NOW() - INTERVAL '2 days 22 hours'),
+  ('LKO-00000003', 'Out for Delivery', 'Delivery attempt 3', 2, 2, NOW() - INTERVAL '2 days 12 hours'),
+  ('LKO-00000003', 'Delivery Failed', 'Delivery refused', 2, 2, NOW() - INTERVAL '2 days 10 hours'),
+  ('LKO-00000003', 'Arrived at Branch', 'Arrived at LINKO Mandaue Hub', 2, 2, NOW() - INTERVAL '2 days 2 hours'),
+  ('LKO-00000003', 'Out for Return', 'Out for return to Mandaue Agri Supply', 2, 2, NOW() - INTERVAL '2 days 1 hour'),
+  ('LKO-00000003', 'Returned', 'Carlo Courier → Mandaue Agri Supply', 2, 2, NOW() - INTERVAL '2 days'),
+  ('LKO-00000004', 'Order Created', 'Auto-generated from marketplace order', 1, NULL, NOW() - INTERVAL '27 days'),
+  ('LKO-00000004', 'Picked Up', 'Picked up by courier', 2, 2, NOW() - INTERVAL '27 days' + INTERVAL '1 day'),
+  ('LKO-00000004', 'Arrived at Branch', 'Arrived at origin hub', 2, 2, NOW() - INTERVAL '27 days' + INTERVAL '1 day 1 hour'),
+  ('LKO-00000004', 'Departed Branch', 'Departed from origin hub', 2, 2, NOW() - INTERVAL '27 days' + INTERVAL '1 day 2 hours'),
+  ('LKO-00000005', 'Order Created', 'Auto-generated from marketplace order', 1, NULL, NOW() - INTERVAL '23 days'),
+  ('LKO-00000005', 'Picked Up', 'Picked up by courier', 2, 2, NOW() - INTERVAL '23 days' + INTERVAL '1 day'),
+  ('LKO-00000005', 'Arrived at Branch', 'Arrived at origin hub', 2, 2, NOW() - INTERVAL '23 days' + INTERVAL '1 day 1 hour'),
+  ('LKO-00000005', 'Departed Branch', 'Departed from origin hub', 2, 2, NOW() - INTERVAL '23 days' + INTERVAL '1 day 2 hours'),
+  ('LKO-00000005', 'Arrived at Branch', 'Arrived at destination hub', 1, 1, NOW() - INTERVAL '23 days' + INTERVAL '2 days'),
+  ('LKO-00000005', 'Out for Delivery', 'Out for delivery', 1, 1, NOW() - INTERVAL '23 days' + INTERVAL '2 days 5 hours'),
+  ('LKO-00000005', 'Delivered', 'Successfully delivered to buyer', 1, 1, NOW() - INTERVAL '23 days' + INTERVAL '3 days'),
+  ('LKO-00000006', 'Order Created', 'Auto-generated from marketplace order', 1, NULL, NOW() - INTERVAL '29 days'),
+  ('LKO-00000006', 'Picked Up', 'Picked up by courier', 2, 2, NOW() - INTERVAL '29 days' + INTERVAL '1 day'),
+  ('LKO-00000006', 'Arrived at Branch', 'Arrived at origin hub', 2, 2, NOW() - INTERVAL '29 days' + INTERVAL '1 day 1 hour'),
+  ('LKO-00000006', 'Departed Branch', 'Departed from origin hub', 2, 2, NOW() - INTERVAL '29 days' + INTERVAL '1 day 2 hours'),
+  ('LKO-00000007', 'Order Created', 'Auto-generated from marketplace order', 1, NULL, NOW() - INTERVAL '20 days'),
+  ('LKO-00000007', 'Picked Up', 'Picked up by courier', 2, 2, NOW() - INTERVAL '20 days' + INTERVAL '1 day'),
+  ('LKO-00000007', 'Arrived at Branch', 'Arrived at origin hub', 2, 2, NOW() - INTERVAL '20 days' + INTERVAL '1 day 1 hour'),
+  ('LKO-00000007', 'Departed Branch', 'Departed from origin hub', 2, 2, NOW() - INTERVAL '20 days' + INTERVAL '1 day 2 hours'),
+  ('LKO-00000007', 'Arrived at Branch', 'Arrived at destination hub', 1, 1, NOW() - INTERVAL '20 days' + INTERVAL '2 days'),
+  ('LKO-00000007', 'Out for Delivery', 'Out for delivery', 1, 1, NOW() - INTERVAL '20 days' + INTERVAL '2 days 5 hours'),
+  ('LKO-00000007', 'Delivery Failed', 'Receiver unavailable', 1, 1, NOW() - INTERVAL '20 days' + INTERVAL '3 days'),
+  ('LKO-00000007', 'Out for Delivery', 'Out for delivery', 1, 1, NOW() - INTERVAL '20 days' + INTERVAL '4 days'),
+  ('LKO-00000007', 'Delivery Failed', 'Receiver unavailable', 1, 1, NOW() - INTERVAL '20 days' + INTERVAL '4 days 5 hours'),
+  ('LKO-00000007', 'Out for Delivery', 'Out for delivery', 1, 1, NOW() - INTERVAL '20 days' + INTERVAL '5 days'),
+  ('LKO-00000007', 'Delivery Failed', 'Delivery refused', 1, 1, NOW() - INTERVAL '20 days' + INTERVAL '5 days 5 hours'),
+  ('LKO-00000007', 'Arrived at Branch', 'Arrived at return hub', 2, 2, NOW() - INTERVAL '20 days' + INTERVAL '6 days'),
+  ('LKO-00000007', 'Out for Return', 'Out for return to sender', 2, 2, NOW() - INTERVAL '20 days' + INTERVAL '6 days 5 hours'),
+  ('LKO-00000007', 'Returned', 'Returned to sender', 2, 2, NOW() - INTERVAL '20 days' + INTERVAL '7 days'),
+  ('LKO-00000008', 'Order Created', 'Auto-generated from marketplace order', 1, NULL, NOW() - INTERVAL '30 days'),
+  ('LKO-00000008', 'Picked Up', 'Picked up by courier', 2, 2, NOW() - INTERVAL '30 days' + INTERVAL '1 day'),
+  ('LKO-00000008', 'Arrived at Branch', 'Arrived at origin hub', 2, 2, NOW() - INTERVAL '30 days' + INTERVAL '1 day 1 hour'),
+  ('LKO-00000008', 'Departed Branch', 'Departed from origin hub', 2, 2, NOW() - INTERVAL '30 days' + INTERVAL '1 day 2 hours'),
+  ('LKO-00000009', 'Order Created', 'Auto-generated from marketplace order', 1, NULL, NOW() - INTERVAL '18 days'),
+  ('LKO-00000009', 'Picked Up', 'Picked up by courier', 2, 2, NOW() - INTERVAL '18 days' + INTERVAL '1 day'),
+  ('LKO-00000009', 'Arrived at Branch', 'Arrived at origin hub', 2, 2, NOW() - INTERVAL '18 days' + INTERVAL '1 day 1 hour'),
+  ('LKO-00000009', 'Departed Branch', 'Departed from origin hub', 2, 2, NOW() - INTERVAL '18 days' + INTERVAL '1 day 2 hours'),
+  ('LKO-00000009', 'Arrived at Branch', 'Arrived at destination hub', 1, 1, NOW() - INTERVAL '18 days' + INTERVAL '2 days'),
+  ('LKO-00000009', 'Out for Delivery', 'Out for delivery', 1, 1, NOW() - INTERVAL '18 days' + INTERVAL '2 days 5 hours'),
+  ('LKO-00000009', 'Delivery Failed', 'Receiver unavailable', 1, 1, NOW() - INTERVAL '18 days' + INTERVAL '3 days'),
+  ('LKO-00000009', 'Out for Delivery', 'Out for delivery', 1, 1, NOW() - INTERVAL '18 days' + INTERVAL '4 days'),
+  ('LKO-00000009', 'Delivery Failed', 'Receiver unavailable', 1, 1, NOW() - INTERVAL '18 days' + INTERVAL '4 days 5 hours'),
+  ('LKO-00000009', 'Out for Delivery', 'Out for delivery', 1, 1, NOW() - INTERVAL '18 days' + INTERVAL '5 days'),
+  ('LKO-00000009', 'Delivery Failed', 'Delivery refused', 1, 1, NOW() - INTERVAL '18 days' + INTERVAL '5 days 5 hours'),
+  ('LKO-00000009', 'Arrived at Branch', 'Arrived at return hub', 2, 2, NOW() - INTERVAL '18 days' + INTERVAL '6 days'),
+  ('LKO-00000009', 'Out for Return', 'Out for return to sender', 2, 2, NOW() - INTERVAL '18 days' + INTERVAL '6 days 5 hours'),
+  ('LKO-00000009', 'Returned', 'Returned to sender', 2, 2, NOW() - INTERVAL '18 days' + INTERVAL '7 days'),
+  ('LKO-00000010', 'Order Created', 'Auto-generated from marketplace order', 1, NULL, NOW() - INTERVAL '15 days'),
+  ('LKO-00000010', 'Picked Up', 'Picked up by courier', 2, 2, NOW() - INTERVAL '15 days' + INTERVAL '1 day'),
+  ('LKO-00000010', 'Arrived at Branch', 'Arrived at origin hub', 2, 2, NOW() - INTERVAL '15 days' + INTERVAL '1 day 1 hour'),
+  ('LKO-00000010', 'Departed Branch', 'Departed from origin hub', 2, 2, NOW() - INTERVAL '15 days' + INTERVAL '1 day 2 hours'),
+  ('LKO-00000010', 'Arrived at Branch', 'Arrived at destination hub', 1, 1, NOW() - INTERVAL '15 days' + INTERVAL '2 days'),
+  ('LKO-00000010', 'Out for Delivery', 'Out for delivery', 1, 1, NOW() - INTERVAL '15 days' + INTERVAL '2 days 5 hours'),
+  ('LKO-00000010', 'Delivered', 'Successfully delivered to buyer', 1, 1, NOW() - INTERVAL '15 days' + INTERVAL '3 days'),
+  ('LKO-00000011', 'Order Created', 'Auto-generated from marketplace order', 1, NULL, NOW() - INTERVAL '12 days'),
+  ('LKO-00000011', 'Picked Up', 'Picked up by courier', 2, 2, NOW() - INTERVAL '12 days' + INTERVAL '1 day'),
+  ('LKO-00000011', 'Arrived at Branch', 'Arrived at origin hub', 2, 2, NOW() - INTERVAL '12 days' + INTERVAL '1 day 1 hour'),
+  ('LKO-00000011', 'Departed Branch', 'Departed from origin hub', 2, 2, NOW() - INTERVAL '12 days' + INTERVAL '1 day 2 hours'),
+  ('LKO-00000011', 'Arrived at Branch', 'Arrived at destination hub', 1, 1, NOW() - INTERVAL '12 days' + INTERVAL '2 days'),
+  ('LKO-00000011', 'Out for Delivery', 'Out for delivery', 1, 1, NOW() - INTERVAL '12 days' + INTERVAL '2 days 5 hours'),
+  ('LKO-00000011', 'Delivery Failed', 'Receiver unavailable', 1, 1, NOW() - INTERVAL '12 days' + INTERVAL '3 days'),
+  ('LKO-00000011', 'Out for Delivery', 'Out for delivery', 1, 1, NOW() - INTERVAL '12 days' + INTERVAL '4 days'),
+  ('LKO-00000011', 'Delivery Failed', 'Receiver unavailable', 1, 1, NOW() - INTERVAL '12 days' + INTERVAL '4 days 5 hours'),
+  ('LKO-00000011', 'Out for Delivery', 'Out for delivery', 1, 1, NOW() - INTERVAL '12 days' + INTERVAL '5 days'),
+  ('LKO-00000011', 'Delivery Failed', 'Delivery refused', 1, 1, NOW() - INTERVAL '12 days' + INTERVAL '5 days 5 hours'),
+  ('LKO-00000011', 'Arrived at Branch', 'Arrived at return hub', 2, 2, NOW() - INTERVAL '12 days' + INTERVAL '6 days'),
+  ('LKO-00000011', 'Out for Return', 'Out for return to sender', 2, 2, NOW() - INTERVAL '12 days' + INTERVAL '6 days 5 hours'),
+  ('LKO-00000011', 'Returned', 'Returned to sender', 2, 2, NOW() - INTERVAL '12 days' + INTERVAL '7 days'),
+  ('LKO-00000012', 'Order Created', 'Auto-generated from marketplace order', 1, NULL, NOW() - INTERVAL '19 days'),
+  ('LKO-00000012', 'Picked Up', 'Picked up by courier', 2, 2, NOW() - INTERVAL '19 days' + INTERVAL '1 day'),
+  ('LKO-00000012', 'Arrived at Branch', 'Arrived at origin hub', 2, 2, NOW() - INTERVAL '19 days' + INTERVAL '1 day 1 hour'),
+  ('LKO-00000012', 'Departed Branch', 'Departed from origin hub', 2, 2, NOW() - INTERVAL '19 days' + INTERVAL '1 day 2 hours'),
+  ('LKO-00000013', 'Order Created', 'Auto-generated from marketplace order', 1, NULL, NOW() - INTERVAL '17 days'),
+  ('LKO-00000013', 'Picked Up', 'Picked up by courier', 2, 2, NOW() - INTERVAL '17 days' + INTERVAL '1 day'),
+  ('LKO-00000013', 'Arrived at Branch', 'Arrived at origin hub', 2, 2, NOW() - INTERVAL '17 days' + INTERVAL '1 day 1 hour'),
+  ('LKO-00000013', 'Departed Branch', 'Departed from origin hub', 2, 2, NOW() - INTERVAL '17 days' + INTERVAL '1 day 2 hours'),
+  ('LKO-00000014', 'Order Created', 'Auto-generated from marketplace order', 1, NULL, NOW() - INTERVAL '11 days'),
+  ('LKO-00000014', 'Picked Up', 'Picked up by courier', 2, 2, NOW() - INTERVAL '11 days' + INTERVAL '1 day'),
+  ('LKO-00000014', 'Arrived at Branch', 'Arrived at origin hub', 2, 2, NOW() - INTERVAL '11 days' + INTERVAL '1 day 1 hour'),
+  ('LKO-00000014', 'Departed Branch', 'Departed from origin hub', 2, 2, NOW() - INTERVAL '11 days' + INTERVAL '1 day 2 hours'),
+  ('LKO-00000015', 'Order Created', 'Auto-generated from marketplace order', 1, NULL, NOW() - INTERVAL '19 days'),
+  ('LKO-00000015', 'Picked Up', 'Picked up by courier', 2, 2, NOW() - INTERVAL '19 days' + INTERVAL '1 day'),
+  ('LKO-00000015', 'Arrived at Branch', 'Arrived at origin hub', 2, 2, NOW() - INTERVAL '19 days' + INTERVAL '1 day 1 hour'),
+  ('LKO-00000015', 'Departed Branch', 'Departed from origin hub', 2, 2, NOW() - INTERVAL '19 days' + INTERVAL '1 day 2 hours'),
+  ('LKO-00000016', 'Order Created', 'Auto-generated from marketplace order', 1, NULL, NOW() - INTERVAL '22 days'),
+  ('LKO-00000016', 'Picked Up', 'Picked up by courier', 2, 2, NOW() - INTERVAL '22 days' + INTERVAL '1 day'),
+  ('LKO-00000016', 'Arrived at Branch', 'Arrived at origin hub', 2, 2, NOW() - INTERVAL '22 days' + INTERVAL '1 day 1 hour'),
+  ('LKO-00000016', 'Departed Branch', 'Departed from origin hub', 2, 2, NOW() - INTERVAL '22 days' + INTERVAL '1 day 2 hours'),
+  ('LKO-00000016', 'Arrived at Branch', 'Arrived at destination hub', 1, 1, NOW() - INTERVAL '22 days' + INTERVAL '2 days'),
+  ('LKO-00000016', 'Out for Delivery', 'Out for delivery', 1, 1, NOW() - INTERVAL '22 days' + INTERVAL '2 days 5 hours'),
+  ('LKO-00000016', 'Delivered', 'Successfully delivered to buyer', 1, 1, NOW() - INTERVAL '22 days' + INTERVAL '3 days'),
+  ('LKO-00000017', 'Order Created', 'Auto-generated from marketplace order', 1, NULL, NOW() - INTERVAL '11 days'),
+  ('LKO-00000017', 'Picked Up', 'Picked up by courier', 2, 2, NOW() - INTERVAL '11 days' + INTERVAL '1 day'),
+  ('LKO-00000017', 'Arrived at Branch', 'Arrived at origin hub', 2, 2, NOW() - INTERVAL '11 days' + INTERVAL '1 day 1 hour'),
+  ('LKO-00000017', 'Departed Branch', 'Departed from origin hub', 2, 2, NOW() - INTERVAL '11 days' + INTERVAL '1 day 2 hours'),
+  ('LKO-00000017', 'Arrived at Branch', 'Arrived at destination hub', 1, 1, NOW() - INTERVAL '11 days' + INTERVAL '2 days'),
+  ('LKO-00000017', 'Out for Delivery', 'Out for delivery', 1, 1, NOW() - INTERVAL '11 days' + INTERVAL '2 days 5 hours'),
+  ('LKO-00000017', 'Delivery Failed', 'Receiver unavailable', 1, 1, NOW() - INTERVAL '11 days' + INTERVAL '3 days'),
+  ('LKO-00000017', 'Out for Delivery', 'Out for delivery', 1, 1, NOW() - INTERVAL '11 days' + INTERVAL '4 days'),
+  ('LKO-00000017', 'Delivery Failed', 'Receiver unavailable', 1, 1, NOW() - INTERVAL '11 days' + INTERVAL '4 days 5 hours'),
+  ('LKO-00000017', 'Out for Delivery', 'Out for delivery', 1, 1, NOW() - INTERVAL '11 days' + INTERVAL '5 days'),
+  ('LKO-00000017', 'Delivery Failed', 'Delivery refused', 1, 1, NOW() - INTERVAL '11 days' + INTERVAL '5 days 5 hours'),
+  ('LKO-00000017', 'Arrived at Branch', 'Arrived at return hub', 2, 2, NOW() - INTERVAL '11 days' + INTERVAL '6 days'),
+  ('LKO-00000017', 'Out for Return', 'Out for return to sender', 2, 2, NOW() - INTERVAL '11 days' + INTERVAL '6 days 5 hours'),
+  ('LKO-00000017', 'Returned', 'Returned to sender', 2, 2, NOW() - INTERVAL '11 days' + INTERVAL '7 days'),
+  ('LKO-00000018', 'Order Created', 'Auto-generated from marketplace order', 1, NULL, NOW() - INTERVAL '30 days'),
+  ('LKO-00000018', 'Picked Up', 'Picked up by courier', 2, 2, NOW() - INTERVAL '30 days' + INTERVAL '1 day'),
+  ('LKO-00000018', 'Arrived at Branch', 'Arrived at origin hub', 2, 2, NOW() - INTERVAL '30 days' + INTERVAL '1 day 1 hour'),
+  ('LKO-00000018', 'Departed Branch', 'Departed from origin hub', 2, 2, NOW() - INTERVAL '30 days' + INTERVAL '1 day 2 hours'),
+  ('LKO-00000019', 'Order Created', 'Auto-generated from marketplace order', 1, NULL, NOW() - INTERVAL '13 days'),
+  ('LKO-00000019', 'Picked Up', 'Picked up by courier', 2, 2, NOW() - INTERVAL '13 days' + INTERVAL '1 day'),
+  ('LKO-00000019', 'Arrived at Branch', 'Arrived at origin hub', 2, 2, NOW() - INTERVAL '13 days' + INTERVAL '1 day 1 hour'),
+  ('LKO-00000019', 'Departed Branch', 'Departed from origin hub', 2, 2, NOW() - INTERVAL '13 days' + INTERVAL '1 day 2 hours'),
+  ('LKO-00000019', 'Arrived at Branch', 'Arrived at destination hub', 1, 1, NOW() - INTERVAL '13 days' + INTERVAL '2 days'),
+  ('LKO-00000019', 'Out for Delivery', 'Out for delivery', 1, 1, NOW() - INTERVAL '13 days' + INTERVAL '2 days 5 hours'),
+  ('LKO-00000019', 'Delivered', 'Successfully delivered to buyer', 1, 1, NOW() - INTERVAL '13 days' + INTERVAL '3 days'),
+  ('LKO-00000020', 'Order Created', 'Auto-generated from marketplace order', 1, NULL, NOW() - INTERVAL '11 days'),
+  ('LKO-00000020', 'Picked Up', 'Picked up by courier', 2, 2, NOW() - INTERVAL '11 days' + INTERVAL '1 day'),
+  ('LKO-00000020', 'Arrived at Branch', 'Arrived at origin hub', 2, 2, NOW() - INTERVAL '11 days' + INTERVAL '1 day 1 hour'),
+  ('LKO-00000020', 'Departed Branch', 'Departed from origin hub', 2, 2, NOW() - INTERVAL '11 days' + INTERVAL '1 day 2 hours'),
+  ('LKO-00000020', 'Arrived at Branch', 'Arrived at destination hub', 1, 1, NOW() - INTERVAL '11 days' + INTERVAL '2 days'),
+  ('LKO-00000020', 'Out for Delivery', 'Out for delivery', 1, 1, NOW() - INTERVAL '11 days' + INTERVAL '2 days 5 hours'),
+  ('LKO-00000020', 'Delivered', 'Successfully delivered to buyer', 1, 1, NOW() - INTERVAL '11 days' + INTERVAL '3 days'),
+  ('LKO-00000021', 'Order Created', 'Auto-generated from marketplace order', 1, NULL, NOW() - INTERVAL '28 days'),
+  ('LKO-00000021', 'Picked Up', 'Picked up by courier', 2, 2, NOW() - INTERVAL '28 days' + INTERVAL '1 day'),
+  ('LKO-00000021', 'Arrived at Branch', 'Arrived at origin hub', 2, 2, NOW() - INTERVAL '28 days' + INTERVAL '1 day 1 hour'),
+  ('LKO-00000021', 'Departed Branch', 'Departed from origin hub', 2, 2, NOW() - INTERVAL '28 days' + INTERVAL '1 day 2 hours'),
+  ('LKO-00000021', 'Arrived at Branch', 'Arrived at destination hub', 1, 1, NOW() - INTERVAL '28 days' + INTERVAL '2 days'),
+  ('LKO-00000021', 'Out for Delivery', 'Out for delivery', 1, 1, NOW() - INTERVAL '28 days' + INTERVAL '2 days 5 hours'),
+  ('LKO-00000021', 'Delivery Failed', 'Receiver unavailable', 1, 1, NOW() - INTERVAL '28 days' + INTERVAL '3 days'),
+  ('LKO-00000021', 'Out for Delivery', 'Out for delivery', 1, 1, NOW() - INTERVAL '28 days' + INTERVAL '4 days'),
+  ('LKO-00000021', 'Delivery Failed', 'Receiver unavailable', 1, 1, NOW() - INTERVAL '28 days' + INTERVAL '4 days 5 hours'),
+  ('LKO-00000021', 'Out for Delivery', 'Out for delivery', 1, 1, NOW() - INTERVAL '28 days' + INTERVAL '5 days'),
+  ('LKO-00000021', 'Delivery Failed', 'Delivery refused', 1, 1, NOW() - INTERVAL '28 days' + INTERVAL '5 days 5 hours'),
+  ('LKO-00000021', 'Arrived at Branch', 'Arrived at return hub', 2, 2, NOW() - INTERVAL '28 days' + INTERVAL '6 days'),
+  ('LKO-00000021', 'Out for Return', 'Out for return to sender', 2, 2, NOW() - INTERVAL '28 days' + INTERVAL '6 days 5 hours'),
+  ('LKO-00000021', 'Returned', 'Returned to sender', 2, 2, NOW() - INTERVAL '28 days' + INTERVAL '7 days'),
+  ('LKO-00000022', 'Order Created', 'Auto-generated from marketplace order', 1, NULL, NOW() - INTERVAL '23 days'),
+  ('LKO-00000022', 'Picked Up', 'Picked up by courier', 2, 2, NOW() - INTERVAL '23 days' + INTERVAL '1 day'),
+  ('LKO-00000022', 'Arrived at Branch', 'Arrived at origin hub', 2, 2, NOW() - INTERVAL '23 days' + INTERVAL '1 day 1 hour'),
+  ('LKO-00000022', 'Departed Branch', 'Departed from origin hub', 2, 2, NOW() - INTERVAL '23 days' + INTERVAL '1 day 2 hours'),
+  ('LKO-00000022', 'Arrived at Branch', 'Arrived at destination hub', 1, 1, NOW() - INTERVAL '23 days' + INTERVAL '2 days'),
+  ('LKO-00000022', 'Out for Delivery', 'Out for delivery', 1, 1, NOW() - INTERVAL '23 days' + INTERVAL '2 days 5 hours'),
+  ('LKO-00000022', 'Delivered', 'Successfully delivered to buyer', 1, 1, NOW() - INTERVAL '23 days' + INTERVAL '3 days'),
+  ('LKO-00000023', 'Order Created', 'Auto-generated from marketplace order', 1, NULL, NOW() - INTERVAL '29 days'),
+  ('LKO-00000023', 'Picked Up', 'Picked up by courier', 2, 2, NOW() - INTERVAL '29 days' + INTERVAL '1 day'),
+  ('LKO-00000023', 'Arrived at Branch', 'Arrived at origin hub', 2, 2, NOW() - INTERVAL '29 days' + INTERVAL '1 day 1 hour'),
+  ('LKO-00000023', 'Departed Branch', 'Departed from origin hub', 2, 2, NOW() - INTERVAL '29 days' + INTERVAL '1 day 2 hours'),
+  ('LKO-00000024', 'Order Created', 'Auto-generated from marketplace order', 1, NULL, NOW() - INTERVAL '12 days'),
+  ('LKO-00000024', 'Picked Up', 'Picked up by courier', 2, 2, NOW() - INTERVAL '12 days' + INTERVAL '1 day'),
+  ('LKO-00000024', 'Arrived at Branch', 'Arrived at origin hub', 2, 2, NOW() - INTERVAL '12 days' + INTERVAL '1 day 1 hour'),
+  ('LKO-00000024', 'Departed Branch', 'Departed from origin hub', 2, 2, NOW() - INTERVAL '12 days' + INTERVAL '1 day 2 hours'),
+  ('LKO-00000024', 'Arrived at Branch', 'Arrived at destination hub', 1, 1, NOW() - INTERVAL '12 days' + INTERVAL '2 days'),
+  ('LKO-00000024', 'Out for Delivery', 'Out for delivery', 1, 1, NOW() - INTERVAL '12 days' + INTERVAL '2 days 5 hours'),
+  ('LKO-00000024', 'Delivered', 'Successfully delivered to buyer', 1, 1, NOW() - INTERVAL '12 days' + INTERVAL '3 days'),
+  ('LKO-00000025', 'Order Created', 'Auto-generated from marketplace order', 1, NULL, NOW() - INTERVAL '18 days'),
+  ('LKO-00000025', 'Picked Up', 'Picked up by courier', 2, 2, NOW() - INTERVAL '18 days' + INTERVAL '1 day'),
+  ('LKO-00000025', 'Arrived at Branch', 'Arrived at origin hub', 2, 2, NOW() - INTERVAL '18 days' + INTERVAL '1 day 1 hour'),
+  ('LKO-00000025', 'Departed Branch', 'Departed from origin hub', 2, 2, NOW() - INTERVAL '18 days' + INTERVAL '1 day 2 hours'),
+  ('LKO-00000025', 'Arrived at Branch', 'Arrived at destination hub', 1, 1, NOW() - INTERVAL '18 days' + INTERVAL '2 days'),
+  ('LKO-00000025', 'Out for Delivery', 'Out for delivery', 1, 1, NOW() - INTERVAL '18 days' + INTERVAL '2 days 5 hours'),
+  ('LKO-00000025', 'Delivered', 'Successfully delivered to buyer', 1, 1, NOW() - INTERVAL '18 days' + INTERVAL '3 days'),
+  ('LKO-00000026', 'Order Created', 'Auto-generated from marketplace order', 1, NULL, NOW() - INTERVAL '14 days'),
+  ('LKO-00000026', 'Picked Up', 'Picked up by courier', 2, 2, NOW() - INTERVAL '14 days' + INTERVAL '1 day'),
+  ('LKO-00000026', 'Arrived at Branch', 'Arrived at origin hub', 2, 2, NOW() - INTERVAL '14 days' + INTERVAL '1 day 1 hour'),
+  ('LKO-00000026', 'Departed Branch', 'Departed from origin hub', 2, 2, NOW() - INTERVAL '14 days' + INTERVAL '1 day 2 hours'),
+  ('LKO-00000026', 'Arrived at Branch', 'Arrived at destination hub', 1, 1, NOW() - INTERVAL '14 days' + INTERVAL '2 days'),
+  ('LKO-00000026', 'Out for Delivery', 'Out for delivery', 1, 1, NOW() - INTERVAL '14 days' + INTERVAL '2 days 5 hours'),
+  ('LKO-00000026', 'Delivery Failed', 'Receiver unavailable', 1, 1, NOW() - INTERVAL '14 days' + INTERVAL '3 days'),
+  ('LKO-00000026', 'Out for Delivery', 'Out for delivery', 1, 1, NOW() - INTERVAL '14 days' + INTERVAL '4 days'),
+  ('LKO-00000026', 'Delivery Failed', 'Receiver unavailable', 1, 1, NOW() - INTERVAL '14 days' + INTERVAL '4 days 5 hours'),
+  ('LKO-00000026', 'Out for Delivery', 'Out for delivery', 1, 1, NOW() - INTERVAL '14 days' + INTERVAL '5 days'),
+  ('LKO-00000026', 'Delivery Failed', 'Delivery refused', 1, 1, NOW() - INTERVAL '14 days' + INTERVAL '5 days 5 hours'),
+  ('LKO-00000026', 'Arrived at Branch', 'Arrived at return hub', 2, 2, NOW() - INTERVAL '14 days' + INTERVAL '6 days'),
+  ('LKO-00000026', 'Out for Return', 'Out for return to sender', 2, 2, NOW() - INTERVAL '14 days' + INTERVAL '6 days 5 hours'),
+  ('LKO-00000026', 'Returned', 'Returned to sender', 2, 2, NOW() - INTERVAL '14 days' + INTERVAL '7 days'),
+  ('LKO-00000027', 'Order Created', 'Auto-generated from marketplace order', 1, NULL, NOW() - INTERVAL '17 days'),
+  ('LKO-00000027', 'Picked Up', 'Picked up by courier', 2, 2, NOW() - INTERVAL '17 days' + INTERVAL '1 day'),
+  ('LKO-00000027', 'Arrived at Branch', 'Arrived at origin hub', 2, 2, NOW() - INTERVAL '17 days' + INTERVAL '1 day 1 hour'),
+  ('LKO-00000027', 'Departed Branch', 'Departed from origin hub', 2, 2, NOW() - INTERVAL '17 days' + INTERVAL '1 day 2 hours'),
+  ('LKO-00000027', 'Arrived at Branch', 'Arrived at destination hub', 1, 1, NOW() - INTERVAL '17 days' + INTERVAL '2 days'),
+  ('LKO-00000027', 'Out for Delivery', 'Out for delivery', 1, 1, NOW() - INTERVAL '17 days' + INTERVAL '2 days 5 hours'),
+  ('LKO-00000027', 'Delivered', 'Successfully delivered to buyer', 1, 1, NOW() - INTERVAL '17 days' + INTERVAL '3 days'),
+  ('LKO-00000028', 'Order Created', 'Auto-generated from marketplace order', 1, NULL, NOW() - INTERVAL '25 days'),
+  ('LKO-00000028', 'Picked Up', 'Picked up by courier', 2, 2, NOW() - INTERVAL '25 days' + INTERVAL '1 day'),
+  ('LKO-00000028', 'Arrived at Branch', 'Arrived at origin hub', 2, 2, NOW() - INTERVAL '25 days' + INTERVAL '1 day 1 hour'),
+  ('LKO-00000028', 'Departed Branch', 'Departed from origin hub', 2, 2, NOW() - INTERVAL '25 days' + INTERVAL '1 day 2 hours'),
+  ('LKO-00000029', 'Order Created', 'Auto-generated from marketplace order', 1, NULL, NOW() - INTERVAL '10 days'),
+  ('LKO-00000029', 'Picked Up', 'Picked up by courier', 2, 2, NOW() - INTERVAL '10 days' + INTERVAL '1 day'),
+  ('LKO-00000029', 'Arrived at Branch', 'Arrived at origin hub', 2, 2, NOW() - INTERVAL '10 days' + INTERVAL '1 day 1 hour'),
+  ('LKO-00000029', 'Departed Branch', 'Departed from origin hub', 2, 2, NOW() - INTERVAL '10 days' + INTERVAL '1 day 2 hours'),
+  ('LKO-00000030', 'Order Created', 'Auto-generated from marketplace order', 1, NULL, NOW() - INTERVAL '25 days'),
+  ('LKO-00000030', 'Picked Up', 'Picked up by courier', 2, 2, NOW() - INTERVAL '25 days' + INTERVAL '1 day'),
+  ('LKO-00000030', 'Arrived at Branch', 'Arrived at origin hub', 2, 2, NOW() - INTERVAL '25 days' + INTERVAL '1 day 1 hour'),
+  ('LKO-00000030', 'Departed Branch', 'Departed from origin hub', 2, 2, NOW() - INTERVAL '25 days' + INTERVAL '1 day 2 hours'),
+  ('LKO-00000030', 'Arrived at Branch', 'Arrived at destination hub', 1, 1, NOW() - INTERVAL '25 days' + INTERVAL '2 days'),
+  ('LKO-00000030', 'Out for Delivery', 'Out for delivery', 1, 1, NOW() - INTERVAL '25 days' + INTERVAL '2 days 5 hours'),
+  ('LKO-00000030', 'Delivered', 'Successfully delivered to buyer', 1, 1, NOW() - INTERVAL '25 days' + INTERVAL '3 days');
 
-  -- Parcel LKO-00000002 (delivered): clean journey with branch checkpoints
-  ('LKO-00000002', 'Order Created',     'Auto-generated from marketplace order', 2,    NULL, NOW() - INTERVAL '9 days'),
-  ('LKO-00000002', 'Picked Up',         'Picked up from Mandaue Agri warehouse',2,    2,   NOW() - INTERVAL '8 days'),
-  ('LKO-00000002', 'Departed Branch',   'Departed from LINKO Mandaue Hub',       2,    2,   NOW() - INTERVAL '8 days'),
-  ('LKO-00000002', 'Arrived at Branch', 'Arrived at LINKO Cebu Central Hub',      1,    1,   NOW() - INTERVAL '7 days 12 hours'),
-  ('LKO-00000002', 'Departed Branch',   'Departed from LINKO Cebu Central Hub',   1,    1,   NOW() - INTERVAL '7 days 4 hours'),
-  ('LKO-00000002', 'Out for Delivery',  'Last mile to Sunrise Retail',            1,    1,   NOW() - INTERVAL '7 days'),
-  ('LKO-00000002', 'Delivered',         'Cory Courier → Sunrise Retail Cooperative', 1, 1,  NOW() - INTERVAL '7 days'),
-
-  -- Parcel LKO-00000003 (3 failed attempts → return leg → Returned): the graded
-  -- return path. Retry loop OFD/Delivery Failed x3, then the parcel arrives at
-  -- the return branch, leaves for the sender, and is physically handed back.
-  -- Terminal remark uses the live proof-of-return format (courier → sender).
-  ('LKO-00000003', 'Order Created',     'Auto-generated from marketplace order', 2,    NULL, NOW() - INTERVAL '6 days'),
-  ('LKO-00000003', 'Picked Up',         'Picked up from Mandaue Agri warehouse', 2,    2,   NOW() - INTERVAL '5 days'),
-  ('LKO-00000003', 'Departed Branch',   'Departed from LINKO Mandaue Hub',        2,    2,   NOW() - INTERVAL '4 days'),
-  ('LKO-00000003', 'Out for Delivery',  'Delivery attempt 1',                     2,    2,   NOW() - INTERVAL '3 days 12 hours'),
-  ('LKO-00000003', 'Delivery Failed',   'Receiver unavailable',                   2,    2,   NOW() - INTERVAL '3 days 10 hours'),
-  ('LKO-00000003', 'Out for Delivery',  'Delivery attempt 2',                     2,    2,   NOW() - INTERVAL '3 days'),
-  ('LKO-00000003', 'Delivery Failed',   'Receiver unavailable',                   2,    2,   NOW() - INTERVAL '2 days 22 hours'),
-  ('LKO-00000003', 'Out for Delivery',  'Delivery attempt 3',                     2,    2,   NOW() - INTERVAL '2 days 12 hours'),
-  ('LKO-00000003', 'Delivery Failed',   'Delivery refused',                       2,    2,   NOW() - INTERVAL '2 days 10 hours'),
-  ('LKO-00000003', 'Arrived at Branch', 'Arrived at LINKO Mandaue Hub',           2,    2,   NOW() - INTERVAL '2 days 2 hours'),
-  ('LKO-00000003', 'Out for Return',    'Out for return to Mandaue Agri Supply',  2,    2,   NOW() - INTERVAL '2 days 1 hour'),
-  ('LKO-00000003', 'Returned',          'Carlo Courier → Mandaue Agri Supply',    2,    2,   NOW() - INTERVAL '2 days');
-
--- ---------------------------------------------------------------------------
--- 14. PAYMENTS — method-honest, matching live behavior (Sprint 8):
---     Online/Prepaid settle at booking (Paid + paid_at); COD stays Pending
---     until the terminal scan, then Paid on Delivered / Failed on Returned.
---     Clean journey (LKO-2) is a COD parcel collected on delivery.
--- ---------------------------------------------------------------------------
 INSERT INTO payments (parcel_id, method, payment_status, amount, paid_at) VALUES
-  ('LKO-00000001', 'Online', 'Paid',   NULL, NOW() - INTERVAL '4 days'),   -- marketplace ship: online, settled
-  ('LKO-00000002', 'COD',    'Paid',   NULL, NOW() - INTERVAL '7 days'),   -- clean journey: COD collected on Delivered
-  ('LKO-00000003', 'COD',    'Failed', NULL, NULL);                        -- failed journey: COD never collected
-
--- ---------------------------------------------------------------------------
--- 15. NOTIFICATIONS — none (system-generated)
--- ---------------------------------------------------------------------------
--- Intentionally empty. Notifications come from real user actions.
+  ('LKO-00000001', 'Online', 'Paid', NULL, NOW() - INTERVAL '4 days'),
+  ('LKO-00000002', 'COD', 'Paid', NULL, NOW() - INTERVAL '7 days'),
+  ('LKO-00000003', 'COD', 'Failed', NULL, NULL),
+  ('LKO-00000004', 'Online', 'Paid', NULL, NOW() - INTERVAL '27 days'),
+  ('LKO-00000005', 'COD', 'Paid', NULL, NOW() - INTERVAL '23 days' + INTERVAL '3 days'),
+  ('LKO-00000006', 'Online', 'Paid', NULL, NOW() - INTERVAL '29 days'),
+  ('LKO-00000007', 'COD', 'Failed', NULL, NULL),
+  ('LKO-00000008', 'Online', 'Paid', NULL, NOW() - INTERVAL '30 days'),
+  ('LKO-00000009', 'COD', 'Failed', NULL, NULL),
+  ('LKO-00000010', 'COD', 'Paid', NULL, NOW() - INTERVAL '15 days' + INTERVAL '3 days'),
+  ('LKO-00000011', 'COD', 'Failed', NULL, NULL),
+  ('LKO-00000012', 'Online', 'Paid', NULL, NOW() - INTERVAL '19 days'),
+  ('LKO-00000013', 'Online', 'Paid', NULL, NOW() - INTERVAL '17 days'),
+  ('LKO-00000014', 'Online', 'Paid', NULL, NOW() - INTERVAL '11 days'),
+  ('LKO-00000015', 'Online', 'Paid', NULL, NOW() - INTERVAL '19 days'),
+  ('LKO-00000016', 'COD', 'Paid', NULL, NOW() - INTERVAL '22 days' + INTERVAL '3 days'),
+  ('LKO-00000017', 'COD', 'Failed', NULL, NULL),
+  ('LKO-00000018', 'Online', 'Paid', NULL, NOW() - INTERVAL '30 days'),
+  ('LKO-00000019', 'COD', 'Paid', NULL, NOW() - INTERVAL '13 days' + INTERVAL '3 days'),
+  ('LKO-00000020', 'COD', 'Paid', NULL, NOW() - INTERVAL '11 days' + INTERVAL '3 days'),
+  ('LKO-00000021', 'COD', 'Failed', NULL, NULL),
+  ('LKO-00000022', 'COD', 'Paid', NULL, NOW() - INTERVAL '23 days' + INTERVAL '3 days'),
+  ('LKO-00000023', 'Online', 'Paid', NULL, NOW() - INTERVAL '29 days'),
+  ('LKO-00000024', 'COD', 'Paid', NULL, NOW() - INTERVAL '12 days' + INTERVAL '3 days'),
+  ('LKO-00000025', 'COD', 'Paid', NULL, NOW() - INTERVAL '18 days' + INTERVAL '3 days'),
+  ('LKO-00000026', 'COD', 'Failed', NULL, NULL),
+  ('LKO-00000027', 'COD', 'Paid', NULL, NOW() - INTERVAL '17 days' + INTERVAL '3 days'),
+  ('LKO-00000028', 'Online', 'Paid', NULL, NOW() - INTERVAL '25 days'),
+  ('LKO-00000029', 'Online', 'Paid', NULL, NOW() - INTERVAL '10 days'),
+  ('LKO-00000030', 'COD', 'Paid', NULL, NOW() - INTERVAL '25 days' + INTERVAL '3 days');
 
 COMMIT;

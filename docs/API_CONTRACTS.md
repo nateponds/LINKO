@@ -4,6 +4,206 @@
 
 ---
 
+## Pagination rollout (current contract)
+
+This section is the controlling contract for scalable collection endpoints. It
+supersedes earlier array examples for the endpoints listed here. Known frontend
+callers were migrated with the server change. Detail endpoints, bounded
+configuration collections, and selector endpoints remain arrays or objects.
+
+### Shared query and envelope
+
+All paginated endpoints return this shape, including when the page is past the
+last page:
+
+```json
+{
+  "items": [],
+  "pagination": { "page": 3, "limit": 25, "total_items": 26, "total_pages": 2 }
+}
+```
+
+`page` defaults to `1`; `limit` defaults to `10`. `limit` must be exactly
+`10`, `25`, or `50`. `page` must be a positive base-10 integer. `q`, where
+supported, is trimmed; blank whitespace is no search and nonblank text is at
+most 100 characters. `page`, `limit`, and `q` must occur once as a string.
+Invalid or repeated values return `400`. Route-specific query fields below also
+require one valid value. An out-of-range page returns `200`, `items: []`, and
+accurate totals for the matching result set.
+
+```http
+GET /api/products?page=0&limit=20
+```
+
+```json
+{ "error": { "message": "page must be a positive base-10 integer" } }
+```
+
+The normal error envelope is used; an unsupported limit says it must be one of
+`10`, `25`, or `50`.
+
+### Admin lists
+
+Both require an authenticated `platform_admin`; both sort newest first with a
+unique ID tie-breaker.
+
+| Endpoint | Supported filters and `q` fields | Stable ordering |
+| --- | --- | --- |
+| `GET /api/admin/users` | `page`, `limit`, `q`; `q` matches user full name, email, membership business name, or membership role. | `created_at DESC, user_id DESC` |
+| `GET /api/admin/businesses` | `page`, `limit`, `q`; `q` matches business name/type or a member's full name/email. | `created_at DESC, business_id DESC` |
+
+```http
+GET /api/admin/users?q=warehouse&page=1&limit=10
+```
+
+```json
+{
+  "items": [{ "user_id": 42, "full_name": "Example Admin", "memberships": [] }],
+  "pagination": { "page": 1, "limit": 10, "total_items": 1, "total_pages": 1 }
+}
+```
+
+```http
+GET /api/admin/businesses?q=one&q=two
+```
+
+```json
+{ "error": { "message": "q must be a single string" } }
+```
+
+### Marketplace lists
+
+`GET /api/products`, `GET /api/suppliers`, and supplier detail-category
+collections require authentication. Products include only active products;
+suppliers are `wholesaler` businesses; supplier-category rows include only
+active categorized products. `GET /api/suppliers/:id` remains one unpaginated
+object.
+
+| Endpoint | Filters and search fields | Stable ordering |
+| --- | --- | --- |
+| `GET /api/products` | `business_id` and `category_id` positive integers; `min_price`/`max_price` non-negative (`min_price <= max_price`); `stock_status` is `out_of_stock`, `low_stock`, or `in_stock`; `q` matches product name, SKU, or category name. | `product_name ASC, product_id ASC` |
+| `GET /api/suppliers` | `category_id` positive integer; `sort=name` (default) or `sort=featured`; `q` matches business name, address province, or address city/municipality. | `name`: `business_name ASC, business_id ASC`; `featured`: verified first, active-product count descending, business name, business ID. |
+| `GET /api/suppliers/:id/categories` | `q` matches category name. Missing/non-wholesaler supplier is `404`. | `name ASC, category_id ASC` |
+
+```http
+GET /api/products?category_id=3&stock_status=in_stock&q=rice&limit=25
+```
+
+```json
+{
+  "items": [{ "product_id": 17, "product_name": "Sample Rice", "stock_status": "in_stock" }],
+  "pagination": { "page": 1, "limit": 25, "total_items": 1, "total_pages": 1 }
+}
+```
+
+```http
+GET /api/suppliers?sort=random
+```
+
+```json
+{ "error": { "message": "sort must be name or featured" } }
+```
+
+### Orders and invoices
+
+Both endpoints require `buyer`, `wholesaler`, or `platform_admin`. An admin
+sees every row; a non-admin list is restricted to the caller's active buyer or
+wholesaler business before filters are applied. Order and invoice details keep
+full `items` arrays; list rows omit `items` and provide `item_count`.
+
+| Endpoint | Filters and search fields | Stable ordering |
+| --- | --- | --- |
+| `GET /api/orders` | `status` is a valid order status; `q` matches order ID, buyer/wholesaler business name, invoice number, or linked parcel ID. | `created_at DESC, order_id DESC` |
+| `GET /api/invoices` | `status` is a valid order status; `q` matches invoice number, order ID, or buyer/wholesaler business name. | `issued_at DESC, invoice_id DESC` |
+
+Valid statuses: `pending`, `accepted`, `preparing`, `shipped`, `delivered`,
+`cancelled`, `returned`.
+
+```http
+GET /api/orders?status=accepted&q=INV-1024&page=2
+```
+
+```json
+{
+  "items": [{ "order_id": 1024, "status": "accepted", "item_count": 2, "invoice": null }],
+  "pagination": { "page": 2, "limit": 10, "total_items": 11, "total_pages": 2 }
+}
+```
+
+```http
+GET /api/invoices?status=not-a-status
+```
+
+```json
+{ "error": { "message": "status must be a valid order status" } }
+```
+
+### Logistics lists
+
+`GET /api/parcels` follows the active-business scope in §3.6a: coordinators
+and platform admins see all; a wholesaler sees parcels sent or received by its
+active business; a courier sees handling history plus the unassigned pool at
+its assigned branch; a buyer-only active business receives an empty envelope
+and zero facets. Scope is applied before filters.
+
+| Endpoint | Filters and search fields | Stable ordering |
+| --- | --- | --- |
+| `GET /api/parcels` | `status` is `Order Created`, `Picked Up`, `Arrived at Branch`, `Departed Branch`, `Out for Delivery`, `Delivery Failed`, `Out for Return`, `Delivered`, `Returned`, or `Cancelled`; `assignment` is `available`, `active`, or `completed`; `q` matches parcel ID, sender business name, or receiver business name. | latest scan time DESC (nulls last), then `parcel_id ASC` |
+| `GET /api/branches` | `q` matches branch name, province, city/municipality, or barangay. Active branches only. | `branch_id ASC` |
+| `GET /api/couriers` | `q` matches full name, phone number, vehicle type, or assigned branch name. Active couriers only. | `full_name ASC, courier_id ASC` |
+
+Parcel results add:
+
+```json
+"facets": { "assignment_counts": { "available": 4, "active": 7, "completed": 12 } }
+```
+
+Counts are calculated after visibility plus `q` and `status`, but before the
+selected `assignment`. Selecting `assignment=available` therefore retains all
+three counts for the same scoped/search/status-filtered set. `available` has
+no latest courier and a non-terminal latest status; `active` has a latest
+courier and non-terminal status; `completed` has a terminal latest status.
+
+```http
+GET /api/parcels?assignment=available&status=Order%20Created&limit=10
+```
+
+```json
+{
+  "items": [{ "parcel_id": "LKO-DEMO-001", "current_status": "Order Created" }],
+  "pagination": { "page": 1, "limit": 10, "total_items": 1, "total_pages": 1 },
+  "facets": { "assignment_counts": { "available": 1, "active": 0, "completed": 0 } }
+}
+```
+
+```http
+GET /api/parcels?assignment=queued
+```
+
+```json
+{ "error": { "message": "assignment must be one of available, active, or completed" } }
+```
+
+### Unpaginated collections and selector options
+
+These remain arrays because they are bounded reference/config or selector data:
+
+| Endpoint | Array item shape / restriction |
+| --- | --- |
+| `GET /api/categories` | Authenticated users; category rows with active-product counts, ordered by category name. |
+| `GET /api/categories/options` | Authenticated users; `{ category_id, category_name }`, ordered by category name then ID. |
+| `GET /api/admin/businesses/options?type=logistics` | Platform admins only; `type=logistics` required; `{ business_id, business_name, business_type }`, ordered by business name then ID. |
+| `GET /api/branches/options` | Authenticated logistics readers; active `{ branch_id, branch_name }`, ordered by name then ID. |
+| `GET /api/couriers/options` | Authenticated logistics readers; active `{ courier_id, full_name }`, ordered by name then ID. |
+| `GET /api/service-tiers` | Authenticated logistics readers; service-tier configuration rows. |
+
+For example, `GET /api/categories/options` returns
+`[{ "category_id": 3, "category_name": "Grains" }]`, not an envelope.
+`GET /api/admin/businesses/options?type=retail` returns `400` with
+`{ "error": { "message": "type must be logistics" } }`.
+
+---
+
 ## 1. Inventory Domain — removed
 
 The warehouse-level inventory subsystem (`/api/inventory`, `inventory_items`,
@@ -20,6 +220,9 @@ Note: the route name remains `suppliers` for implementation continuity, but in p
 > **Milestone 2 reconciliation.** The Sprint 1 sketch below (nested `supplier_profiles` shape, `POST`/`PATCH`) has been replaced by a real, read-only listing. The `POST`/`PATCH` supplier-registration endpoints and the `supplier_profiles`-nested payload are **not implemented**; suppliers are derived from `businesses` where `business_type = 'wholesaler'`. Any authenticated user may read. See §2.1 for the shipped shape.
 
 ### 2.1 `GET /api/suppliers` (shipped, Milestone 2)
+
+This is a paginated list. The controlling pagination contract above replaces
+the legacy array example in this historical section.
 
 List businesses acting as wholesalers, each with a count of their active products. Any authenticated user.
 
@@ -80,6 +283,9 @@ Any authenticated user. Ordered by name.
 ```
 
 ### 2b.2 `GET /api/products`
+
+This is a paginated list; use the controlling pagination contract above for
+its complete filters, response envelope, and ordering.
 
 Any authenticated user. Returns only `is_active = TRUE` products, ordered by `product_name`.
 
@@ -148,6 +354,9 @@ Invalid skips/backwards transitions return `400`. Buyers may cancel only their o
 `total`, `unit_price_snapshot`, and `line_total` are decimal strings from PostgreSQL `NUMERIC`.
 
 ### 2c.1 `GET /api/orders`
+
+This is a paginated list. Its legacy row example below predates the rollout:
+list rows now have `item_count` rather than `items`; details keep `items`.
 
 Returns visible orders:
 
@@ -231,6 +440,9 @@ Returns the updated order.
 
 ### 2c.5 `GET /api/invoices`
 
+This is a paginated list. Its legacy row example below predates the rollout:
+list rows now have `item_count` rather than `items`; details keep `items`.
+
 Returns visible invoices:
 
 - buyers: invoices for their buyer business
@@ -266,6 +478,9 @@ Returns one visible invoice with item rows. Missing, non-numeric, or not-owned i
 Exposes the CIS 2104 courier subsystem (migrations 002/003) for the demo UI. Money and measurement fields are JSON numbers. `current_status` is always derived from the latest `tracking_logs` row, never stored on the parcel (see `docs/LINKO_ERD.md`). Since migration 009 a parcel may carry a nullable `order_id` linking it to the marketplace order that spawned it.
 
 ### 3.1 `GET /api/parcels`
+
+This is a paginated list with `facets.assignment_counts`; the controlling
+pagination contract above replaces the legacy array example in this section.
 
 List parcels with derived current status, most recently scanned first. Row visibility by role: coordinators/admins see all; wholesalers see parcels their businesses send or receive; couriers see parcels they have handled plus the unassigned pickup pool for their assigned handling branch (latest log has no courier and its `branch_id` matches the courier's `assigned_branch_id`, including NULL-to-NULL for branchless couriers).
 
@@ -472,6 +687,9 @@ The parcel **list** (`GET /api/parcels`) stays **operator-only**: a buyer-only c
 
 ### 3.7 Branches (`/api/branches`)
 
+`GET /api/branches` is a paginated list; its legacy array example below is a
+single item shape only. Pagination/filter details are in the controlling contract.
+
 `GET /api/branches` — any authenticated logistics reader. Active branches with their address, joined for display. Sprint 13 adds `address_id`, `postal_code`, `latitude`, `longitude` (JSON numbers or `null` — `NUMERIC` is cast to `float8`), and `is_available`.
 
 ```json
@@ -506,6 +724,9 @@ The parcel **list** (`GET /api/parcels`) stays **operator-only**: a buyer-only c
 
 ### 3.8 Couriers (`/api/couriers`)
 
+`GET /api/couriers` is a paginated list; its legacy array example below is a
+single item shape only. Pagination/filter details are in the controlling contract.
+
 Couriers are **created only via `POST /api/admin/users` with `kind = "courier"`** (§4) — that path mints the login and the linked `couriers` row (with optional logistics fields) in one transaction. There is no `POST /api/couriers`.
 
 `GET /api/couriers` — any authenticated logistics reader. Active couriers.
@@ -536,6 +757,9 @@ Omitted keys are left unchanged. An explicit `"assigned_branch_id": null` unassi
 Every route is mounted behind `requireAuth` + `requireGlobalRole("platform_admin")` — non-admins get `403`, unauthenticated get `401`.
 
 ### 4.1 `GET /api/admin/users`
+
+This is a paginated list; the legacy array below illustrates an individual item
+only. Use the controlling pagination contract for the response envelope.
 
 All users with aggregated business memberships, newest first.
 
@@ -574,6 +798,9 @@ The last three fields are **courier-only** and all optional; they populate the l
 Body `{ "is_active": boolean }`. Deactivating (`false`) also deletes the user's live sessions so the lockout is immediate. **Response (`200 OK`):** the updated user. `404` if not found.
 
 ### 4.4 `GET /api/admin/businesses`
+
+This is a paginated list; the legacy array below illustrates an individual item
+only. Use the controlling pagination contract for the response envelope.
 
 All businesses with a summary of their member users, newest first.
 
