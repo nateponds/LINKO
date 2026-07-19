@@ -8,6 +8,7 @@ import { apiGet } from "../lib/api";
 import { peso, stockBadge } from "../lib/format";
 import { imageForCategory } from "../lib/categoryImages";
 import { pickRandomBanners, productForBanner } from "../lib/productBanners";
+import { normalizePage } from "../features/suppliers/marketplacePagination";
 
 function PromoBanner({ banner, products, className = "" }) {
   const product = productForBanner(banner, products);
@@ -108,12 +109,12 @@ function SupplierDiscoveryPage() {
     async function load() {
       try {
         const [productList, supplierList] = await Promise.all([
-          apiGet("/api/products"),
-          apiGet("/api/suppliers"),
+          apiGet("/api/products?limit=10"),
+          apiGet("/api/suppliers?limit=10"),
         ]);
         if (cancelled) return;
-        setProducts(Array.isArray(productList) ? productList : []);
-        setSuppliers(Array.isArray(supplierList) ? supplierList : []);
+        setProducts(normalizePage(productList).items);
+        setSuppliers(normalizePage(supplierList).items);
       } catch {
         // Home promo content is a nice-to-have; the supplier grid below
         // still works if this fails, so fail silently here.

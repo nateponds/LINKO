@@ -14,11 +14,14 @@ import {
   Trash2,
   Truck,
 } from "lucide-react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
 import { apiGet, apiSend } from "../lib/api";
 import { peso, stockBadge } from "../lib/format";
 import { bannersForProducts } from "../lib/productBanners";
+import PaginationControls from "../components/ui/PaginationControls";
+import { readListUrlState, updateListUrlState } from "../lib/pagination";
+import { apiPath, normalizePage, saveCartLine, shouldClampPage } from "../features/suppliers/marketplacePagination";
 import "./SupplierProfilePage.css";
 
 function stockLimit(product) {
@@ -35,9 +38,19 @@ function clampQuantity(value, max) {
 
 export default function SupplierProfilePage() {
   const { supplierId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const productState = readListUrlState(searchParams, { prefix: "product" });
+  const categoryState = readListUrlState(searchParams, { prefix: "category" });
 
   const [supplier, setSupplier] = useState(null);
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [productPagination, setProductPagination] = useState({ page: 1, limit: 10, total_items: 0, total_pages: 0 });
+  const [categoryPagination, setCategoryPagination] = useState({ page: 1, limit: 10, total_items: 0, total_pages: 0 });
+  const [productError, setProductError] = useState(null);
+  const [categoryError, setCategoryError] = useState(null);
+  const [productsFetching, setProductsFetching] = useState(false);
+  const [categoriesFetching, setCategoriesFetching] = useState(false);
   const [tiers, setTiers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -52,23 +65,33 @@ export default function SupplierProfilePage() {
   const [checkingOut, setCheckingOut] = useState(false);
   const [checkoutConfirmation, setCheckoutConfirmation] = useState(null);
   const [selectedTierId, setSelectedTierId] = useState(null);
+  const [productSearchInput, setProductSearchInput] = useState(productState.q);
+  const [categorySearchInput, setCategorySearchInput] = useState(categoryState.q);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (productSearchInput !== productState.q) setSearchParams(updateListUrlState(searchParams, { q: productSearchInput }, { prefix: "product" }), { replace: true });
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [productSearchInput, productState.q, searchParams, setSearchParams]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (categorySearchInput !== categoryState.q) setSearchParams(updateListUrlState(searchParams, { q: categorySearchInput }, { prefix: "category" }), { replace: true });
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [categorySearchInput, categoryState.q, searchParams, setSearchParams]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
       try {
-        const [suppliers, productList, tiersList] = await Promise.all([
-          apiGet("/api/suppliers"),
-          apiGet(`/api/products?business_id=${encodeURIComponent(supplierId)}`),
+        const [supplierData, tiersList] = await Promise.all([
+          apiGet(`/api/suppliers/${encodeURIComponent(supplierId)}`),
           apiGet("/api/service-tiers").catch(() => []),
         ]);
         if (cancelled) return;
-        const match = (Array.isArray(suppliers) ? suppliers : []).find(
-          (s) => String(s.business_id) === String(supplierId),
-        );
-        setSupplier(match ?? null);
-        setProducts(Array.isArray(productList) ? productList : []);
+        setSupplier(supplierData ?? null);
         setTiers(Array.isArray(tiersList) ? tiersList : []);
         if (Array.isArray(tiersList) && tiersList.length > 0) {
           setSelectedTierId(tiersList[0].tier_id);
@@ -88,6 +111,44 @@ export default function SupplierProfilePage() {
     };
   }, [supplierId]);
 
+  useEffect(() => {
+    let cancelled = false;
+    async function loadProducts() {
+      setProductsFetching(true); setProductError(null);
+      try {
+        const data = await apiGet(apiPath("/api/products", { business_id: supplierId, q: productState.q, page: productState.page, limit: productState.limit, category_id: searchParams.get("product_category") }));
+        if (cancelled) return;
+        const next = normalizePage(data);
+        if (shouldClampPage(next.pagination)) {
+          setSearchParams(updateListUrlState(searchParams, { page: next.pagination.total_pages }, { prefix: "product" }), { replace: true });
+          return;
+        }
+        setProducts(next.items); setProductPagination(next.pagination);
+      } catch (err) { if (!cancelled) setProductError(err.message); }
+      finally { if (!cancelled) setProductsFetching(false); }
+    }
+    loadProducts(); return () => { cancelled = true; };
+  }, [productState.limit, productState.page, productState.q, searchParams, setSearchParams, supplierId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadCategories() {
+      setCategoriesFetching(true); setCategoryError(null);
+      try {
+        const data = await apiGet(apiPath(`/api/suppliers/${encodeURIComponent(supplierId)}/categories`, { q: categoryState.q, page: categoryState.page, limit: categoryState.limit }));
+        if (cancelled) return;
+        const next = normalizePage(data);
+        if (shouldClampPage(next.pagination)) {
+          setSearchParams(updateListUrlState(searchParams, { page: next.pagination.total_pages }, { prefix: "category" }), { replace: true });
+          return;
+        }
+        setCategories(next.items); setCategoryPagination(next.pagination);
+      } catch (err) { if (!cancelled) setCategoryError(err.message); }
+      finally { if (!cancelled) setCategoriesFetching(false); }
+    }
+    loadCategories(); return () => { cancelled = true; };
+  }, [categoryState.limit, categoryState.page, categoryState.q, searchParams, setSearchParams, supplierId]);
+
   // Overrides the generic route title with the supplier's name.
   useEffect(() => {
     if (supplier) document.title = `${supplier.business_name} · LINKO`;
@@ -100,35 +161,11 @@ export default function SupplierProfilePage() {
     [products],
   );
 
-  // Distinct categories present in this supplier's products.
-  const categories = useMemo(() => {
-    const seen = new Map();
-    for (const p of products) {
-      if (p.category_name && !seen.has(p.category_name)) {
-        seen.set(p.category_name, p.category_name);
-      }
-    }
-    return [...seen.keys()];
-  }, [products]);
-
-  const visibleProducts = selectedCategory
-    ? products.filter((p) => p.category_name === selectedCategory)
-    : products;
-
-  const productsById = useMemo(() => {
-    const byId = new Map();
-    for (const product of products) {
-      byId.set(String(product.product_id), product);
-    }
-    return byId;
-  }, [products]);
-
   const cartItems = useMemo(
     () =>
       Object.entries(cart)
-        .map(([productId, quantity]) => {
-          const product = productsById.get(productId);
-          if (!product) return null;
+        .map(([productId, line]) => {
+          const { product, quantity } = line;
           return {
             product,
             productId,
@@ -137,7 +174,7 @@ export default function SupplierProfilePage() {
           };
         })
         .filter(Boolean),
-    [cart, productsById],
+    [cart],
   );
 
   const cartSubtotal = useMemo(
@@ -162,7 +199,10 @@ export default function SupplierProfilePage() {
   }
 
   function openCategory(name) {
-    setSelectedCategory(name);
+    setSelectedCategory(name.name);
+    const next = updateListUrlState(searchParams, { page: 1 }, { prefix: "product" });
+    next.set("product_category", name.category_id);
+    setSearchParams(next);
     setActiveTab("products");
   }
 
@@ -186,8 +226,8 @@ export default function SupplierProfilePage() {
 
     setCart((current) => {
       const key = String(product.product_id);
-      const nextQuantity = Math.min((current[key] ?? 0) + quantity, max);
-      return { ...current, [key]: nextQuantity };
+      const nextQuantity = Math.min((current[key]?.quantity ?? 0) + quantity, max);
+      return saveCartLine(current, product, nextQuantity);
     });
     setCartMessage(`${product.product_name} added to cart.`);
     setCheckoutError(null);
@@ -203,8 +243,7 @@ export default function SupplierProfilePage() {
     }
 
     setCart((current) => ({
-      ...current,
-      [key]: clampQuantity(value, max),
+      ...current, [key]: { ...current[key], quantity: clampQuantity(value, max) },
     }));
     setCheckoutError(null);
   }
@@ -375,7 +414,7 @@ export default function SupplierProfilePage() {
                   <Boxes size={26} />
                 </span>
                 <div>
-                  <span className="stat-value">{products.length}</span>
+                  <span className="stat-value">{supplier?.product_count ?? productPagination.total_items}</span>
                   <span className="stat-label">Products</span>
                 </div>
               </div>
@@ -384,7 +423,7 @@ export default function SupplierProfilePage() {
                   <Package size={26} />
                 </span>
                 <div>
-                  <span className="stat-value">{categories.length}</span>
+                  <span className="stat-value">{supplier?.category_count ?? categoryPagination.total_items}</span>
                   <span className="stat-label">Categories</span>
                 </div>
               </div>
@@ -463,12 +502,12 @@ export default function SupplierProfilePage() {
         )}
 
         {activeTab === "products" &&
-          (visibleProducts.length === 0 ? (
+          (products.length === 0 ? (
             <p className="grid-empty">This supplier has no products yet.</p>
           ) : (
             <main className="products-with-cart">
               <section className="product-grid">
-                {visibleProducts.map((product) => {
+                {products.map((product) => {
                   const badge = stockBadge(product.stock_status);
                   const maxQuantity = stockLimit(product);
                   const isAvailable =
@@ -679,26 +718,37 @@ export default function SupplierProfilePage() {
             </main>
           ))}
 
+        {activeTab === "products" && (
+          <PaginationControls pagination={productPagination} disabled={productsFetching} onPageChange={(nextPage) => setSearchParams(updateListUrlState(searchParams, { page: nextPage }, { prefix: "product" }))} onLimitChange={(nextLimit) => setSearchParams(updateListUrlState(searchParams, { limit: nextLimit }, { prefix: "product" }))} ariaLabel="Supplier products pagination" className="supplier-profile-pagination" />
+        )}
+
+        {activeTab === "products" && <label className="supplier-list-search">Search products<input value={productSearchInput} onChange={(event) => setProductSearchInput(event.target.value)} /></label>}
+
+        {activeTab === "products" && productError && <p className="grid-empty" role="alert">Could not load products: {productError}</p>}
+
         {activeTab === "categories" &&
           (categories.length === 0 ? (
             <p className="grid-empty">No categories yet.</p>
           ) : (
             <section className="category-grid">
-              {categories.map((name) => (
+              {categories.map((category) => (
                 <button
                   type="button"
                   className="category-card"
-                  key={name}
-                  onClick={() => openCategory(name)}
+                  key={category.category_id}
+                  onClick={() => openCategory(category)}
                 >
                   <div className="category-icon">
                     <Package size={32} />
                   </div>
-                  <div className="category-name">{name}</div>
+                  <div className="category-name">{category.name}</div>
                 </button>
               ))}
             </section>
           ))}
+        {activeTab === "categories" && <label className="supplier-list-search">Search categories<input value={categorySearchInput} onChange={(event) => setCategorySearchInput(event.target.value)} /></label>}
+        {activeTab === "categories" && categoryError && <p className="grid-empty" role="alert">Could not load categories: {categoryError}</p>}
+        {activeTab === "categories" && <PaginationControls pagination={categoryPagination} disabled={categoriesFetching} onPageChange={(nextPage) => setSearchParams(updateListUrlState(searchParams, { page: nextPage }, { prefix: "category" }))} onLimitChange={(nextLimit) => setSearchParams(updateListUrlState(searchParams, { limit: nextLimit }, { prefix: "category" }))} ariaLabel="Supplier categories pagination" className="supplier-profile-pagination" />}
       </div>
     </AppLayout>
   );

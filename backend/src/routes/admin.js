@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { getPool, query } from "../db.js";
 import { hashPassword } from "../auth/passwords.js";
+import { buildPaginatedResponse, parsePaginationQuery } from "../services/pagination.js";
 
 const router = Router();
 
@@ -28,6 +29,15 @@ function normalizeEmail(email) {
   return typeof email === "string" ? email.trim().toLowerCase() : "";
 }
 
+function readSingletonQueryString(query, name) {
+  const value = query[name];
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") {
+    throw createHttpError(400, `${name} must be a single string`);
+  }
+  return value;
+}
+
 // user_id / business_id are positive-integer SERIALs. Reject anything else so a
 // non-numeric :id becomes a clean 404 instead of a 22P02 invalid-input 500.
 function parsePositiveId(rawId, label) {
@@ -44,8 +54,31 @@ const PRIVILEGED_KINDS = new Set(["logistics_coordinator", "courier", "platform_
 
 // GET /api/admin/users
 // All users with their aggregated memberships. Newest first.
-router.get("/users", async (_req, res, next) => {
+router.get("/users", async (req, res, next) => {
   try {
+    const { page, limit, offset, q } = parsePaginationQuery(req.query);
+    const params = [];
+    const conditions = [];
+    if (q) {
+      params.push(`%${q}%`);
+      conditions.push(`(
+        u.full_name ILIKE $${params.length}
+        OR u.email ILIKE $${params.length}
+        OR EXISTS (
+          SELECT 1
+            FROM business_memberships search_bm
+            JOIN businesses search_b ON search_b.business_id = search_bm.business_id
+           WHERE search_bm.user_id = u.user_id
+             AND (search_b.business_name ILIKE $${params.length} OR search_bm.role ILIKE $${params.length})
+        )
+      )`);
+    }
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    const countResult = await query(
+      `SELECT COUNT(*)::int AS total_items FROM users u ${where}`,
+      params,
+    );
     const { rows } = await query(
       `SELECT
          u.user_id,
@@ -68,10 +101,13 @@ router.get("/users", async (_req, res, next) => {
        FROM users u
        LEFT JOIN business_memberships bm ON bm.user_id = u.user_id
        LEFT JOIN businesses b ON b.business_id = bm.business_id
+       ${where}
        GROUP BY u.user_id
-       ORDER BY u.created_at DESC, u.user_id DESC`,
+       ORDER BY u.created_at DESC, u.user_id DESC
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, offset],
     );
-    res.json(rows);
+    res.json(buildPaginatedResponse(rows, { page, limit }, countResult.rows[0].total_items));
   } catch (err) {
     next(asClientError(err));
   }
@@ -246,8 +282,31 @@ router.patch("/users/:id", async (req, res, next) => {
 
 // GET /api/admin/businesses
 // All businesses with a summary of their member users.
-router.get("/businesses", async (_req, res, next) => {
+router.get("/businesses", async (req, res, next) => {
   try {
+    const { page, limit, offset, q } = parsePaginationQuery(req.query);
+    const params = [];
+    const conditions = [];
+    if (q) {
+      params.push(`%${q}%`);
+      conditions.push(`(
+        b.business_name ILIKE $${params.length}
+        OR b.business_type ILIKE $${params.length}
+        OR EXISTS (
+          SELECT 1
+            FROM business_memberships search_bm
+            JOIN users search_u ON search_u.user_id = search_bm.user_id
+           WHERE search_bm.business_id = b.business_id
+             AND (search_u.full_name ILIKE $${params.length} OR search_u.email ILIKE $${params.length})
+        )
+      )`);
+    }
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    const countResult = await query(
+      `SELECT COUNT(*)::int AS total_items FROM businesses b ${where}`,
+      params,
+    );
     const { rows } = await query(
       `SELECT
          b.business_id,
@@ -270,8 +329,32 @@ router.get("/businesses", async (_req, res, next) => {
        FROM businesses b
        LEFT JOIN business_memberships bm ON bm.business_id = b.business_id
        LEFT JOIN users u ON u.user_id = bm.user_id
+       ${where}
        GROUP BY b.business_id
-       ORDER BY b.created_at DESC, b.business_id DESC`,
+       ORDER BY b.created_at DESC, b.business_id DESC
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, offset],
+    );
+    res.json(buildPaginatedResponse(rows, { page, limit }, countResult.rows[0].total_items));
+  } catch (err) {
+    next(asClientError(err));
+  }
+});
+
+// GET /api/admin/businesses/options?type=logistics
+// Coordinator assignment needs every matching business, not a paginated table.
+router.get("/businesses/options", async (req, res, next) => {
+  try {
+    const type = readSingletonQueryString(req.query, "type");
+    if (type !== "logistics") {
+      throw createHttpError(400, "type must be logistics");
+    }
+    const { rows } = await query(
+      `SELECT business_id, business_name, business_type
+         FROM businesses
+        WHERE business_type = $1
+        ORDER BY business_name ASC, business_id ASC`,
+      [type],
     );
     res.json(rows);
   } catch (err) {

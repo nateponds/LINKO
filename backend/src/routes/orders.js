@@ -3,6 +3,7 @@ import { getPool, query, nextParcelId } from "../db.js";
 import { requireAnyRole, requireAuth } from "../middleware/auth.js";
 import { getActiveMembership } from "../middleware/ownership.js";
 import { notifyBusiness } from "../services/notify.js";
+import { buildPaginatedResponse, parsePaginationQuery } from "../services/pagination.js";
 import {
   computeRouteDistanceKm,
   createInitialRouteSnapshot,
@@ -10,6 +11,16 @@ import {
 } from "../services/parcelRouting.js";
 
 const router = Router();
+
+const ORDER_STATUSES = [
+  "pending",
+  "accepted",
+  "preparing",
+  "shipped",
+  "delivered",
+  "cancelled",
+  "returned",
+];
 
 function asClientError(error) {
   if (["23503", "23514", "23505"].includes(error.code)) {
@@ -33,12 +44,6 @@ function parsePositiveId(rawId, label) {
 }
 
 const isAdmin = (auth) => auth.user.global_role === "platform_admin";
-
-function membershipIds(auth, role) {
-  return auth.memberships
-    .filter((membership) => membership.role === role)
-    .map((membership) => membership.business_id);
-}
 
 // Resolve the business the caller is acting as (buyer/wholesaler). Multi-business
 // users disambiguate via the X-Active-Business header (validated in
@@ -82,7 +87,8 @@ const ORDER_BASE_SELECT = `
          i.invoice_number,
          i.total::text AS invoice_total,
          i.issued_at,
-         (SELECT MAX(pc.parcel_id) FROM parcels pc WHERE pc.order_id = o.order_id) AS parcel_id
+         (SELECT MAX(pc.parcel_id) FROM parcels pc WHERE pc.order_id = o.order_id) AS parcel_id,
+         COUNT(oi.order_item_id)::int AS item_count
     FROM orders o
     JOIN businesses buyer ON buyer.business_id = o.buyer_business_id
     JOIN businesses wholesaler ON wholesaler.business_id = o.wholesaler_business_id
@@ -90,8 +96,8 @@ const ORDER_BASE_SELECT = `
     LEFT JOIN order_items oi ON oi.order_id = o.order_id
     LEFT JOIN invoices i ON i.order_id = o.order_id`;
 
-function orderFromRow(row, items = []) {
-  return {
+function orderFromRow(row, items) {
+  const order = {
     order_id: row.order_id,
     buyer_business_id: row.buyer_business_id,
     buyer_business_name: row.buyer_business_name,
@@ -103,7 +109,6 @@ function orderFromRow(row, items = []) {
     total: row.total,
     created_at: row.created_at,
     updated_at: row.updated_at,
-    items,
     invoice: row.invoice_id
       ? {
           invoice_id: row.invoice_id,
@@ -113,6 +118,12 @@ function orderFromRow(row, items = []) {
         }
       : null,
   };
+  if (items === undefined) {
+    order.item_count = Number(row.item_count);
+  } else {
+    order.items = items;
+  }
+  return order;
 }
 
 async function fetchOrders(whereSql, params, client = { query }) {
@@ -166,32 +177,82 @@ async function fetchOneOrder(orderId, client = { query }) {
   return orders[0] ?? null;
 }
 
-function orderVisibility(auth) {
-  if (isAdmin(auth)) {
+function orderVisibility(req) {
+  if (isAdmin(req.auth)) {
     return { where: "", params: [] };
   }
 
-  const buyerIds = membershipIds(auth, "buyer");
-  const wholesalerIds = membershipIds(auth, "wholesaler");
-  const clauses = [];
-  const params = [];
+  const activeMembership = getActiveMembership(req, ["buyer", "wholesaler"]);
+  const column = activeMembership.role === "buyer"
+    ? "o.buyer_business_id"
+    : "o.wholesaler_business_id";
+  return { where: `WHERE ${column} = $1`, params: [activeMembership.business_id] };
+}
 
-  if (buyerIds.length) {
-    params.push(buyerIds);
-    clauses.push(`o.buyer_business_id = ANY($${params.length}::int[])`);
+function readOrderStatus(query) {
+  const status = query.status;
+  if (status === undefined) return undefined;
+  if (typeof status !== "string" || !ORDER_STATUSES.includes(status)) {
+    throw createHttpError(400, "status must be a valid order status");
   }
-  if (wholesalerIds.length) {
-    params.push(wholesalerIds);
-    clauses.push(`o.wholesaler_business_id = ANY($${params.length}::int[])`);
-  }
+  return status;
+}
 
-  // No buyer/wholesaler membership (e.g. courier, coordinator): empty clause
-  // list would render "WHERE " and break the SQL.
-  if (!clauses.length) {
-    return { where: "WHERE FALSE", params: [] };
-  }
+function appendFilter(scope, predicate, value) {
+  const params = [...scope.params, value];
+  const where = scope.where
+    ? `${scope.where} AND ${predicate(params.length)}`
+    : `WHERE ${predicate(params.length)}`;
+  return { where, params };
+}
 
-  return { where: `WHERE ${clauses.join(" OR ")}`, params };
+function addOrderFilters(visibility, { status, q }) {
+  let scope = visibility;
+  if (status) {
+    scope = appendFilter(scope, (index) => `o.status = $${index}`, status);
+  }
+  if (q) {
+    scope = appendFilter(scope, (index) => `(
+      CAST(o.order_id AS text) ILIKE $${index}
+      OR buyer.business_name ILIKE $${index}
+      OR wholesaler.business_name ILIKE $${index}
+      OR i.invoice_number ILIKE $${index}
+      OR EXISTS (
+        SELECT 1 FROM parcels p
+         WHERE p.order_id = o.order_id AND p.parcel_id ILIKE $${index}
+      )
+    )`, `%${q}%`);
+  }
+  return scope;
+}
+
+async function fetchOrderPage(whereSql, params, pagination) {
+  const pageParams = [...params, pagination.limit, pagination.offset];
+  const [pageResult, countResult] = await Promise.all([
+    query(
+      `${ORDER_BASE_SELECT}
+        ${whereSql}
+       GROUP BY o.order_id, buyer.business_name, wholesaler.business_name,
+                i.invoice_id, i.invoice_number, i.total, i.issued_at
+       ORDER BY o.created_at DESC, o.order_id DESC
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      pageParams,
+    ),
+    query(
+      `SELECT COUNT(*)::int AS total_items
+         FROM orders o
+         JOIN businesses buyer ON buyer.business_id = o.buyer_business_id
+         JOIN businesses wholesaler ON wholesaler.business_id = o.wholesaler_business_id
+         LEFT JOIN invoices i ON i.order_id = o.order_id
+        ${whereSql}`,
+      params,
+    ),
+  ]);
+  return buildPaginatedResponse(
+    pageResult.rows.map((row) => orderFromRow(row)),
+    pagination,
+    countResult.rows[0].total_items,
+  );
 }
 
 function isVisibleOrder(auth, order) {
@@ -306,9 +367,11 @@ router.get(
   requireAnyRole(["buyer", "wholesaler", "platform_admin"]),
   async (req, res, next) => {
     try {
-      const visibility = orderVisibility(req.auth);
-      const orders = await fetchOrders(visibility.where, visibility.params);
-      res.json(orders);
+      const visibility = orderVisibility(req);
+      const pagination = parsePaginationQuery(req.query);
+      const filters = { status: readOrderStatus(req.query), q: pagination.q };
+      const scope = addOrderFilters(visibility, filters);
+      res.json(await fetchOrderPage(scope.where, scope.params, pagination));
     } catch (error) {
       next(asClientError(error));
     }
@@ -651,14 +714,15 @@ const INVOICE_BASE_SELECT = `
          o.wholesaler_business_id,
          wholesaler.business_name AS wholesaler_business_name,
          i.total::text AS total,
-         i.issued_at
+         i.issued_at,
+         (SELECT COUNT(*)::int FROM order_items oi WHERE oi.order_id = i.order_id) AS item_count
     FROM invoices i
     JOIN orders o ON o.order_id = i.order_id
     JOIN businesses buyer ON buyer.business_id = o.buyer_business_id
     JOIN businesses wholesaler ON wholesaler.business_id = o.wholesaler_business_id`;
 
-function invoiceFromRow(row, items = []) {
-  return {
+function invoiceFromRow(row, items) {
+  const invoice = {
     invoice_id: row.invoice_id,
     invoice_number: row.invoice_number,
     order_id: row.order_id,
@@ -669,8 +733,13 @@ function invoiceFromRow(row, items = []) {
     wholesaler_business_name: row.wholesaler_business_name,
     total: row.total,
     issued_at: row.issued_at,
-    items,
   };
+  if (items === undefined) {
+    invoice.item_count = Number(row.item_count);
+  } else {
+    invoice.items = items;
+  }
+  return invoice;
 }
 
 async function fetchInvoices(whereSql, params) {
@@ -716,32 +785,79 @@ async function fetchInvoices(whereSql, params) {
   return rows.map((row) => invoiceFromRow(row, itemsByOrder.get(row.order_id) ?? []));
 }
 
-function invoiceVisibility(auth) {
-  if (isAdmin(auth)) {
+function invoiceVisibility(req) {
+  if (isAdmin(req.auth)) {
     return { where: "", params: [] };
   }
 
-  const buyerIds = membershipIds(auth, "buyer");
-  const wholesalerIds = membershipIds(auth, "wholesaler");
+  const activeMembership = getActiveMembership(req, ["buyer", "wholesaler"]);
+  const column = activeMembership.role === "buyer"
+    ? "o.buyer_business_id"
+    : "o.wholesaler_business_id";
+  return { where: `WHERE ${column} = $1`, params: [activeMembership.business_id] };
+}
+
+// Details keep their prior membership-based access behavior. Pagination lists
+// deliberately narrow to the active business before applying their filters.
+function invoiceDetailVisibility(auth) {
+  if (isAdmin(auth)) return { where: "", params: [] };
+
   const clauses = [];
   const params = [];
-
-  if (buyerIds.length) {
-    params.push(buyerIds);
-    clauses.push(`o.buyer_business_id = ANY($${params.length}::int[])`);
+  for (const membership of auth.memberships) {
+    if (!['buyer', 'wholesaler'].includes(membership.role)) continue;
+    params.push(membership.business_id);
+    const column = membership.role === "buyer"
+      ? "o.buyer_business_id"
+      : "o.wholesaler_business_id";
+    clauses.push(`${column} = $${params.length}`);
   }
-  if (wholesalerIds.length) {
-    params.push(wholesalerIds);
-    clauses.push(`o.wholesaler_business_id = ANY($${params.length}::int[])`);
-  }
+  return clauses.length
+    ? { where: `WHERE ${clauses.join(" OR ")}`, params }
+    : { where: "WHERE FALSE", params: [] };
+}
 
-  // Same guard as orderVisibility: membership-less callers get no rows, not
-  // broken SQL.
-  if (!clauses.length) {
-    return { where: "WHERE FALSE", params: [] };
+function addInvoiceFilters(visibility, { status, q }) {
+  let scope = visibility;
+  if (status) {
+    scope = appendFilter(scope, (index) => `o.status = $${index}`, status);
   }
+  if (q) {
+    scope = appendFilter(scope, (index) => `(
+      i.invoice_number ILIKE $${index}
+      OR CAST(i.order_id AS text) ILIKE $${index}
+      OR buyer.business_name ILIKE $${index}
+      OR wholesaler.business_name ILIKE $${index}
+    )`, `%${q}%`);
+  }
+  return scope;
+}
 
-  return { where: `WHERE ${clauses.join(" OR ")}`, params };
+async function fetchInvoicePage(whereSql, params, pagination) {
+  const pageParams = [...params, pagination.limit, pagination.offset];
+  const [pageResult, countResult] = await Promise.all([
+    query(
+      `${INVOICE_BASE_SELECT}
+        ${whereSql}
+       ORDER BY i.issued_at DESC, i.invoice_id DESC
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      pageParams,
+    ),
+    query(
+      `SELECT COUNT(*)::int AS total_items
+         FROM invoices i
+         JOIN orders o ON o.order_id = i.order_id
+         JOIN businesses buyer ON buyer.business_id = o.buyer_business_id
+         JOIN businesses wholesaler ON wholesaler.business_id = o.wholesaler_business_id
+        ${whereSql}`,
+      params,
+    ),
+  ]);
+  return buildPaginatedResponse(
+    pageResult.rows.map((row) => invoiceFromRow(row)),
+    pagination,
+    countResult.rows[0].total_items,
+  );
 }
 
 router.get(
@@ -750,9 +866,11 @@ router.get(
   requireAnyRole(["buyer", "wholesaler", "platform_admin"]),
   async (req, res, next) => {
     try {
-      const visibility = invoiceVisibility(req.auth);
-      const invoices = await fetchInvoices(visibility.where, visibility.params);
-      res.json(invoices);
+      const visibility = invoiceVisibility(req);
+      const pagination = parsePaginationQuery(req.query);
+      const filters = { status: readOrderStatus(req.query), q: pagination.q };
+      const scope = addInvoiceFilters(visibility, filters);
+      res.json(await fetchInvoicePage(scope.where, scope.params, pagination));
     } catch (error) {
       next(asClientError(error));
     }
@@ -766,7 +884,7 @@ router.get(
   async (req, res, next) => {
     try {
       const invoiceId = parsePositiveId(req.params.id, "Invoice");
-      const visibility = invoiceVisibility(req.auth);
+      const visibility = invoiceDetailVisibility(req.auth);
       const prefix = visibility.where ? `${visibility.where} AND` : "WHERE";
       const invoices = await fetchInvoices(
         `${prefix} i.invoice_id = $${visibility.params.length + 1}`,

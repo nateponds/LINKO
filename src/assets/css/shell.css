@@ -688,6 +688,90 @@
     color: var(--color-muted);
   }
 
+  /* Shared list controls for paginated API envelopes. */
+  .pagination-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 18px;
+    color: var(--color-muted);
+    font-size: 0.88rem;
+  }
+
+  .pagination-controls__summary {
+    margin: 0;
+  }
+
+  .pagination-controls__actions,
+  .pagination-controls__pages,
+  .pagination-controls__limit-label,
+  .list-search__input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .pagination-controls__limit-label {
+    font-size: 0.82rem;
+  }
+
+  .pagination-controls select,
+  .pagination-controls button,
+  .list-search input,
+  .list-search button {
+    border: 1px solid rgba(33, 56, 111, 0.22);
+    border-radius: 6px;
+    background: white;
+    color: var(--color-text);
+    font: inherit;
+  }
+
+  .pagination-controls select,
+  .pagination-controls button,
+  .list-search button {
+    min-height: 34px;
+    padding: 6px 10px;
+  }
+
+  .pagination-controls button,
+  .list-search button {
+    cursor: pointer;
+  }
+
+  .pagination-controls button:hover:not(:disabled),
+  .list-search button[type="submit"]:hover:not(:disabled) {
+    border-color: var(--color-primary);
+    background: var(--color-primary-soft);
+  }
+
+  .pagination-controls button:disabled,
+  .pagination-controls select:disabled,
+  .list-search button:disabled,
+  .list-search input:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  .list-search {
+    display: grid;
+    gap: 6px;
+  }
+
+  .list-search label {
+    color: var(--color-text);
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+
+  .list-search input {
+    min-width: 0;
+    flex: 1;
+    min-height: 38px;
+    padding: 7px 10px;
+  }
+
   .status {
     display: inline-block;
     padding: 4px 12px;
@@ -1036,6 +1120,17 @@
     .footer-grid {
       grid-template-columns: 1fr 1fr;
       padding: 24px;
+    }
+
+    .pagination-controls__actions {
+      align-items: flex-start;
+      flex-direction: column;
+      width: 100%;
+    }
+
+    .pagination-controls__pages {
+      justify-content: space-between;
+      width: 100%;
     }
 
     .header-nav {

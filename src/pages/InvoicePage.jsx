@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowLeftRight, FileText, RotateCcw } from "lucide-react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, ArrowLeftRight, FileText, RotateCcw, Search } from "lucide-react";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
 import { apiGet } from "../lib/api";
+import PaginationControls from "../components/ui/PaginationControls";
+import { useListUrlState } from "../hooks/useListUrlState";
 import { peso, shortDate, statusClass } from "../lib/format";
 import "./InvoicePage.css";
 
@@ -86,35 +88,68 @@ function timelineFor(invoice) {
     .reverse();
 }
 
+function useInvoicePage(path, enabled) {
+  const [reloadVersion, setReloadVersion] = useState(0);
+  const [state, setState] = useState({ data: null, error: null, key: null });
+  const key = `${path}:${reloadVersion}`;
+
+  useEffect(() => {
+    if (!enabled) return undefined;
+    let active = true;
+    const controller = new AbortController();
+    apiGet(path, { signal: controller.signal })
+      .then((data) => active && setState({ data, error: null, key }))
+      .catch((error) => {
+        if (active && error?.name !== "AbortError") {
+          setState((previous) => ({ data: previous.data, error, key }));
+        }
+      });
+    return () => { active = false; controller.abort(); };
+  }, [enabled, key, path]);
+
+  const current = enabled && state.key === key;
+  return {
+    data: current ? state.data : null,
+    staleData: state.data,
+    error: current ? state.error : null,
+    loading: enabled && !current,
+    reload: useCallback(() => setReloadVersion((version) => version + 1), []),
+  };
+}
+
 export default function InvoicePage() {
   const [searchParams] = useSearchParams();
   const invoiceId = searchParams.get("invoice");
   const navigate = useNavigate();
+  const location = useLocation();
+  const list = useListUrlState();
 
-  const [invoices, setInvoices] = useState([]);
+  const listQuery = new URLSearchParams({ page: String(list.page), limit: String(list.limit) });
+  if (list.q) listQuery.set("q", list.q);
+  const listResource = useInvoicePage(`/api/invoices?${listQuery.toString()}`, !invoiceId);
+  const searchTimerRef = useRef(null);
+  const listData = listResource.data ?? listResource.staleData;
+  const invoices = listData?.items ?? null;
+  const listPagination = listData?.pagination ?? null;
   const [invoice, setInvoice] = useState(null);
-  const [loadingList, setLoadingList] = useState(true);
-  const [errorList, setErrorList] = useState(null);
   const [loadingInvoice, setLoadingInvoice] = useState(false);
   const [errorInvoice, setErrorInvoice] = useState(null);
 
   useEffect(() => {
-    let active = true;
-    async function loadList() {
-      setLoadingList(true);
-      setErrorList(null);
-      try {
-        const data = await apiGet("/api/invoices");
-        if (active) setInvoices(Array.isArray(data) ? data : []);
-      } catch (caughtError) {
-        if (active) setErrorList(caughtError.message);
-      } finally {
-        if (active) setLoadingList(false);
-      }
-    }
-    void loadList();
-    return () => { active = false; };
+    return () => window.clearTimeout(searchTimerRef.current);
   }, []);
+
+  useEffect(() => {
+    const totalPages = listResource.data?.pagination?.total_pages ?? 0;
+    if (totalPages > 0 && list.page > totalPages) {
+      list.update({ page: totalPages }, { replace: true });
+    }
+  }, [list, listResource.data]);
+
+  function queueSearch(nextQuery) {
+    window.clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = window.setTimeout(() => list.setQuery(nextQuery), 300);
+  }
 
   useEffect(() => {
     let active = true;
@@ -140,11 +175,19 @@ export default function InvoicePage() {
 
   function handleBack() {
     if (invoiceId) {
-      navigate("/invoices");
+      const params = new URLSearchParams(location.search);
+      params.delete("invoice");
+      navigate({ pathname: "/invoices", search: params.toString() ? `?${params.toString()}` : "" });
       return;
     }
 
     navigate(-1);
+  }
+
+  function listSearch() {
+    const params = new URLSearchParams(location.search);
+    params.delete("invoice");
+    return params.toString() ? `?${params.toString()}` : "";
   }
 
   return (
@@ -165,46 +208,69 @@ export default function InvoicePage() {
             <span className="tracking-number">
               {invoiceId
                 ? (invoice?.invoice_number ?? `#${invoiceId}`)
-                : `${invoices.length} visible`}
+                : `${listPagination?.total_items ?? 0} visible`}
             </span>
           </div>
         </div>
 
         {!invoiceId ? (
-          <main className="invoice-list-wrap" aria-busy={loadingList}>
+          <main className="invoice-list-wrap" aria-busy={listResource.loading}>
             <div className="invoice-list-head">
               <div>
                 <span className="status-eyebrow">Billing workspace</span>
                 <h1 className="status-title">Invoices</h1>
               </div>
-              <FileText size={24} aria-hidden="true" />
+              <div className="invoice-list-actions">
+                <label className="invoice-list-search">
+                  <span className="sr-only">Search invoices</span>
+                  <input
+                    type="search"
+                    placeholder="Search invoice, order, buyer, seller"
+                    key={list.q}
+                    defaultValue={list.q}
+                    onChange={(event) => queueSearch(event.target.value)}
+                  />
+                  <Search size={16} aria-hidden="true" />
+                </label>
+                <FileText size={24} aria-hidden="true" />
+              </div>
             </div>
 
-            {loadingList ? (
+            {invoices === null && listResource.loading ? (
               <div className="invoice-error">Loading invoices...</div>
-            ) : errorList ? (
+            ) : listResource.error && !invoices?.length ? (
               <div className="invoice-error">
-                Could not load invoices: {errorList}
+                Could not load invoices: {listResource.error.message}
               </div>
-            ) : invoices.length === 0 ? (
+            ) : (invoices?.length ?? 0) === 0 ? (
               <div className="invoice-error">
-                No invoices are visible for this account yet.
+                {list.q ? "No invoices match your search." : "No invoices are visible for this account yet."}
+                {list.q && (
+                  <button className="clear-list-filters" type="button" onClick={() => list.setQuery("")}>
+                    Clear search
+                  </button>
+                )}
               </div>
             ) : (
-              <div className="invoice-list">
-                <div className="invoice-list-header" aria-hidden="true">
-                  <span>Invoice</span>
-                  <span>Buyer</span>
-                  <span>Seller</span>
-                  <span>Issued</span>
-                  <span>Total</span>
-                  <span>Status</span>
-                </div>
-                {invoices.map((visibleInvoice) => (
+              <>
+                {listResource.error && <div className="invoice-error invoice-error--inline">Could not refresh invoices: {listResource.error.message}</div>}
+                <div className="invoice-list">
+                  <div className="invoice-list-header" aria-hidden="true">
+                    <span>Invoice</span>
+                    <span>Buyer</span>
+                    <span>Seller</span>
+                    <span>Issued</span>
+                    <span>Total</span>
+                    <span>Status</span>
+                  </div>
+                  {invoices.map((visibleInvoice) => {
+                    const detailParams = new URLSearchParams(location.search);
+                    detailParams.set("invoice", visibleInvoice.invoice_id);
+                    return (
                   <Link
                     className="invoice-list-row"
                     key={visibleInvoice.invoice_id}
-                    to={`/invoices?invoice=${visibleInvoice.invoice_id}`}
+                    to={`/invoices?${detailParams.toString()}`}
                   >
                     <span>
                       <strong>{visibleInvoice.invoice_number}</strong>
@@ -228,8 +294,17 @@ export default function InvoicePage() {
                       {statusLabel(visibleInvoice.order_status)}
                     </span>
                   </Link>
-                ))}
-              </div>
+                    );
+                  })}
+                </div>
+                <PaginationControls
+                  pagination={listPagination}
+                  disabled={listResource.loading}
+                  onPageChange={list.setPage}
+                  onLimitChange={list.setLimit}
+                  ariaLabel="Invoice pagination"
+                />
+              </>
             )}
           </main>
         ) : errorInvoice && !loadingInvoice ? (
@@ -303,7 +378,7 @@ export default function InvoicePage() {
                   <Link to="/orders" className="action-link">
                     <RotateCcw size={13} /> View orders
                   </Link>
-                  <Link to="/invoices" className="action-link">
+                  <Link to={{ pathname: "/invoices", search: listSearch() }} className="action-link">
                     <ArrowLeftRight size={13} /> All invoices
                   </Link>
                   <span className="delivery-query">

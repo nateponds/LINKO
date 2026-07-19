@@ -138,7 +138,7 @@ test("courier picks up from the pool and delivering the parcel completes the ord
     const poolList = await request("/api/parcels", { headers: { Cookie: courierCookie } });
     assert.equal(poolList.status, 200);
     assert.ok(
-      poolList.body.some((p) => p.parcel_id === parcelId),
+      poolList.body.items.some((p) => p.parcel_id === parcelId),
       "unassigned parcel should appear in the courier pickup pool",
     );
 
@@ -156,7 +156,7 @@ test("courier picks up from the pool and delivering the parcel completes the ord
     // list after they act on it.
     const afterPickup = await request("/api/parcels", { headers: { Cookie: courierCookie } });
     assert.ok(
-      afterPickup.body.some((p) => p.parcel_id === parcelId && p.current_status === "Picked Up"),
+      afterPickup.body.items.some((p) => p.parcel_id === parcelId && p.current_status === "Picked Up"),
       "claimed parcel should remain visible to the courier",
     );
 
