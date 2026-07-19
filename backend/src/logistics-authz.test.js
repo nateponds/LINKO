@@ -347,7 +347,7 @@ test("deactivated courier loses list and write access", { skip: !hasDb }, async 
 
     const afterList = await request("/api/parcels", { headers: { Cookie: afterCookie } });
     assert.equal(afterList.status, 200, "deactivated courier's list call should not error");
-    assert.deepEqual(afterList.body, [], "deactivated courier should see an empty pool, not an error");
+    assert.deepEqual(afterList.body.items, [], "deactivated courier should see an empty pool, not an error");
 
     const scan = await request(`/api/parcels/${parcelId}/tracking`, {
       method: "POST",
