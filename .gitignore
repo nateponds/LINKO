@@ -28,3 +28,7 @@ backend/.env
 # Local source/reference documents that need explicit review before publishing
 docs/archived/BPMN-process-flow.pdf
 docs/archived/LINKO business plan.md
+
+# API agent seeder — personas are regenerated per-user, run artifacts are local
+backend/scripts/seed_via_api/personas.json
+backend/scripts/seed_via_api/*.jsonl
