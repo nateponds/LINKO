@@ -1,515 +1,204 @@
 import { useEffect, useState } from "react";
+import { Check, Pencil, Plus, Trash2, X } from "lucide-react";
 import AppLayout from "../../layouts/AppLayout";
 import MapPicker from "../../components/ui/MapPicker";
-import { apiGet, apiSend } from "../../lib/api";
-import { Plus, Trash2, Pencil, Check, X } from "lucide-react";
+import PaginationControls from "../../components/ui/PaginationControls";
+import SearchField from "../../components/ui/SearchField";
 import { useAuth } from "../../auth/AuthProvider";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
+import { useListUrlState } from "../../hooks/useListUrlState";
+import { usePaginatedResource } from "../../hooks/usePaginatedResource";
+import { apiGet, apiSend } from "../../lib/api";
+import { buildLogisticsListPath } from "./logisticsPagination";
+import "./LogisticsManagementPage.css";
+
+const EMPTY_BRANCH = { branch_name: "", contact_number: "", province: "", city_municipality: "", barangay: "", street_address: "", postal_code: "" };
+const EMPTY_COURIER = { phone_number: "", vehicle_type: "", assigned_branch_id: "" };
+const EMPTY_TIER = { tier_name: "", base_fee: "", base_rate_per_kg: "", rate_per_km: "", estimated_days: "" };
+
+function useDebouncedListSearch({ q, setQuery }) {
+  const [value, setValue] = useState(q);
+  const debouncedValue = useDebouncedValue(value, 300);
+  useEffect(() => {
+    // URL navigation (reload/back/forward) remains authoritative.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setValue(q);
+  }, [q]);
+  useEffect(() => {
+    if (debouncedValue !== q) setQuery(debouncedValue);
+  }, [debouncedValue, q, setQuery]);
+  return { value, setValue, submit: () => setQuery(value), clear: () => { setValue(""); setQuery(""); } };
+}
+
+function useClampListPage({ page, setPage }, pagination) {
+  useEffect(() => {
+    if (!pagination) return;
+    const totalPages = pagination.total_pages ?? 0;
+    const target = totalPages > 0 ? Math.min(page, totalPages) : 1;
+    if (target !== page) setPage(target);
+  }, [page, pagination, setPage]);
+}
+
+function useVisibleRows(resource) {
+  const [rows, setRows] = useState([]);
+  useEffect(() => {
+    if (resource.data) {
+      // Keep the fulfilled page on screen until a replacement arrives.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRows(resource.items);
+    }
+  }, [resource.data, resource.items]);
+  return rows;
+}
+
+function ListState({ resource, items, query, label, onClear, children }) {
+  if (!resource.data && resource.loading && items.length === 0) return <div className="page-empty">Loading {label}…</div>;
+  if (items.length === 0) return <div className="page-empty"><p>{query ? `No ${label} match your search.` : `No ${label} yet.`}</p>{query ? <button type="button" className="logistics-action-btn" onClick={onClear}>Clear search</button> : null}</div>;
+  return children;
+}
 
 export default function LogisticsManagementPage() {
   const { user } = useAuth();
-  const [branches, setBranches] = useState([]);
-  const [couriers, setCouriers] = useState([]);
+  const branchesList = useListUrlState({ prefix: "branches" });
+  const couriersList = useListUrlState({ prefix: "couriers" });
+  const branchesSearch = useDebouncedListSearch(branchesList);
+  const couriersSearch = useDebouncedListSearch(couriersList);
+  const branchesResource = usePaginatedResource(buildLogisticsListPath("/api/branches", branchesList));
+  const couriersResource = usePaginatedResource(buildLogisticsListPath("/api/couriers", couriersList));
+  const visibleBranches = useVisibleRows(branchesResource);
+  const visibleCouriers = useVisibleRows(couriersResource);
+  const [branchOptions, setBranchOptions] = useState([]);
+  const [optionsError, setOptionsError] = useState(null);
   const [serviceTiers, setServiceTiers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [tiersLoading, setTiersLoading] = useState(true);
+  const [tierError, setTierError] = useState(null);
+  const [newBranch, setNewBranch] = useState(EMPTY_BRANCH);
+  const [branchError, setBranchError] = useState(null);
   const [submittingBranch, setSubmittingBranch] = useState(false);
+  const [editingBranchId, setEditingBranchId] = useState(null);
+  const [branchForm, setBranchForm] = useState({ ...EMPTY_BRANCH, latitude: "", longitude: "" });
+  const [togglingBranchId, setTogglingBranchId] = useState(null);
+  const [courierError, setCourierError] = useState(null);
   const [submittingCourier, setSubmittingCourier] = useState(false);
   const [editingCourierId, setEditingCourierId] = useState(null);
-  const [courierForm, setCourierForm] = useState({
-    phone_number: "", vehicle_type: "", assigned_branch_id: ""
-  });
-  const [submittingTier, setSubmittingTier] = useState(false);
-  const [branchError, setBranchError] = useState(null);
-  const [courierError, setCourierError] = useState(null);
-  const [tierError, setTierError] = useState(null);
-
-  // Form states
-  const [newBranch, setNewBranch] = useState({
-    branch_name: "", contact_number: "", province: "", city_municipality: "", barangay: "", street_address: "", postal_code: ""
-  });
-  const [editingBranchId, setEditingBranchId] = useState(null);
-  const [branchForm, setBranchForm] = useState({
-    branch_name: "", contact_number: "", province: "", city_municipality: "", barangay: "", street_address: "", postal_code: "", latitude: "", longitude: ""
-  });
-  const [togglingBranchId, setTogglingBranchId] = useState(null);
+  const [courierForm, setCourierForm] = useState(EMPTY_COURIER);
   const [editingTierId, setEditingTierId] = useState(null);
-  const [editForm, setEditForm] = useState({
-    tier_name: "", base_fee: "", base_rate_per_kg: "", rate_per_km: "", estimated_days: ""
-  });
+  const [editForm, setEditForm] = useState(EMPTY_TIER);
+  const [submittingTier, setSubmittingTier] = useState(false);
 
-  const fetchData = async () => Promise.all([
-    apiGet("/api/branches"),
-    apiGet("/api/couriers"),
-    apiGet("/api/service-tiers")
-  ]);
+  useClampListPage(branchesList, branchesResource.pagination);
+  useClampListPage(couriersList, couriersResource.pagination);
 
-  const refreshData = async () => {
+  async function reloadBranchOptions() {
     try {
-      const [b, c, t] = await fetchData();
-      setBranches(b);
-      setCouriers(c);
-      setServiceTiers(t);
-    } catch (err) {
-      setError(err.message);
-    }
-  };
+      const data = await apiGet("/api/branches/options");
+      setBranchOptions(Array.isArray(data) ? data : []); setOptionsError(null);
+    } catch (error) { setOptionsError(error.message); }
+  }
+
+  async function reloadTiers() {
+    setTiersLoading(true);
+    try { const data = await apiGet("/api/service-tiers"); setServiceTiers(Array.isArray(data) ? data : []); setTierError(null); }
+    catch (error) { setTierError(error.message); } finally { setTiersLoading(false); }
+  }
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      try {
-        const [b, c, t] = await fetchData();
-        if (cancelled) return;
-        setBranches(b);
-        setCouriers(c);
-        setServiceTiers(t);
-      } catch (err) {
-        if (!cancelled) setError(err.message);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    load();
-
-    return () => {
-      cancelled = true;
-    };
+    let active = true;
+    apiGet("/api/branches/options")
+      .then((data) => {
+        if (!active) return;
+        setBranchOptions(Array.isArray(data) ? data : []);
+        setOptionsError(null);
+      })
+      .catch((error) => {
+        if (active) setOptionsError(error.message);
+      });
+    apiGet("/api/service-tiers")
+      .then((data) => {
+        if (!active) return;
+        setServiceTiers(Array.isArray(data) ? data : []);
+        setTierError(null);
+      })
+      .catch((error) => {
+        if (active) setTierError(error.message);
+      })
+      .finally(() => {
+        if (active) setTiersLoading(false);
+      });
+    return () => { active = false; };
   }, []);
 
-  const handleDeleteCourier = async (id, name) => {
-    if (!window.confirm(`Delete courier "${name}"?`)) return;
+  async function handleAddBranch(event) {
+    event.preventDefault(); setSubmittingBranch(true); setBranchError(null);
+    try { await apiSend("/api/branches", { body: newBranch }); setNewBranch(EMPTY_BRANCH); branchesResource.reload(); void reloadBranchOptions(); }
+    catch (error) { setBranchError(error.message); } finally { setSubmittingBranch(false); }
+  }
+
+  function startEditingBranch(branch) {
+    setBranchError(null); setEditingBranchId(branch.branch_id);
+    setBranchForm({ branch_name: branch.branch_name ?? "", contact_number: branch.contact_number ?? "", province: branch.province ?? "", city_municipality: branch.city_municipality ?? "", barangay: branch.barangay ?? "", street_address: branch.street_address ?? "", postal_code: branch.postal_code ?? "", latitude: branch.latitude ?? "", longitude: branch.longitude ?? "" });
+  }
+
+  async function handleEditBranchSubmit(event) {
+    event.preventDefault(); setSubmittingBranch(true); setBranchError(null);
+    const lat = String(branchForm.latitude).trim(); const lng = String(branchForm.longitude).trim();
+    if ((lat === "") !== (lng === "")) { setBranchError("Provide both latitude and longitude, or neither."); setSubmittingBranch(false); return; }
+    try {
+      await apiSend(`/api/branches/${editingBranchId}`, { method: "PATCH", body: { ...branchForm, latitude: lat === "" ? null : Number(lat), longitude: lng === "" ? null : Number(lng) } });
+      setEditingBranchId(null); branchesResource.reload(); void reloadBranchOptions();
+    } catch (error) { setBranchError(error.message); } finally { setSubmittingBranch(false); }
+  }
+
+  async function handleToggleAvailability(branch) {
+    setTogglingBranchId(branch.branch_id); setBranchError(null);
+    try { await apiSend(`/api/branches/${branch.branch_id}`, { method: "PATCH", body: { is_available: !(branch.is_available ?? true) } }); branchesResource.reload(); }
+    catch (error) { setBranchError(error.message); } finally { setTogglingBranchId(null); }
+  }
+
+  async function handleRetireBranch(branch) {
+    if (!window.confirm(`Retire branch "${branch.branch_name}"? This permanently removes it from all use (not just automatic assignment). Parcel history is kept.`)) return;
+    setBranchError(null);
+    try { await apiSend(`/api/branches/${branch.branch_id}`, { method: "DELETE" }); branchesResource.reload(); couriersResource.reload(); void reloadBranchOptions(); }
+    catch (error) { setBranchError(error.message); }
+  }
+
+  function startEditingCourier(courier) {
+    setCourierError(null); setEditingCourierId(courier.courier_id);
+    setCourierForm({ phone_number: courier.phone_number ?? "", vehicle_type: courier.vehicle_type ?? "", assigned_branch_id: courier.assigned_branch_id ?? "" });
+  }
+
+  async function handleEditCourierSubmit(event) {
+    event.preventDefault(); setSubmittingCourier(true); setCourierError(null);
+    try {
+      await apiSend(`/api/couriers/${editingCourierId}`, { method: "PATCH", body: { phone_number: courierForm.phone_number.trim() || null, vehicle_type: courierForm.vehicle_type.trim() || null, assigned_branch_id: courierForm.assigned_branch_id ? Number(courierForm.assigned_branch_id) : null } });
+      setEditingCourierId(null); couriersResource.reload();
+    } catch (error) { setCourierError(error.message); } finally { setSubmittingCourier(false); }
+  }
+
+  async function handleDeleteCourier(courier) {
+    if (!window.confirm(`Delete courier "${courier.full_name}"?`)) return;
     setCourierError(null);
-    try {
-      await apiSend(`/api/couriers/${id}`, { method: "DELETE" });
-      await refreshData();
-    } catch (err) {
-      setCourierError(err.message);
-    }
-  };
+    try { await apiSend(`/api/couriers/${courier.courier_id}`, { method: "DELETE" }); couriersResource.reload(); }
+    catch (error) { setCourierError(error.message); }
+  }
 
-  const handleAddBranch = async (e) => {
-    e.preventDefault();
-    setSubmittingBranch(true);
-    setBranchError(null);
-    try {
-      await apiSend("/api/branches", { body: newBranch });
-      setNewBranch({ branch_name: "", contact_number: "", province: "", city_municipality: "", barangay: "", street_address: "", postal_code: "" });
-      await refreshData();
-    } catch (err) {
-      setBranchError(err.message);
-    } finally {
-      setSubmittingBranch(false);
-    }
-  };
+  function startEditingTier(tier) { setTierError(null); setEditingTierId(tier.tier_id); setEditForm({ tier_name: tier.tier_name, base_fee: tier.base_fee, base_rate_per_kg: tier.base_rate_per_kg, rate_per_km: tier.rate_per_km, estimated_days: tier.estimated_days }); }
+  async function handleEditTierSubmit(event) {
+    event.preventDefault(); setSubmittingTier(true); setTierError(null);
+    const baseFee = Number(editForm.base_fee); const baseRate = Number(editForm.base_rate_per_kg); const rateKm = Number(editForm.rate_per_km); const estDays = Number(editForm.estimated_days);
+    if (!editForm.tier_name.trim()) { setTierError("Tier name is required"); setSubmittingTier(false); return; }
+    if (baseFee < 0 || baseRate < 0 || rateKm < 0) { setTierError("Numeric fields cannot be negative"); setSubmittingTier(false); return; }
+    if (estDays < 1) { setTierError("Estimated days must be at least 1"); setSubmittingTier(false); return; }
+    try { await apiSend(`/api/service-tiers/${editingTierId}`, { method: "PUT", body: { tier_name: editForm.tier_name, base_fee: baseFee, base_rate_per_kg: baseRate, rate_per_km: rateKm, estimated_days: estDays } }); setEditingTierId(null); void reloadTiers(); }
+    catch (error) { setTierError(error.message); } finally { setSubmittingTier(false); }
+  }
 
-  const startEditingBranch = (branch) => {
-    setBranchError(null);
-    setEditingBranchId(branch.branch_id);
-    setBranchForm({
-      branch_name: branch.branch_name ?? "",
-      contact_number: branch.contact_number ?? "",
-      province: branch.province ?? "",
-      city_municipality: branch.city_municipality ?? "",
-      barangay: branch.barangay ?? "",
-      street_address: branch.street_address ?? "",
-      postal_code: branch.postal_code ?? "",
-      latitude: branch.latitude ?? "",
-      longitude: branch.longitude ?? "",
-    });
-  };
+  const branchesPagination = branchesResource.pagination ?? { page: branchesList.page, limit: branchesList.limit, total_items: 0, total_pages: 0 };
+  const couriersPagination = couriersResource.pagination ?? { page: couriersList.page, limit: couriersList.limit, total_items: 0, total_pages: 0 };
 
-  const handleEditBranchSubmit = async (e) => {
-    e.preventDefault();
-    setSubmittingBranch(true);
-    setBranchError(null);
-
-    // Both coordinates or neither; an empty pair explicitly unpins the branch
-    // (it drops out of automatic assignment). The backend validator is the
-    // authority — this only catches the obvious one-sided case early.
-    const lat = String(branchForm.latitude).trim();
-    const lng = String(branchForm.longitude).trim();
-    if ((lat === "") !== (lng === "")) {
-      setBranchError("Provide both latitude and longitude, or neither");
-      setSubmittingBranch(false);
-      return;
-    }
-
-    try {
-      await apiSend(`/api/branches/${editingBranchId}`, {
-        method: "PATCH",
-        body: {
-          branch_name: branchForm.branch_name,
-          contact_number: branchForm.contact_number,
-          province: branchForm.province,
-          city_municipality: branchForm.city_municipality,
-          barangay: branchForm.barangay,
-          street_address: branchForm.street_address,
-          postal_code: branchForm.postal_code,
-          latitude: lat === "" ? null : Number(lat),
-          longitude: lng === "" ? null : Number(lng),
-        },
-      });
-      setEditingBranchId(null);
-      await refreshData();
-    } catch (err) {
-      setBranchError(err.message);
-    } finally {
-      setSubmittingBranch(false);
-    }
-  };
-
-  const handleToggleAvailability = async (branch) => {
-    setTogglingBranchId(branch.branch_id);
-    setBranchError(null);
-    try {
-      await apiSend(`/api/branches/${branch.branch_id}`, {
-        method: "PATCH",
-        body: { is_available: !(branch.is_available ?? true) },
-      });
-      await refreshData();
-    } catch (err) {
-      setBranchError(err.message);
-    } finally {
-      setTogglingBranchId(null);
-    }
-  };
-
-  const handleRetireBranch = async (branch) => {
-    if (!window.confirm(
-      `Retire branch "${branch.branch_name}"? This permanently removes it from all use (not just automatic assignment). Parcel history is kept.`,
-    )) return;
-    setBranchError(null);
-    try {
-      await apiSend(`/api/branches/${branch.branch_id}`, { method: "DELETE" });
-      await refreshData();
-    } catch (err) {
-      setBranchError(err.message);
-    }
-  };
-
-  const startEditingCourier = (courier) => {
-    setCourierError(null);
-    setEditingCourierId(courier.courier_id);
-    setCourierForm({
-      phone_number: courier.phone_number ?? "",
-      vehicle_type: courier.vehicle_type ?? "",
-      assigned_branch_id: courier.assigned_branch_id ?? "",
-    });
-  };
-
-  const handleEditCourierSubmit = async (e) => {
-    e.preventDefault();
-    setSubmittingCourier(true);
-    setCourierError(null);
-    try {
-      // assigned_branch_id is always sent: "" means unassign (null).
-      const body = {
-        phone_number: courierForm.phone_number.trim() || null,
-        vehicle_type: courierForm.vehicle_type.trim() || null,
-        assigned_branch_id: courierForm.assigned_branch_id
-          ? Number(courierForm.assigned_branch_id)
-          : null,
-      };
-      await apiSend(`/api/couriers/${editingCourierId}`, { method: "PATCH", body });
-      setEditingCourierId(null);
-      await refreshData();
-    } catch (err) {
-      setCourierError(err.message);
-    } finally {
-      setSubmittingCourier(false);
-    }
-  };
-
-  const handleEditTierSubmit = async (e) => {
-    e.preventDefault();
-    setSubmittingTier(true);
-    setTierError(null);
-
-    if (!editForm.tier_name.trim()) {
-      setTierError("Tier name is required");
-      setSubmittingTier(false);
-      return;
-    }
-    
-    const baseFee = Number(editForm.base_fee);
-    const baseRate = Number(editForm.base_rate_per_kg);
-    const rateKm = Number(editForm.rate_per_km);
-    const estDays = Number(editForm.estimated_days);
-
-    if (baseFee < 0 || baseRate < 0 || rateKm < 0) {
-      setTierError("Numeric fields cannot be negative");
-      setSubmittingTier(false);
-      return;
-    }
-    
-    if (estDays < 1) {
-      setTierError("Estimated days must be at least 1");
-      setSubmittingTier(false);
-      return;
-    }
-
-    try {
-      await apiSend(`/api/service-tiers/${editingTierId}`, {
-        method: "PUT",
-        body: {
-          tier_name: editForm.tier_name,
-          base_fee: baseFee,
-          base_rate_per_kg: baseRate,
-          rate_per_km: rateKm,
-          estimated_days: estDays
-        }
-      });
-      setEditingTierId(null);
-      await refreshData();
-    } catch (err) {
-      setTierError(err.message);
-    } finally {
-      setSubmittingTier(false);
-    }
-  };
-
-  const startEditing = (tier) => {
-    setTierError(null);
-    setEditingTierId(tier.tier_id);
-    setEditForm({
-      tier_name: tier.tier_name,
-      base_fee: tier.base_fee,
-      base_rate_per_kg: tier.base_rate_per_kg,
-      rate_per_km: tier.rate_per_km,
-      estimated_days: tier.estimated_days
-    });
-  };
-
-  return (
-    <AppLayout>
-      <div className="logistics-page">
-        <h1 style={{ marginBottom: '2rem', textAlign: 'center' }}>Logistics Management</h1>
-
-        {loading ? <p style={{textAlign: 'center'}}>Loading...</p> : error ? <p style={{color: 'red', textAlign: 'center'}}>{error}</p> : (
-          <div className="logistics-grid">
-
-            {/* Branches Section */}
-            <div>
-              <h2 style={{ textAlign: 'center' }}>Branches</h2>
-              <div className="logistics-form-card">
-                <form onSubmit={handleAddBranch}>
-                  <input type="text" placeholder="Branch Name" required value={newBranch.branch_name} onChange={e => setNewBranch({...newBranch, branch_name: e.target.value})} />
-                  <input type="text" placeholder="Contact Number" required value={newBranch.contact_number} onChange={e => setNewBranch({...newBranch, contact_number: e.target.value})} />
-                  <input type="text" placeholder="Province" required value={newBranch.province} onChange={e => setNewBranch({...newBranch, province: e.target.value})} />
-                  <input type="text" placeholder="City" required value={newBranch.city_municipality} onChange={e => setNewBranch({...newBranch, city_municipality: e.target.value})} />
-                  <input type="text" placeholder="Barangay" value={newBranch.barangay} onChange={e => setNewBranch({...newBranch, barangay: e.target.value})} />
-                  <input type="text" placeholder="Street Address" value={newBranch.street_address} onChange={e => setNewBranch({...newBranch, street_address: e.target.value})} />
-                  <input type="text" placeholder="Postal Code" value={newBranch.postal_code} onChange={e => setNewBranch({...newBranch, postal_code: e.target.value})} />
-                  <button type="submit" disabled={submittingBranch}>
-                    <Plus size={16} /> {submittingBranch ? "Adding…" : "Add Branch"}
-                  </button>
-                  {branchError && <p className="logistics-form-error">{branchError}</p>}
-                </form>
-              </div>
-              <p style={{ textAlign: 'center', fontSize: '0.85rem', opacity: 0.7, margin: '1rem 0' }}>
-                Availability stops new automatic assignments only — in-flight
-                parcels and manual assignment are unaffected.
-              </p>
-              <ul className="logistics-list">
-                {branches.map(b => (
-                  <li key={b.branch_id} className="logistics-list-row" style={{ alignItems: 'flex-start' }}>
-                    {editingBranchId === b.branch_id ? (
-                      <form className="logistics-edit-form" onSubmit={handleEditBranchSubmit} style={{ width: '100%' }}>
-                        <input type="text" placeholder="Branch Name" required value={branchForm.branch_name} onChange={e => setBranchForm({...branchForm, branch_name: e.target.value})} />
-                        <input type="text" placeholder="Contact Number" required value={branchForm.contact_number} onChange={e => setBranchForm({...branchForm, contact_number: e.target.value})} />
-                        <input type="text" placeholder="Province" required value={branchForm.province} onChange={e => setBranchForm({...branchForm, province: e.target.value})} />
-                        <input type="text" placeholder="City" required value={branchForm.city_municipality} onChange={e => setBranchForm({...branchForm, city_municipality: e.target.value})} />
-                        <input type="text" placeholder="Barangay" value={branchForm.barangay} onChange={e => setBranchForm({...branchForm, barangay: e.target.value})} />
-                        <input type="text" placeholder="Street Address" value={branchForm.street_address} onChange={e => setBranchForm({...branchForm, street_address: e.target.value})} />
-                        <input type="text" placeholder="Postal Code" value={branchForm.postal_code} onChange={e => setBranchForm({...branchForm, postal_code: e.target.value})} />
-                        <MapPicker
-                          latitude={branchForm.latitude}
-                          longitude={branchForm.longitude}
-                          onChange={({ latitude, longitude }) => setBranchForm(current => ({
-                            ...current,
-                            latitude: String(latitude),
-                            longitude: String(longitude),
-                          }))}
-                        />
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                          <input type="number" step="any" min="-90" max="90" placeholder="Latitude" value={branchForm.latitude} onChange={e => setBranchForm({...branchForm, latitude: e.target.value})} />
-                          <input type="number" step="any" min="-180" max="180" placeholder="Longitude" value={branchForm.longitude} onChange={e => setBranchForm({...branchForm, longitude: e.target.value})} />
-                        </div>
-                        <div className="logistics-edit-actions" style={{ justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-                          <button type="submit" className="logistics-save-btn" disabled={submittingBranch} title="Save">
-                            <Check size={16} />
-                          </button>
-                          <button type="button" className="logistics-delete-btn" disabled={submittingBranch} onClick={() => setEditingBranchId(null)} title="Cancel">
-                            <X size={16} />
-                          </button>
-                        </div>
-                      </form>
-                    ) : (
-                      <>
-                        <div>
-                          <strong>{b.branch_name}</strong> - {b.contact_number}<br/>
-                          <small>{b.city_municipality}, {b.province}</small><br/>
-                          <small style={{ opacity: 0.7 }}>
-                            {b.latitude != null && b.longitude != null
-                              ? `Pinned at ${b.latitude}, ${b.longitude}`
-                              : "No coordinates — excluded from nearest-branch assignment"}
-                          </small>
-                        </div>
-                        <div className="logistics-edit-actions" style={{ alignItems: 'center' }}>
-                          <label title="Stops new automatic assignments only" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem', cursor: 'pointer' }}>
-                            <input
-                              type="checkbox"
-                              checked={b.is_available ?? true}
-                              disabled={togglingBranchId === b.branch_id}
-                              onChange={() => handleToggleAvailability(b)}
-                            />
-                            {(b.is_available ?? true) ? "Available" : "Paused"}
-                          </label>
-                          <button type="button" className="logistics-edit-btn" title="Edit branch"
-                            onClick={() => startEditingBranch(b)}>
-                            <Pencil size={16} />
-                          </button>
-                          <button type="button" className="logistics-delete-btn" title="Retire branch"
-                            onClick={() => handleRetireBranch(b)}>
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Couriers Section */}
-            <div>
-              <h2 style={{ textAlign: 'center' }}>Couriers</h2>
-              <p style={{ textAlign: 'center', fontSize: '0.85rem', opacity: 0.7, marginBottom: '1rem' }}>
-                Couriers are created from the Admin dashboard.
-              </p>
-              {courierError && <p className="logistics-form-error" style={{ marginBottom: '1rem' }}>{courierError}</p>}
-              <ul className="logistics-list">
-                {couriers.map(c => (
-                  <li key={c.courier_id} className="logistics-list-row" style={{ alignItems: 'flex-start' }}>
-                    {editingCourierId === c.courier_id ? (
-                      <form className="logistics-edit-form" onSubmit={handleEditCourierSubmit} style={{ width: '100%' }}>
-                        <input type="text" placeholder="Phone Number" value={courierForm.phone_number} onChange={e => setCourierForm({...courierForm, phone_number: e.target.value})} />
-                        <input type="text" placeholder="Vehicle Type (e.g. Van, Motorcycle)" value={courierForm.vehicle_type} onChange={e => setCourierForm({...courierForm, vehicle_type: e.target.value})} />
-                        <select value={courierForm.assigned_branch_id} onChange={e => setCourierForm({...courierForm, assigned_branch_id: e.target.value})}>
-                          <option value="">-- Unassign --</option>
-                          {branches.map(b => <option key={b.branch_id} value={b.branch_id}>{b.branch_name}</option>)}
-                        </select>
-                        <div className="logistics-edit-actions" style={{ justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-                          <button type="submit" className="logistics-save-btn" disabled={submittingCourier} title="Save">
-                            <Check size={16} />
-                          </button>
-                          <button type="button" className="logistics-delete-btn" disabled={submittingCourier} onClick={() => setEditingCourierId(null)} title="Cancel">
-                            <X size={16} />
-                          </button>
-                        </div>
-                      </form>
-                    ) : (
-                      <>
-                        <div>
-                          <strong>{c.full_name}</strong> - {c.phone_number}<br/>
-                          <small>{c.vehicle_type} • Branch: {branches.find(b => b.branch_id === c.assigned_branch_id)?.branch_name || 'None'}</small>
-                        </div>
-                        <div className="logistics-edit-actions">
-                          <button type="button" className="logistics-edit-btn" title="Edit courier"
-                            onClick={() => startEditingCourier(c)}>
-                            <Pencil size={16} />
-                          </button>
-                          <button type="button" className="logistics-delete-btn" title="Delete courier"
-                            onClick={() => handleDeleteCourier(c.courier_id, c.full_name)}>
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Service Tiers Section */}
-            <div style={{ gridColumn: '1 / -1' }}>
-              <h2 style={{ textAlign: 'center' }}>Service Tiers</h2>
-              {tierError && <p className="logistics-form-error" style={{ marginBottom: '1rem' }}>{tierError}</p>}
-              <ul className="logistics-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem', justifyContent: 'center' }}>
-                {serviceTiers.map(t => (
-                  <li key={t.tier_id} className="logistics-list-row" style={{ alignItems: 'flex-start' }}>
-                    {editingTierId === t.tier_id ? (
-                      <form className="logistics-edit-form" onSubmit={handleEditTierSubmit}>
-                        <input type="text" placeholder="Tier Name" required value={editForm.tier_name} onChange={e => setEditForm({...editForm, tier_name: e.target.value})} />
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                          <div className="logistics-tier-field">
-                            <label>Base Fee</label>
-                            <input type="number" step="0.01" required value={editForm.base_fee} onChange={e => setEditForm({...editForm, base_fee: e.target.value})} />
-                          </div>
-                          <div className="logistics-tier-field">
-                            <label>Rate / kg</label>
-                            <input type="number" step="0.01" required value={editForm.base_rate_per_kg} onChange={e => setEditForm({...editForm, base_rate_per_kg: e.target.value})} />
-                          </div>
-                          <div className="logistics-tier-field">
-                            <label>Rate / km</label>
-                            <input type="number" step="0.01" required value={editForm.rate_per_km} onChange={e => setEditForm({...editForm, rate_per_km: e.target.value})} />
-                          </div>
-                          <div className="logistics-tier-field">
-                            <label>Est. Days</label>
-                            <input type="number" required value={editForm.estimated_days} onChange={e => setEditForm({...editForm, estimated_days: e.target.value})} />
-                          </div>
-                        </div>
-                        <div className="logistics-edit-actions" style={{ justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-                          <button type="submit" className="logistics-save-btn" disabled={submittingTier} title="Save">
-                            <Check size={16} />
-                          </button>
-                          <button type="button" className="logistics-delete-btn" disabled={submittingTier} onClick={() => setEditingTierId(null)} title="Cancel">
-                            <X size={16} />
-                          </button>
-                        </div>
-                      </form>
-                    ) : (
-                      <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ marginBottom: '0.8rem' }}>
-                            <strong style={{ fontSize: '1.05rem' }}>{t.tier_name}</strong>
-                          </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
-                            <div className="logistics-tier-field">
-                              <strong>Base Fee</strong>
-                              <span>₱{Number(t.base_fee).toFixed(2)}</span>
-                            </div>
-                            <div className="logistics-tier-field">
-                              <strong>Rate / kg</strong>
-                              <span>₱{Number(t.base_rate_per_kg).toFixed(2)}</span>
-                            </div>
-                            <div className="logistics-tier-field">
-                              <strong>Rate / km</strong>
-                              <span>₱{Number(t.rate_per_km).toFixed(2)}</span>
-                            </div>
-                            <div className="logistics-tier-field">
-                              <strong>Est. Days</strong>
-                              <span>{t.estimated_days} days</span>
-                            </div>
-                          </div>
-                        </div>
-                        {user?.global_role === "platform_admin" && (
-                          <button type="button" className="logistics-edit-btn" title="Edit tier" onClick={() => startEditing(t)} style={{ alignSelf: 'flex-start' }}>
-                            <Pencil size={16} />
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-          </div>
-        )}
-      </div>
-    </AppLayout>
-  );
+  return <AppLayout><div className="logistics-page management-page"><div className="page-head"><h1>Logistics Management</h1></div>{optionsError ? <div className="page-empty management-error">Could not load branch options: {optionsError}</div> : null}<div className="logistics-grid management-grid">
+    <section className="management-section"><h2>Branches</h2><form className="logistics-form-card management-form" onSubmit={handleAddBranch}><input aria-label="Branch name" placeholder="Branch name" required value={newBranch.branch_name} onChange={(event) => setNewBranch({ ...newBranch, branch_name: event.target.value })} /><input aria-label="Contact number" placeholder="Contact number" required value={newBranch.contact_number} onChange={(event) => setNewBranch({ ...newBranch, contact_number: event.target.value })} /><input aria-label="Province" placeholder="Province" required value={newBranch.province} onChange={(event) => setNewBranch({ ...newBranch, province: event.target.value })} /><input aria-label="City or municipality" placeholder="City or municipality" required value={newBranch.city_municipality} onChange={(event) => setNewBranch({ ...newBranch, city_municipality: event.target.value })} /><input aria-label="Barangay" placeholder="Barangay" value={newBranch.barangay} onChange={(event) => setNewBranch({ ...newBranch, barangay: event.target.value })} /><input aria-label="Street address" placeholder="Street address" value={newBranch.street_address} onChange={(event) => setNewBranch({ ...newBranch, street_address: event.target.value })} /><input aria-label="Postal code" placeholder="Postal code" value={newBranch.postal_code} onChange={(event) => setNewBranch({ ...newBranch, postal_code: event.target.value })} /><button type="submit" disabled={submittingBranch}><Plus size={16} /> {submittingBranch ? "Adding…" : "Add Branch"}</button></form>{branchError ? <p className="logistics-form-error">{branchError}</p> : null}<p className="management-note">Availability stops new automatic assignments only — in-flight parcels and manual assignment are unaffected.</p><SearchField value={branchesSearch.value} onChange={branchesSearch.setValue} onSubmit={branchesSearch.submit} onClear={branchesSearch.clear} label="Search branches" placeholder="Name or location" />{branchesResource.error ? <div className="page-empty">Could not load branches: {branchesResource.error.message}</div> : null}<div className="management-list-wrap" aria-busy={branchesResource.loading}><ListState resource={branchesResource} items={visibleBranches} query={branchesList.q} label="branches" onClear={branchesSearch.clear}><ul className="logistics-list">{visibleBranches.map((branch) => <li key={branch.branch_id} className="logistics-list-row management-row">{editingBranchId === branch.branch_id ? <form className="logistics-edit-form" onSubmit={handleEditBranchSubmit}><input aria-label="Branch name" required value={branchForm.branch_name} onChange={(event) => setBranchForm({ ...branchForm, branch_name: event.target.value })} /><input aria-label="Contact number" required value={branchForm.contact_number} onChange={(event) => setBranchForm({ ...branchForm, contact_number: event.target.value })} /><input aria-label="Province" required value={branchForm.province} onChange={(event) => setBranchForm({ ...branchForm, province: event.target.value })} /><input aria-label="City or municipality" required value={branchForm.city_municipality} onChange={(event) => setBranchForm({ ...branchForm, city_municipality: event.target.value })} /><input aria-label="Barangay" value={branchForm.barangay} onChange={(event) => setBranchForm({ ...branchForm, barangay: event.target.value })} /><input aria-label="Street address" value={branchForm.street_address} onChange={(event) => setBranchForm({ ...branchForm, street_address: event.target.value })} /><input aria-label="Postal code" value={branchForm.postal_code} onChange={(event) => setBranchForm({ ...branchForm, postal_code: event.target.value })} /><MapPicker latitude={branchForm.latitude} longitude={branchForm.longitude} onChange={({ latitude, longitude }) => setBranchForm((current) => ({ ...current, latitude: String(latitude), longitude: String(longitude) }))} /><div className="management-coordinate-grid"><input aria-label="Latitude" type="number" step="any" min="-90" max="90" placeholder="Latitude" value={branchForm.latitude} onChange={(event) => setBranchForm({ ...branchForm, latitude: event.target.value })} /><input aria-label="Longitude" type="number" step="any" min="-180" max="180" placeholder="Longitude" value={branchForm.longitude} onChange={(event) => setBranchForm({ ...branchForm, longitude: event.target.value })} /></div><div className="logistics-edit-actions"><button type="submit" className="logistics-save-btn" disabled={submittingBranch} aria-label="Save branch"><Check size={16} /></button><button type="button" className="logistics-delete-btn" disabled={submittingBranch} onClick={() => setEditingBranchId(null)} aria-label="Cancel editing branch"><X size={16} /></button></div></form> : <><div><strong>{branch.branch_name}</strong> — {branch.contact_number}<br /><small>{branch.city_municipality}, {branch.province}</small><br /><small>{branch.latitude != null && branch.longitude != null ? `Pinned at ${branch.latitude}, ${branch.longitude}` : "No coordinates — excluded from nearest-branch assignment"}</small></div><div className="logistics-edit-actions"><label className="management-availability"><input type="checkbox" checked={branch.is_available ?? true} disabled={togglingBranchId === branch.branch_id} onChange={() => handleToggleAvailability(branch)} />{(branch.is_available ?? true) ? "Available" : "Paused"}</label><button type="button" className="logistics-edit-btn" onClick={() => startEditingBranch(branch)} aria-label={`Edit ${branch.branch_name}`}><Pencil size={16} /></button><button type="button" className="logistics-delete-btn" onClick={() => handleRetireBranch(branch)} aria-label={`Retire ${branch.branch_name}`}><Trash2 size={16} /></button></div></>}</li>)}</ul></ListState></div><PaginationControls pagination={branchesPagination} onPageChange={branchesList.setPage} onLimitChange={branchesList.setLimit} disabled={branchesResource.loading} ariaLabel="Branches pagination" /></section>
+    <section className="management-section"><h2>Couriers</h2><p className="management-note">Couriers are created from the Admin dashboard.</p>{courierError ? <p className="logistics-form-error">{courierError}</p> : null}<SearchField value={couriersSearch.value} onChange={couriersSearch.setValue} onSubmit={couriersSearch.submit} onClear={couriersSearch.clear} label="Search couriers" placeholder="Name, phone, vehicle, or branch" />{couriersResource.error ? <div className="page-empty">Could not load couriers: {couriersResource.error.message}</div> : null}<div className="management-list-wrap" aria-busy={couriersResource.loading}><ListState resource={couriersResource} items={visibleCouriers} query={couriersList.q} label="couriers" onClear={couriersSearch.clear}><ul className="logistics-list">{visibleCouriers.map((courier) => <li key={courier.courier_id} className="logistics-list-row management-row">{editingCourierId === courier.courier_id ? <form className="logistics-edit-form" onSubmit={handleEditCourierSubmit}><input aria-label="Phone number" placeholder="Phone number" value={courierForm.phone_number} onChange={(event) => setCourierForm({ ...courierForm, phone_number: event.target.value })} /><input aria-label="Vehicle type" placeholder="Vehicle type" value={courierForm.vehicle_type} onChange={(event) => setCourierForm({ ...courierForm, vehicle_type: event.target.value })} /><select aria-label="Assigned branch" value={courierForm.assigned_branch_id} onChange={(event) => setCourierForm({ ...courierForm, assigned_branch_id: event.target.value })}><option value="">Unassign branch</option>{branchOptions.map((branch) => <option key={branch.branch_id} value={branch.branch_id}>{branch.branch_name}</option>)}</select><div className="logistics-edit-actions"><button type="submit" className="logistics-save-btn" disabled={submittingCourier} aria-label="Save courier"><Check size={16} /></button><button type="button" className="logistics-delete-btn" disabled={submittingCourier} onClick={() => setEditingCourierId(null)} aria-label="Cancel editing courier"><X size={16} /></button></div></form> : <><div><strong>{courier.full_name}</strong> — {courier.phone_number || "No phone"}<br /><small>{courier.vehicle_type || "No vehicle"} • Branch: {courier.assigned_branch_name || "None"}</small></div><div className="logistics-edit-actions"><button type="button" className="logistics-edit-btn" onClick={() => startEditingCourier(courier)} aria-label={`Edit ${courier.full_name}`}><Pencil size={16} /></button><button type="button" className="logistics-delete-btn" onClick={() => handleDeleteCourier(courier)} aria-label={`Delete ${courier.full_name}`}><Trash2 size={16} /></button></div></>}</li>)}</ul></ListState></div><PaginationControls pagination={couriersPagination} onPageChange={couriersList.setPage} onLimitChange={couriersList.setLimit} disabled={couriersResource.loading} ariaLabel="Couriers pagination" /></section>
+    <section className="management-section management-tiers"><h2>Service Tiers</h2>{tierError ? <p className="logistics-form-error">{tierError}</p> : null}{tiersLoading ? <div className="page-empty">Loading service tiers…</div> : <ul className="logistics-list management-tier-list">{serviceTiers.map((tier) => <li key={tier.tier_id} className="logistics-list-row management-row">{editingTierId === tier.tier_id ? <form className="logistics-edit-form" onSubmit={handleEditTierSubmit}><input aria-label="Tier name" required value={editForm.tier_name} onChange={(event) => setEditForm({ ...editForm, tier_name: event.target.value })} /><div className="management-coordinate-grid"><input aria-label="Base fee" type="number" step="0.01" required value={editForm.base_fee} onChange={(event) => setEditForm({ ...editForm, base_fee: event.target.value })} /><input aria-label="Rate per kilogram" type="number" step="0.01" required value={editForm.base_rate_per_kg} onChange={(event) => setEditForm({ ...editForm, base_rate_per_kg: event.target.value })} /><input aria-label="Rate per kilometre" type="number" step="0.01" required value={editForm.rate_per_km} onChange={(event) => setEditForm({ ...editForm, rate_per_km: event.target.value })} /><input aria-label="Estimated days" type="number" required value={editForm.estimated_days} onChange={(event) => setEditForm({ ...editForm, estimated_days: event.target.value })} /></div><div className="logistics-edit-actions"><button type="submit" className="logistics-save-btn" disabled={submittingTier} aria-label="Save service tier"><Check size={16} /></button><button type="button" className="logistics-delete-btn" disabled={submittingTier} onClick={() => setEditingTierId(null)} aria-label="Cancel editing service tier"><X size={16} /></button></div></form> : <><div><strong>{tier.tier_name}</strong><div className="management-tier-details"><span>Base fee: ₱{Number(tier.base_fee).toFixed(2)}</span><span>Rate / kg: ₱{Number(tier.base_rate_per_kg).toFixed(2)}</span><span>Rate / km: ₱{Number(tier.rate_per_km).toFixed(2)}</span><span>Estimated: {tier.estimated_days} days</span></div></div>{user?.global_role === "platform_admin" ? <button type="button" className="logistics-edit-btn" onClick={() => startEditingTier(tier)} aria-label={`Edit ${tier.tier_name}`}><Pencil size={16} /></button> : null}</>}</li>)}</ul>}</section>
+  </div></div></AppLayout>;
 }
