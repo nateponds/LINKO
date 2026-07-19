@@ -134,7 +134,7 @@ marketplace roles.
 The following are explicitly **not** functional requirements of this release, per the ERD scope
 freeze and the reconnaissance report:
 
-- **Commission collection / reversal workflow and wholesaler remittance UI** — commission and remittance data are report/ERD scope only; no application workflow is built.
+- **Commissions and wholesaler remittances** — removed entirely in migration `018` (no `commissions`/`commission_brackets` tables, no `wholesaler_remittances` view, no trigger); never a graded requirement and not to be reintroduced. The goods payment goes to the wholesaler undivided.
 - **Returns & refunds handling** — reversal semantics are deferred (`BACKLOG.md`).
 - **Self-service password reset, email notifications, and two-factor authentication** — not implemented in this release.
 - **Real payment-gateway settlement** — payment status is modeled and tracked, not gateway-enforced.
