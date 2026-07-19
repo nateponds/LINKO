@@ -22,9 +22,10 @@ recognizes five user classes, enforced by role-based access control (RBAC):
 | **Courier** | Updates delivery status for assigned parcels through the tracking state machine. |
 | **Platform Administrator** | Manages user accounts and business verification across the whole platform. |
 
-The use-case diagram models the logistics subsystem with the ERD's **Sender / Receiver / Courier /
-Administrator** actors. The mapping above ties those parcel-level roles to the product's
-marketplace roles.
+The companion use-case diagram (`LINKO_USE-CASE.puml` / `LINKO_USE-CASE.md`) models these same
+five roles. In the ERD, *sender* and *receiver* are per-parcel FK roles on `businesses` — the
+shipping wholesaler is the sender, the receiving buyer is the receiver — not separate login
+actors; the table above ties them to the marketplace roles.
 
 ---
 
@@ -78,7 +79,7 @@ marketplace roles.
 - **FR-7.4** The system shall create an initial "Order Created" tracking-log entry for every parcel at registration.
 - **FR-7.5** The system shall resolve and snapshot the parcel's initial branch and planned route based on origin/destination location.
 
-## 9. Parcel Tracking & Status Updates — *UC4–UC6, UC13*
+## 9. Parcel Tracking & Status Updates — *UC4, UC6, UC13*
 
 - **FR-8.1** The system shall let a courier update the status of assigned parcels through the valid tracking state machine: *Order Created → Picked Up → Arrived at Branch → Departed Branch → Out for Delivery → Delivered*, plus the return path *Out for Return → Returned* triggered after three delivery failures.
 - **FR-8.2** The system shall record every status update as an append-only tracking-log entry, keeping tracking history as the source of truth and surfacing the latest entry as the parcel's current status.
@@ -131,8 +132,8 @@ marketplace roles.
 
 ## 17. Out of Scope (by design)
 
-The following are explicitly **not** functional requirements of this release, per the ERD scope
-freeze and the reconnaissance report:
+The following are explicitly **not** functional requirements of this release (per the ERD,
+`CLAUDE.md`, and the reconnaissance report):
 
 - **Commissions and wholesaler remittances** — removed entirely in migration `018` (no `commissions`/`commission_brackets` tables, no `wholesaler_remittances` view, no trigger); never a graded requirement and not to be reintroduced. The goods payment goes to the wholesaler undivided.
 - **Returns & refunds handling** — reversal semantics are deferred (`BACKLOG.md`).
