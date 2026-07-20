@@ -475,7 +475,7 @@ Returns one visible invoice with item rows. Missing, non-numeric, or not-owned i
 
 ## 3. Logistics Domain (course deliverable — Sprint 2-CD)
 
-Exposes the CIS 2104 courier subsystem (migrations 002/003) for the demo UI. Money and measurement fields are JSON numbers. `current_status` is always derived from the latest `tracking_logs` row, never stored on the parcel (see `docs/LINKO_ERD.md`). Since migration 009 a parcel may carry a nullable `order_id` linking it to the marketplace order that spawned it.
+Exposes the CIS 2104 courier subsystem (migrations 002/003) for the demo UI. Money and measurement fields are JSON numbers. `current_status` is always derived from the latest `tracking_logs` row, never stored on the parcel (see `docs/linko_database_specification.md`). Since migration 009 a parcel may carry a nullable `order_id` linking it to the marketplace order that spawned it.
 
 ### 3.1 `GET /api/parcels`
 

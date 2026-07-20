@@ -159,7 +159,7 @@ Suggested by: @nateponds
 Date added: 2026-07-10
 Area: Backend
 Priority: Low
-Related docs: `API_CONTRACTS.md`, `LINKO_ERD.md`
+Related docs: `API_CONTRACTS.md`, `linko_database_specification.md`
 
 Description:
 Remove `Cancelled` from parcel tracking once replacement correction/refund workflows exist: inventory every reference, pick replacements (order `cancelled`, parcel `Returned`, coordinator void, future refund state), migrate the `tracking_logs.status_update` CHECK constraint, preserve historical rows. Until then it stays a coordinator/admin-only escape hatch.

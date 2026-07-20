@@ -1,5 +1,5 @@
--- Aligns the logistics subsystem (002) with the finalized ERD in
--- docs/LINKO_ERD.md. 002 already shipped, so the delta lives here.
+-- Aligns the logistics subsystem (002) with the finalized schema in
+-- docs/linko_database_specification.md. 002 already shipped, so the delta lives here.
 --
 -- What changes:
 --   service_tiers   + base_fee, + rate_per_km (richer pricing formula)

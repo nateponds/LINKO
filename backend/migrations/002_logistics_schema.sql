@@ -1,5 +1,5 @@
 -- Logistics subsystem: the 8-table shipping/tracking model.
--- Source of truth: docs/LINKO_ERD.md (finalized course ERD).
+-- Source of truth: docs/linko_database_specification.md (finalized course schema).
 -- CUSTOMERS is the single actor table; buyer/wholesaler is NOT a column --
 -- it is read from parcels.sender_id (selling) / receiver_id (buying).
 -- Tables are declared in FK-dependency order so each REFERENCES target

@@ -21,11 +21,11 @@ Required core tables are implemented as:
 | `Parcels` | `parcels` | Package master record, including sender, receiver, weight, dimensions, fee, and delivery estimate. |
 | `Tracking_Logs` | `tracking_logs` | Real-time parcel scan and status history. |
 
-Implementation evidence lives in the logistics migrations, ERD, backend routes, tests, seed data, and live demo:
+Implementation evidence lives in the logistics migrations, database spec, backend routes, tests, seed data, and live demo:
 
 - `backend/migrations/002_logistics_schema.sql`
 - `backend/migrations/003_linko_schema.sql`
-- `docs/LINKO_ERD.md`
+- `docs/linko_database_specification.md`
 - `backend/src/routes/logistics.js`
 - `backend/src/logistics-workflow.test.js`
 - `docs/DEMO_SCRIPT.md`

@@ -217,7 +217,7 @@ export function canSubmitTrackingStatus(currentStatus, nextStatus, returnTrigger
 }
 
 // Current status lives in tracking_logs (latest row by scanned_at), never on
-// parcels -- see docs/LINKO_ERD.md design notes.
+// parcels -- see docs/linko_database_specification.md design notes.
 const LATEST_LOG = `
   LEFT JOIN LATERAL (
     SELECT status_update, scanned_at, courier_id, branch_id
@@ -973,7 +973,7 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
     }
 
     // Fail count is derived, never stored on parcels — parcel state lives only
-    // in tracking_logs (docs/LINKO_ERD.md design notes). It gates the courier
+    // in tracking_logs (docs/linko_database_specification.md design notes). It gates the courier
     // Delivery Failed edge and fires the 3rd-fail notification below.
     // Counts 'Delivery Failed' rows, not 'Out for Delivery' rows: OFD is
     // ambiguous (≠ failure) and counting it would trip the return leg the instant
