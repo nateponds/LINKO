@@ -1,13 +1,14 @@
-# LINKO — Entity Relationship Diagram
+# LINKO — Entity Relationship Diagram (Market & Logistics)
+
+Scoped to LINKO's two product domains — the buyer–wholesaler **marketplace** (businesses, catalog,
+orders, invoices) and the CIS 2104 **logistics** core (parcels, payments, tracking, routing).
+`users` and `businesses` are retained as the actor tables; the auth/identity plumbing
+(`auth_sessions`, `user_businesses`, `business_memberships`) is intentionally omitted as
+out-of-domain infrastructure.
 
 ```mermaid
 erDiagram
-    %% ===== Identity & organizations =====
-    users                ||--o{ auth_sessions        : "authenticates"
-    users                ||--o{ user_businesses       : "owns"
-    businesses           ||--o{ user_businesses       : "owned via"
-    users                ||--o{ business_memberships  : "member of"
-    businesses           ||--o{ business_memberships  : "grants role in"
+    %% ===== Organizations & addresses =====
     businesses           ||--o{ addresses             : "owns"
     addresses            |o--o{ businesses            : "logistics address for"
 
@@ -70,28 +71,6 @@ erDiagram
         varchar   contact_number
         boolean   is_verified
         int       logistics_address_id  FK
-        timestamp created_at
-    }
-
-    user_businesses {
-        int       user_id      PK,FK
-        int       business_id  PK,FK
-        timestamp created_at
-    }
-
-    business_memberships {
-        int       membership_id PK
-        int       user_id       FK
-        int       business_id   FK
-        varchar   role
-        timestamp created_at
-    }
-
-    auth_sessions {
-        varchar   session_id PK
-        int       user_id    FK
-        text      token_hash
-        timestamp expires_at
         timestamp created_at
     }
 
