@@ -96,6 +96,11 @@ Routes referenced below all exist in `src/App.jsx` and are protected by
 
 **Log in as** `courier@linko.test` (Cory Courier, Cebu hub).
 
+> The fleet is 8 couriers across 5 hubs, so courier assignment has real choices. Parcels are
+> handed off first-mile → last-mile: a pickup rider collects at the origin hub, a different
+> driver delivers from the destination hub. `courier3@linko.test` (Dexter Alcantara, Cebu hub)
+> is a good second login to show two dashboards holding different parcels.
+
 1. Land on **Courier Dashboard** (`/courier`) — a courier-only route.
 2. Confirm you see **only parcels assigned to you** (not the whole network) — this is the
    ownership scope that distinguishes a courier from a coordinator.
