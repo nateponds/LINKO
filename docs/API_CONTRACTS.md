@@ -81,7 +81,7 @@ object.
 
 | Endpoint | Filters and search fields | Stable ordering |
 | --- | --- | --- |
-| `GET /api/products` | `business_id` and `category_id` positive integers; `min_price`/`max_price` non-negative (`min_price <= max_price`); `stock_status` is `out_of_stock`, `low_stock`, or `in_stock`; `q` matches product name, SKU, or category name. | `product_name ASC, product_id ASC` |
+| `GET /api/products` | `business_id` and `category_id` positive integers; `min_price`/`max_price` non-negative (`min_price <= max_price`); `stock_status` is `out_of_stock`, `low_stock`, or `in_stock`; `sort=name` (default) or `sort=featured`; `q` matches product name, SKU, or category name. | `name`: `product_name ASC, product_id ASC`; `featured`: verified wholesaler first, newest first, then product name and product ID. |
 | `GET /api/suppliers` | `category_id` positive integer; `sort=name` (default) or `sort=featured`; `q` matches business name, address province, or address city/municipality. | `name`: `business_name ASC, business_id ASC`; `featured`: verified first, active-product count descending, business name, business ID. |
 | `GET /api/suppliers/:id/categories` | `q` matches category name. Missing/non-wholesaler supplier is `404`. | `name ASC, category_id ASC` |
 

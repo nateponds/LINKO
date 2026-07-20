@@ -809,6 +809,39 @@ test("non-numeric product id returns 404 not 500", { skip: !hasDb }, async () =>
   assert.equal(response.status, 404);
 });
 
+test("products sort=featured ranks verified wholesalers first", { skip: !hasDb }, async () => {
+  const cookie = await loginAs("buyer@linko.test");
+
+  const response = await request("/api/products?sort=featured&limit=25", {
+    headers: { Cookie: cookie },
+  });
+  assert.equal(response.status, 200);
+  assert.ok(response.body.items.length > 0);
+
+  // Once an unverified wholesaler's product appears, no verified one may follow.
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+  try {
+    const { rows } = await pool.query(
+      "SELECT business_id FROM businesses WHERE is_verified = TRUE",
+    );
+    const verifiedIds = new Set(rows.map((row) => row.business_id));
+    let seenUnverified = false;
+    for (const item of response.body.items) {
+      if (verifiedIds.has(item.business_id)) {
+        assert.equal(seenUnverified, false, "verified wholesaler ranked after an unverified one");
+      } else {
+        seenUnverified = true;
+      }
+    }
+  } finally {
+    await pool.end();
+  }
+
+  const rejected = await request("/api/products?sort=bogus", { headers: { Cookie: cookie } });
+  assert.equal(rejected.status, 400);
+});
+
 // ---------------------------------------------------------------------------
 // Milestone 3: orders + invoices
 // ---------------------------------------------------------------------------
