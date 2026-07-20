@@ -37,19 +37,30 @@ scenarios (e.g. the business switcher and cross-business ownership scoping).
 | `wholesaler2@linko.test` | Wendy Wholesaler | Mandaue Agri Supply | `wholesaler` | Second wholesaler with its own products/inventory |
 | `bizswitch@linko.test` | Bo Bizswitch | Metro Cebu Trading — Retail **and** Metro Cebu Trading — Wholesale | `buyer` (business 8) + `wholesaler` (business 10) | One user with **two businesses** — exercises the business switcher. Sprint 9 replaced the prior single-"both"-business account with this two-business split so a single business can never be both buyer and wholesaler at once. |
 | `courier2@linko.test` | Carlo Courier | Carlo Quick Haul | `courier` | Second courier assigned to the Mandaue hub |
+| `courier3@linko.test` | Dexter Alcantara | LINKO Logistics | `courier` | Cebu Central hub — motorcycle, first-mile pickups |
+| `courier4@linko.test` | Elmer Bacus | LINKO Logistics | `courier` | Mandaue hub — tricycle, first-mile pickups |
+| `courier5@linko.test` | Grace Montano | LINKO Logistics | `courier` | Talisay hub — van (no seeded scan history) |
+| `courier6@linko.test` | Jomar Ceniza | LINKO Logistics | `courier` | Lapu-Lapu hub — motorcycle (no seeded scan history) |
+| `courier7@linko.test` | Rhea Sarmiento | LINKO Logistics | `courier` | Consolacion hub — L300 van (no seeded scan history) |
+| `courier8@linko.test` | Vicente Duran | LINKO Logistics | `courier` | **Inactive** (`is_active = FALSE`) — exercises the deactivated-courier path |
 
 ## What the seed loads
 
 Beyond the accounts, `dev_seed.sql` provisions a coherent demo dataset so every page has
 content on first login:
 
-- **10 businesses** (one per user, except `bizswitch@linko.test` who owns two — one buyer, one wholesaler) spanning buyer, wholesaler, logistics, and courier types. Sprint 9 dropped the `both` business type; a single business can no longer be both buyer and wholesaler.
-- **13 wholesale products** across three wholesalers (Cebu Fresh, Mandaue Agri, Metro Cebu Trading — Wholesale).
-- **3 warehouses**, **2 branches** (Cebu + Mandaue hubs), and **2 couriers**.
-- **5 orders** spread across statuses (`pending`, `accepted`, `shipped`, `delivered`,
-  `returned`) with order items, **4 invoices**, **3 parcels**, and a realistic
-  **tracking-log** history — including one clean delivery journey (COD collected on delivery)
-  and one failed-delivery journey (COD failed on return).
+- **28 businesses** (one per user, except `bizswitch@linko.test` who owns two — one buyer, one wholesaler) spanning buyer, wholesaler, logistics, and courier types. Sprint 9 dropped the `both` business type; a single business can no longer be both buyer and wholesaler.
+- **28 wholesale products** across eight wholesalers, every one with a product image.
+- **8 warehouses**, **5 branches** (Cebu Central, Mandaue, Talisay, Lapu-Lapu, Consolacion —
+  all pinned and available, so nearest-hub routing has real choices), and **8 couriers**
+  spread across those hubs (courier 8 is inactive).
+- **32 orders** spread across statuses (`pending`, `accepted`, `shipped`, `delivered`,
+  `returned`) with order items, **31 invoices**, **30 parcels**, and a realistic
+  **tracking-log** history (220 scans) — including clean delivery journeys (COD collected on
+  delivery) and failed-delivery journeys (COD failed on return).
+- **First-mile / last-mile courier handoffs**: a pickup rider collects at the origin hub and a
+  different driver runs the last mile from the destination hub, so 17 parcels show two or more
+  couriers in their history, and some drivers batch several deliveries onto one day.
 
 ## Admin-created accounts (logistics / courier)
 
