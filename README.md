@@ -37,7 +37,6 @@ LINKO's first checkpoint-ready module is the **Courier/Parcel Tracking** workflo
 ### Submission Evidence
 
 - Database implementation: [backend/migrations/002_logistics_schema.sql](./backend/migrations/002_logistics_schema.sql), [backend/migrations/003_linko_schema.sql](./backend/migrations/003_linko_schema.sql), and later logistics/auth integration migrations.
-- ERD and table explanations: [docs/LINKO_ERD.md](./docs/LINKO_ERD.md).
 - Course requirement summary: [local-notes/course-deliverable.md](./local-notes/course-deliverable.md).
 - Demo walkthrough: [docs/DEMO_SCRIPT.md](./docs/DEMO_SCRIPT.md), especially the Logistics Coordinator and Courier journeys.
 - Backend routes and tests: [backend/src/routes/logistics.js](./backend/src/routes/logistics.js), [backend/src/app.test.js](./backend/src/app.test.js), [backend/src/logistics-workflow.test.js](./backend/src/logistics-workflow.test.js), and [backend/src/ownership.test.js](./backend/src/ownership.test.js).
@@ -111,7 +110,6 @@ npm start
 Start here if you are evaluating, contributing to, or extending the project:
 
 - **[Course Deliverable](./local-notes/course-deliverable.md)**: Checkpoint summary of the courier/parcel tracking requirements.
-- **[LINKO ERD](./docs/LINKO_ERD.md)**: Database design for the logistics foundation and integrated LINKO marketplace schema.
 - **[Demo Script](./docs/DEMO_SCRIPT.md)**: Role-based live demo checklist for grading.
 - **[ROADMAP.md](./ROADMAP.md)**: Explains product direction and development phases.
 - **[Glossary](./docs/glossary.md)**: Defines canonical product language.
@@ -138,10 +136,13 @@ We use `staging` as the active integration branch.
 
 ## Meet the Team
 
-| Frontend | Full-Stack | Backend |
-| :--- | :--- | :--- |
-| [@BaelJM](https://github.com/BaelJM) (Bael) | [@nateponds](https://github.com/nateponds) (Ponce) | [@Swashua](https://github.com/Swashua) (Faber) |
-| [@grsm-m](https://github.com/grsm-m) (Tantay) | | [@fR3yA-ctrl](https://github.com/fR3yA-ctrl) (Hermosilla) |
+| Role | Name |
+| :--- | :--- |
+| Fullstack Developer | [@nateponds](https://github.com/nateponds) (Nathaniel Ponce) |
+| Frontend Designer | [@grsm-m](https://github.com/grsm-m) (Mary Tantay) |
+| Frontend Developer | [@BaelJM](https://github.com/BaelJM) (Joannah Bael) |
+| Frontend Developer | [@fR3yA-ctrl](https://github.com/fR3yA-ctrl) (Freya Hermosilla) |
+| Frontend Developer | [@Swashua](https://github.com/Swashua) (Joshua Faber) |
 
 ---
 
