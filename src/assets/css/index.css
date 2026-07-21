@@ -53,3 +53,52 @@ select:focus-visible {
   margin-left: 6px;
   font-weight: 600;
 }
+
+/* Mapbox geocoder search icon overlapped the input text. Vendor base (narrow)
+   puts the 23px icon at left:12px — ending at 35px — but pads the input only
+   45px, so long queries ran under it. Pull the icon left and widen the padding.
+   Two-class selectors so these win over the vendor sheet, which MapPicker
+   loads dynamically after this file. */
+/* Mapbox geocoder: the vendor absolutely positions the search icon over the
+   input and relies on hand-tuned left/padding pairs to keep them apart, so
+   long queries ran under the icon. The icon and input are already adjacent
+   siblings in the control (lib/index.js appends searchIcon then input), so
+   lay them out as a flex row instead — clearance comes from `gap` and cannot
+   drift when the vendor retunes its pixel values.
+   Two-class selectors so these win over the vendor sheet, which MapPicker
+   loads dynamically after this file. */
+.mapboxgl-ctrl-geocoder.mapboxgl-ctrl-geocoder {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 10px;
+}
+
+.mapboxgl-ctrl-geocoder .mapboxgl-ctrl-geocoder--icon-search {
+  position: static;
+  flex: none;
+  top: auto;
+  left: auto;
+  margin: 0;
+}
+
+.mapboxgl-ctrl-geocoder .mapboxgl-ctrl-geocoder--input {
+  flex: 1;
+  min-width: 0;      /* let the input shrink instead of overflowing the row */
+  padding-left: 0;   /* the flex gap replaces the icon clearance */
+}
+
+/* The clear/loading buttons are absolutely positioned individually, but their
+   wrapper is not — as a flex item it would claim width in the row. Take it
+   out of flow; the input keeps the vendor's right padding to clear them. */
+.mapboxgl-ctrl-geocoder .mapboxgl-ctrl-geocoder--pin-right {
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+
+/* Collapsed control is a 36px circle; flex padding would misalign the icon. */
+.mapboxgl-ctrl-geocoder.mapboxgl-ctrl-geocoder--collapsed {
+  padding-left: 0;
+  justify-content: center;
+}
