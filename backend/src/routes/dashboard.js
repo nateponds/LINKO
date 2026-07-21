@@ -27,9 +27,16 @@ const RANGE_CONFIG = {
 
 router.get("/dashboard", requireAuth, async (req, res, next) => {
   try {
-    const { user, memberships } = req.auth;
+    const { memberships } = req.auth;
+
+    // Wholesaler-only: the dashboard is a wholesaler's own sales workspace.
+    // No platform_admin bypass here, unlike requireAnyRole.
+    const isWholesaler = memberships.some(m => m.role === "wholesaler");
+    if (!isWholesaler) {
+      throw createHttpError(403, "Forbidden");
+    }
+
     const businessIds = memberships.map(m => m.business_id);
-    const isAdmin = user.global_role === "platform_admin";
 
     const { bucket, count, labelFormat } =
       RANGE_CONFIG[req.query.range] ?? RANGE_CONFIG["7d"];
@@ -37,7 +44,7 @@ router.get("/dashboard", requireAuth, async (req, res, next) => {
     // so interpolating them into SQL is safe.
     const windowStart = `date_trunc('${bucket}', CURRENT_TIMESTAMP) - INTERVAL '${count - 1} ${bucket}'`;
 
-    if (businessIds.length === 0 && !isAdmin) {
+    if (businessIds.length === 0) {
       return res.json({
         revenue: 0,
         orders: 0,
@@ -49,14 +56,11 @@ router.get("/dashboard", requireAuth, async (req, res, next) => {
       });
     }
 
-    const orderScope = isAdmin
-      ? "TRUE"
-      : "(o.wholesaler_business_id = ANY($1::int[]) OR o.buyer_business_id = ANY($1::int[]))";
-    const params = isAdmin ? [] : [businessIds];
+    const orderScope =
+      "(o.wholesaler_business_id = ANY($1::int[]) OR o.buyer_business_id = ANY($1::int[]))";
+    const params = [businessIds];
 
-    const revenueQuery = isAdmin
-      ? `SELECT COALESCE(SUM(total), 0) AS val FROM invoices WHERE issued_at >= ${windowStart}`
-      : `SELECT COALESCE(SUM(i.total), 0) AS val
+    const revenueQuery = `SELECT COALESCE(SUM(i.total), 0) AS val
            FROM invoices i
            JOIN orders o ON o.order_id = i.order_id
           WHERE o.wholesaler_business_id = ANY($1::int[])
@@ -67,13 +71,11 @@ router.get("/dashboard", requireAuth, async (req, res, next) => {
         FROM orders o
        WHERE ${orderScope} AND o.created_at >= ${windowStart}`;
 
-    const lowStockQuery = isAdmin
-      ? "SELECT COUNT(*) AS val FROM products WHERE stock_quantity < 10"
-      : "SELECT COUNT(*) AS val FROM products WHERE business_id = ANY($1::int[]) AND stock_quantity < 10";
+    const lowStockQuery =
+      "SELECT COUNT(*) AS val FROM products WHERE business_id = ANY($1::int[]) AND stock_quantity < 10";
 
-    const productsQuery = isAdmin
-      ? "SELECT COUNT(*) AS val FROM products"
-      : "SELECT COUNT(*) AS val FROM products WHERE business_id = ANY($1::int[])";
+    const productsQuery =
+      "SELECT COUNT(*) AS val FROM products WHERE business_id = ANY($1::int[])";
 
     // Orders per bucket across the whole window; generate_series fills the
     // quiet buckets with zero so the chart never has gaps.

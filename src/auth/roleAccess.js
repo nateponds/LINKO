@@ -1,5 +1,5 @@
 export const ROLE_ACCESS = {
-  dashboard: ["wholesaler", "platform_admin"],
+  dashboard: ["wholesaler"],   // wholesaler's own sales workspace; admins excluded by design
   marketplace: ["buyer", "wholesaler", "platform_admin"],
   inventory: ["wholesaler"],
   orders: ["buyer", "wholesaler", "platform_admin"],

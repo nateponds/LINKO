@@ -1850,3 +1850,71 @@ test("Frozen shipping_fee: editing a tier does not affect already-booked parcels
     await pool.end();
   }
 });
+
+// ---------------------------------------------------------------------------
+// Dashboard: wholesaler-only, no platform_admin bypass (unlike requireAnyRole)
+// ---------------------------------------------------------------------------
+
+test("unauthenticated dashboard request is rejected", async () => {
+  const response = await request("/api/dashboard");
+
+  assert.equal(response.status, 401);
+  assert.match(response.body.error.message, /authentication required/i);
+});
+
+test("wholesaler session can access the dashboard", { skip: !hasDb }, async () => {
+  const cookie = await loginAs("wholesaler@linko.test");
+  const response = await request("/api/dashboard", {
+    headers: { Cookie: cookie },
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(typeof response.body.revenue, "number");
+  assert.equal(typeof response.body.orders, "number");
+  assert.ok(Array.isArray(response.body.sales));
+  assert.ok(Array.isArray(response.body.topProducts));
+  assert.ok(Array.isArray(response.body.recentActivity));
+});
+
+test("buyer session cannot access the dashboard", { skip: !hasDb }, async () => {
+  const cookie = await loginAs("buyer@linko.test");
+  const response = await request("/api/dashboard", {
+    headers: { Cookie: cookie },
+  });
+
+  assert.equal(response.status, 403);
+  assert.match(response.body.error.message, /forbidden/i);
+});
+
+test("courier session cannot access the dashboard", { skip: !hasDb }, async () => {
+  const cookie = await loginAs("courier@linko.test");
+  const response = await request("/api/dashboard", {
+    headers: { Cookie: cookie },
+  });
+
+  assert.equal(response.status, 403);
+  assert.match(response.body.error.message, /forbidden/i);
+});
+
+test("logistics coordinator session cannot access the dashboard", { skip: !hasDb }, async () => {
+  const cookie = await loginAs("logistics@linko.test");
+  const response = await request("/api/dashboard", {
+    headers: { Cookie: cookie },
+  });
+
+  assert.equal(response.status, 403);
+  assert.match(response.body.error.message, /forbidden/i);
+});
+
+// Sprint scope: the dashboard is the one endpoint where platform_admin gets
+// NO bypass -- admin@linko.test has no wholesaler membership in the seed
+// data, so it must be forbidden just like any other non-wholesaler role.
+test("platform admin without a wholesaler membership cannot access the dashboard", { skip: !hasDb }, async () => {
+  const cookie = await loginAs("admin@linko.test");
+  const response = await request("/api/dashboard", {
+    headers: { Cookie: cookie },
+  });
+
+  assert.equal(response.status, 403);
+  assert.match(response.body.error.message, /forbidden/i);
+});
