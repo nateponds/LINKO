@@ -423,6 +423,29 @@
     color: var(--color-text);
   }
 
+  /* The card image and name are buttons (keyboard-reachable modal triggers);
+     strip the native chrome so they still read as plain card content. */
+  .product-detail-trigger {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: none;
+    background: none;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .product-detail-trigger:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  .product-name.product-detail-trigger:hover {
+    color: var(--color-primary-dark);
+  }
+
   .product-price {
     font-size: 1rem;
     font-weight: 800;
@@ -805,5 +828,213 @@
       min-width: 0;
       flex: 1;
     }
+  }
+}
+
+/* Product detail modal — deliberately top-level, not nested inside
+   .supplier-profile-page: it is a fixed overlay and must not inherit the page
+   container's scoping. Scoped class names rather than joining any of the three
+   existing overlay idioms (.settings-modal-backdrop z1000 / .modal-overlay
+   z2000 / .support-modal-overlay z3000), which already disagree with each other. */
+.product-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3vh 3vw;
+  background: rgba(0, 0, 0, 0.6);
+  animation: product-modal-fade 0.15s ease;
+}
+
+.product-modal-dialog {
+  position: relative;
+  width: 100%;
+  max-width: 1240px;
+  min-height: min(560px, 90vh);
+  max-height: 94vh;
+  overflow-y: auto;
+  border-radius: 14px;
+  background: white;
+  box-shadow: 0 18px 48px rgba(23, 33, 61, 0.28);
+  animation: product-modal-rise 0.15s ease;
+}
+
+.product-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.product-modal-close:hover {
+  background: var(--color-primary-soft);
+}
+
+.product-modal-status {
+  padding: 48px 24px;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.product-modal-body {
+  display: grid;
+  grid-template-columns: minmax(380px, 1fr) 1fr;
+  gap: 40px;
+  padding: 40px;
+}
+
+.product-modal-image {
+  aspect-ratio: 4 / 3;
+  min-height: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--color-primary-soft);
+}
+
+.product-modal-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.product-modal-details {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.product-modal-name {
+  margin: 0;
+  padding-right: 32px;   /* clears the close button */
+  font-size: 1.9rem;
+  font-weight: 800;
+  color: var(--color-text);
+}
+
+.product-modal-price {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--color-primary-dark);
+}
+
+.product-modal-badges {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.product-modal-stock {
+  font-size: 0.78rem;
+  color: var(--color-muted);
+}
+
+.product-modal-description {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: var(--color-text);
+  white-space: pre-line;
+}
+
+.product-modal-description.is-empty {
+  color: var(--color-muted);
+  font-style: italic;
+}
+
+.product-modal-actions {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 260px);
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 16px;
+}
+
+/* Scale the shared card controls up to suit the larger modal frame. */
+.product-modal-actions .quantity-field {
+  height: 46px;
+  padding: 0 12px;
+  font-size: 0.85rem;
+}
+
+.product-modal-actions .quantity-field input {
+  width: 46px;
+  font-size: 1rem;
+}
+
+.product-modal-actions .add-cart-btn {
+  height: 46px;
+  font-size: 0.95rem;
+}
+
+@keyframes product-modal-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes product-modal-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Stack before the image column starts squeezing the details out. */
+@media (max-width: 900px) {
+  .product-modal-dialog {
+    min-height: 0;
+  }
+
+  .product-modal-body {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    padding: 24px;
+  }
+
+  .product-modal-image {
+    min-height: 0;
+  }
+
+  .product-modal-name {
+    font-size: 1.4rem;
+  }
+
+  .product-modal-price {
+    font-size: 1.5rem;
+  }
+
+  .product-modal-actions {
+    margin-top: 4px;
+  }
+}
+
+@media (max-width: 560px) {
+  .product-modal-backdrop {
+    padding: 12px;
+  }
+
+  .product-modal-body {
+    gap: 16px;
+    padding: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .product-modal-backdrop,
+  .product-modal-dialog {
+    animation: none;
   }
 }

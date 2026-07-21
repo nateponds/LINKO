@@ -20,6 +20,7 @@ import { apiGet, apiSend } from "../lib/api";
 import { peso, stockBadge } from "../lib/format";
 import { bannersForProducts } from "../lib/productBanners";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
+import ProductDetailModal from "../components/ui/ProductDetailModal";
 import PaginationControls from "../components/ui/PaginationControls";
 import { readListUrlState, updateListUrlState } from "../lib/pagination";
 import { apiPath, normalizePage, saveCartLine, shouldClampPage } from "../features/suppliers/marketplacePagination";
@@ -57,7 +58,10 @@ export default function SupplierProfilePage() {
   const [error, setError] = useState(null);
 
   const [following, setFollowing] = useState(false);
-  const [activeTab, setActiveTab] = useState("shop");
+  // A ?product_id= deep link must land on the products tab, not the shop tab.
+  const [activeTab, setActiveTab] = useState(() =>
+    searchParams.get("product_id") ? "products" : "shop",
+  );
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [quantityDrafts, setQuantityDrafts] = useState({});
   const [cart, setCart] = useState({});
@@ -69,6 +73,13 @@ export default function SupplierProfilePage() {
   const [selectedTierId, setSelectedTierId] = useState(null);
   const [productSearchInput, setProductSearchInput] = useState(productState.q);
   const [categorySearchInput, setCategorySearchInput] = useState(categoryState.q);
+
+  // Product detail modal state lives in the URL so the marketplace can deep-link
+  // straight into it, and so browser back closes the modal instead of the page.
+  const detailId = searchParams.get("product_id");
+  const [detailFetched, setDetailFetched] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -206,6 +217,57 @@ export default function SupplierProfilePage() {
     next.set("product_category", name.category_id);
     setSearchParams(next);
     setActiveTab("products");
+  }
+
+  // Prefer the already-loaded row; the grid is paginated, so a deep-linked
+  // product often is not on the current page and has to be fetched by id.
+  const detailFromList = detailId
+    ? products.find((p) => String(p.product_id) === String(detailId)) ?? null
+    : null;
+  // Keyed by id so a stale fetch from a previously-open product is ignored on
+  // read rather than cleared by an effect.
+  const detailProduct =
+    detailFromList ??
+    (detailFetched && String(detailFetched.product_id) === String(detailId)
+      ? detailFetched
+      : null);
+  const needsDetailFetch = !!detailId && !detailFromList && !detailProduct;
+
+  useEffect(() => {
+    if (!needsDetailFetch) return;
+
+    let cancelled = false;
+    async function loadDetail() {
+      setDetailLoading(true);
+      setDetailError(null);
+      try {
+        const data = await apiGet(`/api/products/${encodeURIComponent(detailId)}`);
+        if (cancelled) return;
+        // Never render another supplier's product inside this shop.
+        setDetailFetched(
+          data && String(data.business_id) === String(supplierId) ? data : null,
+        );
+      } catch (err) {
+        if (!cancelled) setDetailError(err.message);
+      } finally {
+        if (!cancelled) setDetailLoading(false);
+      }
+    }
+    loadDetail();
+    return () => { cancelled = true; };
+  }, [needsDetailFetch, detailId, supplierId]);
+
+  function openProductDetail(product) {
+    const next = new URLSearchParams(searchParams);
+    next.set("product_id", product.product_id);
+    setSearchParams(next);
+    setActiveTab("products");
+  }
+
+  function closeProductDetail() {
+    const next = new URLSearchParams(searchParams);
+    next.delete("product_id");
+    setSearchParams(next, { replace: true });
   }
 
   function setProductDraft(product, value) {
@@ -529,7 +591,12 @@ export default function SupplierProfilePage() {
 
                   return (
                     <div className="product-card" key={product.product_id}>
-                      <div className="product-image">
+                      <button
+                        type="button"
+                        className="product-image product-detail-trigger"
+                        aria-label={`View details for ${product.product_name}`}
+                        onClick={() => openProductDetail(product)}
+                      >
                         <img
                           src={
                             product.image_url ??
@@ -537,11 +604,15 @@ export default function SupplierProfilePage() {
                           }
                           alt={product.product_name}
                         />
-                      </div>
+                      </button>
                       <div className="product-details">
-                        <div className="product-name">
+                        <button
+                          type="button"
+                          className="product-name product-detail-trigger"
+                          onClick={() => openProductDetail(product)}
+                        >
                           {product.product_name}
-                        </div>
+                        </button>
                         <div className="product-price">
                           {peso(product.unit_price)}
                         </div>
@@ -762,6 +833,18 @@ export default function SupplierProfilePage() {
         {activeTab === "categories" && <label className="supplier-list-search">Search categories<input value={categorySearchInput} onChange={(event) => setCategorySearchInput(event.target.value)} /></label>}
         {activeTab === "categories" && categoryError && <p className="grid-empty" role="alert">Could not load categories: {categoryError}</p>}
         {activeTab === "categories" && <PaginationControls pagination={categoryPagination} disabled={categoriesFetching} onPageChange={(nextPage) => setSearchParams(updateListUrlState(searchParams, { page: nextPage }, { prefix: "category" }))} onLimitChange={(nextLimit) => setSearchParams(updateListUrlState(searchParams, { limit: nextLimit }, { prefix: "category" }))} ariaLabel="Supplier categories pagination" className="supplier-profile-pagination" />}
+
+        <ProductDetailModal
+          open={!!detailId}
+          product={detailProduct}
+          loading={detailLoading}
+          error={detailError}
+          quantity={detailProduct ? quantityDrafts[detailProduct.product_id] ?? 1 : 1}
+          maxQuantity={stockLimit(detailProduct)}
+          onQuantityChange={setProductDraft}
+          onAddToCart={(product) => { addToCart(product); closeProductDetail(); }}
+          onClose={closeProductDetail}
+        />
 
         <ConfirmDialog
           open={!!confirm}

@@ -55,7 +55,10 @@ function ProductCard({ product }) {
           <span className="home-product-price">{peso(product.unit_price)}</span>
           <span className={`status ${badge.cls}`}>{badge.label}</span>
         </div>
-        <Link to={`/suppliers/${product.business_id}`} className="home-product-cta">
+        <Link
+          to={`/suppliers/${product.business_id}?product_id=${product.product_id}`}
+          className="home-product-cta"
+        >
           View Product <ArrowRight size={14} />
         </Link>
       </div>
