@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import AppLayout from "../../layouts/AppLayout";
 import TrackingTimeline from "../../features/logistics/TrackingTimeline";
 import SupportModal from "../../components/ui/SupportModal";
+import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { ParcelRouteMap } from "../../components/ui/MapPicker";
 import { peso, shortDate, statusClass } from "../../lib/format";
 import {
@@ -38,6 +39,7 @@ export default function ParcelDetailPage() {
   const [couriers, setCouriers] = useState([]);
   const { hasAnyRole } = useAuth();
   const [supportOpen, setSupportOpen] = useState(false);
+  const [confirm, setConfirm] = useState(null);
 
   // Update form state
   const [updating, setUpdating] = useState(false);
@@ -105,7 +107,9 @@ export default function ParcelDetailPage() {
   // Return-leg red cue: return triggered and not yet back at the sender.
   const returning = isReturning(parcel?.current_status, returnTriggered);
 
-  async function handleTrackingSubmit() {
+  // Validation runs first so the confirm dialog never appears over a form that
+  // would be rejected anyway. Only terminal statuses need confirming.
+  function handleTrackingSubmit() {
     if (updating) return;
     if (selectedStatus === "Cancelled" && !formRemarks.trim()) {
       setUpdateError("A cancellation reason is required.");
@@ -115,6 +119,29 @@ export default function ParcelDetailPage() {
       setUpdateError("A failure reason is required.");
       return;
     }
+    const receiver = parcel?.receiver?.business_name ?? "the receiver";
+    if (selectedStatus === "Cancelled") {
+      setConfirm({
+        title: "Cancel parcel?",
+        message: `Cancel parcel #${parcelId} to ${receiver} with reason "${formRemarks.trim()}"? This cannot be undone.`,
+        confirmLabel: "Cancel parcel",
+        onConfirm: () => { void submitTrackingUpdate(); },
+      });
+      return;
+    }
+    if (selectedStatus === "Delivery Failed") {
+      setConfirm({
+        title: "Record delivery failure?",
+        message: `Record parcel #${parcelId} to ${receiver} as Delivery Failed with reason "${formRemarks}"? This cannot be undone.`,
+        confirmLabel: "Record failure",
+        onConfirm: () => { void submitTrackingUpdate(); },
+      });
+      return;
+    }
+    void submitTrackingUpdate();
+  }
+
+  async function submitTrackingUpdate() {
     setUpdating(true);
     setUpdateError(null);
     try {
@@ -346,6 +373,15 @@ export default function ParcelDetailPage() {
         )}
 
         <SupportModal open={supportOpen} onClose={() => setSupportOpen(false)} />
+
+        <ConfirmDialog
+          open={!!confirm}
+          title={confirm?.title}
+          message={confirm?.message}
+          confirmLabel={confirm?.confirmLabel}
+          onConfirm={() => { confirm?.onConfirm?.(); setConfirm(null); }}
+          onCancel={() => setConfirm(null)}
+        />
       </div>
     </AppLayout>
   );

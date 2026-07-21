@@ -19,6 +19,7 @@ import AppLayout from "../layouts/AppLayout";
 import { apiGet, apiSend } from "../lib/api";
 import { peso, stockBadge } from "../lib/format";
 import { bannersForProducts } from "../lib/productBanners";
+import ConfirmDialog from "../components/ui/ConfirmDialog";
 import PaginationControls from "../components/ui/PaginationControls";
 import { readListUrlState, updateListUrlState } from "../lib/pagination";
 import { apiPath, normalizePage, saveCartLine, shouldClampPage } from "../features/suppliers/marketplacePagination";
@@ -64,6 +65,7 @@ export default function SupplierProfilePage() {
   const [checkoutError, setCheckoutError] = useState(null);
   const [checkingOut, setCheckingOut] = useState(false);
   const [checkoutConfirmation, setCheckoutConfirmation] = useState(null);
+  const [confirm, setConfirm] = useState(null);
   const [selectedTierId, setSelectedTierId] = useState(null);
   const [productSearchInput, setProductSearchInput] = useState(productState.q);
   const [categorySearchInput, setCategorySearchInput] = useState(categoryState.q);
@@ -257,18 +259,29 @@ export default function SupplierProfilePage() {
     setCheckoutError(null);
   }
 
-  async function checkoutCart() {
+  function checkoutCart() {
     if (cartItems.length === 0 || checkingOut) return;
 
-    setCheckingOut(true);
     setCheckoutError(null);
     setCartMessage(null);
 
     if (!selectedTierId) {
       setCheckoutError("Please select a delivery tier.");
-      setCheckingOut(false);
       return;
     }
+
+    const itemCount = cartItems.reduce((sum, { quantity }) => sum + quantity, 0);
+    setConfirm({
+      title: "Place this order?",
+      message: `Place an order with ${supplier?.business_name ?? "this supplier"} for ${itemCount} item${itemCount === 1 ? "" : "s"} totalling ${peso(cartTotal)} (including ${peso(deliveryFee)} delivery)?`,
+      confirmLabel: "Place order",
+      onConfirm: () => { void submitCheckout(); },
+    });
+  }
+
+  async function submitCheckout() {
+    setCheckingOut(true);
+    setCheckoutError(null);
 
     try {
       const order = await apiSend("/api/orders", {
@@ -749,6 +762,15 @@ export default function SupplierProfilePage() {
         {activeTab === "categories" && <label className="supplier-list-search">Search categories<input value={categorySearchInput} onChange={(event) => setCategorySearchInput(event.target.value)} /></label>}
         {activeTab === "categories" && categoryError && <p className="grid-empty" role="alert">Could not load categories: {categoryError}</p>}
         {activeTab === "categories" && <PaginationControls pagination={categoryPagination} disabled={categoriesFetching} onPageChange={(nextPage) => setSearchParams(updateListUrlState(searchParams, { page: nextPage }, { prefix: "category" }))} onLimitChange={(nextLimit) => setSearchParams(updateListUrlState(searchParams, { limit: nextLimit }, { prefix: "category" }))} ariaLabel="Supplier categories pagination" className="supplier-profile-pagination" />}
+
+        <ConfirmDialog
+          open={!!confirm}
+          title={confirm?.title}
+          message={confirm?.message}
+          confirmLabel={confirm?.confirmLabel}
+          onConfirm={() => { confirm?.onConfirm?.(); setConfirm(null); }}
+          onCancel={() => setConfirm(null)}
+        />
       </div>
     </AppLayout>
   );

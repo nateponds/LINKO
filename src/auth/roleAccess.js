@@ -30,6 +30,12 @@ export const APP_NAV_ITEMS = [
 // Stable display/label order for the additive roles of one business.
 export const ROLE_ORDER = { buyer: 0, wholesaler: 1, logistics_coordinator: 2, courier: 3 };
 
+// Single badge role: global admin wins, else the highest-priority active role.
+export function primaryRole(user, activeRoles = []) {
+  if (user?.global_role === "platform_admin") return "platform_admin";
+  return [...activeRoles].sort((a, b) => (ROLE_ORDER[a] ?? 99) - (ROLE_ORDER[b] ?? 99))[0] ?? null;
+}
+
 // Collapse flat membership rows ([{business_id, business_name, role}]) into one
 // entry per unique business with its additive role set, roles sorted by
 // ROLE_ORDER so combined labels are stable. One switcher option per business.

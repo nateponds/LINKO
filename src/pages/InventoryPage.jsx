@@ -5,6 +5,7 @@ import AppLayout from "../layouts/AppLayout";
 import { useAuth } from "../auth/AuthProvider";
 import { apiGet, apiSend } from "../lib/api";
 import { peso } from "../lib/format";
+import ConfirmDialog from "../components/ui/ConfirmDialog";
 import PaginationControls from "../components/ui/PaginationControls";
 import { readListUrlState, updateListUrlState } from "../lib/pagination";
 import { apiPath, normalizePage, shouldClampPage } from "../features/suppliers/marketplacePagination";
@@ -63,6 +64,7 @@ export default function InventoryPage() {
   const [saving, setSaving] = useState(false);
 
   const [stockPopover, setStockPopover] = useState(null);
+  const [confirm, setConfirm] = useState(null);
 
   const filterWrapRef = useRef(null);
   const tableContentRef = useRef(null);
@@ -218,8 +220,16 @@ export default function InventoryPage() {
     }
   }
 
+  function requestDelete(item) {
+    setConfirm({
+      title: "Delete product?",
+      message: `Delete ${item.product_name}${item.sku ? ` (SKU ${item.sku})` : ""} from your products? This cannot be undone.`,
+      confirmLabel: "Delete product",
+      onConfirm: () => { void handleDelete(item); },
+    });
+  }
+
   async function handleDelete(item) {
-    if (!window.confirm(`Delete "${item.product_name}"?`)) return;
     try {
       await apiSend(`/api/products/${item.product_id}`, { method: "DELETE" });
       await loadProducts();
@@ -473,7 +483,7 @@ export default function InventoryPage() {
                                   type="button"
                                   className="stock-edit-btn"
                                   title="Delete item"
-                                  onClick={() => handleDelete(item)}
+                                  onClick={() => requestDelete(item)}
                                 >
                                   <X size={14} />
                                 </button>
@@ -634,6 +644,15 @@ export default function InventoryPage() {
             </div>
           </div>
         )}
+
+        <ConfirmDialog
+          open={!!confirm}
+          title={confirm?.title}
+          message={confirm?.message}
+          confirmLabel={confirm?.confirmLabel}
+          onConfirm={() => { confirm?.onConfirm?.(); setConfirm(null); }}
+          onCancel={() => setConfirm(null)}
+        />
       </div>
     </AppLayout>
   );

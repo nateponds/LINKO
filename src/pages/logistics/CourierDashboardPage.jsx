@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Search, MapPin, Package } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import AppLayout from "../../layouts/AppLayout";
+import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import PaginationControls from "../../components/ui/PaginationControls";
 import { useListUrlState } from "../../hooks/useListUrlState";
 import { apiGet, apiSend } from "../../lib/api";
@@ -52,6 +53,7 @@ export default function CourierDashboardPage() {
     : "available";
   const [failingParcelId, setFailingParcelId] = useState(null);
   const [actionError, setActionError] = useState(null);
+  const [confirm, setConfirm] = useState(null);
   const query = new URLSearchParams({ page: String(list.page), limit: String(list.limit), assignment });
   if (list.q) query.set("q", list.q);
   const resource = useAssignmentPage(`/api/parcels?${query.toString()}`);
@@ -77,12 +79,37 @@ export default function CourierDashboardPage() {
     searchTimerRef.current = window.setTimeout(() => list.setQuery(nextQuery), 300);
   }
 
-  async function handleQuickAction(parcelId, statusUpdate, event, remarks) {
+  // The card is wrapped in a Link, so every action click must preventDefault
+  // before anything else — including before opening the confirm dialog.
+  function handleQuickActionClick(parcel, statusUpdate, event, remarks) {
     event.preventDefault();
     if (statusUpdate === "Delivery Failed" && remarks === undefined) {
-      setFailingParcelId(parcelId);
+      setFailingParcelId(parcel.parcel_id);
       return;
     }
+    const receiver = parcel.receiver?.business_name ?? "the receiver";
+    if (statusUpdate === "Delivered") {
+      setConfirm({
+        title: "Mark as delivered?",
+        message: `Mark parcel #${parcel.parcel_id} to ${receiver} as Delivered? This closes the delivery and cannot be undone.`,
+        confirmLabel: "Mark delivered",
+        onConfirm: () => { void handleQuickAction(parcel.parcel_id, statusUpdate, remarks); },
+      });
+      return;
+    }
+    if (statusUpdate === "Delivery Failed") {
+      setConfirm({
+        title: "Record delivery failure?",
+        message: `Record parcel #${parcel.parcel_id} to ${receiver} as Delivery Failed with reason "${remarks}"? This cannot be undone.`,
+        confirmLabel: "Record failure",
+        onConfirm: () => { void handleQuickAction(parcel.parcel_id, statusUpdate, remarks); },
+      });
+      return;
+    }
+    void handleQuickAction(parcel.parcel_id, statusUpdate, remarks);
+  }
+
+  async function handleQuickAction(parcelId, statusUpdate, remarks) {
     setFailingParcelId(null);
     setActionError(null);
 
@@ -109,8 +136,8 @@ export default function CourierDashboardPage() {
           <div className="parcel-card-meta"><Package size={14} /><span>{parcel.weight_kg} kg · ETA: {shortDate(parcel.estimated_delivery_date)}</span></div>
           <div className="parcel-card-actions">
             {failingParcelId === parcel.parcel_id
-              ? FAIL_REASONS.map((reason) => <button key={reason} className="courier-action" onClick={(event) => handleQuickAction(parcel.parcel_id, "Delivery Failed", event, reason)}>{reason}</button>)
-              : allowedNext(parcel.current_status, parcel.return_triggered).map((status) => <button key={status} className={status === "Delivered" ? "courier-action-primary" : "courier-action"} onClick={(event) => handleQuickAction(parcel.parcel_id, status, event)}>{status}</button>)}
+              ? FAIL_REASONS.map((reason) => <button key={reason} className="courier-action" onClick={(event) => handleQuickActionClick(parcel, "Delivery Failed", event, reason)}>{reason}</button>)
+              : allowedNext(parcel.current_status, parcel.return_triggered).map((status) => <button key={status} className={status === "Delivered" ? "courier-action-primary" : "courier-action"} onClick={(event) => handleQuickActionClick(parcel, status, event)}>{status}</button>)}
           </div>
         </div>
       </Link>
@@ -155,6 +182,14 @@ export default function CourierDashboardPage() {
             </>
           )}
         </main>
+        <ConfirmDialog
+          open={!!confirm}
+          title={confirm?.title}
+          message={confirm?.message}
+          confirmLabel={confirm?.confirmLabel}
+          onConfirm={() => { confirm?.onConfirm?.(); setConfirm(null); }}
+          onCancel={() => setConfirm(null)}
+        />
       </div>
     </AppLayout>
   );

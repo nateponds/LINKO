@@ -22,7 +22,8 @@ import { GoChevronDown } from "react-icons/go";
 
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../auth/AuthProvider";
-import { formatRoleLabel, ROLE_ACCESS } from "../../auth/roleAccess";
+import { formatRoleLabel, primaryRole, ROLE_ACCESS } from "../../auth/roleAccess";
+import ConfirmDialog from "../ui/ConfirmDialog";
 import Sidebar from "./Sidebar";
 
 function getIconForType(type) {
@@ -38,6 +39,7 @@ function Topbar({ showSearch = false, showCategories = false }) {
   const [notificationPage, setNotificationPage] = useState(1);
   const [isMailHovered, setIsMailHovered] = useState(false);
   const [categories, setCategories] = useState([]);
+  const [confirmLogout, setConfirmLogout] = useState(false);
   const NOTIFICATIONS_PER_PAGE = 5;
   const currentNotifPage = Math.min(notificationPage, Math.max(1, Math.ceil(notifications.length / NOTIFICATIONS_PER_PAGE)));
   const [searchParams] = useSearchParams();
@@ -59,6 +61,10 @@ function Topbar({ showSearch = false, showCategories = false }) {
     user?.global_role === "platform_admin"
       ? formatRoleLabel("platform_admin")
       : activeRoles.map(formatRoleLabel).join(", ") || "Member";
+  const badgeRole = primaryRole(user, activeRoles);
+  // Shortened badge labels; formatRoleLabel stays canonical for use elsewhere.
+  const BADGE_LABELS = { logistics_coordinator: "Logistics", platform_admin: "Admin" };
+  const badgeLabel = BADGE_LABELS[badgeRole] ?? formatRoleLabel(badgeRole);
   const avatarLetter = displayName.charAt(0).toUpperCase();
 
   function submitSearch(event) {
@@ -211,6 +217,7 @@ function Topbar({ showSearch = false, showCategories = false }) {
       <header className="header-nav">
         <Link to="/" className="logo">
           LINK<span className="logo-accent">O</span>
+          {badgeRole && <span className={`role-badge role-badge-${badgeRole}`}>{badgeLabel}</span>}
         </Link>
 
         {showCategories && (
@@ -418,17 +425,17 @@ function Topbar({ showSearch = false, showCategories = false }) {
                       <LayoutDashboard size={15} /> Dashboard
                     </Link>
                   )}
-                  {hasAnyRole(["wholesaler", "platform_admin"]) && (
+                  {hasAnyRole(ROLE_ACCESS.inventory) && (
                     <Link to="/inventory" onClick={() => setOpenPanel(null)}>
                       <Boxes size={15} /> Inventory
                     </Link>
                   )}
-                  {hasAnyRole(["buyer", "wholesaler", "platform_admin"]) && (
+                  {hasAnyRole(ROLE_ACCESS.orders) && (
                     <Link to="/orders" onClick={() => setOpenPanel(null)}>
                       <ClipboardList size={15} /> Orders
                     </Link>
                   )}
-                  {hasAnyRole(["buyer", "wholesaler"]) && (
+                  {hasAnyRole(ROLE_ACCESS.settings) && (
                     <Link to="/settings" onClick={() => setOpenPanel(null)}>
                       <Settings size={15} /> Settings
                     </Link>
@@ -436,7 +443,7 @@ function Topbar({ showSearch = false, showCategories = false }) {
                   <button
                     type="button"
                     className="danger"
-                    onClick={handleLogout}
+                    onClick={() => setConfirmLogout(true)}
                   >
                     <LogOut size={15} /> Logout
                   </button>
@@ -448,7 +455,15 @@ function Topbar({ showSearch = false, showCategories = false }) {
       <Sidebar
         isOpen={menuOpen}
         onClose={() => setMenuOpen(false)}
-        onLogout={handleLogout}
+        onLogout={() => setConfirmLogout(true)}
+      />
+      <ConfirmDialog
+        open={confirmLogout}
+        title="Log out?"
+        message="You will need to sign in again to access your account."
+        confirmLabel="Log out"
+        onConfirm={handleLogout}
+        onCancel={() => setConfirmLogout(false)}
       />
     </>
   );
