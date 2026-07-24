@@ -63,7 +63,7 @@ function Topbar({ showSearch = false, showCategories = false }) {
       : activeRoles.map(formatRoleLabel).join(", ") || "Member";
   const badgeRole = primaryRole(user, activeRoles);
   // Shortened badge labels; formatRoleLabel stays canonical for use elsewhere.
-  const BADGE_LABELS = { logistics_coordinator: "Logistics", platform_admin: "Admin" };
+  const BADGE_LABELS = { logistics_coordinator: "Logistics", platform_admin: "Admin", wholesaler: "Seller" };
   const badgeLabel = BADGE_LABELS[badgeRole] ?? formatRoleLabel(badgeRole);
   const avatarLetter = displayName.charAt(0).toUpperCase();
 
