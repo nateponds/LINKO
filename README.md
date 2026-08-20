@@ -13,6 +13,38 @@
 
 > **LINKO** is a buyer-wholesaler marketplace and operations platform for MSMEs and other businesses. It helps buyers discover reliable wholesalers, compare supply options, organize inventory work, and prepare for quote, order, and fulfillment workflows in one centralized place.
 
+---
+
+## 👥 Team Members
+
+| Name | Role | GitHub |
+| :--- | :--- | :--- |
+| Nathaniel Ponce | Full-Stack | [@nateponds](https://github.com/nateponds) |
+| Bael | Frontend | [@BaelJM](https://github.com/BaelJM) |
+| Tantay | Frontend | [@grsm-m](https://github.com/grsm-m) |
+| Faber | Backend | [@Swashua](https://github.com/Swashua) |
+| Hermosilla | Backend | [@fR3yA-ctrl](https://github.com/fR3yA-ctrl) |
+
+---
+
+## 🔑 Demo Accounts
+
+The live showcase is deployed at **`linko.nateponds.com`**. Pre-seeded demo accounts exist for every role in the system. Credentials are documented internally in `backend/seeds/dev_seed.sql`.
+
+| Email | Role | What to try |
+| --- | --- | --- |
+| `buyer@linko.test` | Buyer | Discover wholesalers, place an order, view invoices |
+| `wholesaler@linko.test` | Wholesaler | Manage products/inventory, accept orders, create shipments |
+| `logistics@linko.test` | Logistics Coordinator | Manage branches/couriers, assign couriers to parcels |
+| `courier@linko.test` | Courier | Update parcel tracking statuses through to delivered |
+| `admin@linko.test` | Platform Admin | Admin dashboard: user + business management |
+
+Additional test accounts (`buyer2`, `wholesaler2`, `bizswitch`, `courier2–8`) are also seeded for multi-business and ownership-isolation scenarios.
+
+---
+
+## About the Project
+
 The product is designed for small and growing businesses that need practical tools for procurement and stock visibility without taking on the complexity of a full enterprise supply-chain system. LINKO focuses on the direct buyer-wholesaler relationship: *who can supply, where they can serve, how buyers can connect with them, and how those connections can become operational workflows over time.*
 
 > [!IMPORTANT]
@@ -39,7 +71,6 @@ LINKO's first checkpoint-ready module is the **Courier/Parcel Tracking** workflo
 - Database implementation: [backend/migrations/002_logistics_schema.sql](./backend/migrations/002_logistics_schema.sql), [backend/migrations/003_linko_schema.sql](./backend/migrations/003_linko_schema.sql), and later logistics/auth integration migrations.
 - ERD and table explanations: [docs/LINKO_ERD.md](./docs/LINKO_ERD.md).
 - Course requirement summary: [local-notes/course-deliverable.md](./local-notes/course-deliverable.md).
-- Demo walkthrough: [docs/DEMO_SCRIPT.md](./docs/DEMO_SCRIPT.md), especially the Logistics Coordinator and Courier journeys.
 - Backend routes and tests: [backend/src/routes/logistics.js](./backend/src/routes/logistics.js), [backend/src/app.test.js](./backend/src/app.test.js), [backend/src/logistics-workflow.test.js](./backend/src/logistics-workflow.test.js), and [backend/src/ownership.test.js](./backend/src/ownership.test.js).
 
 > **Implementation note:** LINKO derives each parcel's current status from the latest `tracking_logs` row. This keeps the tracking history as the source of truth while the UI still shows the current status for each parcel.
@@ -112,12 +143,10 @@ Start here if you are evaluating, contributing to, or extending the project:
 
 - **[Course Deliverable](./local-notes/course-deliverable.md)**: Checkpoint summary of the courier/parcel tracking requirements.
 - **[LINKO ERD](./docs/LINKO_ERD.md)**: Database design for the logistics foundation and integrated LINKO marketplace schema.
-- **[Demo Script](./docs/DEMO_SCRIPT.md)**: Role-based live demo checklist for grading.
 - **[ROADMAP.md](./ROADMAP.md)**: Explains product direction and development phases.
 - **[Glossary](./docs/glossary.md)**: Defines canonical product language.
 - **[API Contracts](./docs/API_CONTRACTS.md)**: Defines current frontend/backend payload expectations.
 - **[Database Spec](./docs/linko_database_specification.md)**: Defines the current PostgreSQL schema.
-- **[Backend Guide](./docs/BACKEND_GUIDE.md)**: Explains backend domains and build order.
 
 ---
 
@@ -131,17 +160,6 @@ We use `staging` as the active integration branch.
 
 **Project Management:**
 - **[BACKLOG.md](./docs/BACKLOG.md)**: Proposed or deferred work.
-- **[SPRINTS.md](./docs/SPRINTS.md)**: Committed sprint work.
-- **[CONVENTIONAL_COMMITS.md](./docs/CONVENTIONAL_COMMITS.md)**: Commit message standards.
-
----
-
-## Meet the Team
-
-| Frontend | Full-Stack | Backend |
-| :--- | :--- | :--- |
-| [@BaelJM](https://github.com/BaelJM) (Bael) | [@nateponds](https://github.com/nateponds) (Ponce) | [@Swashua](https://github.com/Swashua) (Faber) |
-| [@grsm-m](https://github.com/grsm-m) (Tantay) | | [@fR3yA-ctrl](https://github.com/fR3yA-ctrl) (Hermosilla) |
 
 ---
 

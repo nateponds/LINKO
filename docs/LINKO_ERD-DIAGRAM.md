@@ -9,7 +9,7 @@ out-of-domain infrastructure.
 ```mermaid
 erDiagram
     %% ===== Organizations & addresses =====
-    businesses           ||--o{ addresses             : "owns"
+    businesses           |o--o{ addresses             : "owns"
     addresses            |o--o{ businesses            : "logistics address for"
 
     %% ===== Marketplace catalog =====
@@ -17,7 +17,7 @@ erDiagram
     addresses            ||--o{ warehouses            : "located at"
     businesses           ||--o{ products              : "sells"
     categories           |o--o{ products              : "classifies"
-    businesses           ||--|| supplier_profiles     : "profile"
+    businesses           ||--o| supplier_profiles     : "profile"
 
     %% ===== Logistics core (CIS 2104 graded) =====
     addresses            ||--o{ branches              : "located at"
@@ -31,7 +31,7 @@ erDiagram
     users                |o--o{ orders                : "created by"
     orders               ||--o{ order_items           : "contains"
     products             ||--o{ order_items           : "ordered as"
-    orders               ||--|| invoices              : "billed by"
+    orders               ||--o| invoices              : "billed by"
 
     %% ===== Parcels, payments, tracking =====
     businesses           ||--o{ parcels               : "sends"
@@ -40,7 +40,7 @@ erDiagram
     addresses            ||--o{ parcels               : "origin"
     addresses            ||--o{ parcels               : "destination"
     orders               |o--o{ parcels               : "fulfilled by"
-    parcels              ||--|| payments               : "paid by"
+    parcels              ||--o| payments               : "paid by"
     parcels              ||--o{ tracking_logs          : "scanned in"
     branches             |o--o{ tracking_logs          : "checkpoint"
     couriers             |o--o{ tracking_logs          : "scanned by"

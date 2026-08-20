@@ -10,6 +10,7 @@ const INITIAL_FORM = {
   full_name: "",
   email: "",
   password: "",
+  confirm_password: "",
   business_name: "",
   business_type: "buyer",
 };
@@ -34,6 +35,12 @@ export default function RegisterPage() {
   async function handleSubmit(event) {
     event.preventDefault();
     setSubmitError("");
+
+    if (form.password !== form.confirm_password) {
+      setSubmitError("Passwords do not match.");
+      return;                       // ponytail: reuses the form-level error, no per-field error state
+    }
+
     setSubmitting(true);
 
     try {
@@ -103,6 +110,27 @@ export default function RegisterPage() {
                   placeholder="Password (at least 8 characters)"
                   value={form.password}
                   onChange={(event) => setField("password", event.target.value)}
+                />
+                <button
+                  type="button"
+                  className="auth-visibility-toggle"
+                  onClick={() => setShowPassword((current) => !current)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </label>
+
+              <label className="auth-field">
+                <span className="sr-only">Confirm Password</span>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                  placeholder="Confirm Password"
+                  value={form.confirm_password}
+                  onChange={(event) => setField("confirm_password", event.target.value)}
                 />
                 <button
                   type="button"

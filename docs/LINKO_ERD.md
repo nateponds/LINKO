@@ -1,5 +1,8 @@
 # LINKO — Entity Relationship Diagram
 
+This diagram covers the 21 application tables in `backend/schema.sql`. The technical
+`schema_migrations` bookkeeping table is intentionally omitted.
+
 ```mermaid
 erDiagram
     %% ===== Identity & organizations =====
@@ -8,7 +11,7 @@ erDiagram
     businesses           ||--o{ user_businesses       : "owned via"
     users                ||--o{ business_memberships  : "member of"
     businesses           ||--o{ business_memberships  : "grants role in"
-    businesses           ||--o{ addresses             : "owns"
+    businesses           |o--o{ addresses             : "owns"
     addresses            |o--o{ businesses            : "logistics address for"
 
     %% ===== Marketplace catalog =====
@@ -16,7 +19,7 @@ erDiagram
     addresses            ||--o{ warehouses            : "located at"
     businesses           ||--o{ products              : "sells"
     categories           |o--o{ products              : "classifies"
-    businesses           ||--|| supplier_profiles     : "profile"
+    businesses           ||--o| supplier_profiles     : "profile"
 
     %% ===== Logistics core (CIS 2104 graded) =====
     addresses            ||--o{ branches              : "located at"
@@ -30,7 +33,7 @@ erDiagram
     users                |o--o{ orders                : "created by"
     orders               ||--o{ order_items           : "contains"
     products             ||--o{ order_items           : "ordered as"
-    orders               ||--|| invoices              : "billed by"
+    orders               ||--o| invoices              : "billed by"
 
     %% ===== Parcels, payments, tracking =====
     businesses           ||--o{ parcels               : "sends"
@@ -39,7 +42,7 @@ erDiagram
     addresses            ||--o{ parcels               : "origin"
     addresses            ||--o{ parcels               : "destination"
     orders               |o--o{ parcels               : "fulfilled by"
-    parcels              ||--|| payments               : "paid by"
+    parcels              ||--o| payments               : "paid by"
     parcels              ||--o{ tracking_logs          : "scanned in"
     branches             |o--o{ tracking_logs          : "checkpoint"
     couriers             |o--o{ tracking_logs          : "scanned by"

@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@mapbox/mapbox-gl-geocoder": "^5.1.2",
+    "canvas-confetti": "^1.9.4",
+    "framer-motion": "^12.42.2",
     "lucide-react": "^1.22.0",
     "mapbox-gl": "^3.26.0",
     "react": "^19.2.6",

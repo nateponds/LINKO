@@ -334,6 +334,18 @@
     overflow: hidden;
   }
 
+  .supplier-box-image--monogram {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: hsl(var(--avatar-hue, 220) 45% 92%);
+    color: hsl(var(--avatar-hue, 220) 55% 32%);
+    font-size: 3rem;
+    font-weight: 700;
+    line-height: 1;
+    user-select: none;
+  }
+
   .supplier-box-image img {
     display: block;
     width: 100%;

@@ -95,12 +95,6 @@ export default function LoginPage() {
                 </button>
               </label>
 
-              <div className="auth-forgot-row">
-                <button type="button" className="auth-forgot" disabled title="Coming soon">
-                  Forgot Password?
-                </button>
-              </div>
-
               {submitError && <p className="auth-error">{submitError}</p>}
 
               <button type="submit" className="auth-submit" disabled={submitting}>

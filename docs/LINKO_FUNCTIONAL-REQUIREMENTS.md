@@ -1,7 +1,7 @@
 # LINKO Courier & Parcel Tracking System — Functional Requirements
 
-Derived from the corrected Use-Case model (`LINKO_USE-CASE.md`, `LINKO_USE-CASE_Requirements.md`),
-the Logistics Subsystem ERD (`LINKO_ERD.md`), and the LINKO Reconnaissance & Beta Test Report.
+Derived from the corrected use-case model (`LINKO_USE-CASE.md`, `LINKO_USE-CASE_Requirements.md`),
+the integrated ERD (`LINKO_ERD.md`), the current database schema, and the implemented API contracts.
 
 > **How to read this section.** Requirements are grouped by functional area and written as
 > *"The system shall…"*. Each requirement carries an identifier (`FR-<area>.<n>`) for traceability.
@@ -22,7 +22,7 @@ recognizes five user classes, enforced by role-based access control (RBAC):
 | **Courier** | Updates delivery status for assigned parcels through the tracking state machine. |
 | **Platform Administrator** | Manages user accounts and business verification across the whole platform. |
 
-The companion use-case diagram (`LINKO_USE-CASE.puml` / `LINKO_USE-CASE.md`) models these same
+The canonical use-case diagram (`LINKO_USE-CASE.md`) models these same
 five roles. In the ERD, *sender* and *receiver* are per-parcel FK roles on `businesses` — the
 shipping wholesaler is the sender, the receiving buyer is the receiver — not separate login
 actors; the table above ties them to the marketplace roles.
@@ -42,7 +42,7 @@ actors; the table above ties them to the marketplace roles.
 
 - **FR-2.1** The system shall support users belonging to multiple businesses and shall let such users select an **active business** for the current session.
 - **FR-2.2** The system shall validate the caller's active-business context on every request against their actual memberships and reject mismatches.
-- **FR-2.3** The system shall scope every data read and write to the caller's active business (row-level ownership), preventing access to other businesses' parcels, orders, products, or invoices.
+- **FR-2.3** The system shall apply role-appropriate data scope: active-business ownership for buyers and wholesalers, assigned courier or branch scope for couriers, operational scope for coordinators, and platform-wide scope for administrators.
 - **FR-2.4** The system shall redirect users away from routes their role does not permit, and reject unauthorized API calls with an access-denied response.
 
 ## 4. Marketplace Discovery
@@ -53,7 +53,7 @@ actors; the table above ties them to the marketplace roles.
 
 ## 5. Inventory Management (Wholesaler)
 
-- **FR-4.1** The system shall let a wholesaler view, create, and update products belonging to their active business.
+- **FR-4.1** The system shall let a wholesaler view, create, update, and deactivate products belonging to their active business.
 - **FR-4.2** The system shall derive and display each product's stock status from its quantity relative to a reorder threshold.
 - **FR-4.3** The system shall prevent a wholesaler from modifying another business's products.
 
@@ -62,18 +62,18 @@ actors; the table above ties them to the marketplace roles.
 - **FR-5.1** The system shall let a buyer place an order against a wholesaler, recording line items and computing the order total.
 - **FR-5.2** The system shall let a wholesaler accept a pending order.
 - **FR-5.3** The system shall let a wholesaler ship an accepted order, requiring the actual handoff weight to be recorded at ship time (not at checkout).
-- **FR-5.4** The system shall let either party cancel an order before it reaches a terminal state, notifying the counterparty.
+- **FR-5.4** The system shall let a buyer cancel its own pending order and shall let a platform administrator perform valid cancellation overrides, notifying the affected counterparty.
 - **FR-5.5** The system shall advance orders through the defined lifecycle: *pending → accepted → preparing → shipped → delivered*, with *cancelled* / *returned* as alternate outcomes.
 
 ## 7. Invoicing & Payment
 
-- **FR-6.1** The system shall generate an invoice for each order, with the invoice amount frozen at booking as *declared value + shipping fee*.
+- **FR-6.1** The system shall generate exactly one invoice when an order is accepted, freezing the accepted line-item total plus the selected service tier's base fee.
 - **FR-6.2** The system shall let the relevant parties view invoices scoped to their active business.
 - **FR-6.3** The system shall record exactly one payment per parcel and settle it according to method — prepaid at booking, cash-on-delivery on delivery or return. *(Payment is modeled and tracked, not payment-gateway enforced.)*
 
 ## 8. Parcel Registration & Shipping Fee — *UC1–UC3, UC11–UC12*
 
-- **FR-7.1** The system shall register a parcel when a wholesaler ships an order, recording sender, receiver, service tier, weight, and declared value.
+- **FR-7.1** The system shall register a parcel either when a wholesaler ships an order or when a wholesaler, logistics coordinator, or platform administrator creates a standalone booking, recording sender, receiver, service tier, weight, and declared value.
 - **FR-7.2** The system shall generate a unique, collision-proof tracking number for every parcel at registration.
 - **FR-7.3** The system shall calculate the shipping fee automatically at registration from the service tier's base fee, per-kilogram rate, and per-kilometer distance.
 - **FR-7.4** The system shall create an initial "Order Created" tracking-log entry for every parcel at registration.
@@ -81,7 +81,7 @@ actors; the table above ties them to the marketplace roles.
 
 ## 9. Parcel Tracking & Status Updates — *UC4, UC6, UC13*
 
-- **FR-8.1** The system shall let a courier update the status of assigned parcels through the valid tracking state machine: *Order Created → Picked Up → Arrived at Branch → Departed Branch → Out for Delivery → Delivered*, plus the return path *Out for Return → Returned* triggered after three delivery failures.
+- **FR-8.1** The system shall let a courier update assigned parcels through the valid tracking state machine: *Order Created → Picked Up → Arrived at Branch → Departed Branch → Out for Delivery → Delivered*, plus the return path *Delivery Failed → Out for Return → Returned* triggered by three soft failures or the first hard-failure reason.
 - **FR-8.2** The system shall record every status update as an append-only tracking-log entry, keeping tracking history as the source of truth and surfacing the latest entry as the parcel's current status.
 - **FR-8.3** The system shall reject invalid or out-of-sequence status transitions.
 - **FR-8.4** The system shall auto-generate a proof-of-delivery remark on terminal (Delivered) scans.
@@ -91,19 +91,19 @@ actors; the table above ties them to the marketplace roles.
 ## 10. Courier, Branch & Routing Operations — *UC7, UC9, UC10*
 
 - **FR-9.1** The system shall let a logistics coordinator create, update, and soft-delete branches.
-- **FR-9.2** The system shall block hard-deletion of a branch while live parcels reference it.
-- **FR-9.3** The system shall let a coordinator onboard couriers and assign each courier to a branch, disallowing assignment to an inactive branch.
+- **FR-9.2** The system shall soft-delete branches and shall block deactivation when it would strand live, unassigned parcels in the branch pool.
+- **FR-9.3** The system shall let a platform administrator create courier accounts and linked courier profiles; coordinators shall update, assign, and deactivate existing couriers, disallowing assignment to an inactive branch.
 - **FR-9.4** The system shall let a coordinator assign a courier to a parcel, and shall let a courier self-claim a parcel from the pool.
-- **FR-9.5** The system shall route parcels to the nearest available branch by distance, falling back to a city match when the origin is unpinned.
+- **FR-9.5** The system shall route parcels to the nearest active, available, pinned branch by distance, falling back to a city match when no pinned branch candidate resolves.
 
 ## 11. Service Tier Management — *UC8*
 
 - **FR-10.1** The system shall maintain service tiers (e.g., Standard, Express, Next-Day) with their fee parameters and estimated delivery days.
-- **FR-10.2** The system shall make service tiers available for shipping-fee calculation and shall allow authorized staff to manage tier definitions.
+- **FR-10.2** The system shall make service tiers available for shipping-fee calculation and shall let a platform administrator edit existing tier definitions; adding and deleting tiers are outside this release.
 
 ## 12. Parcel Cancellation — *UC14*
 
-- **FR-11.1** The system shall let a platform administrator (coordinator/admin override) cancel a parcel, recording the cancellation as a `Cancelled` tracking-log entry.
+- **FR-11.1** The system shall let a logistics coordinator or platform administrator cancel a nonterminal parcel, recording the cancellation as a `Cancelled` tracking-log entry.
 - **FR-11.2** The system shall treat `Cancelled` as an administrative override distinct from the courier's normal delivery-state flow; couriers shall not be able to produce a `Cancelled` state.
 
 ## 13. Notifications
@@ -132,10 +132,9 @@ actors; the table above ties them to the marketplace roles.
 
 ## 17. Out of Scope (by design)
 
-The following are explicitly **not** functional requirements of this release (per the ERD,
-`CLAUDE.md`, and the reconnaissance report):
+The following are explicitly **not** functional requirements of this release:
 
 - **Commissions and wholesaler remittances** — removed entirely in migration `018` (no `commissions`/`commission_brackets` tables, no `wholesaler_remittances` view, no trigger); never a graded requirement and not to be reintroduced. The goods payment goes to the wholesaler undivided.
-- **Returns & refunds handling** — reversal semantics are deferred (`BACKLOG.md`).
+- **Returns and payment refunds** — delivery-return tracking exists, but refund and payment-reversal semantics are not implemented.
 - **Self-service password reset, email notifications, and two-factor authentication** — not implemented in this release.
 - **Real payment-gateway settlement** — payment status is modeled and tracked, not gateway-enforced.

@@ -1,3 +1,7 @@
+' Archived PlantUML source retained after the Mermaid diagram in
+' docs/LINKO_USE-CASE.md became canonical. This copy reflects the RBAC behavior
+' at archival time but is no longer the maintained source of truth.
+
 @startuml
 left to right direction
 
@@ -33,6 +37,7 @@ Wholesaler -- UC13
 Courier -- UC6
 Courier -- UC13
 
+Coordinator -- UC1
 Coordinator -- UC6
 Coordinator -- UC7
 Coordinator -- UC9
@@ -40,6 +45,7 @@ Coordinator -- UC10
 Coordinator -- UC13
 Coordinator -- UC14
 
+Admin -- UC1
 Admin -- UC6
 Admin -- UC7
 Admin -- UC8
@@ -58,32 +64,28 @@ UC6 ..> UC12 : <<include>>
 UC14 ..> UC12 : <<include>>
 
 note right of UC1
-  Register Parcel is wholesaler-gated: POST /api/parcels and
-  POST /api/orders/:id/ship are R:wholesaler — the shipping
-  wholesaler is the parcel Sender. Coordinators/Admins do not
-  register parcels via the API; the /logistics "Create parcel"
-  button operates within a wholesaler membership context.
+  POST /api/parcels permits wholesalers, logistics coordinators,
+  and platform administrators. A wholesaler is limited to its
+  active sender business; coordinators/admins may book on behalf
+  of a sender. Order-backed registration occurs when a wholesaler,
+  or a platform-admin override, PATCHes /api/orders/:id/status
+  with status "shipped".
 end note
 
 note right of UC8
-  Note: Sprint 12 limits UC8 to Edit-Only
-  (Update existing tiers). No Add/Delete.
+  Edit existing tiers only. No Add/Delete.
 end note
 
 note right of UC4
   Read-only, scoped to the buyer's own orders
-  (GET /api/parcels/:id buyer scope, API_CONTRACTS §3.6a).
+  (GET /api/parcels/:id buyer scope, API_CONTRACTS section 3.6a).
   No parcel list, no cross-order access.
 end note
 
 note right of UC10
-  Courier accounts are minted via Manage Users (UC15):
-  POST /api/admin/users kind=courier creates the login and
-  the linked couriers row in one transaction. Coordinators
-  edit (PATCH) and deactivate couriers only, never create.
-  Couriers auto-attach to the canonical LINKO Logistics org
-  (no business choice at mint); the admin picks a business
-  for coordinators only.
+  POST /api/admin/users with kind=courier creates the login and
+  linked couriers row. Coordinators edit, assign, and deactivate
+  existing couriers but do not create courier accounts.
 end note
 
 @enduml

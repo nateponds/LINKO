@@ -208,6 +208,18 @@ router.get("/products", requireAuth, async (req, res, next) => {
       )`);
     }
 
+    // Closed allowlist, so interpolating orderBy into the SQL below is safe.
+    // Mirrors the sort handling on GET /api/suppliers.
+    const sort = readSingletonQueryString(req.query, "sort") ?? "name";
+    if (!new Set(["name", "featured"]).has(sort)) {
+      throw createHttpError(400, "sort must be name or featured");
+    }
+    // Verified wholesalers first, then freshest catalog. product_id ASC is the
+    // deterministic tiebreaker that keeps pagination stable across pages.
+    const orderBy = sort === "featured"
+      ? "b.is_verified DESC, p.created_at DESC, p.product_name ASC, p.product_id ASC"
+      : "p.product_name ASC, p.product_id ASC";
+
     const where = `WHERE ${conditions.join(" AND ")}`;
     const countResult = await query(
       `SELECT COUNT(*)::int AS total_items
@@ -219,7 +231,7 @@ router.get("/products", requireAuth, async (req, res, next) => {
 
     const { rows } = await query(
       `${PRODUCT_SELECT} ${where}
-       ORDER BY p.product_name ASC, p.product_id ASC
+       ORDER BY ${orderBy}
        LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
       [...params, limit, offset],
     );

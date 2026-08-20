@@ -5,8 +5,25 @@ import { apiGet } from "../../lib/api";
 import PaginationControls from "../../components/ui/PaginationControls";
 import { readListUrlState, updateListUrlState } from "../../lib/pagination";
 import { apiPath, normalizePage, shouldClampPage } from "./marketplacePagination";
+import { hueOf, imageForSupplier, initialOf } from "../../lib/categoryImages";
 
-const PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1586528116311-ad8ed745d44c?auto=format&fit=crop&q=80&w=600";
+/* Stock photo with a monogram fallback — an image that 404s or is blocked
+   swaps to the business initial instead of leaving a broken tile. */
+function SupplierImage({ businessId, businessName }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return (
+      <div className="supplier-box-image supplier-box-image--monogram" style={{ "--avatar-hue": hueOf(businessName) }} aria-hidden="true">
+        {initialOf(businessName)}
+      </div>
+    );
+  }
+  return (
+    <div className="supplier-box-image">
+      <img src={imageForSupplier(businessId)} alt="" onError={() => setFailed(true)} />
+    </div>
+  );
+}
 
 function SupplierGrid() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -105,7 +122,7 @@ function SupplierGrid() {
         <section className="content-grid" aria-label="Supplier results">
           {suppliers.map((supplier) => (
             <Link to={`/suppliers/${supplier.business_id}`} className="supplier-box" key={supplier.business_id}>
-              <div className="supplier-box-image"><img src={PLACEHOLDER_IMAGE} alt={`${supplier.business_name} supplier`} /></div>
+              <SupplierImage businessId={supplier.business_id} businessName={supplier.business_name} />
               <div className="supplier-box-info">
                 <h3>{supplier.business_name}{supplier.is_verified && <BadgeCheck size={16} className="verified-badge" aria-label="Verified" />}</h3>
                 <p className="supplier-box-meta"><MapPin size={14} /> {supplier.city_municipality ?? supplier.city ?? "—"}</p>

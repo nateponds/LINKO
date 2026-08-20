@@ -809,6 +809,39 @@ test("non-numeric product id returns 404 not 500", { skip: !hasDb }, async () =>
   assert.equal(response.status, 404);
 });
 
+test("products sort=featured ranks verified wholesalers first", { skip: !hasDb }, async () => {
+  const cookie = await loginAs("buyer@linko.test");
+
+  const response = await request("/api/products?sort=featured&limit=25", {
+    headers: { Cookie: cookie },
+  });
+  assert.equal(response.status, 200);
+  assert.ok(response.body.items.length > 0);
+
+  // Once an unverified wholesaler's product appears, no verified one may follow.
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+  try {
+    const { rows } = await pool.query(
+      "SELECT business_id FROM businesses WHERE is_verified = TRUE",
+    );
+    const verifiedIds = new Set(rows.map((row) => row.business_id));
+    let seenUnverified = false;
+    for (const item of response.body.items) {
+      if (verifiedIds.has(item.business_id)) {
+        assert.equal(seenUnverified, false, "verified wholesaler ranked after an unverified one");
+      } else {
+        seenUnverified = true;
+      }
+    }
+  } finally {
+    await pool.end();
+  }
+
+  const rejected = await request("/api/products?sort=bogus", { headers: { Cookie: cookie } });
+  assert.equal(rejected.status, 400);
+});
+
 // ---------------------------------------------------------------------------
 // Milestone 3: orders + invoices
 // ---------------------------------------------------------------------------
@@ -1816,4 +1849,72 @@ test("Frozen shipping_fee: editing a tier does not affect already-booked parcels
     }
     await pool.end();
   }
+});
+
+// ---------------------------------------------------------------------------
+// Dashboard: wholesaler-only, no platform_admin bypass (unlike requireAnyRole)
+// ---------------------------------------------------------------------------
+
+test("unauthenticated dashboard request is rejected", async () => {
+  const response = await request("/api/dashboard");
+
+  assert.equal(response.status, 401);
+  assert.match(response.body.error.message, /authentication required/i);
+});
+
+test("wholesaler session can access the dashboard", { skip: !hasDb }, async () => {
+  const cookie = await loginAs("wholesaler@linko.test");
+  const response = await request("/api/dashboard", {
+    headers: { Cookie: cookie },
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(typeof response.body.revenue, "number");
+  assert.equal(typeof response.body.orders, "number");
+  assert.ok(Array.isArray(response.body.sales));
+  assert.ok(Array.isArray(response.body.topProducts));
+  assert.ok(Array.isArray(response.body.recentActivity));
+});
+
+test("buyer session cannot access the dashboard", { skip: !hasDb }, async () => {
+  const cookie = await loginAs("buyer@linko.test");
+  const response = await request("/api/dashboard", {
+    headers: { Cookie: cookie },
+  });
+
+  assert.equal(response.status, 403);
+  assert.match(response.body.error.message, /forbidden/i);
+});
+
+test("courier session cannot access the dashboard", { skip: !hasDb }, async () => {
+  const cookie = await loginAs("courier@linko.test");
+  const response = await request("/api/dashboard", {
+    headers: { Cookie: cookie },
+  });
+
+  assert.equal(response.status, 403);
+  assert.match(response.body.error.message, /forbidden/i);
+});
+
+test("logistics coordinator session cannot access the dashboard", { skip: !hasDb }, async () => {
+  const cookie = await loginAs("logistics@linko.test");
+  const response = await request("/api/dashboard", {
+    headers: { Cookie: cookie },
+  });
+
+  assert.equal(response.status, 403);
+  assert.match(response.body.error.message, /forbidden/i);
+});
+
+// Sprint scope: the dashboard is the one endpoint where platform_admin gets
+// NO bypass -- admin@linko.test has no wholesaler membership in the seed
+// data, so it must be forbidden just like any other non-wholesaler role.
+test("platform admin without a wholesaler membership cannot access the dashboard", { skip: !hasDb }, async () => {
+  const cookie = await loginAs("admin@linko.test");
+  const response = await request("/api/dashboard", {
+    headers: { Cookie: cookie },
+  });
+
+  assert.equal(response.status, 403);
+  assert.match(response.body.error.message, /forbidden/i);
 });

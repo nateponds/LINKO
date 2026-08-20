@@ -5,6 +5,7 @@ import { useAuth } from "../auth/AuthProvider";
 import AppLayout from "../layouts/AppLayout";
 import TrackingTimeline from "../features/logistics/TrackingTimeline";
 import SupportModal from "../components/ui/SupportModal";
+import ConfirmDialog from "../components/ui/ConfirmDialog";
 import { apiGet, apiSend } from "../lib/api";
 import PaginationControls from "../components/ui/PaginationControls";
 import { useListUrlState } from "../hooks/useListUrlState";
@@ -163,6 +164,7 @@ export default function OrdersPage() {
   const [trackLoading, setTrackLoading] = useState(false);
   const [trackError, setTrackError] = useState(null);
   const [supportOpen, setSupportOpen] = useState(false);
+  const [confirm, setConfirm] = useState(null);
 
   async function updateOrderStatus(orderId, nextStatus, extra = {}) {
     setUpdatingId(orderId);
@@ -179,6 +181,24 @@ export default function OrdersPage() {
     } finally {
       setUpdatingId(null);
     }
+  }
+
+  // Cancelling/rejecting an order is terminal, so it goes through a confirm
+  // dialog. Accept and advance-to-preparing stay one-click.
+  function requestStatusChange(order, action) {
+    if (action.nextStatus !== "cancelled") {
+      void updateOrderStatus(order.order_id, action.nextStatus);
+      return;
+    }
+    const isReject = action.label === "Reject";
+    setConfirm({
+      title: isReject ? "Reject order?" : "Cancel order?",
+      message: isReject
+        ? `Reject order #${order.order_id} from ${order.buyer_business_name ?? "this buyer"} for ${peso(order.total)}? This cannot be undone.`
+        : `Cancel order #${order.order_id} with ${order.wholesaler_business_name ?? "this seller"} for ${peso(order.total)}? This cannot be undone.`,
+      confirmLabel: isReject ? "Reject order" : "Cancel order",
+      onConfirm: () => { void updateOrderStatus(order.order_id, action.nextStatus); },
+    });
   }
 
   async function confirmShip() {
@@ -396,11 +416,7 @@ export default function OrdersPage() {
                                       disabled={disabled && !action.onClick}
                                       onClick={
                                         action.onClick ??
-                                        (() =>
-                                          updateOrderStatus(
-                                            order.order_id,
-                                            action.nextStatus,
-                                          ))
+                                        (() => requestStatusChange(order, action))
                                       }
                                     >
                                       {disabled && !action.onClick
@@ -541,6 +557,15 @@ export default function OrdersPage() {
         </div>
 
         <SupportModal open={supportOpen} onClose={() => setSupportOpen(false)} />
+
+        <ConfirmDialog
+          open={!!confirm}
+          title={confirm?.title}
+          message={confirm?.message}
+          confirmLabel={confirm?.confirmLabel}
+          onConfirm={() => { confirm?.onConfirm?.(); setConfirm(null); }}
+          onCancel={() => setConfirm(null)}
+        />
       </div>
     </AppLayout>
   );

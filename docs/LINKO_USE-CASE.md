@@ -1,6 +1,7 @@
 # LINKO Courier & Parcel Tracking System — Use Case Diagram
 
-Aligned with `LINKO_USE-CASE.puml` (staging model) and the LINKO system's actual RBAC roles.
+This Mermaid diagram is the canonical use-case model for LINKO's current RBAC behavior. The
+former PlantUML source is retained as an archived snapshot in `archived/LINKO_USE-CASE.puml`.
 
 
 ```mermaid
@@ -42,6 +43,7 @@ Courier --- UC6
 Courier --- UC13
 
 %% Logistics Coordinator
+Coordinator --- UC1
 Coordinator --- UC6
 Coordinator --- UC7
 Coordinator --- UC9
@@ -50,6 +52,7 @@ Coordinator --- UC13
 Coordinator --- UC14
 
 %% Administrator
+Admin --- UC1
 Admin --- UC6
 Admin --- UC7
 Admin --- UC8
@@ -78,8 +81,8 @@ UC14 -.->|<<include>>| UC12
 | Buyer | Track Own Parcel (via Order) |
 | Wholesaler | Register Parcel, View Parcel Details |
 | Courier | Update Parcel Status, View Parcel Details |
-| Logistics Coordinator | Update Parcel Status, Assign Courier to Branch, Manage Branches, Manage Couriers, View Parcel Details, Cancel Parcel |
-| Administrator | Update Parcel Status, Assign Courier to Branch, Manage Service Tiers, Manage Branches, Manage Couriers, View Parcel Details, Cancel Parcel, Manage Users, Manage Businesses |
+| Logistics Coordinator | Register Parcel, Update Parcel Status, Assign Courier to Branch, Manage Branches, Manage Couriers, View Parcel Details, Cancel Parcel |
+| Administrator | Register Parcel, Update Parcel Status, Assign Courier to Branch, Manage Service Tiers, Manage Branches, Manage Couriers, View Parcel Details, Cancel Parcel, Manage Users, Manage Businesses |
 
 ## Include relationships
 
@@ -94,15 +97,15 @@ UC14 -.->|<<include>>| UC12
 
 ## Actor notes (mapping to the running system)
 
-- **Register Parcel is wholesaler-gated.** `POST /api/parcels` and `POST /api/orders/:id/ship` are `R:wholesaler` — the shipping wholesaler is the parcel *Sender* in ERD terms. Coordinators and Administrators do not register parcels via the API; the `/logistics` "Create parcel" button operates within a wholesaler membership context.
+- **Register Parcel has two entry paths.** `POST /api/parcels` allows a Wholesaler, Logistics Coordinator, or Platform Administrator to create a standalone booking. A wholesaler is restricted to its active business as the parcel *Sender*; coordinators and administrators may book on behalf of a sender. An order-backed parcel is created when its wholesaler—or a platform administrator acting as an override—advances the order with `PATCH /api/orders/:id/status` and `status: "shipped"`.
 - **Track Own Parcel is read-only and buyer-scoped.** `GET /api/parcels/:id` (buyer scope, API_CONTRACTS §3.6a) returns a buyer's own delivery only — no parcel list, no cross-order access.
 - **Manage Service Tiers is edit-only (Sprint 12).** Update of existing tiers only; no add/delete.
 - **Couriers are minted by the Administrator via Manage Users.** `POST /api/admin/users kind=courier` creates the login and the linked `couriers` row in one transaction. Coordinators only edit (PATCH) and deactivate couriers, never create them. Couriers auto-attach to the canonical LINKO Logistics org.
-- **Cancel Parcel is a coordinator/admin override.** The ERD notes `Cancelled` is a *"temporary coordinator/admin override only, not a courier-submitted delivery state."* Keeping it separate from Update Parcel Status preserves the courier's normal delivery-state flow (Picked Up → In Transit → Out for Delivery → Delivered / Returned).
+- **Cancel Parcel is a coordinator/admin override.** `Cancelled` is not a courier-submitted delivery state. Keeping it separate from Update Parcel Status preserves the courier's normal checkpoint and delivery flow.
 
 ## Not modeled (by design)
 
-No use case exists for commissions or wholesaler remittances. These were an earlier self-added extra, **removed entirely in migration `018`** — no `commissions`/`commission_brackets` tables, no `wholesaler_remittances` view, no trigger (see `docs/LINKO_ERD.md` and `docs/course-deliverable.md`). They are not modeled and must not be reintroduced; the goods payment goes to the wholesaler undivided (`payments.amount` = `declared_value` + `shipping_fee`).
+No use case exists for commissions or wholesaler remittances. These were an earlier self-added extra, **removed entirely in migration `018`** — no `commissions`/`commission_brackets` tables, no `wholesaler_remittances` view, and no trigger. They are not modeled and must not be reintroduced; the goods payment goes to the wholesaler undivided (`payments.amount` = `declared_value` + `shipping_fee`).
 
 # LINKO Courier & Parcel Tracking System
 

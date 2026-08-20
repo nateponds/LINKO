@@ -22,12 +22,14 @@ import CourierDashboardPage from "./pages/logistics/CourierDashboardPage";
 import BecomeSupplierPage from "./pages/BecomeSupplierPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import LandingPage from "./pages/LandingPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import SettingsPage from "./pages/SettingsPage";
 import Profile from "./features/settings/Profile";
 import BusinessLocation from "./features/settings/BusinessLocation";
 
 const TITLES = [
+  ["/landing", "Wholesale Marketplace"],
   ["/register", "Register"],
   ["/become-a-supplier", "Become a Supplier"],
   ["/login", "Log In"],
@@ -64,7 +66,7 @@ function UnknownRouteRedirect() {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/landing" replace />;
   }
 
   const defaultPath = redirectPathForRoles(activeRoles, user.global_role === "platform_admin");
@@ -74,6 +76,7 @@ function UnknownRouteRedirect() {
 function AppRoutes() {
   return (
     <Routes>
+      <Route path="/landing" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
 
