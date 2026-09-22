@@ -927,6 +927,8 @@ test("buyer creates an order and buyer and wholesaler can see their own sides", 
     assert.equal(created.body.items.length, 2);
     assert.equal(created.body.items[0].unit_price_snapshot, "150.50");
     assert.equal(created.body.invoice, null);
+    assert.equal(await getProductStock(pool, firstProductId), 10);
+    assert.equal(await getProductStock(pool, secondProductId), 7);
     orderId = created.body.order_id;
 
     const buyerList = await request("/api/orders", { headers: { Cookie: buyerCookie } });
@@ -950,7 +952,7 @@ test("buyer creates an order and buyer and wholesaler can see their own sides", 
   }
 });
 
-test("wholesaler accepts an order, decrements stock, and generates one invoice", { skip: !hasDb }, async () => {
+test("wholesaler accepts an order without decrementing stock again and generates one invoice", { skip: !hasDb }, async () => {
   const buyerCookie = await loginAs("buyer@linko.test");
   const wholesalerCookie = await loginAs("wholesaler@linko.test");
   const { createPool } = await import("./db.js");
@@ -965,6 +967,7 @@ test("wholesaler accepts an order, decrements stock, and generates one invoice",
     });
     assert.equal(created.status, 201);
     orderId = created.body.order_id;
+    assert.equal(await getProductStock(pool, productId), 2);
 
     const accepted = await request(`/api/orders/${orderId}/status`, {
       method: "PATCH",
@@ -1024,6 +1027,7 @@ test("order status transitions and ownership are enforced", { skip: !hasDb }, as
     });
     assert.equal(created.status, 201);
     orderId = created.body.order_id;
+    assert.equal(await getProductStock(pool, productId), 0);
 
     const logisticsList = await request("/api/orders", {
       headers: { Cookie: logisticsCookie },
@@ -1076,34 +1080,43 @@ test("order status transitions and ownership are enforced", { skip: !hasDb }, as
   }
 });
 
-test("accepting an order rejects insufficient stock without generating an invoice", { skip: !hasDb }, async () => {
+test("placing an order rejects insufficient stock without creating the order", { skip: !hasDb }, async () => {
   const buyerCookie = await loginAs("buyer@linko.test");
-  const wholesalerCookie = await loginAs("wholesaler@linko.test");
   const { createPool } = await import("./db.js");
   const pool = createPool();
   let orderId;
   let productId;
+  let otherProductId;
 
   try {
-    productId = await createTestProduct(pool, { stock_quantity: 1, unit_price: 40 });
+    productId = await createTestProduct(pool, { stock_quantity: 5, unit_price: 40 });
+    otherProductId = await createTestProduct(pool, {
+      product_name: "Short Stock Product",
+      stock_quantity: 1,
+      unit_price: 15,
+    });
     const created = await postJson("/api/orders", buyerCookie, {
-      tier_id: 1, items: [{ product_id: productId, quantity: 2 }],
+      tier_id: 1,
+      items: [
+        { product_id: productId, quantity: 2 },
+        { product_id: otherProductId, quantity: 2 },
+      ],
     });
-    assert.equal(created.status, 201);
-    orderId = created.body.order_id;
+    if (created.status === 201) orderId = created.body.order_id;
+    assert.equal(created.status, 400);
+    assert.match(created.body.error.message, /insufficient stock/i);
+    assert.equal(created.body.order_id, undefined);
+    assert.equal(await getProductStock(pool, productId), 5);
+    assert.equal(await getProductStock(pool, otherProductId), 1);
 
-    const accepted = await request(`/api/orders/${orderId}/status`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", Cookie: wholesalerCookie },
-      body: JSON.stringify({ status: "accepted" }),
-    });
-    assert.equal(accepted.status, 400);
-    assert.match(accepted.body.error.message, /insufficient stock/i);
-    assert.equal(await getProductStock(pool, productId), 1);
-
-    const invoices = await request("/api/invoices", { headers: { Cookie: buyerCookie } });
-    assert.equal(invoices.status, 200);
-    assert.ok(!invoices.body.items.some((row) => row.order_id === orderId));
+    const leftover = await pool.query(
+      `SELECT o.order_id
+         FROM orders o
+         JOIN order_items oi ON oi.order_id = o.order_id
+        WHERE oi.product_id = ANY($1::int[])`,
+      [[productId, otherProductId]],
+    );
+    assert.equal(leftover.rows.length, 0);
   } finally {
     if (orderId) {
       await pool.query("DELETE FROM order_items WHERE order_id = $1", [orderId]);
@@ -1111,6 +1124,9 @@ test("accepting an order rejects insufficient stock without generating an invoic
     }
     if (productId) {
       await pool.query("DELETE FROM products WHERE product_id = $1", [productId]);
+    }
+    if (otherProductId) {
+      await pool.query("DELETE FROM products WHERE product_id = $1", [otherProductId]);
     }
     await pool.end();
   }
@@ -1132,6 +1148,7 @@ test("platform admin can view all orders and override order status", { skip: !ha
     });
     assert.equal(created.status, 201);
     orderId = created.body.order_id;
+    assert.equal(await getProductStock(pool, productId), 2);
 
     const adminList = await request("/api/orders", { headers: { Cookie: adminCookie } });
     assert.equal(adminList.status, 200);
@@ -1187,6 +1204,7 @@ test("platform admin can view all orders and override order status", { skip: !ha
     });
     assert.equal(adminReturns.status, 200);
     assert.equal(adminReturns.body.status, "returned");
+    assert.equal(await getProductStock(pool, productId), 2);
 
     const returnNotifications = await pool.query(
       `SELECT title, message, type
@@ -1275,6 +1293,7 @@ test("shipped -> cancelled is an admin-only manual override (Sprint 11)", { skip
     });
     assert.equal(adminCancels.status, 200);
     assert.equal(adminCancels.body.status, "cancelled");
+    assert.equal(await getProductStock(pool, productId), 4);
   } finally {
     if (orderId) {
       await pool.query("DELETE FROM parcels WHERE order_id = $1", [orderId]);

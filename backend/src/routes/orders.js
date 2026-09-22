@@ -329,29 +329,43 @@ async function createInvoiceForAcceptedOrder(client, orderId) {
   );
 }
 
-async function acceptOrder(client, orderId) {
-  const itemResult = await client.query(
-    `SELECT product_id, quantity
-       FROM order_items
-      WHERE order_id = $1
-      ORDER BY order_item_id`,
-    [orderId],
-  );
-
-  for (const item of itemResult.rows) {
+async function decrementStock(client, items) {
+  const sorted = [...items].sort((a, b) => a.productId - b.productId);
+  for (const item of sorted) {
     const stock = await client.query(
       `UPDATE products
           SET stock_quantity = stock_quantity - $1
         WHERE product_id = $2
           AND stock_quantity >= $1
       RETURNING product_id`,
-      [item.quantity, item.product_id],
+      [item.quantity, item.productId],
     );
     if (!stock.rows.length) {
-      throw createHttpError(400, "insufficient stock to accept order");
+      throw createHttpError(400, "insufficient stock to place order");
     }
   }
+}
 
+export async function restoreOrderStock(client, orderId) {
+  const itemResult = await client.query(
+    `SELECT product_id, quantity
+       FROM order_items
+      WHERE order_id = $1
+      ORDER BY product_id`,
+    [orderId],
+  );
+
+  for (const item of itemResult.rows) {
+    await client.query(
+      `UPDATE products
+          SET stock_quantity = stock_quantity + $1
+        WHERE product_id = $2`,
+      [item.quantity, item.product_id],
+    );
+  }
+}
+
+async function acceptOrder(client, orderId) {
   await client.query(
     `UPDATE orders
         SET status = 'accepted', updated_at = CURRENT_TIMESTAMP
@@ -501,6 +515,8 @@ router.post(
         );
       }
 
+      await decrementStock(client, normalizedItems);
+
       await notifyBusiness(
         client,
         wholesalerBusinessId,
@@ -572,6 +588,10 @@ router.patch(
             WHERE order_id = $2`,
           [status, orderId],
         );
+
+        if (status === "cancelled") {
+          await restoreOrderStock(client, orderId);
+        }
 
         if (status === "shipped") {
           const pricing = await client.query(

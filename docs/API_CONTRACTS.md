@@ -394,7 +394,7 @@ Returns one visible order (same shape as the list rows above, including `parcel_
 
 Role: `buyer` (or platform admin with explicit `buyer_business_id`).
 
-Owning `buyer_business_id` comes from the caller's buyer membership: 0 memberships → `403`; more than 1 → `400` ("multiple buyer businesses not supported yet"). Order items must reference active products, all from one wholesaler business. Product prices are snapshotted into `order_items.unit_price_snapshot` when the order is created. Stock is not decremented until acceptance.
+Owning `buyer_business_id` comes from the caller's buyer membership: 0 memberships → `403`; more than 1 → `400` ("multiple buyer businesses not supported yet"). Order items must reference active products, all from one wholesaler business. Product prices are snapshotted into `order_items.unit_price_snapshot` when the order is created. Placing the order decrements each product's `stock_quantity` in the same transaction. If any line lacks enough stock, the request returns `400` and neither the order nor stock changes.
 
 **Location pin gate (Sprint 13):** placing an order requires the buyer business to be pinned — its canonical logistics address (`businesses.logistics_address_id`, §5) must have both coordinates. Unpinned buyer → **`409`** with message `Pin your business location in Settings before placing orders`. The frontend treats a `409` from this endpoint as the pin gate and links to Settings. Platform admins acting with an explicit `buyer_business_id` are gated on that business the same way.
 
@@ -425,7 +425,7 @@ Roles: `buyer`, `wholesaler`, or `platform_admin` (admin acts as a manual overri
 { "status": "shipped", "weight_kg": 8.5, "dimensions": "40x30x20 cm" }
 ```
 
-Accepting an order decrements each product's `stock_quantity` in the same transaction and generates exactly one invoice. If any line lacks enough stock, the request returns `400` and neither stock nor invoices change. Rejecting an order uses status `cancelled`.
+Accepting an order generates exactly one invoice and does not change `stock_quantity` again. Cancelling an order (including a shipped-order cancel) adds each line's quantity back. `returned` does not restock; the wholesaler adjusts `stock_quantity` manually. Rejecting an order uses status `cancelled`.
 
 Marking an order `shipped` **requires** `weight_kg` (a number > 0; missing or non-positive → `400`) and accepts optional `dimensions`. Shipping auto-creates a parcel (`order_id` set, migration 009) plus its payment row and an `'Order Created'` tracking log; the parcel then appears in the courier pickup pool (§3.1). ETA derives from the service tier's `estimated_days`. `parcels.declared_value` is the frozen order-item subtotal; `parcels.shipping_fee` comes from the tier pricing trigger (base + weight + distance components — the same formula as standalone bookings; an earlier revision of this document wrongly claimed `total_distance_km` stays `NULL` and the fee is `base_fee` only). The auto-created payment is `Online`/`'Paid'` at ship time (§3.3).
 

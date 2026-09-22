@@ -13,6 +13,7 @@ import {
   resolveInitialBranchId,
 } from "../services/parcelRouting.js";
 import { validateCoordinatePair } from "../services/location.js";
+import { restoreOrderStock } from "./orders.js";
 import {
   buildPaginatedResponse,
   parsePaginationQuery,
@@ -1318,6 +1319,7 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
       );
       if (orderRows.length) {
         const order = orderRows[0];
+        await restoreOrderStock(client, order.order_id);
         const message = `Order #${order.order_id} was cancelled: ${effectiveRemarks}`;
         await notifyBusiness(client, order.buyer_business_id, "Order Cancelled", message, "warning");
         await notifyBusiness(client, order.wholesaler_business_id, "Order Cancelled", message, "warning");
