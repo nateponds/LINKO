@@ -53,6 +53,7 @@ router.get("/dashboard", requireAuth, async (req, res, next) => {
         sales: [],
         topProducts: [],
         recentActivity: [],
+        actionableOrders: { pending: 0, accepted: 0 },
       });
     }
 
@@ -123,7 +124,17 @@ router.get("/dashboard", requireAuth, async (req, res, next) => {
        ORDER BY o.updated_at DESC
        LIMIT 6`;
 
-    const [revRes, ordRes, lowRes, prodRes, salesRes, topRes, activityRes] =
+    // Incoming orders the wholesaler still has to accept or start preparing.
+    // Scoped to wholesaler_business_id only — a buyer membership must not
+    // inflate the "needs action" count.
+    const actionableOrdersQuery = `
+      SELECT o.status, COUNT(*)::int AS count
+        FROM orders o
+       WHERE o.wholesaler_business_id = ANY($1::int[])
+         AND o.status = ANY($2::text[])
+       GROUP BY o.status`;
+
+    const [revRes, ordRes, lowRes, prodRes, salesRes, topRes, activityRes, actionableRes] =
       await Promise.all([
         query(revenueQuery, params),
         query(ordersQuery, params),
@@ -132,7 +143,15 @@ router.get("/dashboard", requireAuth, async (req, res, next) => {
         query(salesQuery, params),
         query(topProductsQuery, params),
         query(recentActivityQuery, params),
+        query(actionableOrdersQuery, [businessIds, ["pending", "accepted"]]),
       ]);
+
+    const actionableOrders = { pending: 0, accepted: 0 };
+    for (const row of actionableRes.rows) {
+      if (row.status === "pending" || row.status === "accepted") {
+        actionableOrders[row.status] = row.count;
+      }
+    }
 
     res.json({
       revenue: parseFloat(revRes.rows[0].val),
@@ -145,6 +164,7 @@ router.get("/dashboard", requireAuth, async (req, res, next) => {
         revenue: parseFloat(row.revenue),
       })),
       recentActivity: activityRes.rows,
+      actionableOrders,
     });
   } catch (err) {
     next(asClientError(err));

@@ -227,6 +227,45 @@ const LATEST_LOG = `
      LIMIT 1
   ) latest ON TRUE`;
 
+// Coordinator decision counts. Couriers already get assignment facets on
+// GET /parcels; this stays off that list so the parcel workflow is unchanged.
+router.get(
+  "/logistics/decisions",
+  requireAuth,
+  requireAnyRole(["logistics_coordinator", "platform_admin"]),
+  async (_req, res, next) => {
+    try {
+      const { rows } = await query(
+        `SELECT COUNT(*) FILTER (
+                  WHERE (latest.status_update IS NULL
+                         OR latest.status_update <> ALL($1::text[]))
+                    AND latest.courier_id IS NULL
+                )::int AS unassigned_parcels,
+                COUNT(*) FILTER (
+                  WHERE latest.status_update = $2
+                    AND latest.scanned_at < CURRENT_TIMESTAMP - make_interval(days => $3::int)
+                )::int AS aging_pending_parcels,
+                COUNT(*) FILTER (
+                  WHERE (latest.status_update IS NULL
+                         OR latest.status_update <> ALL($1::text[]))
+                    AND latest.courier_id IS NOT NULL
+                )::int AS courier_active_load
+           FROM parcels p
+           ${LATEST_LOG}`,
+        [TERMINAL_TRACKING_STATUS_LIST, "Order Created", 2],
+      );
+      const row = rows[0];
+      res.json({
+        unassignedParcels: row.unassigned_parcels,
+        agingPendingParcels: row.aging_pending_parcels,
+        courierActiveLoad: row.courier_active_load,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
 // Buyers pass the gate only for the single-parcel read (track-my-order);
 // the list below yields nothing for a buyer-only caller and every write
 // route layers its own tighter requireAnyRole without "buyer".

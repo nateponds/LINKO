@@ -52,6 +52,78 @@ function parsePositiveId(rawId, label) {
 // through /api/auth/register, so they are intentionally excluded here.
 const PRIVILEGED_KINDS = new Set(["logistics_coordinator", "courier", "platform_admin"]);
 
+const OPEN_ORDER_STATUSES = ["pending", "accepted", "preparing", "shipped"];
+const TERMINAL_PARCEL_STATUSES = ["Delivered", "Returned", "Cancelled"];
+const LOW_STOCK_MIN = 1;
+const LOW_STOCK_MAX = 10;
+
+const LATEST_PARCEL_LOG = `
+  LEFT JOIN LATERAL (
+    SELECT status_update, scanned_at, courier_id, branch_id
+      FROM tracking_logs tl
+     WHERE tl.parcel_id = p.parcel_id
+     ORDER BY tl.scanned_at DESC, tl.log_id DESC
+     LIMIT 1
+  ) latest ON TRUE`;
+
+function countsByStatus(rows, statuses) {
+  const counts = Object.fromEntries(statuses.map((status) => [status, 0]));
+  for (const row of rows) {
+    if (Object.hasOwn(counts, row.status)) counts[row.status] = row.count;
+  }
+  return counts;
+}
+
+// GET /api/admin/operations — read-only platform snapshot for the admin strip.
+// Open orders are non-terminal marketplace statuses. A parcel needs assignment
+// when its latest scan is not terminal and has no courier or no branch.
+// Low stock matches the inventory filter (active products, quantity 1–10).
+router.get("/operations", async (_req, res, next) => {
+  try {
+    const [ordersRes, parcelsRes, stockRes, couriersRes] = await Promise.all([
+      query(
+        `SELECT status, COUNT(*)::int AS count
+           FROM orders
+          WHERE status = ANY($1::text[])
+          GROUP BY status`,
+        [OPEN_ORDER_STATUSES],
+      ),
+      query(
+        `SELECT COUNT(*)::int AS needs_assignment
+           FROM parcels p
+           ${LATEST_PARCEL_LOG}
+          WHERE (latest.status_update IS NULL
+                 OR latest.status_update <> ALL($1::text[]))
+            AND (latest.courier_id IS NULL OR latest.branch_id IS NULL)`,
+        [TERMINAL_PARCEL_STATUSES],
+      ),
+      query(
+        `SELECT COUNT(*)::int AS low_stock
+           FROM products
+          WHERE is_active = TRUE
+            AND stock_quantity BETWEEN $1 AND $2`,
+        [LOW_STOCK_MIN, LOW_STOCK_MAX],
+      ),
+      query(
+        `SELECT COUNT(*)::int AS active_couriers
+           FROM couriers
+          WHERE is_active = $1`,
+        [true],
+      ),
+    ]);
+
+    const openOrders = countsByStatus(ordersRes.rows, OPEN_ORDER_STATUSES);
+    res.json({
+      openOrders,
+      unassignedOrBranchlessParcels: parcelsRes.rows[0].needs_assignment,
+      lowStockProducts: stockRes.rows[0].low_stock,
+      activeCouriers: couriersRes.rows[0].active_couriers,
+    });
+  } catch (error) {
+    next(asClientError(error));
+  }
+});
+
 // GET /api/admin/users
 // All users with their aggregated memberships. Newest first.
 router.get("/users", async (req, res, next) => {
