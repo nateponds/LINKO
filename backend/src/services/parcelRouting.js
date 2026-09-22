@@ -115,3 +115,54 @@ export async function resolveInitialBranchId(client, originAddressId) {
 
   return null;
 }
+
+// Latest scan per parcel. Non-terminal rows are a courier's current load.
+// Delivered, Returned, and Cancelled match TERMINAL_TRACKING_STATUSES in
+// routes/logistics.js; kept here so this service does not import the router.
+const NON_TERMINAL_LATEST_SQL = `
+  SELECT DISTINCT ON (tl.parcel_id)
+         tl.parcel_id, tl.courier_id, tl.status_update
+    FROM tracking_logs tl
+   ORDER BY tl.parcel_id, tl.scanned_at DESC, tl.log_id DESC`;
+
+export const TERMINAL_PARCEL_STATUSES = ["Delivered", "Returned", "Cancelled"];
+
+// `$terminalParam` is the bind index of a text[] of terminal statuses.
+// Joins as `courier_load` on `c.courier_id`.
+export function courierActiveLoadJoin(terminalParam) {
+  const slot = Number(terminalParam);
+  if (!Number.isInteger(slot) || slot < 1) {
+    throw new Error("terminalParam must be a positive integer");
+  }
+  return `LEFT JOIN (
+    SELECT latest.courier_id, COUNT(*)::int AS active_parcel_count
+      FROM (${NON_TERMINAL_LATEST_SQL}) latest
+     WHERE latest.courier_id IS NOT NULL
+       AND latest.status_update <> ALL($${slot}::text[])
+     GROUP BY latest.courier_id
+  ) courier_load ON courier_load.courier_id = c.courier_id`;
+}
+
+// Advisory pick for a parcel whose branch is already resolved. Among active
+// couriers assigned to that branch, choose the fewest non-terminal parcels,
+// then the lowest courier_id. A single eligible courier is still returned so
+// the client can preselect them. Null when the branch is unresolved or no
+// active courier is assigned there. Never writes an assignment.
+export async function suggestLeastLoadedCourierId(
+  client,
+  branchId,
+  terminalStatuses = TERMINAL_PARCEL_STATUSES,
+) {
+  if (branchId == null) return null;
+  const { rows } = await client.query(
+    `SELECT c.courier_id
+       FROM couriers c
+       ${courierActiveLoadJoin(2)}
+      WHERE c.is_active
+        AND c.assigned_branch_id = $1
+      ORDER BY COALESCE(courier_load.active_parcel_count, 0) ASC, c.courier_id ASC
+      LIMIT 1`,
+    [branchId, terminalStatuses],
+  );
+  return rows[0]?.courier_id ?? null;
+}

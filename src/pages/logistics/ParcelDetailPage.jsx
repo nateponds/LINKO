@@ -27,6 +27,14 @@ const addressLine = (a) =>
     .filter(Boolean)
     .join(", ");
 
+// An assigned courier stays selected. Otherwise preselect the branch
+// suggestion; the coordinator can still clear or replace it before submit.
+function courierSelection(parcel) {
+  if (parcel.latest_courier_id) return String(parcel.latest_courier_id);
+  if (parcel.suggested_courier_id) return String(parcel.suggested_courier_id);
+  return "";
+}
+
 export default function ParcelDetailPage() {
   const { parcelId } = useParams();
   const navigate = useNavigate();
@@ -70,7 +78,7 @@ export default function ParcelDetailPage() {
         setCouriers(Array.isArray(courierData) ? courierData : []);
         if (parcelData) {
           setFormBranch(parcelData.latest_branch_id ? String(parcelData.latest_branch_id) : "");
-          setFormCourier(parcelData.latest_courier_id ? String(parcelData.latest_courier_id) : "");
+          setFormCourier(courierSelection(parcelData));
         }
       } catch (err) {
         if (cancelled) return;
@@ -165,7 +173,7 @@ export default function ParcelDetailPage() {
       setParcel(data);
       setFormStatus("");
       setFormBranch(data.latest_branch_id ? String(data.latest_branch_id) : "");
-      setFormCourier(data.latest_courier_id ? String(data.latest_courier_id) : "");
+      setFormCourier(courierSelection(data));
       setFormRemarks("");
     } catch(err) {
       setUpdateError(err.message);
@@ -302,8 +310,15 @@ export default function ParcelDetailPage() {
                                 onChange={e => setFormCourier(e.target.value)}
                               >
                                 <option value="">-- None --</option>
-                                {filteredCouriers.map(c => <option key={c.courier_id} value={c.courier_id}>{c.full_name}</option>)}
+                                {filteredCouriers.map(c => (
+                                  <option key={c.courier_id} value={c.courier_id}>
+                                    {c.full_name}{c.active_parcel_count == null ? "" : ` · ${c.active_parcel_count} active`}
+                                  </option>
+                                ))}
                               </select>
+                              {!parcel.latest_courier_id && parcel.suggested_courier_id && formCourier === String(parcel.suggested_courier_id) ? (
+                                <span className="form-note">Suggested least-loaded courier at this branch.</span>
+                              ) : null}
                             </label>
                           </>
                         )}

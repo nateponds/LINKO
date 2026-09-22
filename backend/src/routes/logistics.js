@@ -9,8 +9,11 @@ import {
 import { notifyBusiness } from "../services/notify.js";
 import {
   computeRouteDistanceKm,
+  courierActiveLoadJoin,
   createInitialRouteSnapshot,
   resolveInitialBranchId,
+  suggestLeastLoadedCourierId,
+  TERMINAL_PARCEL_STATUSES,
 } from "../services/parcelRouting.js";
 import { validateCoordinatePair } from "../services/location.js";
 import {
@@ -32,7 +35,7 @@ const VALID_TRACKING_STATUSES = [
   "Returned",
   "Cancelled",
 ];
-const TERMINAL_TRACKING_STATUSES = new Set(["Delivered", "Returned", "Cancelled"]);
+const TERMINAL_TRACKING_STATUSES = new Set(TERMINAL_PARCEL_STATUSES);
 const TERMINAL_TRACKING_STATUS_LIST = [...TERMINAL_TRACKING_STATUSES];
 const PARCEL_ASSIGNMENTS = new Set(["available", "active", "completed"]);
 const RETURN_TRIGGER_FAILS = 3;
@@ -595,6 +598,15 @@ router.get("/parcels/:id", async (req, res) => {
   delete parcel.sender_id;
   delete parcel.receiver_id;
 
+  // Suggestion only. POST /tracking still stores an explicit courier_id and
+  // leaves an omitted one unassigned. Computed after the buyer cutoff so a
+  // hidden return-leg branch does not leak a courier pick.
+  parcel.suggested_courier_id = await suggestLeastLoadedCourierId(
+    { query },
+    parcel.latest_branch_id,
+    TERMINAL_TRACKING_STATUS_LIST,
+  );
+
   res.json(parcel);
 });
 
@@ -902,14 +914,18 @@ router.get("/couriers", async (req, res) => {
       WHERE c.is_active${search}`,
     params,
   );
+  params.push(TERMINAL_TRACKING_STATUS_LIST);
+  const loadJoin = courierActiveLoadJoin(params.length);
   params.push(filters.limit, filters.offset);
   const limitParam = params.length - 1;
   const offsetParam = params.length;
   const { rows } = await query(`
     SELECT c.courier_id, c.full_name, c.phone_number, c.vehicle_type,
-           c.assigned_branch_id, b.branch_name AS assigned_branch_name
+           c.assigned_branch_id, b.branch_name AS assigned_branch_name,
+           COALESCE(courier_load.active_parcel_count, 0)::int AS active_parcel_count
       FROM couriers c
       LEFT JOIN branches b ON b.branch_id = c.assigned_branch_id
+      ${loadJoin}
      WHERE c.is_active${search}
      ORDER BY c.full_name ASC, c.courier_id ASC
      LIMIT $${limitParam} OFFSET $${offsetParam}`, params);
@@ -917,11 +933,15 @@ router.get("/couriers", async (req, res) => {
 });
 
 router.get("/couriers/options", async (_req, res) => {
-  const { rows } = await query(`
-    SELECT courier_id, full_name
-      FROM couriers
-     WHERE is_active
-     ORDER BY full_name ASC, courier_id ASC`);
+  const { rows } = await query(
+    `SELECT c.courier_id, c.full_name,
+            COALESCE(courier_load.active_parcel_count, 0)::int AS active_parcel_count
+       FROM couriers c
+       ${courierActiveLoadJoin(1)}
+      WHERE c.is_active
+      ORDER BY c.full_name ASC, c.courier_id ASC`,
+    [TERMINAL_TRACKING_STATUS_LIST],
+  );
   res.json(rows);
 });
 
@@ -1162,6 +1182,8 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
 
     // Coordinator/admin logs without courier_id deliberately unassign the
     // parcel back to the effective branch pool; courier_id is not carried.
+    // suggested_courier_id on the parcel detail is not applied here: an
+    // explicit courier_id is kept, and an omitted one stays null.
     const { rows } = await client.query(
       `INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id, courier_id)
        VALUES ($1, $2, $3, $4, $5)
