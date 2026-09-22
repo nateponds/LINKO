@@ -1,11 +1,14 @@
 import { ArrowLeft, ArrowRight, MoreVertical } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { apiGet } from "../../lib/api";
+import { marketplaceSearchPath } from "../../features/search/marketplaceSearch";
 import { iconForCategory } from "../../lib/categoryIcons";
 
 function SubNav() {
   const containerRef = useRef(null);
+  const [searchParams] = useSearchParams();
+  const activeQuery = searchParams.get("q") ?? "";
   const [canScrollBack, setCanScrollBack] = useState(false);
   const [canScrollNext, setCanScrollNext] = useState(false);
   const [categories, setCategories] = useState([]);
@@ -76,7 +79,7 @@ function SubNav() {
             <div className="category-item-wrap" key={item.category_id}>
               <Link
                 className="category-pill"
-                to={`/?category=${encodeURIComponent(item.category_name)}`}
+                to={marketplaceSearchPath({ q: activeQuery, category: item.category_name })}
               >
                 <span className="category-icon-circle">
                   <Icon size={24} strokeWidth={1.75} />

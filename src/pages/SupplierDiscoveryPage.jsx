@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight, BadgeCheck } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
+import MarketplaceResults from "../features/search/MarketplaceResults";
 import SupplierGrid from "../features/suppliers/SupplierGrid";
 import { apiGet } from "../lib/api";
 import { peso, stockBadge } from "../lib/format";
@@ -97,7 +98,8 @@ function WholesalerCard({ supplier, index }) {
 
 function SupplierDiscoveryPage() {
   const [searchParams] = useSearchParams();
-  const isFiltered = searchParams.get("q") || searchParams.get("category");
+  const query = (searchParams.get("q") ?? "").trim();
+  const isFiltered = query || searchParams.get("category");
 
   const [products, setProducts] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
@@ -193,7 +195,7 @@ function SupplierDiscoveryPage() {
             </div>
           </>
         )}
-        <SupplierGrid />
+        {query ? <MarketplaceResults /> : <SupplierGrid />}
       </div>
     </AppLayout>
   );

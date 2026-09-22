@@ -11,7 +11,6 @@ import {
   MailOpen,
   Menu,
   Package,
-  Search,
   Settings,
   Star,
   TriangleAlert,
@@ -23,6 +22,8 @@ import { GoChevronDown } from "react-icons/go";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../auth/AuthProvider";
 import { formatRoleLabel, primaryRole, ROLE_ACCESS } from "../../auth/roleAccess";
+import MarketplaceSearch from "../../features/search/MarketplaceSearch";
+import { marketplaceSearchPath } from "../../features/search/marketplaceSearch";
 import ConfirmDialog from "../ui/ConfirmDialog";
 import Sidebar from "./Sidebar";
 
@@ -54,7 +55,6 @@ function Topbar({ showSearch = false, showCategories = false }) {
     logout,
     hasAnyRole,
   } = useAuth();
-  const qParam = searchParams.get("q") ?? "";
   const displayName = user?.full_name || user?.email || "LINKO User";
   const displayBusiness = activeBusiness?.business_name || "No business assigned";
   const displayRole =
@@ -66,12 +66,6 @@ function Topbar({ showSearch = false, showCategories = false }) {
   const BADGE_LABELS = { logistics_coordinator: "Logistics", platform_admin: "Admin", wholesaler: "Seller" };
   const badgeLabel = BADGE_LABELS[badgeRole] ?? formatRoleLabel(badgeRole);
   const avatarLetter = displayName.charAt(0).toUpperCase();
-
-  function submitSearch(event) {
-    event.preventDefault();
-    const q = String(new FormData(event.currentTarget).get("q") || "").trim();
-    navigate(q ? `/?q=${encodeURIComponent(q)}` : "/");
-  }
 
   async function handleLogout() {
     setOpenPanel(null);
@@ -153,7 +147,10 @@ function Topbar({ showSearch = false, showCategories = false }) {
 
   function selectCategory(name) {
     setOpenPanel(null);
-    navigate(name ? `/?category=${encodeURIComponent(name)}` : "/");
+    navigate(marketplaceSearchPath({
+      q: searchParams.get("q") ?? "",
+      category: name ?? "",
+    }));
   }
 
   async function markAsRead(id) {
@@ -262,18 +259,10 @@ function Topbar({ showSearch = false, showCategories = false }) {
           </div>
         )}
         {showSearch && (
-          <form className="search" onSubmit={submitSearch} role="search">
-            <input
-              type="text"
-              name="q"
-              placeholder="Search products, suppliers, etc"
-              defaultValue={qParam}
-              key={qParam}
-            />
-            <button type="submit" className="icon-btn go" title="Search">
-              Search <Search size={16} />
-            </button>
-          </form>
+          <MarketplaceSearch
+            key={searchParams.get("q") ?? ""}
+            categories={categories}
+          />
         )}
         <div className="header-actions">
           <div className="dropdown-anchor">
