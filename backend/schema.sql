@@ -132,6 +132,8 @@ CREATE TABLE addresses (
     postal_code       VARCHAR(10),
     latitude          DECIMAL(10,7),                           -- 023
     longitude         DECIMAL(10,7),                           -- 023
+    label             VARCHAR(80),                             -- 025
+    is_default        BOOLEAN NOT NULL DEFAULT FALSE,          -- 025
     created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,     -- 010
     -- 024
     CONSTRAINT addresses_coords_paired
@@ -143,6 +145,11 @@ CREATE TABLE addresses (
     CONSTRAINT addresses_no_null_island
         CHECK (latitude <> 0 OR longitude <> 0)
 );
+
+-- One default address per business (025). Ownerless branch addresses stay out.
+CREATE UNIQUE INDEX addresses_one_default_per_business
+    ON addresses (business_id)
+    WHERE is_default AND business_id IS NOT NULL;
 
 -- Deferred to break the businesses <-> addresses cycle.
 ALTER TABLE businesses
@@ -466,11 +473,11 @@ ON CONFLICT (category_name) DO NOTHING;
 -- ==========================================================================
 -- SECTION 11 — Migration bookkeeping
 --
--- Stamp 001..024 as applied so `npm run migrate` on a database built from this
+-- Stamp 001..025 as applied so `npm run migrate` on a database built from this
 -- file runs only NEW migrations instead of replaying the whole history against
 -- an already-final schema (which would fail on the first CREATE TABLE).
 --
--- WHEN YOU ADD MIGRATION 025: add its filename to this list AND fold its
+-- WHEN YOU ADD MIGRATION 026: add its filename to this list AND fold its
 -- changes into the sections above, or this file drifts from the migrations.
 -- ==========================================================================
 
@@ -503,7 +510,8 @@ INSERT INTO schema_migrations (filename) VALUES
     ('021_out_for_return_status.sql'),
     ('022_couriers_single_org.sql'),
     ('023_location_routing.sql'),
-    ('024_location_routing_constraints.sql')
+    ('024_location_routing_constraints.sql'),
+    ('025_saved_addresses.sql')
 ON CONFLICT (filename) DO NOTHING;
 
 COMMIT;

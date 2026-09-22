@@ -1,10 +1,12 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useAuth } from "../../auth/AuthProvider";
-import { apiGet, apiSend } from "../../lib/api";
+import { apiSend } from "../../lib/api";
 import MapPicker from "../../components/ui/MapPicker";
+import { addressBookCopy } from "./addressCopy";
 import { X, AlertTriangle } from "lucide-react";
 
 const TEXT_FIELDS = [
+  { key: "label", label: "Label" },
   { key: "province", label: "Province" },
   { key: "city_municipality", label: "City / Municipality" },
   { key: "barangay", label: "Barangay" },
@@ -22,14 +24,13 @@ function toForm(data) {
 
 const formsEqual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
-export default function LocationModal({ open, onClose, onSaved }) {
+export default function LocationModal({ open, onClose, onSaved, address = null }) {
   const { activeBusiness, refreshAuth } = useAuth();
-  const isBuyer = activeBusiness?.roles?.includes("buyer") ?? false;
+  const copy = addressBookCopy(activeBusiness);
+  const isEdit = Boolean(address?.address_id);
   
-  const [form, setForm] = useState(toForm(null));
-  const [savedForm, setSavedForm] = useState(toForm(null));
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(null);
+  const [form, setForm] = useState(() => toForm(address));
+  const [savedForm, setSavedForm] = useState(() => toForm(address));
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
   
@@ -50,30 +51,6 @@ export default function LocationModal({ open, onClose, onSaved }) {
       }
     }
     return () => { document.body.style.overflow = ""; };
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      setLoadError(null);
-      try {
-        const data = await apiGet("/api/settings/location");
-        if (cancelled) return;
-        const initial = toForm(data);
-        setForm(initial);
-        setSavedForm(initial);
-      } catch (err) {
-        if (!cancelled) setLoadError(err.message);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    load();
-    return () => { cancelled = true; };
   }, [open]);
 
   const dirty = !formsEqual(form, savedForm);
@@ -114,18 +91,20 @@ export default function LocationModal({ open, onClose, onSaved }) {
 
     setSaving(true);
     try {
-      const saved = await apiSend("/api/settings/location", {
-        method: "PUT",
-        body: {
-          province: form.province,
-          city_municipality: form.city_municipality,
-          barangay: form.barangay,
-          street_address: form.street_address,
-          postal_code: form.postal_code,
-          latitude: lat === "" ? null : Number(lat),
-          longitude: lng === "" ? null : Number(lng),
-        },
-      });
+      const body = {
+        label: form.label,
+        province: form.province,
+        city_municipality: form.city_municipality,
+        barangay: form.barangay,
+        street_address: form.street_address,
+        postal_code: form.postal_code,
+        latitude: lat === "" ? null : Number(lat),
+        longitude: lng === "" ? null : Number(lng),
+      };
+      const saved = await apiSend(
+        isEdit ? `/api/settings/addresses/${address.address_id}` : "/api/settings/addresses",
+        { method: isEdit ? "PUT" : "POST", body },
+      );
       const next = toForm(saved);
       setForm(next);
       setSavedForm(next);
@@ -158,11 +137,11 @@ export default function LocationModal({ open, onClose, onSaved }) {
       >
         <div className="settings-modal-header">
           <div className="settings-modal-title-group">
-            <h2 id="location-modal-title" className="settings-modal-title">Business Location</h2>
+            <h2 id="location-modal-title" className="settings-modal-title">
+              {isEdit ? `Edit ${copy.modalTitle}` : `Add ${copy.modalTitle}`}
+            </h2>
             <p className="settings-modal-subtitle">
-              {isBuyer
-                ? <>Delivery location for {activeBusiness?.business_name}</>
-                : <>Pickup location for {activeBusiness?.business_name}</>}
+              {copy.modalTitle} for {activeBusiness?.business_name}
             </p>
           </div>
           <button className="settings-modal-close" onClick={requestClose} aria-label="Close modal">
@@ -186,14 +165,6 @@ export default function LocationModal({ open, onClose, onSaved }) {
                 Discard changes
               </button>
             </div>
-          </div>
-        ) : loading ? (
-          <div className="settings-modal-body settings-modal-loading">
-            <p>Loading location details...</p>
-          </div>
-        ) : loadError ? (
-          <div className="settings-modal-body settings-modal-error">
-            <p>{loadError}</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="settings-modal-form logistics-form-card modal-form-override">
@@ -280,7 +251,7 @@ export default function LocationModal({ open, onClose, onSaved }) {
                   Cancel
                 </button>
                 <button type="submit" className="settings-btn settings-btn-primary" disabled={saving || !dirty}>
-                  {saving ? "Saving…" : "Save Location"}
+                  {saving ? "Saving…" : "Save address"}
                 </button>
               </div>
             </div>
