@@ -9,6 +9,7 @@ import { peso, stockBadge } from "../lib/format";
 import { imageForCategory } from "../lib/categoryImages";
 import { pickRandomBanners, productForBanner } from "../lib/productBanners";
 import { normalizePage } from "../features/suppliers/marketplacePagination";
+import { CardGridSkeleton, WholesalerRowSkeleton } from "../components/ui/pageSkeletons";
 
 function PromoBanner({ banner, products, className = "" }) {
   const product = productForBanner(banner, products);
@@ -101,6 +102,7 @@ function SupplierDiscoveryPage() {
 
   const [products, setProducts] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
+  const [promoLoaded, setPromoLoaded] = useState(false);
   // Lazy initializer so the pick survives re-renders and only changes on a
   // fresh mount (i.e., navigating back to the page).
   const [banners] = useState(() => pickRandomBanners(2));
@@ -121,6 +123,8 @@ function SupplierDiscoveryPage() {
       } catch {
         // Home promo content is a nice-to-have; the supplier grid below
         // still works if this fails, so fail silently here.
+      } finally {
+        if (!cancelled) setPromoLoaded(true);
       }
     }
     load();
@@ -146,7 +150,14 @@ function SupplierDiscoveryPage() {
               className="home-banner--hero"
             />
 
-            {featuredProducts.length > 0 && (
+            {!promoLoaded ? (
+              <section className="home-section">
+                <div className="home-section-head">
+                  <h2>Featured Products</h2>
+                </div>
+                <CardGridSkeleton count={5} label="Loading featured products" gridClassName="home-product-grid" />
+              </section>
+            ) : featuredProducts.length > 0 && (
               <section className="home-section">
                 <div className="home-section-head">
                   <h2>Featured Products</h2>
@@ -160,7 +171,14 @@ function SupplierDiscoveryPage() {
               </section>
             )}
 
-            {topWholesalers.length > 0 && (
+            {!promoLoaded ? (
+              <section className="home-section" id="top-wholesalers">
+                <div className="home-section-head">
+                  <h2>Top Wholesalers</h2>
+                </div>
+                <WholesalerRowSkeleton gridClassName="home-wholesaler-row" />
+              </section>
+            ) : topWholesalers.length > 0 && (
               <section className="home-section" id="top-wholesalers">
                 <div className="home-section-head">
                   <h2>Top Wholesalers</h2>
@@ -175,7 +193,14 @@ function SupplierDiscoveryPage() {
 
             <PromoBanner banner={banners[1]} products={products} />
 
-            {moreProducts.length > 0 && (
+            {!promoLoaded ? (
+              <section className="home-section">
+                <div className="home-section-head">
+                  <h2>More From Our Wholesalers</h2>
+                </div>
+                <CardGridSkeleton count={5} label="Loading products" gridClassName="home-product-grid" />
+              </section>
+            ) : moreProducts.length > 0 && (
               <section className="home-section">
                 <div className="home-section-head">
                   <h2>More From Our Wholesalers</h2>

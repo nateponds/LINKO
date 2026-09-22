@@ -3,6 +3,7 @@ import { useAuth } from "../../auth/AuthProvider";
 import { apiGet, apiSend } from "../../lib/api";
 import MapPicker from "../../components/ui/MapPicker";
 import { X, AlertTriangle } from "lucide-react";
+import { FormFieldsSkeleton } from "../../components/ui/pageSkeletons";
 
 const TEXT_FIELDS = [
   { key: "province", label: "Province" },
@@ -188,8 +189,8 @@ export default function LocationModal({ open, onClose, onSaved }) {
             </div>
           </div>
         ) : loading ? (
-          <div className="settings-modal-body settings-modal-loading">
-            <p>Loading location details...</p>
+          <div className="settings-modal-body settings-modal-loading" style={{ display: "block" }}>
+            <FormFieldsSkeleton fields={7} includeMap label="Loading location details" />
           </div>
         ) : loadError ? (
           <div className="settings-modal-body settings-modal-error">

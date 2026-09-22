@@ -27,6 +27,7 @@ import AdminDashboardPage from "./pages/AdminDashboardPage";
 import SettingsPage from "./pages/SettingsPage";
 import Profile from "./features/settings/Profile";
 import BusinessLocation from "./features/settings/BusinessLocation";
+import { AppShellSkeleton } from "./components/ui/pageSkeletons";
 
 const TITLES = [
   ["/landing", "Wholesale Marketplace"],
@@ -62,7 +63,7 @@ function UnknownRouteRedirect() {
   const { loading, user, activeRoles } = useAuth();
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <AppShellSkeleton />;
   }
 
   if (!user) {

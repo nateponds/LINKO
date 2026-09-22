@@ -8,6 +8,7 @@ import { useListUrlState } from "../../hooks/useListUrlState";
 import { apiGet, apiSend } from "../../lib/api";
 import { statusClass, shortDate } from "../../lib/format";
 import { allowedNext, ONE_TAP_REMARKS, FAIL_REASONS } from "../../lib/statusWorkflow";
+import { CourierCardsSkeleton } from "../../components/ui/pageSkeletons";
 import "./logistics.css";
 
 const ASSIGNMENT_TABS = [
@@ -166,7 +167,7 @@ export default function CourierDashboardPage() {
         <main className="courier-list" aria-busy={resource.loading}>
           {actionError && <div className="page-empty page-empty--inline">Could not update parcel: {actionError}</div>}
           {parcels === null && resource.loading ? (
-            <div className="page-empty">Loading assignments...</div>
+            <CourierCardsSkeleton />
           ) : resource.error && !parcels?.length ? (
             <div className="page-empty">Could not load assignments: {resource.error.message}</div>
           ) : (parcels?.length ?? 0) === 0 ? (

@@ -16,6 +16,7 @@ import {
 } from "../../lib/statusWorkflow";
 import { useAuth } from "../../auth/AuthProvider";
 import { apiGet, apiSend } from "../../lib/api";
+import { ParcelDetailSkeleton } from "../../components/ui/pageSkeletons";
 import "./logistics.css";
 
 /* Parcel detail + tracking timeline, backed by GET /api/parcels/:id.
@@ -188,7 +189,7 @@ export default function ParcelDetailPage() {
         </div>
 
         {loading ? (
-          <div className="page-empty">Loading parcel…</div>
+          <ParcelDetailSkeleton />
         ) : notFound ? (
           <div className="page-empty">We couldn't find a parcel with that number.</div>
         ) : error ? (

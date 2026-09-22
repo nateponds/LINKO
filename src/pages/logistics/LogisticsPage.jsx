@@ -7,6 +7,7 @@ import PaginationControls from "../../components/ui/PaginationControls";
 import { useListUrlState } from "../../hooks/useListUrlState";
 import { apiGet } from "../../lib/api";
 import { peso, shortDate, statusClass } from "../../lib/format";
+import { TableSkeleton } from "../../components/ui/pageSkeletons";
 import "./logistics.css";
 
 const STATUS_TABS = [
@@ -114,7 +115,7 @@ export default function LogisticsPage() {
 
         <main className="table-card" aria-busy={resource.loading}>
           {parcels === null && resource.loading ? (
-            <div className="page-empty">Loading parcels…</div>
+            <TableSkeleton columns={9} rows={8} label="Loading parcels" />
           ) : resource.error && !parcels?.length ? (
             <div className="page-empty">Could not load parcels: {resource.error.message}</div>
           ) : (parcels?.length ?? 0) === 0 ? (
