@@ -12,6 +12,7 @@ import {
   Menu,
   Package,
   Search,
+  ShoppingCart,
   Settings,
   Star,
   TriangleAlert,
@@ -22,6 +23,7 @@ import { GoChevronDown } from "react-icons/go";
 
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../auth/AuthProvider";
+import { useCart } from "../../features/cart/CartProvider";
 import { formatRoleLabel, primaryRole, ROLE_ACCESS } from "../../auth/roleAccess";
 import ConfirmDialog from "../ui/ConfirmDialog";
 import Sidebar from "./Sidebar";
@@ -54,6 +56,7 @@ function Topbar({ showSearch = false, showCategories = false }) {
     logout,
     hasAnyRole,
   } = useAuth();
+  const { count: cartCount } = useCart();
   const qParam = searchParams.get("q") ?? "";
   const displayName = user?.full_name || user?.email || "LINKO User";
   const displayBusiness = activeBusiness?.business_name || "No business assigned";
@@ -276,6 +279,17 @@ function Topbar({ showSearch = false, showCategories = false }) {
           </form>
         )}
         <div className="header-actions">
+          {hasAnyRole(ROLE_ACCESS.marketplace) && (
+            <Link
+              to="/cart"
+              className="icon-action"
+              title="Cart"
+              aria-label={`Cart, ${cartCount} item${cartCount === 1 ? "" : "s"}`}
+            >
+              <ShoppingCart size={16} />
+              {cartCount > 0 && <span className="notif-badge">{cartCount}</span>}
+            </Link>
+          )}
           <div className="dropdown-anchor">
             <button
               className="icon-action"

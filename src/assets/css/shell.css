@@ -223,6 +223,10 @@
     transition: background 0.15s ease;
   }
 
+  a.icon-action {
+    text-decoration: none;
+  }
+
   .icon-action:hover {
     background: var(--color-accent);
   }

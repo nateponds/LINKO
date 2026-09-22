@@ -7,6 +7,7 @@ import {
   useLocation,
 } from "react-router-dom";
 import { AuthProvider, useAuth } from "./auth/AuthProvider";
+import { CartProvider } from "./features/cart/CartProvider";
 import ProtectedRoute from "./auth/ProtectedRoute";
 import { ROLE_ACCESS, redirectPathForRoles } from "./auth/roleAccess";
 import SupplierDiscoveryPage from "./pages/SupplierDiscoveryPage";
@@ -25,6 +26,7 @@ import RegisterPage from "./pages/RegisterPage";
 import LandingPage from "./pages/LandingPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import SettingsPage from "./pages/SettingsPage";
+import CartPage from "./pages/CartPage";
 import Profile from "./features/settings/Profile";
 import BusinessLocation from "./features/settings/BusinessLocation";
 
@@ -40,6 +42,7 @@ const TITLES = [
   ["/logistics", "Logistics"],
   ["/admin", "Admin"],
   ["/settings", "Settings"],
+  ["/cart", "Cart"],
   ["/suppliers/", "Supplier"],
 ];
 
@@ -86,6 +89,7 @@ function AppRoutes() {
 
       <Route element={<ProtectedRoute roles={ROLE_ACCESS.marketplace} />}>
         <Route path="/" element={<SupplierDiscoveryPage />} />
+        <Route path="/cart" element={<CartPage />} />
         <Route path="/suppliers" element={<SupplierDiscoveryPage />} />
         <Route
           path="/suppliers/:supplierId"
@@ -135,8 +139,10 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <RouteChrome />
-        <AppRoutes />
+        <CartProvider>
+          <RouteChrome />
+          <AppRoutes />
+        </CartProvider>
       </AuthProvider>
     </BrowserRouter>
   );
