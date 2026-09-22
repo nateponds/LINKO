@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { classifyRouteLegs, loadDrivingDirections } from "../../lib/parcelRouteDirections";
 
 // Shared click-to-pin map (Sprint 13 §9.4). Dumb controlled component: the
 // parent owns draft/saved coordinate state; this only renders it and reports
@@ -186,15 +187,54 @@ export default function MapPicker({ latitude, longitude, onChange, onStatusChang
   );
 }
 
+function addRouteLayers(map, legs) {
+  const features = legs
+    .filter((leg) => leg.geometry && leg.geometry.coordinates.length >= 2)
+    .map((leg) => ({
+      type: "Feature",
+      properties: { kind: leg.kind },
+      geometry: leg.geometry,
+    }));
+  if (features.length === 0) return;
+
+  map.addSource("planned-route", {
+    type: "geojson",
+    data: { type: "FeatureCollection", features },
+  });
+  map.addLayer({
+    id: "planned-route-road",
+    type: "line",
+    source: "planned-route",
+    filter: ["==", ["get", "kind"], "road"],
+    layout: { "line-join": "round", "line-cap": "round" },
+    paint: { "line-color": "#176b5b", "line-width": 4 },
+  });
+  map.addLayer({
+    id: "planned-route-dashed",
+    type: "line",
+    source: "planned-route",
+    filter: ["==", ["get", "kind"], "dashed"],
+    paint: {
+      "line-color": "#176b5b",
+      "line-width": 3,
+      "line-dasharray": [2, 2],
+    },
+  });
+}
+
 export function ParcelRouteMap({ stops }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const [status, setStatus] = useState(TOKEN ? "loading" : "no-token");
+  const [directionCaption, setDirectionCaption] = useState("Checking road directions…");
 
   const routeStops = Array.isArray(stops) ? stops : [];
   const mappedStops = routeStops.filter(
     (stop) => toFinite(stop.latitude) !== null && toFinite(stop.longitude) !== null,
   );
+  const caption = !TOKEN || mappedStops.length === 0
+    ? classifyRouteLegs(routeStops, null, { failure: TOKEN ? null : "no-token" }).caption
+    : directionCaption;
 
   useEffect(() => {
     if (!TOKEN || mappedStops.length === 0) return undefined;
@@ -221,30 +261,36 @@ export function ParcelRouteMap({ stops }) {
           zoom: 11,
         });
         mapRef.current = map;
+        let mapLoaded = false;
 
-        map.on("load", () => {
+        map.on("load", async () => {
+          mapLoaded = true;
           if (cancelled) return;
 
-          if (coordinates.length > 1) {
-            map.addSource("planned-route", {
-              type: "geojson",
-              data: {
-                type: "Feature",
-                properties: {},
-                geometry: { type: "LineString", coordinates },
-              },
+          let classified;
+          try {
+            const loaded = await loadDrivingDirections(routeStops, TOKEN);
+            if (cancelled) return;
+            classified = classifyRouteLegs(routeStops, loaded.responses, {
+              failure: loaded.failure,
             });
-            map.addLayer({
-              id: "planned-route",
-              type: "line",
-              source: "planned-route",
-              paint: {
-                "line-color": "#176b5b",
-                "line-width": 3,
-                "line-dasharray": [2, 2],
-              },
-            });
+          } catch {
+            if (cancelled) return;
+            classified = classifyRouteLegs(routeStops, null, { failure: "unavailable" });
           }
+          if (cancelled) return;
+
+          try {
+            addRouteLayers(map, classified.legs);
+          } catch {
+            if (!cancelled) {
+              setDirectionCaption(
+                classifyRouteLegs(routeStops, null, { failure: "unavailable" }).caption,
+              );
+            }
+            return;
+          }
+          setDirectionCaption(classified.caption);
 
           coordinates.forEach((coordinate, index) => {
             const marker = document.createElement("span");
@@ -254,21 +300,32 @@ export function ParcelRouteMap({ stops }) {
             new mapboxgl.Marker({ element: marker }).setLngLat(coordinate).addTo(map);
           });
 
-          const bounds = coordinates.reduce(
+          const boundPoints = coordinates.slice();
+          classified.legs.forEach((leg) => {
+            leg.geometry?.coordinates?.forEach((coordinate) => boundPoints.push(coordinate));
+          });
+          const bounds = boundPoints.reduce(
             (box, coordinate) => box.extend(coordinate),
-            new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]),
+            new mapboxgl.LngLatBounds(boundPoints[0], boundPoints[0]),
           );
           map.fitBounds(bounds, { padding: 50, maxZoom: 13, duration: 0 });
           map.addControl(new mapboxgl.NavigationControl(), "bottom-right");
           setStatus("ready");
         });
         map.on("error", () => {
-          if (!cancelled) {
-            setStatus((current) => (current === "loading" ? "failed" : current));
-          }
+          if (cancelled || mapLoaded) return;
+          setStatus((current) => (current === "loading" ? "failed" : current));
+          setDirectionCaption(
+            classifyRouteLegs(routeStops, null, { failure: "unavailable" }).caption,
+          );
         });
       } catch {
-        if (!cancelled) setStatus("failed");
+        if (!cancelled) {
+          setStatus("failed");
+          setDirectionCaption(
+            classifyRouteLegs(routeStops, null, { failure: "unavailable" }).caption,
+          );
+        }
       }
     }
 
@@ -313,7 +370,7 @@ export function ParcelRouteMap({ stops }) {
       ) : status === "loading" ? (
         <p className="parcel-route-map-note">Loading planned route map…</p>
       ) : null}
-      <p className="parcel-route-caption">approximate route — not road directions</p>
+      <p className="parcel-route-caption">{caption}</p>
       <ol className="parcel-route-stops">
         {routeStops.map((stop) => {
           const hasCoordinates =
