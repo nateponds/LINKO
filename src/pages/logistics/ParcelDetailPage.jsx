@@ -10,12 +10,13 @@ import { peso, shortDate, statusClass } from "../../lib/format";
 import {
   returnTriggeredFromHistory,
   isReturning,
-  selectableTrackingStatuses,
   ONE_TAP_REMARKS,
   FAIL_REASONS,
 } from "../../lib/statusWorkflow";
 import { useAuth } from "../../auth/AuthProvider";
 import { apiGet, apiSend } from "../../lib/api";
+import { LogisticsNotice, LogisticsPlaceholder } from "./LogisticsStates";
+import { formatNextStatuses, nextStatusesForRole } from "./workflowHints";
 import "./logistics.css";
 
 /* Parcel detail + tracking timeline, backed by GET /api/parcels/:id.
@@ -31,12 +32,8 @@ export default function ParcelDetailPage() {
   const { parcelId } = useParams();
   const navigate = useNavigate();
 
-  const [parcel, setParcel] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
-  const [error, setError] = useState(null);
-  const [branches, setBranches] = useState([]);
-  const [couriers, setCouriers] = useState([]);
+  const [reloadToken, setReloadToken] = useState(0);
+  const [loadState, setLoadState] = useState({ key: null, parcel: null, notFound: false, error: null, branches: [], couriers: [] });
   const { hasAnyRole } = useAuth();
   const [supportOpen, setSupportOpen] = useState(false);
   const [confirm, setConfirm] = useState(null);
@@ -50,42 +47,61 @@ export default function ParcelDetailPage() {
   const [formRemarks, setFormRemarks] = useState("");
   const canUpdateAssignment = hasAnyRole(["logistics_coordinator", "platform_admin"]);
 
+  const loadKey = `${parcelId}:${reloadToken}`;
+
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
 
     async function load() {
       try {
         const [parcelData, branchData, courierData] = await Promise.all([
-          apiGet(`/api/parcels/${parcelId}`).catch((e) => {
+          apiGet(`/api/parcels/${parcelId}`, { signal: controller.signal }).catch((e) => {
             if (e.statusCode === 404) return null;
             throw e;
           }),
-          apiGet("/api/branches/options").catch(() => []),
-          apiGet("/api/couriers/options").catch(() => []),
+          apiGet("/api/branches/options", { signal: controller.signal }).catch(() => []),
+          apiGet("/api/couriers/options", { signal: controller.signal }).catch(() => []),
         ]);
         if (cancelled) return;
-        setParcel(parcelData);
-        setNotFound(!parcelData);
-        setBranches(Array.isArray(branchData) ? branchData : []);
-        setCouriers(Array.isArray(courierData) ? courierData : []);
+        setLoadState({
+          key: loadKey,
+          parcel: parcelData,
+          notFound: !parcelData,
+          error: null,
+          branches: Array.isArray(branchData) ? branchData : [],
+          couriers: Array.isArray(courierData) ? courierData : [],
+        });
         if (parcelData) {
           setFormBranch(parcelData.latest_branch_id ? String(parcelData.latest_branch_id) : "");
           setFormCourier(parcelData.latest_courier_id ? String(parcelData.latest_courier_id) : "");
         }
       } catch (err) {
-        if (cancelled) return;
-        setError(err.message);
-      } finally {
-        if (!cancelled) setLoading(false);
+        if (cancelled || err?.name === "AbortError") return;
+        setLoadState((previous) => ({
+          ...previous,
+          key: loadKey,
+          parcel: null,
+          notFound: false,
+          error: err.message,
+        }));
       }
     }
-    
+
     load();
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
-  }, [parcelId]);
+  }, [loadKey, parcelId]);
+
+  const loading = loadState.key !== loadKey;
+  const parcel = loading ? null : loadState.parcel;
+  const notFound = !loading && loadState.notFound;
+  const error = !loading && loadState.error;
+  const branches = loadState.branches;
+  const couriers = loadState.couriers;
 
   // The complete options endpoint is intentionally unpaged and exposes the
   // allowed assignees directly; branch compatibility is enforced server-side.
@@ -93,12 +109,12 @@ export default function ParcelDetailPage() {
   // Return leg is derived from the rendered history — retry cap or a hard-fail
   // reason opens it. Mirrors the backend's return_triggered list field.
   const returnTriggered = returnTriggeredFromHistory(parcel?.tracking_history);
-  const statusOptions = selectableTrackingStatuses(
+  const statusOptions = nextStatusesForRole(
     parcel?.current_status,
-    canUpdateAssignment,
     returnTriggered,
+    canUpdateAssignment,
   );
-  const canLogTrackingUpdate = canUpdateAssignment || statusOptions.length > 0;
+  const canLogTrackingUpdate = statusOptions.length > 0;
   const selectedStatus = statusOptions.includes(formStatus)
     ? formStatus
     : statusOptions.includes(parcel?.current_status)
@@ -106,11 +122,21 @@ export default function ParcelDetailPage() {
       : statusOptions[0] ?? "";
   // Return-leg red cue: return triggered and not yet back at the sender.
   const returning = isReturning(parcel?.current_status, returnTriggered);
+  const branchLabel = formBranch
+    ? (branches.find((branch) => String(branch.branch_id) === String(formBranch))?.branch_name ?? `Branch #${formBranch}`)
+    : "No branch assigned";
+  const courierLabel = formCourier
+    ? (couriers.find((courier) => String(courier.courier_id) === String(formCourier))?.full_name ?? `Courier #${formCourier}`)
+    : "No courier assigned";
 
   // Validation runs first so the confirm dialog never appears over a form that
   // would be rejected anyway. Only terminal statuses need confirming.
   function handleTrackingSubmit() {
     if (updating) return;
+    if (!statusOptions.includes(selectedStatus)) {
+      setUpdateError(`${selectedStatus || "That status"} is not a legal next step from ${parcel?.current_status ?? "the current status"}.`);
+      return;
+    }
     if (selectedStatus === "Cancelled" && !formRemarks.trim()) {
       setUpdateError("A cancellation reason is required.");
       return;
@@ -162,7 +188,7 @@ export default function ParcelDetailPage() {
 
       await apiSend(`/api/parcels/${parcelId}/tracking`, { body });
       const data = await apiGet(`/api/parcels/${parcelId}`);
-      setParcel(data);
+      setLoadState((previous) => ({ ...previous, parcel: data, notFound: false, error: null }));
       setFormStatus("");
       setFormBranch(data.latest_branch_id ? String(data.latest_branch_id) : "");
       setFormCourier(data.latest_courier_id ? String(data.latest_courier_id) : "");
@@ -188,25 +214,28 @@ export default function ParcelDetailPage() {
         </div>
 
         {loading ? (
-          <div className="page-empty">Loading parcel…</div>
+          <LogisticsPlaceholder label={`parcel #${parcelId}`} />
         ) : notFound ? (
-          <div className="page-empty">We couldn't find a parcel with that number.</div>
+          <LogisticsNotice message="We couldn't find a parcel with that number." />
         ) : error ? (
-          <div className="page-empty">Could not load parcel: {error}</div>
+          <LogisticsNotice
+            message={`Could not load parcel #${parcelId}: ${error}`}
+            onRetry={() => setReloadToken((token) => token + 1)}
+          />
         ) : (
           <main className="parcel-wrap">
             {/* LEFT: parties, package, payment */}
             <aside className="parcel-cards">
-              <div className="parcel-card">
-                <span className="card-heading">Sender</span>
+              <div className="parcel-card route-card">
+                <span className="card-heading">Origin · Sender</span>
                 <span className="field-value"><strong>{parcel.sender.business_name}</strong></span>
                 <span className="field-value muted">{parcel.sender.contact_number}</span>
                 <span className="field-label">Origin</span>
                 <span className="field-value">{addressLine(parcel.origin_address)}</span>
               </div>
 
-              <div className="parcel-card">
-                <span className="card-heading">Receiver</span>
+              <div className="parcel-card route-card">
+                <span className="card-heading">Destination · Receiver</span>
                 <span className="field-value"><strong>{parcel.receiver.business_name}</strong></span>
                 <span className="field-value muted">{parcel.receiver.contact_number}</span>
                 <span className="field-label">Destination</span>
@@ -258,6 +287,27 @@ export default function ParcelDetailPage() {
                 </span>
               </div>
 
+              <div className="parcel-route-summary">
+                <div>
+                  <span className="field-label">Origin</span>
+                  <strong>{parcel.sender.business_name}</strong>
+                  <span>{addressLine(parcel.origin_address) || "No origin address"}</span>
+                </div>
+                <div>
+                  <span className="field-label">Destination</span>
+                  <strong>{parcel.receiver.business_name}</strong>
+                  <span>{addressLine(parcel.destination_address) || "No destination address"}</span>
+                </div>
+                {canUpdateAssignment && (
+                  <div>
+                    <span className="field-label">Current assignment</span>
+                    <strong>{branchLabel}</strong>
+                    <span>{courierLabel}</span>
+                  </div>
+                )}
+                <p className="parcel-next-hint">Next legal status: {formatNextStatuses(statusOptions)}</p>
+              </div>
+
               <ParcelRouteMap
                 key={`${parcel.parcel_id}-${parcel.planned_route?.length ? "planned" : "empty"}`}
                 stops={parcel.planned_route}
@@ -265,16 +315,20 @@ export default function ParcelDetailPage() {
 
               {hasAnyRole(["logistics_coordinator", "platform_admin", "courier"]) && (
                 <div className="update-status-form">
-                  <h3>Log Delivery Event</h3>
-                  {updateError && <p className="form-error">{updateError}</p>}
+                  <h3>{canUpdateAssignment ? "Assign and log the next status" : "Log the next status"}</h3>
+                  <p className="form-note">
+                    {canUpdateAssignment
+                      ? "Only the next legal statuses are listed. Branch and courier are saved with that event."
+                      : "Only the next legal status can be logged from here."}
+                  </p>
                   {canLogTrackingUpdate ? (
                     <>
                       <div className="update-status-grid">
                         <label>
-                          <span>Delivery status</span>
+                          <span>Next legal status</span>
                           <select
                             value={selectedStatus}
-                            onChange={e => setFormStatus(e.target.value)}
+                            onChange={e => { setFormStatus(e.target.value); setUpdateError(null); }}
                           >
                             {statusOptions.map((status) => (
                               <option key={status} value={status}>{status}</option>
@@ -285,23 +339,23 @@ export default function ParcelDetailPage() {
                         {canUpdateAssignment && (
                           <>
                             <label>
-                              <span>Log at Branch</span>
+                              <span>Branch</span>
                               <select
                                 value={formBranch}
                                 onChange={e => setFormBranch(e.target.value)}
                               >
-                                <option value="">-- None --</option>
+                                <option value="">No branch</option>
                                 {branches.map(b => <option key={b.branch_id} value={b.branch_id}>{b.branch_name}</option>)}
                               </select>
                             </label>
 
                             <label>
-                              <span>Assign Courier</span>
+                              <span>Courier</span>
                               <select
                                 value={formCourier}
                                 onChange={e => setFormCourier(e.target.value)}
                               >
-                                <option value="">-- None --</option>
+                                <option value="">No courier</option>
                                 {filteredCouriers.map(c => <option key={c.courier_id} value={c.courier_id}>{c.full_name}</option>)}
                               </select>
                             </label>
@@ -345,9 +399,10 @@ export default function ParcelDetailPage() {
                         </label>
                       ) : null}
 
+                      {updateError && <p className="form-error" role="alert">{updateError}</p>}
                       <button
                         onClick={handleTrackingSubmit}
-                        disabled={updating}
+                        disabled={updating || !selectedStatus}
                         className="update-submit"
                       >
                         {updating ? "Saving..." : "Log Event"}

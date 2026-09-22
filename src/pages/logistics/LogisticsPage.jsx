@@ -7,6 +7,8 @@ import PaginationControls from "../../components/ui/PaginationControls";
 import { useListUrlState } from "../../hooks/useListUrlState";
 import { apiGet } from "../../lib/api";
 import { peso, shortDate, statusClass } from "../../lib/format";
+import { LogisticsNotice, LogisticsPlaceholder } from "./LogisticsStates";
+import { formatNextStatuses, nextStatusesForRole } from "./workflowHints";
 import "./logistics.css";
 
 const STATUS_TABS = [
@@ -51,6 +53,7 @@ export default function LogisticsPage() {
   if (list.q) query.set("q", list.q);
   if (statusFilter !== "All") query.set("status", statusFilter);
   const resource = useParcelPage(`/api/parcels?${query.toString()}`);
+  const canAssign = hasAnyRole(["logistics_coordinator", "platform_admin"]);
   const searchTimerRef = useRef(null);
   const pageData = resource.data ?? resource.staleData;
   const parcels = pageData?.items ?? null;
@@ -114,38 +117,74 @@ export default function LogisticsPage() {
 
         <main className="table-card" aria-busy={resource.loading}>
           {parcels === null && resource.loading ? (
-            <div className="page-empty">Loading parcels…</div>
+            <LogisticsPlaceholder label="parcels" />
           ) : resource.error && !parcels?.length ? (
-            <div className="page-empty">Could not load parcels: {resource.error.message}</div>
+            <LogisticsNotice
+              message={`Could not load parcels: ${resource.error.message}`}
+              onRetry={resource.reload}
+            />
           ) : (parcels?.length ?? 0) === 0 ? (
-            <div className="page-empty">
-              {list.q || statusFilter !== "All" ? "No parcels match these filters." : "No parcels are visible for this account yet."}
-              {(list.q || statusFilter !== "All") && (
-                <button className="clear-list-filters" type="button" onClick={() => list.update({ q: "", filters: { status: "" } })}>
-                  Clear filters
-                </button>
-              )}
-            </div>
+            <LogisticsNotice
+              message={list.q || statusFilter !== "All" ? "No parcels match these filters." : "No parcels are visible for this account yet."}
+              onRetry={list.q || statusFilter !== "All" ? () => list.update({ q: "", filters: { status: "" } }) : undefined}
+              retryLabel="Clear filters"
+            />
           ) : (
             <>
-              {resource.error && <div className="page-empty page-empty--inline">Could not refresh parcels: {resource.error.message}</div>}
+              {resource.error && (
+                <LogisticsNotice
+                  message={`Could not refresh parcels: ${resource.error.message}`}
+                  onRetry={resource.reload}
+                />
+              )}
               <div className="parcel-table-wrap">
                 <table className="data-table">
-                  <thead><tr><th>Parcel No.</th><th>Sender</th><th>Receiver</th><th>Tier</th><th>Weight</th><th>Shipping Fee</th><th>ETA</th><th>Status</th><th /></tr></thead>
+                  <thead>
+                    <tr>
+                      <th>Parcel No.</th>
+                      <th>Origin</th>
+                      <th>Destination</th>
+                      <th>Next status</th>
+                      <th>Tier</th>
+                      <th>Weight</th>
+                      <th>Shipping Fee</th>
+                      <th>ETA</th>
+                      <th>Status</th>
+                      {canAssign && <th>Assignment</th>}
+                      <th />
+                    </tr>
+                  </thead>
                   <tbody>
-                    {parcels.map((parcel) => (
-                      <tr key={parcel.parcel_id}>
-                        <td>#{parcel.parcel_id}</td>
-                        <td><strong>{parcel.sender.business_name}</strong></td>
-                        <td>{parcel.receiver.business_name}</td>
-                        <td>{parcel.tier_name}</td>
-                        <td>{parcel.weight_kg} kg</td>
-                        <td>{peso(parcel.shipping_fee)}</td>
-                        <td>{shortDate(parcel.estimated_delivery_date)}</td>
-                        <td><span className={`status ${statusClass(parcel.current_status)}`}>{parcel.current_status ?? "—"}</span></td>
-                        <td><Link className="track-link" to={`/logistics/${parcel.parcel_id}`}>Track</Link></td>
-                      </tr>
-                    ))}
+                    {parcels.map((parcel) => {
+                      const next = nextStatusesForRole(parcel.current_status, parcel.return_triggered, canAssign);
+                      return (
+                        <tr key={parcel.parcel_id}>
+                          <td>#{parcel.parcel_id}</td>
+                          <td>
+                            <strong>{parcel.sender.business_name}</strong>
+                            <span className="route-party">Sender</span>
+                          </td>
+                          <td>
+                            {parcel.receiver.business_name}
+                            <span className="route-party">Receiver</span>
+                          </td>
+                          <td className="next-status-cell">{formatNextStatuses(next)}</td>
+                          <td>{parcel.tier_name}</td>
+                          <td>{parcel.weight_kg} kg</td>
+                          <td>{peso(parcel.shipping_fee)}</td>
+                          <td>{shortDate(parcel.estimated_delivery_date)}</td>
+                          <td><span className={`status ${statusClass(parcel.current_status)}`}>{parcel.current_status ?? "—"}</span></td>
+                          {canAssign && (
+                            <td>{parcel.latest_courier_id ? "Courier assigned" : "Needs a courier"}</td>
+                          )}
+                          <td>
+                            <Link className="track-link" to={`/logistics/${parcel.parcel_id}`}>
+                              {canAssign ? "Assign" : "Track"}
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
