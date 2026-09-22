@@ -213,6 +213,7 @@ function Topbar({ showSearch = false, showCategories = false }) {
             ""
           )}
         </span>
+        <Link className="topbar-about" to="/landing">About LINKO</Link>
       </div>
       <header className="header-nav">
         <Link to="/" className="logo">

@@ -48,6 +48,12 @@ function RouteChrome() {
   const { pathname } = useLocation();
 
   useEffect(() => {
+    if (pathname === "/") {
+      document.title = "LINKO";
+      window.scrollTo(0, 0);
+      return;
+    }
+
     const match = TITLES.find(([prefix]) => pathname.startsWith(prefix));
     document.title = match
       ? `${match[1]} · LINKO`
@@ -73,6 +79,22 @@ function UnknownRouteRedirect() {
   return <Navigate to={defaultPath} replace />;
 }
 
+/* Signed-out visitors get the marketing page at /. Signed-in visitors keep
+   the marketplace, including the role redirect inside ProtectedRoute. */
+function HomeGate() {
+  const { loading, user } = useAuth();
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!user) {
+    return <LandingPage />;
+  }
+
+  return <ProtectedRoute roles={ROLE_ACCESS.marketplace} />;
+}
+
 function AppRoutes() {
   return (
     <Routes>
@@ -80,12 +102,15 @@ function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
 
+      <Route element={<HomeGate />}>
+        <Route path="/" element={<SupplierDiscoveryPage />} />
+      </Route>
+
       <Route element={<ProtectedRoute roles={ROLE_ACCESS.dashboard} />}>
         <Route path="/dashboard" element={<DashboardPage />} />
       </Route>
 
       <Route element={<ProtectedRoute roles={ROLE_ACCESS.marketplace} />}>
-        <Route path="/" element={<SupplierDiscoveryPage />} />
         <Route path="/suppliers" element={<SupplierDiscoveryPage />} />
         <Route
           path="/suppliers/:supplierId"

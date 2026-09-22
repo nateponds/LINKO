@@ -45,6 +45,7 @@ function Footer() {
         </div>
         <div className="footer-col">
           <h4>Account</h4>
+          <Link className="footer-about" to="/landing">About LINKO</Link>
           {hasAnyRole(ROLE_ACCESS.dashboard) && <Link to="/dashboard">Workspace</Link>}
           {hasAnyRole(["buyer", "wholesaler", "platform_admin"]) && <Link to="/orders">Orders</Link>}
           {hasAnyRole(["wholesaler", "logistics_coordinator", "courier", "platform_admin"]) && (

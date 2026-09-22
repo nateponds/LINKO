@@ -1,7 +1,5 @@
 import { useMemo, useState } from "react";
-import confetti from "canvas-confetti";
-import { motion } from "framer-motion";
-import { ArrowUpRight, Sparkles } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
 import { calculateSavings, convertFromPhp } from "./savings";
 
 const USD_EXCHANGE_RATE = 58;
@@ -18,7 +16,7 @@ export default function SavingsCalculator() {
   const [monthlySpend, setMonthlySpend] = useState(450_000);
   const [orderVolume, setOrderVolume] = useState(420);
   const [currency, setCurrency] = useState("PHP");
-  const [celebrated, setCelebrated] = useState(false);
+  const reduceMotion = useReducedMotion();
 
   const savings = useMemo(
     () => calculateSavings(monthlySpend, orderVolume),
@@ -39,28 +37,13 @@ export default function SavingsCalculator() {
     currency,
     USD_EXCHANGE_RATE,
   );
-  const linkoBarWidth = Math.round((savings.linkoCost / savings.annualSpend) * 100);
-
-  function celebrateSavings() {
-    setCelebrated(true);
-    confetti({
-      particleCount: 120,
-      spread: 75,
-      origin: { y: 0.72 },
-      colors: ["#98d868", "#3050a0", "#d9e3fb"],
-      disableForReducedMotion: true,
-    });
-  }
 
   return (
     <div className="savings-card">
       <div className="savings-controls">
         <div className="savings-heading-row">
-          <div>
-            <span className="eyebrow eyebrow--dark">ROI ESTIMATOR</span>
-            <h3>See what smarter sourcing saves.</h3>
-          </div>
-          <div className="currency-toggle" aria-label="Select calculator currency">
+          <h3>Your numbers</h3>
+          <div className="currency-toggle" role="group" aria-label="Select calculator currency">
             {["PHP", "USD"].map((option) => (
               <button
                 key={option}
@@ -94,8 +77,8 @@ export default function SavingsCalculator() {
             onChange={(event) => setMonthlySpend(Number(event.target.value))}
           />
           <small>
-            <span>{currency === "PHP" ? "₱50K" : "$862"}</span>
-            <span>{currency === "PHP" ? "₱2M" : "$34.5K"}</span>
+            <span>{currency === "PHP" ? "₱50,000" : "$862"}</span>
+            <span>{currency === "PHP" ? "₱2,000,000" : "$34,483"}</span>
           </small>
         </label>
 
@@ -117,62 +100,37 @@ export default function SavingsCalculator() {
             <span>1,000 units</span>
           </small>
         </label>
-
-        <p className="calculator-note">
-          Estimate based on representative wholesale tier improvements. Actual
-          savings vary by product, location, and wholesaler.
-        </p>
       </div>
 
-      <div className="savings-result">
-        <span className="result-kicker">YOUR ESTIMATED ANNUAL SAVINGS</span>
+      <div className="savings-result" aria-live="polite">
+        <p className="result-label">Estimated annual savings</p>
         <motion.strong
           key={`${currency}-${Math.round(displayAnnualSavings)}`}
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={reduceMotion ? false : { opacity: 0.45 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
           className="savings-total"
         >
           {formatCurrency(displayAnnualSavings, currency)}
         </motion.strong>
-        <span className="savings-percent">
-          <Sparkles size={16} aria-hidden="true" />
-          {(savings.savingsRate * 100).toFixed(1)}% potential cost reduction
-        </span>
+        <p className="savings-rate">
+          Volume rate used: {(savings.savingsRate * 100).toFixed(1)}%. A larger order uses a higher rate, up to 32%.
+        </p>
 
-        <div className="cost-bars" aria-label="Annual cost comparison">
-          <div className="cost-row">
-            <div>
-              <span>Traditional sourcing</span>
-              <strong>{formatCurrency(displayAnnualSpend, currency)}</strong>
-            </div>
-            <div className="cost-track">
-              <motion.span
-                className="cost-fill cost-fill--traditional"
-                animate={{ width: "100%" }}
-              />
-            </div>
+        <dl className="cost-pair">
+          <div>
+            <dt>Traditional sourcing, a year</dt>
+            <dd>{formatCurrency(displayAnnualSpend, currency)}</dd>
           </div>
-          <div className="cost-row">
-            <div>
-              <span>With LINKO</span>
-              <strong>{formatCurrency(displayLinkoCost, currency)}</strong>
-            </div>
-            <div className="cost-track">
-              <motion.span
-                className="cost-fill cost-fill--linko"
-                animate={{ width: `${linkoBarWidth}%` }}
-              />
-            </div>
+          <div>
+            <dt>Same spend with the rate applied</dt>
+            <dd>{formatCurrency(displayLinkoCost, currency)}</dd>
           </div>
-        </div>
+        </dl>
 
-        <button type="button" className="claim-button" onClick={celebrateSavings}>
-          {celebrated ? "Savings unlocked" : "Claim your savings"}
-          <ArrowUpRight size={18} aria-hidden="true" />
-        </button>
-        <span className="sr-only" aria-live="polite">
-          {celebrated ? "Your savings estimate is ready to claim." : ""}
-        </span>
+        <p className="calculator-note">
+          USD uses an illustrative rate of ₱58. Actual prices depend on the product, the place, and the wholesaler.
+        </p>
       </div>
     </div>
   );

@@ -18,11 +18,25 @@
 
   /* topbar */
   .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
     background: white;
     color: var(--color-text);
     padding: 5px 20px;
     font-size: 12px;
     border-bottom: 1px solid var(--color-surface);
+  }
+
+  .topbar > span {
+    min-width: 0;
+  }
+
+  .topbar-about {
+    flex: none;
+    font-weight: 700;
+    white-space: nowrap;
   }
 
   .topbar a {
@@ -909,6 +923,11 @@
     font-size: 0.76rem;
     text-transform: uppercase;
     letter-spacing: 0.06em;
+  }
+
+  .footer-col a.footer-about {
+    color: #fff;
+    font-weight: 700;
   }
 
   .footer-col a,

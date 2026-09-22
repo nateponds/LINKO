@@ -2,20 +2,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-test("hero arc stays below the trust row", async () => {
+test("landing hero is a flat catalog surface without a decorative arc", async () => {
   const css = await readFile(
     new URL("../../assets/css/landing.css", import.meta.url),
     "utf8",
   );
-  const arcBlock = css.match(/\.landing-hero::after\s*\{([^}]*)\}/)?.[1];
 
-  assert.ok(arcBlock, "hero arc styles must exist");
-
-  const bottomOffset = Number(arcBlock.match(/bottom:\s*(-?\d+)px/)?.[1]);
-  assert.ok(
-    bottomOffset <= -235,
-    `hero arc bottom offset must be -235px or lower; received ${bottomOffset}px`,
-  );
+  assert.doesNotMatch(css, /\.landing-hero::after/);
+  assert.match(css, /\.landing-page\s*\{[^}]*background:\s*var\(--paper\)/);
+  assert.doesNotMatch(css, /background-clip:\s*text/);
 });
 
 test("landing navigation uses a white text LINKO wordmark instead of an image", async () => {
