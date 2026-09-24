@@ -14,9 +14,11 @@ import {
   Trash2,
   Truck,
 } from "lucide-react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
+import { useAuth } from "../auth/AuthProvider";
 import { apiGet, apiSend } from "../lib/api";
+import { addressBookCopy, formatAddress } from "../features/settings/addressCopy";
 import { peso, stockBadge } from "../lib/format";
 import { bannersForProducts } from "../lib/productBanners";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
@@ -40,6 +42,11 @@ function clampQuantity(value, max) {
 
 export default function SupplierProfilePage() {
   const { supplierId } = useParams();
+  const { activeBusiness, activeBusinessId, refreshAuth } = useAuth();
+  const addressCopy = addressBookCopy(activeBusiness);
+  const canPickAddress = Boolean(
+    activeBusiness?.roles?.includes("buyer") || activeBusiness?.roles?.includes("wholesaler"),
+  );
   const [searchParams, setSearchParams] = useSearchParams();
   const productState = readListUrlState(searchParams, { prefix: "product" });
   const categoryState = readListUrlState(searchParams, { prefix: "category" });
@@ -68,6 +75,11 @@ export default function SupplierProfilePage() {
   const [cartMessage, setCartMessage] = useState(null);
   const [checkoutError, setCheckoutError] = useState(null);
   const [checkingOut, setCheckingOut] = useState(false);
+  const [addressBook, setAddressBook] = useState(null);
+  const addressBookReady = canPickAddress && addressBook?.businessId === activeBusinessId;
+  const savedAddresses = addressBookReady ? addressBook.addresses : [];
+  const selectedAddressId = addressBookReady ? addressBook.selectedId : null;
+  const addressesLoading = canPickAddress && !addressBookReady;
   const [checkoutConfirmation, setCheckoutConfirmation] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [selectedTierId, setSelectedTierId] = useState(null);
@@ -93,6 +105,29 @@ export default function SupplierProfilePage() {
     }, 300);
     return () => window.clearTimeout(timer);
   }, [categorySearchInput, categoryState.q, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (!canPickAddress) return undefined;
+    let cancelled = false;
+    const businessId = activeBusinessId;
+    apiGet("/api/settings/addresses")
+      .then((data) => {
+        if (cancelled) return;
+        const list = Array.isArray(data.addresses) ? data.addresses : [];
+        const preferred = list.find((row) => row.is_default) ?? list[0];
+        setAddressBook({
+          businessId,
+          addresses: list,
+          selectedId: preferred?.address_id ?? null,
+        });
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAddressBook({ businessId, addresses: [], selectedId: null });
+        }
+      });
+    return () => { cancelled = true; };
+  }, [activeBusinessId, canPickAddress]);
 
   useEffect(() => {
     let cancelled = false;
@@ -332,10 +367,23 @@ export default function SupplierProfilePage() {
       return;
     }
 
+    const selectedAddress = savedAddresses.find((row) => row.address_id === selectedAddressId);
+    if (canPickAddress && savedAddresses.length === 0 && !addressesLoading) {
+      setCheckoutError(`Add a ${addressCopy.noun} in Settings before placing the order.`);
+      return;
+    }
+    if (canPickAddress && savedAddresses.length > 0 && !selectedAddress) {
+      setCheckoutError(`Choose a ${addressCopy.noun} before placing the order.`);
+      return;
+    }
+
     const itemCount = cartItems.reduce((sum, { quantity }) => sum + quantity, 0);
+    const addressLine = selectedAddress
+      ? ` ${addressCopy.checkoutLabel}: ${selectedAddress.label} (${formatAddress(selectedAddress)}).`
+      : "";
     setConfirm({
       title: "Place this order?",
-      message: `Place an order with ${supplier?.business_name ?? "this supplier"} for ${itemCount} item${itemCount === 1 ? "" : "s"} totalling ${peso(cartTotal)} (including ${peso(deliveryFee)} delivery)?`,
+      message: `Place an order with ${supplier?.business_name ?? "this supplier"} for ${itemCount} item${itemCount === 1 ? "" : "s"} totalling ${peso(cartTotal)} (including ${peso(deliveryFee)} delivery)?${addressLine}`,
       confirmLabel: "Place order",
       onConfirm: () => { void submitCheckout(); },
     });
@@ -346,6 +394,18 @@ export default function SupplierProfilePage() {
     setCheckoutError(null);
 
     try {
+      const selectedAddress = savedAddresses.find((row) => row.address_id === selectedAddressId);
+      if (selectedAddress && !selectedAddress.is_default) {
+        await apiSend(`/api/settings/addresses/${selectedAddress.address_id}/default`, { method: "POST" });
+        await refreshAuth();
+        setAddressBook((current) => (current ? {
+          ...current,
+          addresses: current.addresses.map((row) => ({
+            ...row,
+            is_default: row.address_id === selectedAddress.address_id,
+          })),
+        } : current));
+      }
       const order = await apiSend("/api/orders", {
         body: {
           tier_id: selectedTierId,
@@ -744,6 +804,42 @@ export default function SupplierProfilePage() {
                       <strong>{peso(cartSubtotal)}</strong>
                     </div>
 
+                    {canPickAddress && (
+                      <div className="cart-address-selection">
+                        <label htmlFor="checkout-address">
+                          {addressCopy.checkoutLabel}
+                        </label>
+                        {addressesLoading ? (
+                          <p className="cart-note">Loading saved addresses…</p>
+                        ) : savedAddresses.length === 0 ? (
+                          <p className="cart-note">
+                            No saved addresses yet.{" "}
+                            <Link to="/settings/business-location">Add one in Settings</Link>
+                          </p>
+                        ) : (
+                          <select
+                            id="checkout-address"
+                            value={selectedAddressId ?? ""}
+                            onChange={(event) => {
+                              const nextId = Number(event.target.value);
+                              setAddressBook((current) => (current ? { ...current, selectedId: nextId } : current));
+                              setCheckoutError(null);
+                            }}
+                          >
+                            {savedAddresses.map((address) => (
+                              <option key={address.address_id} value={address.address_id}>
+                                {address.label}
+                                {address.is_default ? " (default)" : ""}
+                                {" — "}
+                                {formatAddress(address)}
+                                {address.has_coordinates ? "" : " (not pinned)"}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                    )}
+
                     {tiers.length > 0 && (
                       <div className="cart-tier-selection" style={{ marginTop: '1rem' }}>
                         <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem', color: 'var(--gray-600)' }}>
@@ -793,7 +889,7 @@ export default function SupplierProfilePage() {
                 <button
                   type="button"
                   className="checkout-btn"
-                  disabled={cartItems.length === 0 || checkingOut}
+                  disabled={cartItems.length === 0 || checkingOut || addressesLoading}
                   onClick={checkoutCart}
                 >
                   {checkingOut ? "Checking out..." : "Checkout"}

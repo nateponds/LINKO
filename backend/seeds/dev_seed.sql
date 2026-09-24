@@ -273,6 +273,19 @@ FROM (VALUES
 ) AS v(business_id, address_id)
 WHERE b.business_id = v.business_id;
 
+-- The logistics pin is the one default in each business address book (025).
+UPDATE addresses AS a
+   SET is_default = TRUE,
+       label = 'Primary'
+  FROM businesses AS b
+ WHERE b.logistics_address_id = a.address_id
+   AND a.business_id = b.business_id;
+
+UPDATE addresses
+   SET label = COALESCE(NULLIF(barangay, ''), 'Address')
+ WHERE business_id IS NOT NULL
+   AND label IS NULL;
+
 INSERT INTO warehouses (business_id, warehouse_name, address_id) VALUES
   (2, 'Cebu Fresh Main Warehouse', 3),
   (7, 'Mandaue Agri Cold Storage', 9),

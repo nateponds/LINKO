@@ -681,6 +681,27 @@
     font-size: 0.9rem;
   }
 
+  .cart-address-selection label {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: var(--gray-600);
+    font-size: 0.9rem;
+  }
+
+  .cart-address-selection select {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--gray-200);
+    border-radius: 4px;
+    background: white;
+    color: var(--color-text);
+  }
+
+  .cart-address-selection a {
+    color: var(--color-primary-dark);
+    font-weight: 700;
+  }
+
   /* ── Categories tab ── */
   .category-grid {
     display: grid;

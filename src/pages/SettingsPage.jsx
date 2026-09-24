@@ -15,7 +15,7 @@ const NAV_GROUPS = [
     title: "Business",
     items: [
       { to: "/settings/business-details", label: "Business Details", icon: Briefcase, active: false },
-      { to: "/settings/business-location", label: "Business Location", icon: MapPin, active: true },
+      { to: "/settings/business-location", label: "Addresses", icon: MapPin, active: true },
       { to: "/settings/team", label: "Team & Access", icon: Users, active: false },
     ],
   },

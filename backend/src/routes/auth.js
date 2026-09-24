@@ -81,8 +81,9 @@ router.post("/register", async (req, res, next) => {
     // coordinates, so the new business correctly hits the pin gates and the
     // missing-location banner until it saves a real location in Settings.
     const addressResult = await client.query(
-      `INSERT INTO addresses (business_id, province, city_municipality, barangay, street_address, postal_code)
-       VALUES ($1, 'Not provided', 'Not provided', 'Not provided', 'Not provided', '0000')
+      `INSERT INTO addresses
+         (business_id, label, province, city_municipality, barangay, street_address, postal_code, is_default)
+       VALUES ($1, 'Primary', 'Not provided', 'Not provided', 'Not provided', 'Not provided', '0000', TRUE)
        RETURNING address_id`,
       [businessResult.rows[0].business_id],
     );
