@@ -1,10 +1,12 @@
 import "./SupplierDiscoveryPage.css";
 import { useEffect, useState } from "react";
-import { ArrowRight, BadgeCheck } from "lucide-react";
+import { ArrowRight, BadgeCheck, ShoppingCart } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
 import MarketplaceResults from "../features/search/MarketplaceResults";
 import SupplierGrid from "../features/suppliers/SupplierGrid";
+import { useCart } from "../features/cart/CartProvider";
+import { isUnavailable } from "../features/cart/cart";
 import { apiGet } from "../lib/api";
 import { peso, stockBadge } from "../lib/format";
 import { imageForCategory } from "../lib/categoryImages";
@@ -37,6 +39,14 @@ const AVATAR_PALETTE = [
 
 function ProductCard({ product }) {
   const badge = stockBadge(product.stock_status);
+  const { addProduct } = useCart();
+  const [note, setNote] = useState(null);
+  const available = !isUnavailable(product);
+
+  function handleAdd() {
+    const result = addProduct(product, 1);
+    setNote(result.error ?? "Added to cart.");
+  }
 
   return (
     <div className="home-product-card">
@@ -56,12 +66,24 @@ function ProductCard({ product }) {
           <span className="home-product-price">{peso(product.unit_price)}</span>
           <span className={`status ${badge.cls}`}>{badge.label}</span>
         </div>
-        <Link
-          to={`/suppliers/${product.business_id}?product_id=${product.product_id}`}
-          className="home-product-cta"
-        >
-          View Product <ArrowRight size={14} />
-        </Link>
+        <div className="home-product-actions">
+          <Link
+            to={`/suppliers/${product.business_id}?product_id=${product.product_id}`}
+            className="home-product-cta"
+          >
+            View Product <ArrowRight size={14} />
+          </Link>
+          <button
+            type="button"
+            className="home-product-add"
+            disabled={!available}
+            onClick={handleAdd}
+          >
+            <ShoppingCart size={14} />
+            Add
+          </button>
+        </div>
+        {note && <p className="home-product-note">{note}</p>}
       </div>
     </div>
   );

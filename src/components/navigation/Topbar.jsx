@@ -11,6 +11,7 @@ import {
   MailOpen,
   Menu,
   Package,
+  ShoppingCart,
   Settings,
   Star,
   TriangleAlert,
@@ -21,6 +22,7 @@ import { GoChevronDown } from "react-icons/go";
 
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../auth/AuthProvider";
+import { useCart } from "../../features/cart/CartProvider";
 import { formatRoleLabel, primaryRole, ROLE_ACCESS } from "../../auth/roleAccess";
 import MarketplaceSearch from "../../features/search/MarketplaceSearch";
 import { marketplaceSearchPath } from "../../features/search/marketplaceSearch";
@@ -55,6 +57,7 @@ function Topbar({ showSearch = false, showCategories = false }) {
     logout,
     hasAnyRole,
   } = useAuth();
+  const { count: cartCount } = useCart();
   const displayName = user?.full_name || user?.email || "LINKO User";
   const displayBusiness = activeBusiness?.business_name || "No business assigned";
   const displayRole =
@@ -265,6 +268,17 @@ function Topbar({ showSearch = false, showCategories = false }) {
           />
         )}
         <div className="header-actions">
+          {hasAnyRole(ROLE_ACCESS.marketplace) && (
+            <Link
+              to="/cart"
+              className="icon-action"
+              title="Cart"
+              aria-label={`Cart, ${cartCount} item${cartCount === 1 ? "" : "s"}`}
+            >
+              <ShoppingCart size={16} />
+              {cartCount > 0 && <span className="notif-badge">{cartCount}</span>}
+            </Link>
+          )}
           <div className="dropdown-anchor">
             <button
               className="icon-action"

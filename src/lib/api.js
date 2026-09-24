@@ -43,7 +43,9 @@ async function request(path, { method = "GET", body, signal } = {}) {
   if (!response.ok) {
     const message =
       payload?.error?.message ?? `Request failed with status ${response.status}`;
-    throw new Error(message);
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
   }
 
   return payload;

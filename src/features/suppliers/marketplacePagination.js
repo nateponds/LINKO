@@ -21,13 +21,3 @@ export function shouldClampPage(pagination) {
     && Number(pagination?.total_pages) > 0
     && Number(pagination?.page) > Number(pagination?.total_pages);
 }
-
-export function saveCartLine(cart, product, quantity) {
-  return {
-    ...cart,
-    [product.product_id]: {
-      product: { ...product },
-      quantity,
-    },
-  };
-}

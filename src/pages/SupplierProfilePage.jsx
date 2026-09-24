@@ -6,47 +6,27 @@ import {
   Leaf,
   MapPin,
   MessageCircle,
-  Minus,
   Package,
   Plus,
   Repeat,
   ShoppingCart,
-  Trash2,
   Truck,
 } from "lucide-react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
-import { useAuth } from "../auth/AuthProvider";
-import { apiGet, apiSend } from "../lib/api";
-import { addressBookCopy, formatAddress } from "../features/settings/addressCopy";
+import { apiGet } from "../lib/api";
 import { peso, stockBadge } from "../lib/format";
 import { bannersForProducts } from "../lib/productBanners";
-import ConfirmDialog from "../components/ui/ConfirmDialog";
 import ProductDetailModal from "../components/ui/ProductDetailModal";
 import PaginationControls from "../components/ui/PaginationControls";
 import { readListUrlState, updateListUrlState } from "../lib/pagination";
-import { apiPath, normalizePage, saveCartLine, shouldClampPage } from "../features/suppliers/marketplacePagination";
+import { apiPath, normalizePage, shouldClampPage } from "../features/suppliers/marketplacePagination";
+import { useCart } from "../features/cart/CartProvider";
+import { clampQuantity, stockLimit } from "../features/cart/cart";
 import "./SupplierProfilePage.css";
-
-function stockLimit(product) {
-  const stock = Number(product?.stock_quantity);
-  if (!Number.isFinite(stock) || stock < 0) return 0;
-  return Math.floor(stock);
-}
-
-function clampQuantity(value, max) {
-  const quantity = Number(value);
-  if (!Number.isFinite(quantity)) return 1;
-  return Math.min(Math.max(Math.floor(quantity), 1), max);
-}
 
 export default function SupplierProfilePage() {
   const { supplierId } = useParams();
-  const { activeBusiness, activeBusinessId, refreshAuth } = useAuth();
-  const addressCopy = addressBookCopy(activeBusiness);
-  const canPickAddress = Boolean(
-    activeBusiness?.roles?.includes("buyer") || activeBusiness?.roles?.includes("wholesaler"),
-  );
   const [searchParams, setSearchParams] = useSearchParams();
   const productState = readListUrlState(searchParams, { prefix: "product" });
   const categoryState = readListUrlState(searchParams, { prefix: "category" });
@@ -60,10 +40,10 @@ export default function SupplierProfilePage() {
   const [categoryError, setCategoryError] = useState(null);
   const [productsFetching, setProductsFetching] = useState(false);
   const [categoriesFetching, setCategoriesFetching] = useState(false);
-  const [tiers, setTiers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const { addProduct } = useCart();
   const [following, setFollowing] = useState(false);
   // A ?product_id= deep link must land on the products tab, not the shop tab.
   const [activeTab, setActiveTab] = useState(() =>
@@ -71,18 +51,8 @@ export default function SupplierProfilePage() {
   );
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [quantityDrafts, setQuantityDrafts] = useState({});
-  const [cart, setCart] = useState({});
   const [cartMessage, setCartMessage] = useState(null);
-  const [checkoutError, setCheckoutError] = useState(null);
-  const [checkingOut, setCheckingOut] = useState(false);
-  const [addressBook, setAddressBook] = useState(null);
-  const addressBookReady = canPickAddress && addressBook?.businessId === activeBusinessId;
-  const savedAddresses = addressBookReady ? addressBook.addresses : [];
-  const selectedAddressId = addressBookReady ? addressBook.selectedId : null;
-  const addressesLoading = canPickAddress && !addressBookReady;
-  const [checkoutConfirmation, setCheckoutConfirmation] = useState(null);
-  const [confirm, setConfirm] = useState(null);
-  const [selectedTierId, setSelectedTierId] = useState(null);
+  const [cartMessageOk, setCartMessageOk] = useState(false);
   const [productSearchInput, setProductSearchInput] = useState(productState.q);
   const [categorySearchInput, setCategorySearchInput] = useState(categoryState.q);
 
@@ -107,43 +77,13 @@ export default function SupplierProfilePage() {
   }, [categorySearchInput, categoryState.q, searchParams, setSearchParams]);
 
   useEffect(() => {
-    if (!canPickAddress) return undefined;
-    let cancelled = false;
-    const businessId = activeBusinessId;
-    apiGet("/api/settings/addresses")
-      .then((data) => {
-        if (cancelled) return;
-        const list = Array.isArray(data.addresses) ? data.addresses : [];
-        const preferred = list.find((row) => row.is_default) ?? list[0];
-        setAddressBook({
-          businessId,
-          addresses: list,
-          selectedId: preferred?.address_id ?? null,
-        });
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setAddressBook({ businessId, addresses: [], selectedId: null });
-        }
-      });
-    return () => { cancelled = true; };
-  }, [activeBusinessId, canPickAddress]);
-
-  useEffect(() => {
     let cancelled = false;
 
     async function load() {
       try {
-        const [supplierData, tiersList] = await Promise.all([
-          apiGet(`/api/suppliers/${encodeURIComponent(supplierId)}`),
-          apiGet("/api/service-tiers").catch(() => []),
-        ]);
+        const supplierData = await apiGet(`/api/suppliers/${encodeURIComponent(supplierId)}`);
         if (cancelled) return;
         setSupplier(supplierData ?? null);
-        setTiers(Array.isArray(tiersList) ? tiersList : []);
-        if (Array.isArray(tiersList) && tiersList.length > 0) {
-          setSelectedTierId(tiersList[0].tier_id);
-        }
         setLoading(false);
       } catch (err) {
         if (cancelled) return;
@@ -208,38 +148,6 @@ export default function SupplierProfilePage() {
     () => bannersForProducts(products)[0] ?? null,
     [products],
   );
-
-  const cartItems = useMemo(
-    () =>
-      Object.entries(cart)
-        .map(([productId, line]) => {
-          const { product, quantity } = line;
-          return {
-            product,
-            productId,
-            quantity,
-            lineTotal: Number(product.unit_price ?? 0) * quantity,
-          };
-        })
-        .filter(Boolean),
-    [cart],
-  );
-
-  const cartSubtotal = useMemo(
-    () => cartItems.reduce((sum, item) => sum + item.lineTotal, 0),
-    [cartItems],
-  );
-
-  const deliveryFee = useMemo(
-    () => {
-      if (!selectedTierId) return 0;
-      const tier = tiers.find((t) => t.tier_id === selectedTierId);
-      return Number(tier?.base_fee ?? 0);
-    },
-    [selectedTierId, tiers]
-  );
-
-  const cartTotal = cartSubtotal + deliveryFee;
 
   function switchTab(tab) {
     setActiveTab(tab);
@@ -314,114 +222,13 @@ export default function SupplierProfilePage() {
   }
 
   function addToCart(product) {
-    const max = stockLimit(product);
-    if (max <= 0 || product.stock_status === "out_of_stock") {
-      setCartMessage("That product is out of stock.");
-      return;
-    }
-
-    const draftQuantity = quantityDrafts[product.product_id] ?? 1;
-    const quantity = clampQuantity(draftQuantity, max);
-
-    setCart((current) => {
-      const key = String(product.product_id);
-      const nextQuantity = Math.min((current[key]?.quantity ?? 0) + quantity, max);
-      return saveCartLine(current, product, nextQuantity);
-    });
-    setCartMessage(`${product.product_name} added to cart.`);
-    setCheckoutError(null);
-    setCheckoutConfirmation(null);
-  }
-
-  function updateCartQuantity(product, value) {
-    const key = String(product.product_id);
-    const max = stockLimit(product);
-    if (max <= 0) {
-      removeCartItem(key);
-      return;
-    }
-
-    setCart((current) => ({
-      ...current, [key]: { ...current[key], quantity: clampQuantity(value, max) },
-    }));
-    setCheckoutError(null);
-  }
-
-  function removeCartItem(productId) {
-    setCart((current) => {
-      const next = { ...current };
-      delete next[String(productId)];
-      return next;
-    });
-    setCheckoutError(null);
-  }
-
-  function checkoutCart() {
-    if (cartItems.length === 0 || checkingOut) return;
-
-    setCheckoutError(null);
-    setCartMessage(null);
-
-    if (!selectedTierId) {
-      setCheckoutError("Please select a delivery tier.");
-      return;
-    }
-
-    const selectedAddress = savedAddresses.find((row) => row.address_id === selectedAddressId);
-    if (canPickAddress && savedAddresses.length === 0 && !addressesLoading) {
-      setCheckoutError(`Add a ${addressCopy.noun} in Settings before placing the order.`);
-      return;
-    }
-    if (canPickAddress && savedAddresses.length > 0 && !selectedAddress) {
-      setCheckoutError(`Choose a ${addressCopy.noun} before placing the order.`);
-      return;
-    }
-
-    const itemCount = cartItems.reduce((sum, { quantity }) => sum + quantity, 0);
-    const addressLine = selectedAddress
-      ? ` ${addressCopy.checkoutLabel}: ${selectedAddress.label} (${formatAddress(selectedAddress)}).`
-      : "";
-    setConfirm({
-      title: "Place this order?",
-      message: `Place an order with ${supplier?.business_name ?? "this supplier"} for ${itemCount} item${itemCount === 1 ? "" : "s"} totalling ${peso(cartTotal)} (including ${peso(deliveryFee)} delivery)?${addressLine}`,
-      confirmLabel: "Place order",
-      onConfirm: () => { void submitCheckout(); },
-    });
-  }
-
-  async function submitCheckout() {
-    setCheckingOut(true);
-    setCheckoutError(null);
-
-    try {
-      const selectedAddress = savedAddresses.find((row) => row.address_id === selectedAddressId);
-      if (selectedAddress && !selectedAddress.is_default) {
-        await apiSend(`/api/settings/addresses/${selectedAddress.address_id}/default`, { method: "POST" });
-        await refreshAuth();
-        setAddressBook((current) => (current ? {
-          ...current,
-          addresses: current.addresses.map((row) => ({
-            ...row,
-            is_default: row.address_id === selectedAddress.address_id,
-          })),
-        } : current));
-      }
-      const order = await apiSend("/api/orders", {
-        body: {
-          tier_id: selectedTierId,
-          items: cartItems.map(({ product, quantity }) => ({
-            product_id: product.product_id,
-            quantity,
-          })),
-        },
-      });
-      setCart({});
-      setCheckoutConfirmation(order);
-    } catch (err) {
-      setCheckoutError(err.message);
-    } finally {
-      setCheckingOut(false);
-    }
+    const result = addProduct({
+      ...product,
+      business_id: product.business_id ?? supplier?.business_id ?? supplierId,
+      business_name: product.business_name ?? supplier?.business_name ?? "Supplier",
+    }, quantityDrafts[product.product_id] ?? 1);
+    setCartMessageOk(!result.error);
+    setCartMessage(result.error ?? `${product.product_name} added to cart.`);
   }
 
   if (loading) {
@@ -640,8 +447,7 @@ export default function SupplierProfilePage() {
           (products.length === 0 ? (
             <p className="grid-empty">This supplier has no products yet.</p>
           ) : (
-            <main className="products-with-cart">
-              <section className="product-grid">
+            <section className="product-grid">
                 {products.map((product) => {
                   const badge = stockBadge(product.stock_status);
                   const maxQuantity = stockLimit(product);
@@ -713,190 +519,19 @@ export default function SupplierProfilePage() {
                   );
                 })}
               </section>
-
-              <aside className="cart-panel" aria-label="Cart">
-                <div className="cart-header">
-                  <div>
-                    <div className="cart-title">Cart</div>
-                    <div className="cart-subtitle">
-                      {cartItems.length}{" "}
-                      {cartItems.length === 1 ? "item" : "items"}
-                    </div>
-                  </div>
-                  <ShoppingCart size={20} />
-                </div>
-
-                {cartMessage && <p className="cart-note">{cartMessage}</p>}
-
-                {cartItems.length === 0 ? (
-                  <p className="cart-empty">
-                    Add products to prepare a checkout.
-                  </p>
-                ) : (
-                  <div className="cart-lines">
-                    {cartItems.map(
-                      ({ product, productId, quantity, lineTotal }) => {
-                        const maxQuantity = stockLimit(product);
-                        return (
-                          <div className="cart-line" key={productId}>
-                            <div className="cart-line-main">
-                              <div className="cart-line-name">
-                                {product.product_name}
-                              </div>
-                              <div className="cart-line-price">
-                                {peso(lineTotal)}
-                              </div>
-                            </div>
-                            <div className="cart-line-actions">
-                              <div className="cart-stepper">
-                                <button
-                                  type="button"
-                                  aria-label={`Decrease ${product.product_name}`}
-                                  onClick={() =>
-                                    updateCartQuantity(product, quantity - 1)
-                                  }
-                                >
-                                  <Minus size={14} />
-                                </button>
-                                <input
-                                  type="number"
-                                  min="1"
-                                  max={Math.max(maxQuantity, 1)}
-                                  value={quantity}
-                                  onChange={(event) =>
-                                    updateCartQuantity(
-                                      product,
-                                      event.target.value,
-                                    )
-                                  }
-                                />
-                                <button
-                                  type="button"
-                                  aria-label={`Increase ${product.product_name}`}
-                                  disabled={quantity >= maxQuantity}
-                                  onClick={() =>
-                                    updateCartQuantity(product, quantity + 1)
-                                  }
-                                >
-                                  <Plus size={14} />
-                                </button>
-                              </div>
-                              <button
-                                type="button"
-                                className="remove-cart-btn"
-                                aria-label={`Remove ${product.product_name}`}
-                                onClick={() => removeCartItem(productId)}
-                              >
-                                <Trash2 size={15} />
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      },
-                    )}
-                  </div>
-                )}
-
-                {cartItems.length > 0 && (
-                  <>
-                    <div className="cart-total-row">
-                      <span>Subtotal</span>
-                      <strong>{peso(cartSubtotal)}</strong>
-                    </div>
-
-                    {canPickAddress && (
-                      <div className="cart-address-selection">
-                        <label htmlFor="checkout-address">
-                          {addressCopy.checkoutLabel}
-                        </label>
-                        {addressesLoading ? (
-                          <p className="cart-note">Loading saved addresses…</p>
-                        ) : savedAddresses.length === 0 ? (
-                          <p className="cart-note">
-                            No saved addresses yet.{" "}
-                            <Link to="/settings/business-location">Add one in Settings</Link>
-                          </p>
-                        ) : (
-                          <select
-                            id="checkout-address"
-                            value={selectedAddressId ?? ""}
-                            onChange={(event) => {
-                              const nextId = Number(event.target.value);
-                              setAddressBook((current) => (current ? { ...current, selectedId: nextId } : current));
-                              setCheckoutError(null);
-                            }}
-                          >
-                            {savedAddresses.map((address) => (
-                              <option key={address.address_id} value={address.address_id}>
-                                {address.label}
-                                {address.is_default ? " (default)" : ""}
-                                {" — "}
-                                {formatAddress(address)}
-                                {address.has_coordinates ? "" : " (not pinned)"}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                      </div>
-                    )}
-
-                    {tiers.length > 0 && (
-                      <div className="cart-tier-selection" style={{ marginTop: '1rem' }}>
-                        <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem', color: 'var(--gray-600)' }}>
-                          Delivery Speed
-                        </label>
-                        <select 
-                          value={selectedTierId || ""}
-                          onChange={(e) => setSelectedTierId(Number(e.target.value))}
-                          style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--gray-200)' }}
-                        >
-                          {tiers.map((t) => (
-                            <option key={t.tier_id} value={t.tier_id}>
-                              {t.tier_name} ({t.estimated_days} days)
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-
-                    {selectedTierId && (
-                      <div className="cart-total-row" style={{ marginTop: '0.5rem' }}>
-                        <span>Delivery Fee</span>
-                        <strong>{peso(deliveryFee)}</strong>
-                      </div>
-                    )}
-
-                    <div className="cart-total-row" style={{ marginTop: '1rem', borderTop: '1px solid var(--gray-200)', paddingTop: '1rem', fontSize: '1.1rem' }}>
-                      <span>Total</span>
-                      <strong>{peso(cartTotal)}</strong>
-                    </div>
-                  </>
-                )}
-
-                {checkoutError && (
-                  <p className="cart-error">Checkout failed: {checkoutError}</p>
-                )}
-
-                {checkoutConfirmation && (
-                  <div className="checkout-confirmation">
-                    <div className="confirmation-title">Order placed</div>
-                    <div>Order #{checkoutConfirmation.order_id}</div>
-                    <div>Status: {checkoutConfirmation.status}</div>
-                    <div>Total: {peso(checkoutConfirmation.total)}</div>
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  className="checkout-btn"
-                  disabled={cartItems.length === 0 || checkingOut || addressesLoading}
-                  onClick={checkoutCart}
-                >
-                  {checkingOut ? "Checking out..." : "Checkout"}
-                </button>
-              </aside>
-            </main>
           ))}
+
+        {activeTab === "products" && cartMessage && (
+          <p className={cartMessageOk ? "cart-note" : "cart-error"} role="status">
+            {cartMessage}
+            {cartMessageOk && (
+              <>
+                {" "}
+                <Link to="/cart">View cart</Link>
+              </>
+            )}
+          </p>
+        )}
 
         {activeTab === "products" && (
           <PaginationControls pagination={productPagination} disabled={productsFetching} onPageChange={(nextPage) => setSearchParams(updateListUrlState(searchParams, { page: nextPage }, { prefix: "product" }))} onLimitChange={(nextLimit) => setSearchParams(updateListUrlState(searchParams, { limit: nextLimit }, { prefix: "product" }))} ariaLabel="Supplier products pagination" className="supplier-profile-pagination" />
@@ -940,15 +575,6 @@ export default function SupplierProfilePage() {
           onQuantityChange={setProductDraft}
           onAddToCart={(product) => { addToCart(product); closeProductDetail(); }}
           onClose={closeProductDetail}
-        />
-
-        <ConfirmDialog
-          open={!!confirm}
-          title={confirm?.title}
-          message={confirm?.message}
-          confirmLabel={confirm?.confirmLabel}
-          onConfirm={() => { confirm?.onConfirm?.(); setConfirm(null); }}
-          onCancel={() => setConfirm(null)}
         />
       </div>
     </AppLayout>
