@@ -2,46 +2,75 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-test("hero arc stays below the trust row", async () => {
+test("landing header includes the LINKO logo image", async () => {
+  const page = await readFile(
+    new URL("../../pages/LandingPage.jsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(page, /<img[\s\S]*?src="\/images\/linko\.png"/);
+});
+
+test("landing page references product banner artwork", async () => {
+  const page = await readFile(
+    new URL("../../pages/LandingPage.jsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.ok(
+    page.includes("/images/productbanners/") || page.includes("productBanners"),
+    "landing page should use product banner artwork",
+  );
+});
+
+test("landing workflow explains supplier search, listed prices, and shipment updates", async () => {
+  const page = await readFile(
+    new URL("../../pages/LandingPage.jsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(page, /id="workflow"/);
+  assert.match(page, /From search to delivery/);
+  assert.match(page, /Search by business name or location/);
+  assert.match(page, /unit prices/);
+  assert.match(page, /parcel updates after shipment/);
+  assert.doesNotMatch(page, /SavingsCalculator|Claim your savings|bulk discount|matched to your location/i);
+});
+
+test("signed-in landing actions use the role-aware destination helper", async () => {
+  const page = await readFile(
+    new URL("../../pages/LandingPage.jsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(page, /redirectPathForRoles\(activeRoles, user\.global_role === "platform_admin"\)/);
+  assert.match(page, /"\/": "Enter marketplace"/);
+  assert.match(page, /"\/logistics": "Open logistics"/);
+  assert.match(page, /"\/courier": "Courier dashboard"/);
+  assert.match(page, /"\/admin": "Admin dashboard"/);
+});
+
+test("mobile landing navigation has expanded state and keyboard close behavior", async () => {
+  const page = await readFile(
+    new URL("../../pages/LandingPage.jsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(page, /aria-expanded=\{menuOpen\}/);
+  assert.match(page, /aria-controls="landing-nav-links"/);
+  assert.match(page, /event\.key === "Escape"/);
+  assert.match(page, /menuToggleRef\.current\?\.focus\(\)/);
+  assert.match(page, /id="tour" tabIndex=\{-1\}/);
+  assert.match(page, /href="#workflow" onClick=\{closeMenu\}/);
+});
+
+test("landing styles use LINKO brand tokens", async () => {
   const css = await readFile(
     new URL("../../assets/css/landing.css", import.meta.url),
     "utf8",
   );
-  const arcBlock = css.match(/\.landing-hero::after\s*\{([^}]*)\}/)?.[1];
 
-  assert.ok(arcBlock, "hero arc styles must exist");
-
-  const bottomOffset = Number(arcBlock.match(/bottom:\s*(-?\d+)px/)?.[1]);
-  assert.ok(
-    bottomOffset <= -235,
-    `hero arc bottom offset must be -235px or lower; received ${bottomOffset}px`,
-  );
-});
-
-test("landing navigation uses a white text LINKO wordmark instead of an image", async () => {
-  const [page, css] = await Promise.all([
-    readFile(new URL("../../pages/LandingPage.jsx", import.meta.url), "utf8"),
-    readFile(new URL("../../assets/css/landing.css", import.meta.url), "utf8"),
-  ]);
-
-  assert.match(
-    page,
-    /className="auth-brand-mark landing-brand-mark"[^>]*>[\s\S]*?LINK<span>O<\/span>/,
-  );
-  assert.doesNotMatch(page, /<img\s+src="\/images\/linko\.png"/);
-  assert.match(
-    css,
-    /\.landing-brand-mark\s*\{[^}]*color:\s*#fff;/,
-  );
-});
-
-test("landing page does not render or link to a marketplace preview section", async () => {
-  const [page, css] = await Promise.all([
-    readFile(new URL("../../pages/LandingPage.jsx", import.meta.url), "utf8"),
-    readFile(new URL("../../assets/css/landing.css", import.meta.url), "utf8"),
-  ]);
-
-  assert.doesNotMatch(page, /<section[^>]+marketplace-section/);
-  assert.doesNotMatch(page, /href="#marketplace"/);
-  assert.doesNotMatch(css, /\.marketplace-section\b/);
+  assert.match(css, /var\(--color-primary\)/);
+  assert.match(css, /var\(--color-accent\)/);
+  assert.doesNotMatch(css, /Barlow|Source Sans|#16343a|#e4b33a/i);
 });

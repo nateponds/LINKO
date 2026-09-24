@@ -1,66 +1,69 @@
-import { useState } from "react";
-import { Check, MonitorPlay, Play } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { HERO_VIDEO } from "./heroVideo";
 
+const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+
 export default function HeroVideoPreview() {
-  const [videoReady, setVideoReady] = useState(false);
+  const [videoStatus, setVideoStatus] = useState("loading");
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia(REDUCED_MOTION_QUERY).matches,
+  );
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    const motionPreference = window.matchMedia(REDUCED_MOTION_QUERY);
+    const updatePreference = () => {
+      setPrefersReducedMotion(motionPreference.matches);
+      if (motionPreference.matches) videoRef.current?.pause();
+    };
+
+    motionPreference.addEventListener("change", updatePreference);
+    return () => motionPreference.removeEventListener("change", updatePreference);
+  }, []);
 
   return (
-    <div className="hero-video-frame">
-      <div className="hero-video-browser">
-        <div className="hero-video-browser__dots" aria-hidden="true">
-          <span /><span /><span />
-        </div>
-        <div className="hero-video-browser__address">
-          <span className="hero-video-browser__lock" />
-          linko.ph/product-tour
-        </div>
-        <span className="hero-video-browser__badge">SESSION PREVIEW</span>
-      </div>
-
-      <div className="hero-video-stage">
+    <div className="hero-video">
+      <div className="hero-video-frame">
         <video
-          className={videoReady ? "is-ready" : ""}
-          autoPlay
-          loop
+          ref={videoRef}
+          className={videoStatus === "ready" ? "is-ready" : ""}
+          autoPlay={!prefersReducedMotion}
+          loop={!prefersReducedMotion}
+          controls
           muted
           playsInline
           preload="metadata"
           src={HERO_VIDEO.src}
-          onCanPlay={() => setVideoReady(true)}
-          onError={() => setVideoReady(false)}
+          onCanPlay={() => setVideoStatus("ready")}
+          onError={() => setVideoStatus("error")}
           aria-label="Recorded LINKO product walkthrough"
         >
           Your browser does not support embedded video.
         </video>
 
-        {!videoReady && (
-          <div className="hero-video-placeholder">
-            <div className="hero-video-placeholder__grid" aria-hidden="true">
-              <span /><span /><span /><span /><span /><span />
-            </div>
-            <div className="hero-video-placeholder__content">
-              <span className="hero-video-placeholder__icon">
-                <MonitorPlay size={25} />
-                <i><Play size={12} fill="currentColor" /></i>
-              </span>
-              <small>REAL LINKO PRODUCT WALKTHROUGH</small>
-              <strong>One session. The complete wholesale workflow.</strong>
-              <p>Recorded session placeholder</p>
-            </div>
+        {videoStatus !== "ready" && (
+          <div
+            className="hero-video-placeholder"
+            role={videoStatus === "error" ? "alert" : "status"}
+          >
+            <p>Product tour</p>
+            <p>
+              {videoStatus === "error"
+                ? "The product tour could not be loaded. Refresh the page to try again, or follow the workflow steps below."
+                : "Loading the product tour…"}
+            </p>
           </div>
         )}
       </div>
 
-      <div className="hero-video-chapters" aria-label="Product walkthrough chapters">
-        {HERO_VIDEO.chapters.map((chapter, index) => (
-          <span key={chapter}>
-            <i><Check size={10} /></i>
-            <small>0{index + 1}</small>
-            {chapter}
-          </span>
+      <ul className="hero-video-chapters" aria-label="Product walkthrough chapters">
+        {HERO_VIDEO.chapters.map((chapter) => (
+          <li key={chapter}>{chapter}</li>
         ))}
-      </div>
+      </ul>
     </div>
   );
 }
