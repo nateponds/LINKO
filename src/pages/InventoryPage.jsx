@@ -9,6 +9,7 @@ import ConfirmDialog from "../components/ui/ConfirmDialog";
 import PaginationControls from "../components/ui/PaginationControls";
 import { readListUrlState, updateListUrlState } from "../lib/pagination";
 import { apiPath, normalizePage, shouldClampPage } from "../features/suppliers/marketplacePagination";
+import { TableSkeleton } from "../components/ui/pageSkeletons";
 import "./InventoryPage.css";
 
 const EMPTY_FORM = {
@@ -532,7 +533,7 @@ export default function InventoryPage() {
           >
             <div ref={tableContentRef}>
               {loading && products.length === 0 ? (
-                <p className="grid-empty">Loading products…</p>
+                <TableSkeleton columns={6} rows={8} label="Loading products" className="inventory-table" />
               ) : error ? (
                 <p className="grid-empty">
                   Could not load products: {error}

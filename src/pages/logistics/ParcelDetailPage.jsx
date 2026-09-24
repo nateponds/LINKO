@@ -15,8 +15,9 @@ import {
 } from "../../lib/statusWorkflow";
 import { useAuth } from "../../auth/AuthProvider";
 import { apiGet, apiSend } from "../../lib/api";
-import { LogisticsNotice, LogisticsPlaceholder } from "./LogisticsStates";
+import { LogisticsNotice } from "./LogisticsStates";
 import { formatNextStatuses, nextStatusesForRole } from "./workflowHints";
+import { ParcelDetailSkeleton } from "../../components/ui/pageSkeletons";
 import "./logistics.css";
 
 /* Parcel detail + tracking timeline, backed by GET /api/parcels/:id.
@@ -222,7 +223,7 @@ export default function ParcelDetailPage() {
         </div>
 
         {loading ? (
-          <LogisticsPlaceholder label={`parcel #${parcelId}`} />
+          <ParcelDetailSkeleton />
         ) : notFound ? (
           <LogisticsNotice message="We couldn't find a parcel with that number." />
         ) : error ? (

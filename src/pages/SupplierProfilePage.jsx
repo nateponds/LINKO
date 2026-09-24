@@ -18,6 +18,7 @@ import { apiGet } from "../lib/api";
 import { peso, stockBadge } from "../lib/format";
 import { bannersForProducts } from "../lib/productBanners";
 import ProductDetailModal from "../components/ui/ProductDetailModal";
+import { SupplierProfileSkeleton } from "../components/ui/pageSkeletons";
 import PaginationControls from "../components/ui/PaginationControls";
 import { readListUrlState, updateListUrlState } from "../lib/pagination";
 import { apiPath, normalizePage, shouldClampPage } from "../features/suppliers/marketplacePagination";
@@ -234,9 +235,7 @@ export default function SupplierProfilePage() {
   if (loading) {
     return (
       <AppLayout>
-        <div className="supplier-profile-page">
-          <p className="grid-empty">Loading supplier…</p>
-        </div>
+        <SupplierProfileSkeleton />
       </AppLayout>
     );
   }

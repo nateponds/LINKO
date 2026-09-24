@@ -8,8 +8,9 @@ import { useListUrlState } from "../../hooks/useListUrlState";
 import { apiGet, apiSend } from "../../lib/api";
 import { statusClass, shortDate } from "../../lib/format";
 import { allowedNext, ONE_TAP_REMARKS, FAIL_REASONS } from "../../lib/statusWorkflow";
-import { LogisticsNotice, LogisticsPlaceholder } from "./LogisticsStates";
+import { LogisticsNotice } from "./LogisticsStates";
 import { COURIER_EMPTY_COPY, courierActionCue } from "./workflowHints";
+import { CourierCardsSkeleton } from "../../components/ui/pageSkeletons";
 import "./logistics.css";
 
 const ASSIGNMENT_TABS = [
@@ -197,7 +198,7 @@ export default function CourierDashboardPage() {
             <LogisticsNotice message={`Could not update parcel #${actionError.parcelId}: ${actionError.message}`} />
           )}
           {parcels === null && resource.loading ? (
-            <LogisticsPlaceholder label="assignments" />
+            <CourierCardsSkeleton />
           ) : resource.error && !parcels?.length ? (
             <LogisticsNotice
               message={`Could not load assignments: ${resource.error.message}`}

@@ -1,9 +1,10 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "./AuthProvider";
 import { redirectPathForRoles } from "./roleAccess";
+import { AppShellSkeleton } from "../components/ui/pageSkeletons";
 
 function AuthLoading() {
-  return <div>Loading...</div>;
+  return <AppShellSkeleton />;
 }
 
 export default function ProtectedRoute({ roles, redirectTo }) {

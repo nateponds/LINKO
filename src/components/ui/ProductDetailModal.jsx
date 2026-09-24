@@ -8,6 +8,7 @@
 import { useEffect, useRef } from "react";
 import { ShoppingCart, X } from "lucide-react";
 import { peso, stockBadge } from "../../lib/format";
+import { ProductModalSkeleton } from "./pageSkeletons";
 
 const TITLE_ID = "product-detail-title";
 const FALLBACK_IMAGE =
@@ -75,7 +76,8 @@ export default function ProductDetailModal({
         className="product-modal-dialog"
         role="dialog"
         aria-modal="true"
-        aria-labelledby={TITLE_ID}
+        aria-labelledby={loading ? undefined : TITLE_ID}
+        aria-label={loading ? "Loading product" : undefined}
         tabIndex="-1"
         ref={dialogRef}
       >
@@ -88,7 +90,7 @@ export default function ProductDetailModal({
           <X size={18} />
         </button>
 
-        {loading && <p className="product-modal-status">Loading product…</p>}
+        {loading && <ProductModalSkeleton />}
         {!loading && error && (
           <p className="product-modal-status" role="alert">{error}</p>
         )}

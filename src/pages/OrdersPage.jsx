@@ -10,6 +10,7 @@ import { apiGet, apiSend } from "../lib/api";
 import PaginationControls from "../components/ui/PaginationControls";
 import { useListUrlState } from "../hooks/useListUrlState";
 import { peso, shortDate, statusClass } from "../lib/format";
+import { TableSkeleton, TrackingSkeleton } from "../components/ui/pageSkeletons";
 import "./OrdersPage.css";
 
 // Buyers can watch a parcel from these order states; earlier states have no
@@ -332,7 +333,7 @@ export default function OrdersPage() {
           >
             <div ref={tableContentRef}>
               {orders === null && resource.loading ? (
-                <div className="page-empty">Loading orders...</div>
+                <TableSkeleton columns={9} rows={8} label="Loading orders" />
               ) : resource.error && !orders?.length ? (
                 <div className="page-empty">
                   Could not load orders: {resource.error.message}
@@ -525,7 +526,7 @@ export default function OrdersPage() {
               </button>
               <h2>Track order #{trackParcel.order_id}</h2>
               {trackLoading ? (
-                <p className="form-note">Loading tracking…</p>
+                <TrackingSkeleton />
               ) : trackError ? (
                 <p className="form-error">Could not load tracking: {trackError}</p>
               ) : trackParcel.parcel ? (

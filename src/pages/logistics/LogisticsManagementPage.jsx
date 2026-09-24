@@ -12,7 +12,8 @@ import { useListUrlState } from "../../hooks/useListUrlState";
 import { usePaginatedResource } from "../../hooks/usePaginatedResource";
 import { apiGet, apiSend } from "../../lib/api";
 import { buildLogisticsListPath } from "./logisticsPagination";
-import { LogisticsNotice, LogisticsPlaceholder } from "./LogisticsStates";
+import { LogisticsNotice } from "./LogisticsStates";
+import { ListRowsSkeleton } from "../../components/ui/pageSkeletons";
 import "./LogisticsManagementPage.css";
 
 const EMPTY_BRANCH = { branch_name: "", contact_number: "", province: "", city_municipality: "", barangay: "", street_address: "", postal_code: "" };
@@ -84,7 +85,7 @@ function useVisibleRows(resource) {
 }
 
 function ListState({ resource, items, query, label, onClear, onRetry, children }) {
-  if (!resource.data && resource.loading && items.length === 0) return <LogisticsPlaceholder label={label} />;
+  if (!resource.data && resource.loading && items.length === 0) return <ListRowsSkeleton label={`Loading ${label}`} />;
   if (resource.error && items.length === 0) {
     return <LogisticsNotice message={`Could not load ${label}: ${resource.error.message}`} onRetry={onRetry} />;
   }
@@ -594,7 +595,7 @@ export default function LogisticsManagementPage() {
 
           <section className="management-section management-tiers">
             <h2>Service Tiers</h2>
-            {tiersLoading && serviceTiers.length === 0 ? <LogisticsPlaceholder label="service tiers" /> : (
+            {tiersLoading && serviceTiers.length === 0 ? <ListRowsSkeleton rows={3} label="Loading service tiers" /> : (
               <>
                 {tierLoadError ? <LogisticsNotice message={`Could not load service tiers: ${tierLoadError}`} onRetry={reloadTiers} /> : null}
                 {serviceTiers.length === 0 && !tierLoadError ? <LogisticsNotice message="No service tiers yet." /> : serviceTiers.length > 0 ? (

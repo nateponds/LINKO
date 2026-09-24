@@ -13,6 +13,7 @@ import {
 import AppLayout from "../layouts/AppLayout";
 import DecisionStrip from "../components/DecisionStrip";
 import { apiGet } from "../lib/api";
+import { DashboardSkeleton } from "../components/ui/pageSkeletons";
 import "./DashboardPage.css";
 
 const RANGES = [
@@ -84,6 +85,7 @@ export default function DashboardPage() {
   const [range, setRange] = useState("7d");
   const [stats, setStats] = useState(EMPTY_STATS);
   const [loading, setLoading] = useState(true);
+  const [settled, setSettled] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -99,7 +101,10 @@ export default function DashboardPage() {
         if (cancelled) return;
         setError(e.message);
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          setSettled(true);
+        }
       }
     }
     load();
@@ -132,6 +137,10 @@ export default function DashboardPage() {
           <p className="dashboard-error">Could not load dashboard: {error}</p>
         )}
 
+        {loading && !settled ? (
+          <DashboardSkeleton />
+        ) : (
+        <>
         <div className="stat-grid">
           <div className="stat-card">
             <span className="stat-icon revenue"><PhilippinePeso size={26} /></span>
@@ -300,6 +309,8 @@ export default function DashboardPage() {
             </table>
           )}
         </section>
+        </>
+        )}
       </div>
     </AppLayout>
   );

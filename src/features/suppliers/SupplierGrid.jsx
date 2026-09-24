@@ -6,6 +6,7 @@ import PaginationControls from "../../components/ui/PaginationControls";
 import { readListUrlState, updateListUrlState } from "../../lib/pagination";
 import { apiPath, normalizePage, shouldClampPage } from "./marketplacePagination";
 import { hueOf, imageForSupplier, initialOf } from "../../lib/categoryImages";
+import { SupplierCardGridSkeleton } from "../../components/ui/pageSkeletons";
 
 /* Stock photo with a monogram fallback — an image that 404s or is blocked
    swaps to the business initial instead of leaving a broken tile. */
@@ -93,7 +94,6 @@ function SupplierGrid() {
   }
 
   const hasFilters = Boolean(category || q);
-  if (loading && !hasLoaded) return <p className="grid-empty">Loading suppliers…</p>;
   if (error && !hasLoaded) return <p className="grid-empty">Could not load suppliers: {error}. Is the backend running?</p>;
 
   return (
@@ -113,7 +113,9 @@ function SupplierGrid() {
       </div>
 
       {error && <p className="grid-empty" role="alert">Could not refresh suppliers: {error}</p>}
-      {suppliers.length === 0 ? (
+      {loading && !hasLoaded ? (
+        <SupplierCardGridSkeleton gridClassName="content-grid" />
+      ) : suppliers.length === 0 ? (
         <div className="grid-empty">
           <p>{hasFilters ? "No suppliers match these filters." : "No suppliers are available yet."}</p>
           {hasFilters && <button type="button" className="link-button" onClick={clearFilters}>Clear filters</button>}

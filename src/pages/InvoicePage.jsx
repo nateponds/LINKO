@@ -6,6 +6,7 @@ import { apiGet } from "../lib/api";
 import PaginationControls from "../components/ui/PaginationControls";
 import { useListUrlState } from "../hooks/useListUrlState";
 import { peso, shortDate, statusClass } from "../lib/format";
+import { InvoiceDetailSkeleton, InvoiceListSkeleton } from "../components/ui/pageSkeletons";
 import "./InvoicePage.css";
 
 const STATUS_LABELS = {
@@ -237,7 +238,7 @@ export default function InvoicePage() {
             </div>
 
             {invoices === null && listResource.loading ? (
-              <div className="invoice-error">Loading invoices...</div>
+              <InvoiceListSkeleton />
             ) : listResource.error && !invoices?.length ? (
               <div className="invoice-error">
                 Could not load invoices: {listResource.error.message}
@@ -311,12 +312,14 @@ export default function InvoicePage() {
           <div className="invoice-error">
             We couldn't find that invoice: {errorInvoice}
           </div>
+        ) : loadingInvoice && !invoice ? (
+          <InvoiceDetailSkeleton />
         ) : (
           <main className="invoice-wrap" aria-busy={loadingInvoice}>
             <aside className="parties">
               <div className="party-card">
                 <div className="shop-name">
-                  {invoice?.invoice_number ?? "Loading invoice"}
+                  {invoice?.invoice_number ?? "—"}
                 </div>
 
                 <div className="party-block">

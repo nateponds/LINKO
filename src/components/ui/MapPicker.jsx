@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { classifyRouteLegs, loadDrivingDirections } from "../../lib/parcelRouteDirections";
+import "./Skeleton.css";
 
 // Shared click-to-pin map (Sprint 13 §9.4). Dumb controlled component: the
 // parent owns draft/saved coordinate state; this only renders it and reports
@@ -171,12 +172,15 @@ export default function MapPicker({ latitude, longitude, onChange, onStatusChang
     <div style={{ margin: "0.5rem 0" }}>
       <div
         ref={containerRef}
+        className={status === "loading" ? "skeleton skeleton-map" : undefined}
         style={{ height: "280px", borderRadius: "8px", overflow: "hidden" }}
       />
       <p style={{ fontSize: "0.8rem", opacity: 0.7, margin: "0.4rem 0 0" }}>
-        {status === "loading"
-          ? "Loading map…"
-          : "Click the map to place the pin. Search moves the pin only — the address fields stay yours to edit."}
+        {status === "loading" ? (
+          <span className="skeleton-sr">Loading map</span>
+        ) : (
+          "Click the map to place the pin. Search moves the pin only — the address fields stay yours to edit."
+        )}
       </p>
       {geocoderHint && (
         <p style={{ fontSize: "0.8rem", opacity: 0.7, margin: "0.2rem 0 0" }}>
@@ -356,7 +360,7 @@ export function ParcelRouteMap({ stops }) {
       {mappedStops.length > 0 && status !== "no-token" && status !== "failed" && (
         <div
           ref={containerRef}
-          className="parcel-route-map"
+          className={`parcel-route-map${status === "loading" ? " skeleton skeleton-map" : ""}`}
           role="img"
           aria-label="Map of planned parcel route"
         />
@@ -368,7 +372,7 @@ export function ParcelRouteMap({ stops }) {
       ) : status === "failed" ? (
         <p className="parcel-route-map-note">Map failed to load.</p>
       ) : status === "loading" ? (
-        <p className="parcel-route-map-note">Loading planned route map…</p>
+        <span className="skeleton-sr">Loading planned route map</span>
       ) : null}
       <p className="parcel-route-caption">{caption}</p>
       <ol className="parcel-route-stops">
