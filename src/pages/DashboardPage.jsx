@@ -11,6 +11,7 @@ import {
   YAxis,
 } from "recharts";
 import AppLayout from "../layouts/AppLayout";
+import DecisionStrip from "../components/DecisionStrip";
 import { apiGet } from "../lib/api";
 import "./DashboardPage.css";
 
@@ -28,6 +29,7 @@ const EMPTY_STATS = {
   sales: [],
   topProducts: [],
   recentActivity: [],
+  actionableOrders: { pending: 0, accepted: 0 },
 };
 
 const ALERT_STATUSES = new Set(["cancelled", "canceled", "returned", "rejected"]);
@@ -160,6 +162,31 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+
+        {!error && (
+        <DecisionStrip
+          label="Orders that need a wholesaler decision"
+          loading={loading}
+          items={[
+            {
+              key: "pending",
+              to: "/orders?status=Pending",
+              value: stats.actionableOrders.pending,
+              label: "Pending orders",
+              hint: "Accept or reject these incoming orders",
+              empty: "No orders waiting to be accepted",
+            },
+            {
+              key: "accepted",
+              to: "/orders?status=Accepted",
+              value: stats.actionableOrders.accepted,
+              label: "Accepted orders",
+              hint: "Start preparing these orders",
+              empty: "No accepted orders waiting to be prepared",
+            },
+          ]}
+        />
+        )}
 
         <div className="dashboard-columns">
           <section className="panel">

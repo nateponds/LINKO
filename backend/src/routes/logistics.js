@@ -16,6 +16,7 @@ import {
   TERMINAL_PARCEL_STATUSES,
 } from "../services/parcelRouting.js";
 import { validateCoordinatePair } from "../services/location.js";
+import { restoreOrderStock } from "./orders.js";
 import {
   buildPaginatedResponse,
   parsePaginationQuery,
@@ -229,6 +230,45 @@ const LATEST_LOG = `
      ORDER BY tl.scanned_at DESC, tl.log_id DESC
      LIMIT 1
   ) latest ON TRUE`;
+
+// Coordinator decision counts. Couriers already get assignment facets on
+// GET /parcels; this stays off that list so the parcel workflow is unchanged.
+router.get(
+  "/logistics/decisions",
+  requireAuth,
+  requireAnyRole(["logistics_coordinator", "platform_admin"]),
+  async (_req, res, next) => {
+    try {
+      const { rows } = await query(
+        `SELECT COUNT(*) FILTER (
+                  WHERE (latest.status_update IS NULL
+                         OR latest.status_update <> ALL($1::text[]))
+                    AND latest.courier_id IS NULL
+                )::int AS unassigned_parcels,
+                COUNT(*) FILTER (
+                  WHERE latest.status_update = $2
+                    AND latest.scanned_at < CURRENT_TIMESTAMP - make_interval(days => $3::int)
+                )::int AS aging_pending_parcels,
+                COUNT(*) FILTER (
+                  WHERE (latest.status_update IS NULL
+                         OR latest.status_update <> ALL($1::text[]))
+                    AND latest.courier_id IS NOT NULL
+                )::int AS courier_active_load
+           FROM parcels p
+           ${LATEST_LOG}`,
+        [TERMINAL_TRACKING_STATUS_LIST, "Order Created", 2],
+      );
+      const row = rows[0];
+      res.json({
+        unassignedParcels: row.unassigned_parcels,
+        agingPendingParcels: row.aging_pending_parcels,
+        courierActiveLoad: row.courier_active_load,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 // Buyers pass the gate only for the single-parcel read (track-my-order);
 // the list below yields nothing for a buyer-only caller and every write
@@ -1340,6 +1380,7 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
       );
       if (orderRows.length) {
         const order = orderRows[0];
+        await restoreOrderStock(client, order.order_id);
         const message = `Order #${order.order_id} was cancelled: ${effectiveRemarks}`;
         await notifyBusiness(client, order.buyer_business_id, "Order Cancelled", message, "warning");
         await notifyBusiness(client, order.wholesaler_business_id, "Order Cancelled", message, "warning");

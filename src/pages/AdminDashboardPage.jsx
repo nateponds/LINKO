@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
+import DecisionStrip from "../components/DecisionStrip";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
 import PaginationControls from "../components/ui/PaginationControls";
 import SearchField from "../components/ui/SearchField";
@@ -105,12 +106,27 @@ export default function AdminDashboardPage() {
   const [cancelError, setCancelError] = useState(null);
   const [cancelSuccess, setCancelSuccess] = useState(null);
   const [confirm, setConfirm] = useState(null);
+  const [operations, setOperations] = useState(null);
+  const [operationsError, setOperationsError] = useState(null);
 
   const visibleUsers = useVisibleRows(usersResource);
   const visibleBusinesses = useVisibleRows(businessesResource);
 
   useClampListPage(usersList, usersResource.pagination);
   useClampListPage(businessesList, businessesResource.pagination);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    apiGet("/api/admin/operations", { signal: controller.signal })
+      .then((data) => {
+        setOperations(data);
+        setOperationsError(null);
+      })
+      .catch((error) => {
+        if (error?.name !== "AbortError") setOperationsError(error.message);
+      });
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -217,6 +233,20 @@ export default function AdminDashboardPage() {
     <AppLayout>
       <div className="admin-page">
         <div className="page-head"><h1>Admin</h1></div>
+        <DecisionStrip
+          label="Operations that need an admin decision"
+          loading={!operations && !operationsError}
+          error={operationsError}
+          items={[
+            { key: "pending", to: "/orders?status=Pending", value: operations?.openOrders?.pending, label: "Pending orders", hint: "Accept, reject, or follow up", empty: "No pending orders" },
+            { key: "accepted", to: "/orders?status=Accepted", value: operations?.openOrders?.accepted, label: "Accepted orders", hint: "Confirm they move into preparation", empty: "No accepted orders" },
+            { key: "preparing", to: "/orders?status=Preparing", value: operations?.openOrders?.preparing, label: "Preparing orders", hint: "Watch for stalls before shipment", empty: "No orders being prepared" },
+            { key: "shipped", to: "/orders?status=Shipped", value: operations?.openOrders?.shipped, label: "Shipped orders", hint: "Track parcels still in transit", empty: "No shipped orders in transit" },
+            { key: "parcels", to: "/logistics", value: operations?.unassignedOrBranchlessParcels, label: "Unassigned or branchless parcels", hint: "Assign a courier or a branch", empty: "No parcels waiting for assignment" },
+            { key: "stock", to: "/inventory?stock=low", value: operations?.lowStockProducts, label: "Low-stock products", hint: "Restock before buyers hit an empty shelf", empty: "No products are low on stock" },
+            { key: "couriers", to: "/logistics/management", value: operations?.activeCouriers, label: "Active couriers", hint: "Check who can take the next delivery", empty: "No active couriers" },
+          ]}
+        />
         {optionsError ? <div className="page-empty admin-error">Could not load form options: {optionsError}</div> : null}
         <section className="admin-section">
           <div className="admin-section-head"><h2>Customer Service Tools</h2></div>

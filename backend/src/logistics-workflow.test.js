@@ -270,6 +270,11 @@ test("Cancelled scan requires a reason, cancels the order, notifies both parties
 
     const order = await request(`/api/orders/${orderId}`, { headers: { Cookie: buyerCookie } });
     assert.equal(order.body.status, "cancelled");
+    const stock = await pool.query(
+      "SELECT stock_quantity FROM products WHERE product_id = $1",
+      [productId],
+    );
+    assert.equal(stock.rows[0].stock_quantity, 2);
 
     const buyerNotif = await request("/api/notifications", { headers: { Cookie: buyerCookie } });
     assert.ok(

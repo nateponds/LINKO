@@ -64,6 +64,10 @@ export default function InventoryPage() {
   const [saving, setSaving] = useState(false);
 
   const [stockPopover, setStockPopover] = useState(null);
+  const [stockError, setStockError] = useState(null);
+  const [lowStockItems, setLowStockItems] = useState([]);
+  const [lowStockTotal, setLowStockTotal] = useState(0);
+  const [showAllLowStock, setShowAllLowStock] = useState(false);
   const [confirm, setConfirm] = useState(null);
 
   const filterWrapRef = useRef(null);
@@ -104,13 +108,49 @@ export default function InventoryPage() {
     } finally { setFetching(false); }
   }, [activeFilters, isAdmin, limit, ownBusinessId, page, products.length, q, searchParams, setSearchParams]);
 
+  const loadLowStock = useCallback(async () => {
+    if (!ownBusinessId) {
+      setLowStockItems([]);
+      setLowStockTotal(0);
+      return;
+    }
+    try {
+      const [low, out] = await Promise.all([
+        apiGet(apiPath("/api/products", {
+          business_id: ownBusinessId,
+          stock_status: "low_stock",
+          limit: 50,
+        })),
+        apiGet(apiPath("/api/products", {
+          business_id: ownBusinessId,
+          stock_status: "out_of_stock",
+          limit: 50,
+        })),
+      ]);
+      const lowPage = normalizePage(low);
+      const outPage = normalizePage(out);
+      const items = [...outPage.items, ...lowPage.items].sort((a, b) => {
+        const byQty = Number(a.stock_quantity) - Number(b.stock_quantity);
+        if (byQty !== 0) return byQty;
+        return String(a.product_name).localeCompare(String(b.product_name));
+      });
+      setLowStockItems(items);
+      setLowStockTotal(
+        Number(lowPage.pagination.total_items) + Number(outPage.pagination.total_items),
+      );
+    } catch {
+      setLowStockItems([]);
+      setLowStockTotal(0);
+    }
+  }, [ownBusinessId]);
+
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
       setLoading(true);
       try {
-        await loadProducts();
+        await Promise.all([loadProducts(), loadLowStock()]);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -121,7 +161,7 @@ export default function InventoryPage() {
     return () => {
       cancelled = true;
     };
-  }, [loadProducts]);
+  }, [loadLowStock, loadProducts]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -212,7 +252,7 @@ export default function InventoryPage() {
         await apiSend("/api/products", { method: "POST", body });
       }
       closeModal();
-      await loadProducts();
+      await Promise.all([loadProducts(), loadLowStock()]);
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -232,13 +272,27 @@ export default function InventoryPage() {
   async function handleDelete(item) {
     try {
       await apiSend(`/api/products/${item.product_id}`, { method: "DELETE" });
-      await loadProducts();
+      await Promise.all([loadProducts(), loadLowStock()]);
     } catch (err) {
       setError(err.message);
     }
   }
 
   /* ===== stock inline-edit popover ===== */
+  function openStockEditor(item, anchor, focus = "exact") {
+    setStockError(null);
+    setStockPopover({
+      rowId: item.product_id,
+      productName: item.product_name,
+      current: Number(item.stock_quantity) || 0,
+      exact: String(item.stock_quantity ?? 0),
+      received: "",
+      focus,
+      top: anchor?.top,
+      left: anchor?.left,
+    });
+  }
+
   function handleStockEditClick(e, item) {
     const isOpen = stockPopover && stockPopover.rowId === item.product_id;
     if (isOpen) {
@@ -247,28 +301,51 @@ export default function InventoryPage() {
     }
 
     const rect = e.currentTarget.getBoundingClientRect();
-    setStockPopover({
-      rowId: item.product_id,
+    openStockEditor(item, {
       top: window.scrollY + rect.bottom + 6,
       left: window.scrollX + rect.left - 160,
-      value: item.stock_quantity,
     });
   }
 
-  async function saveStockEdit() {
+  function parseWholeQuantity(value) {
+    const text = String(value).trim();
+    if (!/^\d+$/.test(text)) return null;
+    const quantity = Number(text);
+    return Number.isSafeInteger(quantity) ? quantity : null;
+  }
+
+  async function patchStock(newStock) {
     if (!stockPopover) return;
-    const newStock = parseInt(stockPopover.value, 10) || 0;
     const rowId = stockPopover.rowId;
-    setStockPopover(null);
+    setStockError(null);
     try {
       await apiSend(`/api/products/${rowId}`, {
         method: "PATCH",
         body: { stock_quantity: newStock },
       });
-      await loadProducts();
+      setStockPopover(null);
+      await Promise.all([loadProducts(), loadLowStock()]);
     } catch (err) {
-      setError(err.message);
+      setStockError(err.message);
     }
+  }
+
+  function saveExactStock() {
+    const newStock = parseWholeQuantity(stockPopover?.exact);
+    if (newStock === null) {
+      setStockError("Enter a whole quantity of 0 or more.");
+      return;
+    }
+    void patchStock(newStock);
+  }
+
+  function addReceivedStock() {
+    const received = parseWholeQuantity(stockPopover?.received);
+    if (received === null || received <= 0) {
+      setStockError("Enter a received quantity greater than 0.");
+      return;
+    }
+    void patchStock(stockPopover.current + received);
   }
 
   /* ===== filter panel ===== */
@@ -405,6 +482,44 @@ export default function InventoryPage() {
             )}
           </div>
         </div>
+
+        {ownBusinessId && lowStockTotal > 0 && (
+          <div className="low-stock-banner" role="status">
+            <p>
+              <strong>
+                Low stock: {lowStockTotal} product{lowStockTotal === 1 ? "" : "s"}
+              </strong>
+              {" "}at 10 or below. Choose a product to set the exact count or add what you received.
+            </p>
+            <ul className="low-stock-list">
+              {(showAllLowStock ? lowStockItems : lowStockItems.slice(0, 6)).map((item) => (
+                <li key={item.product_id}>
+                  <button
+                    type="button"
+                    onClick={() => openStockEditor(item, null, "received")}
+                  >
+                    {item.product_name}
+                    <span>{item.stock_quantity}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+            {lowStockItems.length > 6 && (
+              <button
+                type="button"
+                className="link-button"
+                onClick={() => setShowAllLowStock((open) => !open)}
+              >
+                {showAllLowStock ? "Show fewer" : `Show all ${lowStockItems.length} listed`}
+              </button>
+            )}
+            {lowStockTotal > lowStockItems.length && (
+              <p className="low-stock-more">
+                {lowStockTotal - lowStockItems.length} more are not listed here. Search to restock them.
+              </p>
+            )}
+          </div>
+        )}
 
         <main className="inventory-container" aria-busy={fetching}>
           <div
@@ -611,21 +726,50 @@ export default function InventoryPage() {
         {/* ===== Stock inline-edit popover ===== */}
         {stockPopover && (
           <div
-            className="stock-popover open"
-            style={{ top: stockPopover.top, left: stockPopover.left }}
+            className={`stock-popover open${stockPopover.top == null ? " centered" : ""}`}
+            style={
+              stockPopover.top == null
+                ? undefined
+                : { top: stockPopover.top, left: stockPopover.left }
+            }
           >
+            <p className="stock-popover-title">
+              {stockPopover.productName}
+              <span>On hand: {stockPopover.current}</span>
+            </p>
             <label>
-              Stock
+              Exact quantity
               <input
                 type="number"
                 min="0"
                 step="1"
-                value={stockPopover.value}
+                value={stockPopover.exact}
+                autoFocus={stockPopover.focus === "exact"}
                 onChange={(e) =>
-                  setStockPopover((p) => ({ ...p, value: e.target.value }))
+                  setStockPopover((p) => ({ ...p, exact: e.target.value }))
                 }
               />
             </label>
+            <div className="stock-popover-actions">
+              <button type="button" className="btn-primary" onClick={saveExactStock}>
+                Set quantity
+              </button>
+            </div>
+            <label>
+              Received quantity
+              <input
+                type="number"
+                min="1"
+                step="1"
+                placeholder="Add to on hand"
+                value={stockPopover.received}
+                autoFocus={stockPopover.focus === "received"}
+                onChange={(e) =>
+                  setStockPopover((p) => ({ ...p, received: e.target.value }))
+                }
+              />
+            </label>
+            {stockError && <p className="stock-popover-error">{stockError}</p>}
             <div className="stock-popover-actions">
               <button
                 type="button"
@@ -634,12 +778,8 @@ export default function InventoryPage() {
               >
                 Cancel
               </button>
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={saveStockEdit}
-              >
-                Update
+              <button type="button" className="btn-primary" onClick={addReceivedStock}>
+                Add received
               </button>
             </div>
           </div>
