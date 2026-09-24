@@ -8,6 +8,8 @@ import { useListUrlState } from "../../hooks/useListUrlState";
 import { apiGet, apiSend } from "../../lib/api";
 import { statusClass, shortDate } from "../../lib/format";
 import { allowedNext, ONE_TAP_REMARKS, FAIL_REASONS } from "../../lib/statusWorkflow";
+import { LogisticsNotice, LogisticsPlaceholder } from "./LogisticsStates";
+import { COURIER_EMPTY_COPY, courierActionCue } from "./workflowHints";
 import "./logistics.css";
 
 const ASSIGNMENT_TABS = [
@@ -52,6 +54,7 @@ export default function CourierDashboardPage() {
     ? requestedAssignment
     : "available";
   const [failingParcelId, setFailingParcelId] = useState(null);
+  const [pendingParcelId, setPendingParcelId] = useState(null);
   const [actionError, setActionError] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const query = new URLSearchParams({ page: String(list.page), limit: String(list.limit), assignment });
@@ -83,8 +86,17 @@ export default function CourierDashboardPage() {
   // before anything else — including before opening the confirm dialog.
   function handleQuickActionClick(parcel, statusUpdate, event, remarks) {
     event.preventDefault();
+    const legal = allowedNext(parcel.current_status, parcel.return_triggered);
+    if (!legal.includes(statusUpdate)) {
+      setActionError({
+        parcelId: parcel.parcel_id,
+        message: `${statusUpdate} is not a legal next status from ${parcel.current_status ?? "this parcel"}.`,
+      });
+      return;
+    }
     if (statusUpdate === "Delivery Failed" && remarks === undefined) {
       setFailingParcelId(parcel.parcel_id);
+      setActionError(null);
       return;
     }
     const receiver = parcel.receiver?.business_name ?? "the receiver";
@@ -112,6 +124,7 @@ export default function CourierDashboardPage() {
   async function handleQuickAction(parcelId, statusUpdate, remarks) {
     setFailingParcelId(null);
     setActionError(null);
+    setPendingParcelId(parcelId);
 
     const body = { status_update: statusUpdate };
     if (remarks ?? ONE_TAP_REMARKS[statusUpdate]) body.remarks = remarks ?? ONE_TAP_REMARKS[statusUpdate];
@@ -120,11 +133,16 @@ export default function CourierDashboardPage() {
       await apiSend(`/api/parcels/${parcelId}/tracking`, { body });
       resource.reload();
     } catch (error) {
-      setActionError(error.message);
+      setActionError({ parcelId, message: error.message });
+    } finally {
+      setPendingParcelId(null);
     }
   }
 
   function renderParcelCard(parcel) {
+    const next = allowedNext(parcel.current_status, parcel.return_triggered);
+    const cardError = actionError?.parcelId === parcel.parcel_id ? actionError.message : null;
+    const pending = pendingParcelId === parcel.parcel_id;
     return (
       <Link to={`/logistics/${parcel.parcel_id}`} key={parcel.parcel_id} className="parcel-card-link">
         <div className="parcel-card">
@@ -134,11 +152,22 @@ export default function CourierDashboardPage() {
           </div>
           <div className="parcel-card-receiver"><MapPin size={16} className="parcel-card-icon" /><div><strong>To:</strong> {parcel.receiver.business_name}</div></div>
           <div className="parcel-card-meta"><Package size={14} /><span>{parcel.weight_kg} kg · ETA: {shortDate(parcel.estimated_delivery_date)}</span></div>
+          <p className="parcel-card-next">{courierActionCue(parcel.current_status, parcel.return_triggered)}</p>
           <div className="parcel-card-actions">
-            {failingParcelId === parcel.parcel_id
-              ? FAIL_REASONS.map((reason) => <button key={reason} className="courier-action" onClick={(event) => handleQuickActionClick(parcel, "Delivery Failed", event, reason)}>{reason}</button>)
-              : allowedNext(parcel.current_status, parcel.return_triggered).map((status) => <button key={status} className={status === "Delivered" ? "courier-action-primary" : "courier-action"} onClick={(event) => handleQuickActionClick(parcel, status, event)}>{status}</button>)}
+            {failingParcelId === parcel.parcel_id ? (
+              <>
+                {FAIL_REASONS.map((reason) => (
+                  <button key={reason} type="button" className="courier-action" disabled={pending} onClick={(event) => handleQuickActionClick(parcel, "Delivery Failed", event, reason)}>{reason}</button>
+                ))}
+                <button type="button" className="courier-action" disabled={pending} onClick={(event) => { event.preventDefault(); setFailingParcelId(null); }}>Back</button>
+              </>
+            ) : next.map((status) => (
+              <button key={status} type="button" className={status === "Delivered" ? "courier-action-primary" : "courier-action"} disabled={pending} onClick={(event) => handleQuickActionClick(parcel, status, event)}>
+                {pending ? "Saving…" : status}
+              </button>
+            ))}
           </div>
+          {cardError && <p className="form-error parcel-card-error" role="alert">{cardError}</p>}
         </div>
       </Link>
     );
@@ -164,19 +193,30 @@ export default function CourierDashboardPage() {
         </div>
 
         <main className="courier-list" aria-busy={resource.loading}>
-          {actionError && <div className="page-empty page-empty--inline">Could not update parcel: {actionError}</div>}
+          {actionError && !parcels?.some((parcel) => parcel.parcel_id === actionError.parcelId) && (
+            <LogisticsNotice message={`Could not update parcel #${actionError.parcelId}: ${actionError.message}`} />
+          )}
           {parcels === null && resource.loading ? (
-            <div className="page-empty">Loading assignments...</div>
+            <LogisticsPlaceholder label="assignments" />
           ) : resource.error && !parcels?.length ? (
-            <div className="page-empty">Could not load assignments: {resource.error.message}</div>
+            <LogisticsNotice
+              message={`Could not load assignments: ${resource.error.message}`}
+              onRetry={resource.reload}
+            />
           ) : (parcels?.length ?? 0) === 0 ? (
-            <div className="page-empty">
-              {list.q ? "No assignments match your search." : "No assignments in this group."}
-              {list.q && <button className="clear-list-filters" type="button" onClick={() => list.setQuery("")}>Clear search</button>}
-            </div>
+            <LogisticsNotice
+              message={list.q ? "No assignments match your search." : COURIER_EMPTY_COPY[assignment]}
+              onRetry={list.q ? () => list.setQuery("") : undefined}
+              retryLabel="Clear search"
+            />
           ) : (
             <>
-              {resource.error && <div className="page-empty page-empty--inline">Could not refresh assignments: {resource.error.message}</div>}
+              {resource.error && (
+                <LogisticsNotice
+                  message={`Could not refresh assignments: ${resource.error.message}`}
+                  onRetry={resource.reload}
+                />
+              )}
               <div className="parcel-list-container">{parcels.map(renderParcelCard)}</div>
               <PaginationControls pagination={pagination} disabled={resource.loading} onPageChange={list.setPage} onLimitChange={list.setLimit} ariaLabel="Courier assignments pagination" />
             </>

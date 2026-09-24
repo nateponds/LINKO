@@ -605,4 +605,93 @@
   .courier-action-primary:hover {
     background: var(--color-primary-dark);
   }
+
+  .courier-action:disabled,
+  .courier-action-primary:disabled {
+    opacity: 0.65;
+    cursor: default;
+  }
+
+  .route-party,
+  .logistics-placeholder-label {
+    display: block;
+    margin-top: 2px;
+    color: var(--color-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .next-status-cell {
+    max-width: 220px;
+    white-space: normal;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--color-primary-dark);
+  }
+
+  .parcel-route-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px 18px;
+    margin-bottom: 18px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: var(--color-surface);
+  }
+
+  .parcel-route-summary strong,
+  .parcel-route-summary span {
+    display: block;
+  }
+
+  .parcel-next-hint {
+    grid-column: 1 / -1;
+    margin: 0;
+    font-weight: 700;
+    color: var(--color-primary-dark);
+  }
+
+  .parcel-card-next {
+    margin: 0 0 0.75rem;
+    color: var(--color-primary-dark);
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+
+  .parcel-card-actions {
+    flex-wrap: wrap;
+  }
+
+  .parcel-card-error {
+    margin: 0.75rem 0 0;
+  }
+
+  .logistics-placeholder {
+    display: grid;
+    gap: 10px;
+    padding: 28px 20px;
+  }
+
+  .logistics-placeholder-bar {
+    height: 14px;
+    border-radius: 7px;
+    background: #e7edf8;
+  }
+
+  .logistics-placeholder-bar--short {
+    width: 42%;
+  }
+
+  .logistics-retry-btn {
+    display: inline-flex;
+    margin-top: 12px;
+    border: 0;
+    border-radius: 16px;
+    background: var(--color-primary);
+    color: white;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 700;
+    padding: 8px 16px;
+  }
 }
