@@ -746,6 +746,11 @@
     border: 2px solid rgba(152, 216, 104, 0.7);
   }
 
+  .search-bar:focus-within {
+    border-color: var(--color-accent-dark);
+    box-shadow: 0 0 0 3px rgba(91, 159, 53, 0.22);
+  }
+
   .search-bar input {
     border: none;
     outline: none;

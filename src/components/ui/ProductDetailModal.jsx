@@ -8,7 +8,9 @@
 import { useEffect, useRef } from "react";
 import { ShoppingCart, X } from "lucide-react";
 import { peso, stockBadge } from "../../lib/format";
+import { lockBodyScroll } from "../../lib/bodyScrollLock";
 import { ProductModalSkeleton } from "./pageSkeletons";
+import { useDialogFocus } from "./useDialogFocus";
 
 const TITLE_ID = "product-detail-title";
 const FALLBACK_IMAGE =
@@ -26,38 +28,19 @@ export default function ProductDetailModal({
   onClose,
 }) {
   const dialogRef = useRef(null);
-  const previousFocus = useRef(null);
+  const closeButtonRef = useRef(null);
 
   useEffect(() => {
-    if (open) {
-      previousFocus.current = document.activeElement;
-      document.body.style.overflow = "hidden";
-      dialogRef.current?.focus();
-      return;
-    }
-    document.body.style.overflow = "";
-    // Only restore focus if this close follows an open — otherwise the effect's
-    // initial run would yank focus on every mount.
-    if (previousFocus.current) {
-      previousFocus.current.focus();
-      previousFocus.current = null;
-    }
+    if (!open) return undefined;
+    return lockBodyScroll();
   }, [open]);
 
-  // Restore scrolling if we unmount while still open (e.g. route change).
-  useEffect(() => () => { document.body.style.overflow = ""; }, []);
-
-  useEffect(() => {
-    if (!open) return;
-    const handleKeyDown = (e) => {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        onClose?.();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open, onClose]);
+  useDialogFocus({
+    open,
+    dialogRef,
+    initialFocusRef: closeButtonRef,
+    onEscape: onClose,
+  });
 
   if (!open) return null;
 
@@ -85,6 +68,7 @@ export default function ProductDetailModal({
           type="button"
           className="product-modal-close"
           aria-label="Close product details"
+          ref={closeButtonRef}
           onClick={onClose}
         >
           <X size={18} />

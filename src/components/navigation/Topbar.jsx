@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Bell,
   Boxes,
@@ -24,7 +24,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../auth/AuthProvider";
 import { useCart } from "../../features/cart/CartProvider";
 import { formatRoleLabel, primaryRole, ROLE_ACCESS } from "../../auth/roleAccess";
-import MarketplaceSearch from "../../features/search/MarketplaceSearch";
+import MarketplaceSearch from "../../features/search/MarketplaceSearch.jsx";
 import { marketplaceSearchPath } from "../../features/search/marketplaceSearch";
 import ConfirmDialog from "../ui/ConfirmDialog";
 import Sidebar from "./Sidebar";
@@ -35,8 +35,27 @@ function getIconForType(type) {
   return Package;
 }
 
+function focusIfVisible(element) {
+  if (!element?.isConnected) return;
+
+  const styles = window.getComputedStyle(element);
+  if (
+    styles.display === "none" ||
+    styles.visibility === "hidden" ||
+    styles.visibility === "collapse" ||
+    element.getClientRects().length === 0
+  ) {
+    return;
+  }
+
+  element.focus();
+}
+
 function Topbar({ showSearch = false, showCategories = false }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const closeSidebar = useCallback(() => setMenuOpen(false), []);
+  const menuButtonRef = useRef(null);
+  const sidebarLogoutRef = useRef(false);
   const [openPanel, setOpenPanel] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [notificationPage, setNotificationPage] = useState(1);
@@ -70,7 +89,21 @@ function Topbar({ showSearch = false, showCategories = false }) {
   const badgeLabel = BADGE_LABELS[badgeRole] ?? formatRoleLabel(badgeRole);
   const avatarLetter = displayName.charAt(0).toUpperCase();
 
+  function requestLogoutConfirmation(fromSidebar = false) {
+    sidebarLogoutRef.current = fromSidebar;
+    setConfirmLogout(true);
+  }
+
+  function cancelLogoutConfirmation() {
+    setConfirmLogout(false);
+    if (!sidebarLogoutRef.current) return;
+
+    sidebarLogoutRef.current = false;
+    requestAnimationFrame(() => focusIfVisible(menuButtonRef.current));
+  }
+
   async function handleLogout() {
+    sidebarLogoutRef.current = false;
     setOpenPanel(null);
     setMenuOpen(false);
     await logout();
@@ -393,6 +426,7 @@ function Topbar({ showSearch = false, showCategories = false }) {
 
           <button
             className="icon-action"
+            ref={menuButtonRef}
             title={menuOpen ? "Close menu" : "Menu"}
             aria-expanded={menuOpen}
             aria-label={menuOpen ? "Close menu" : "Open menu"}
@@ -446,7 +480,7 @@ function Topbar({ showSearch = false, showCategories = false }) {
                   <button
                     type="button"
                     className="danger"
-                    onClick={() => setConfirmLogout(true)}
+                    onClick={() => requestLogoutConfirmation()}
                   >
                     <LogOut size={15} /> Logout
                   </button>
@@ -457,8 +491,9 @@ function Topbar({ showSearch = false, showCategories = false }) {
       </header>
       <Sidebar
         isOpen={menuOpen}
-        onClose={() => setMenuOpen(false)}
-        onLogout={() => setConfirmLogout(true)}
+        onClose={closeSidebar}
+        onLogout={() => requestLogoutConfirmation(true)}
+        openerRef={menuButtonRef}
       />
       <ConfirmDialog
         open={confirmLogout}
@@ -466,7 +501,7 @@ function Topbar({ showSearch = false, showCategories = false }) {
         message="You will need to sign in again to access your account."
         confirmLabel="Log out"
         onConfirm={handleLogout}
-        onCancel={() => setConfirmLogout(false)}
+        onCancel={cancelLogoutConfirmation}
       />
     </>
   );

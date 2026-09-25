@@ -4,6 +4,7 @@ import { apiSend } from "../../lib/api";
 import MapPicker from "../../components/ui/MapPicker";
 import { addressBookCopy } from "./addressCopy";
 import { X, AlertTriangle } from "lucide-react";
+import { lockBodyScroll } from "../../lib/bodyScrollLock";
 
 const TEXT_FIELDS = [
   { key: "label", label: "Label" },
@@ -43,14 +44,13 @@ export default function LocationModal({ open, onClose, onSaved, address = null }
   useEffect(() => {
     if (open) {
       previousFocus.current = document.activeElement;
-      document.body.style.overflow = "hidden";
+      return lockBodyScroll();
     } else {
-      document.body.style.overflow = "";
       if (previousFocus.current) {
         previousFocus.current.focus();
       }
     }
-    return () => { document.body.style.overflow = ""; };
+    return undefined;
   }, [open]);
 
   const dirty = !formsEqual(form, savedForm);

@@ -1,11 +1,32 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../../auth/AuthProvider";
 import { APP_NAV_ITEMS, formatRoleLabel } from "../../auth/roleAccess";
+import { lockBodyScroll } from "../../lib/bodyScrollLock";
 
-function Sidebar({ isOpen, onClose, onLogout }) {
+function focusIfVisible(element) {
+  if (!element?.isConnected) {
+    return;
+  }
+
+  const styles = window.getComputedStyle(element);
+  if (
+    styles.display === "none" ||
+    styles.visibility === "hidden" ||
+    styles.visibility === "collapse" ||
+    element.getClientRects().length === 0
+  ) {
+    return;
+  }
+
+  element.focus();
+}
+
+function Sidebar({ isOpen, onClose, onLogout, openerRef }) {
   const { user, activeMembership, activeRoles, hasAnyRole } = useAuth();
+  const wasOpen = useRef(false);
+  const restoreFocusOnClose = useRef(true);
   const displayName = user?.full_name || user?.email || "LINKO User";
   const displayBusiness = activeMembership?.business_name || "No business assigned";
   // Use the additive activeRoles (matching the Topbar) so a user with multiple
@@ -17,35 +38,59 @@ function Sidebar({ isOpen, onClose, onLogout }) {
       : activeRoles.map(formatRoleLabel).join(", ") || "Member";
   const menuItems = APP_NAV_ITEMS.filter((item) => hasAnyRole(item.roles));
 
+  function closeMenu(restoreFocus = true) {
+    restoreFocusOnClose.current = restoreFocus;
+    onClose();
+  }
+
   useEffect(() => {
     if (!isOpen) {
+      if (wasOpen.current) {
+        wasOpen.current = false;
+        if (restoreFocusOnClose.current) {
+          focusIfVisible(openerRef?.current);
+        }
+      }
       return undefined;
     }
 
+    wasOpen.current = true;
+    restoreFocusOnClose.current = true;
+
     function handleKey(event) {
       if (event.key === "Escape") {
+        restoreFocusOnClose.current = true;
         onClose();
       }
     }
 
     document.addEventListener("keydown", handleKey);
-    document.body.style.overflow = "hidden";
+    const releaseBodyScroll = lockBodyScroll();
 
     return () => {
       document.removeEventListener("keydown", handleKey);
-      document.body.style.overflow = "";
+      releaseBodyScroll();
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, openerRef]);
+
+  function handleLogout() {
+    closeMenu(false);
+    onLogout();
+  }
 
   return (
     <>
       <div
         className={`menu-backdrop${isOpen ? " is-open" : ""}`}
-        onClick={onClose}
+        onClick={() => closeMenu()}
         aria-hidden="true"
       />
-      <aside className={`menu-overlay${isOpen ? " is-open" : ""}`} aria-hidden={!isOpen}>
-        <button className="close-btn" type="button" onClick={onClose} aria-label="Close menu">
+      <aside
+        className={`menu-overlay${isOpen ? " is-open" : ""}`}
+        aria-hidden={!isOpen}
+        inert={!isOpen}
+      >
+        <button className="close-btn" type="button" onClick={() => closeMenu()} aria-label="Close menu">
           <X size={28} />
         </button>
         <div className="menu-profile">
@@ -63,12 +108,12 @@ function Sidebar({ isOpen, onClose, onLogout }) {
               end={item.end}
               className={({ isActive }) => (isActive ? "active" : undefined)}
               key={item.name}
-              onClick={onClose}
+              onClick={() => closeMenu()}
             >
               {item.name}
             </NavLink>
           ))}
-          <button type="button" className="logout menu-logout-button" onClick={onLogout}>
+          <button type="button" className="logout menu-logout-button" onClick={handleLogout}>
             Logout
           </button>
         </nav>

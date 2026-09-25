@@ -170,11 +170,13 @@ export default function MapPicker({ latitude, longitude, onChange, onStatusChang
 
   return (
     <div style={{ margin: "0.5rem 0" }}>
-      <div
-        ref={containerRef}
-        className={status === "loading" ? "skeleton skeleton-map" : undefined}
-        style={{ height: "280px", borderRadius: "8px", overflow: "hidden" }}
-      />
+      <div className={status === "loading" ? "skeleton skeleton-map" : undefined}>
+        <div
+          ref={containerRef}
+          className="map-picker-map"
+          style={{ height: "280px", borderRadius: "8px", overflow: "hidden" }}
+        />
+      </div>
       <p style={{ fontSize: "0.8rem", opacity: 0.7, margin: "0.4rem 0 0" }}>
         {status === "loading" ? (
           <span className="skeleton-sr">Loading map</span>
@@ -358,12 +360,14 @@ export function ParcelRouteMap({ stops }) {
     <section className="parcel-route" aria-labelledby="planned-route-heading">
       <h2 id="planned-route-heading">Planned route</h2>
       {mappedStops.length > 0 && status !== "no-token" && status !== "failed" && (
-        <div
-          ref={containerRef}
-          className={`parcel-route-map${status === "loading" ? " skeleton skeleton-map" : ""}`}
-          role="img"
-          aria-label="Map of planned parcel route"
-        />
+        <div className={status === "loading" ? "skeleton skeleton-map" : undefined}>
+          <div
+            ref={containerRef}
+            className="parcel-route-map"
+            role="img"
+            aria-label="Map of planned parcel route"
+          />
+        </div>
       )}
       {mappedStops.length === 0 ? (
         <p className="parcel-route-map-note">No stops with coordinates are available to map.</p>

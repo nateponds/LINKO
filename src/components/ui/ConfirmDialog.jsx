@@ -10,6 +10,8 @@
 // Add one only if a caller needs to keep the dialog open across an await.
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle } from "lucide-react";
+import { useDialogFocus } from "./useDialogFocus";
+import { lockBodyScroll } from "../../lib/bodyScrollLock";
 
 const TITLE_ID = "confirm-dialog-title";
 // Keep in sync with the .confirm-dialog slide-out duration in settings.css.
@@ -25,25 +27,23 @@ export default function ConfirmDialog({
   onCancel,
 }) {
   const dialogRef = useRef(null);
-  const previousFocus = useRef(null);
+  const cancelButtonRef = useRef(null);
   // Stay mounted for one animation after `open` flips false, so the dialog
   // can slide back out instead of vanishing. `closing` drives the exit class.
   const [closing, setClosing] = useState(false);
   const wasOpen = useRef(false);
 
   useEffect(() => {
+    if (!open) return undefined;
+    return lockBodyScroll();
+  }, [open]);
+
+  useEffect(() => {
     if (open) {
       wasOpen.current = true;
-      previousFocus.current = document.activeElement;
-      document.body.style.overflow = "hidden";
-      dialogRef.current?.focus();
       return;
     }
 
-    document.body.style.overflow = "";
-    if (previousFocus.current) {
-      previousFocus.current.focus();
-    }
     if (!wasOpen.current) return;   // never opened; nothing to animate out
     wasOpen.current = false;
     setClosing(true);
@@ -51,19 +51,12 @@ export default function ConfirmDialog({
     return () => clearTimeout(timer);
   }, [open]);
 
-  useEffect(() => () => { document.body.style.overflow = ""; }, []);
-
-  useEffect(() => {
-    if (!open) return;
-    const handleKeyDown = (e) => {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        onCancel?.();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open, onCancel]);
+  useDialogFocus({
+    open,
+    dialogRef,
+    initialFocusRef: cancelButtonRef,
+    onEscape: onCancel,
+  });
 
   if (!open && !closing) return null;
 
@@ -96,6 +89,7 @@ export default function ConfirmDialog({
           <div className="settings-modal-confirm-actions">
             <button
               className="settings-btn settings-btn-outline"
+              ref={cancelButtonRef}
               onClick={onCancel}
             >
               {cancelLabel}

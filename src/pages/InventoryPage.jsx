@@ -365,23 +365,32 @@ export default function InventoryPage() {
     setSearchParams(updateListUrlState(searchParams, { filters: EMPTY_FILTERS }));
   }
 
+  function submitSearch(event) {
+    event.preventDefault();
+    const nextQuery = new FormData(event.currentTarget).get("q");
+    setSearchTerm(String(nextQuery ?? ""));
+    setSearchParams(updateListUrlState(searchParams, { q: nextQuery }));
+  }
+
   return (
     <AppLayout>
       <div className="inventory-page">
         <div className="page-head">
           <h1>My Products</h1>
           <div className="header-toolbar">
-            <div className="search-bar">
+            <form className="search-bar" role="search" aria-label="Search inventory" onSubmit={submitSearch}>
               <input
+                name="q"
                 type="text"
+                aria-label="Search inventory"
                 placeholder="Search"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
-              <button className="search-icon-btn" aria-label="Search">
+              <button type="submit" className="search-icon-btn" aria-label="Search inventory">
                 <Search size={16} />
               </button>
-            </div>
+            </form>
 
             <div className="filter-wrap" ref={filterWrapRef}>
               <button className="filter-btn" onClick={handleFilterBtnClick}>

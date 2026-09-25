@@ -132,6 +132,13 @@ export default function OrdersPage() {
     searchTimerRef.current = window.setTimeout(() => list.setQuery(nextQuery), 300);
   }
 
+  function submitSearch(event) {
+    event.preventDefault();
+    window.clearTimeout(searchTimerRef.current);
+    const nextQuery = new FormData(event.currentTarget).get("q");
+    list.setQuery(String(nextQuery ?? ""));
+  }
+
   useEffect(() => {
     function updatePill() {
       if (!tabsContainerRef.current) return;
@@ -287,18 +294,20 @@ export default function OrdersPage() {
       <div className="orders-page">
         <div className="page-head">
           <h1>Orders</h1>
-          <div className="search-bar">
+          <form className="search-bar" role="search" aria-label="Search orders" onSubmit={submitSearch}>
             <input
+              name="q"
               type="text"
+              aria-label="Search orders"
               placeholder="Search order no., customer, seller, invoice"
               key={list.q}
               defaultValue={list.q}
               onChange={(event) => queueSearch(event.target.value)}
             />
-            <button className="search-icon-btn" aria-label="Search">
+            <button type="submit" className="search-icon-btn" aria-label="Search orders">
               <Search size={16} />
             </button>
-          </div>
+          </form>
         </div>
 
         <div
