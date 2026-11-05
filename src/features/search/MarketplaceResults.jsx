@@ -41,8 +41,9 @@ function ProductResult({ product }) {
           <span className={`status ${badge.cls}`}>{badge.label}</span>
         </div>
         <Link to={`/suppliers/${product.business_id}?product_id=${product.product_id}`} className="home-product-cta">
-          View Product
+          View product
         </Link>
+        <p className="home-product-note" aria-hidden="true" />
       </div>
     </div>
   );

@@ -54,7 +54,7 @@ function ProductCard({ product }) {
             to={`/suppliers/${product.business_id}?product_id=${product.product_id}`}
             className="home-product-cta"
           >
-            View Product <ArrowRight size={14} />
+            View product
           </Link>
           <button
             type="button"
@@ -66,7 +66,7 @@ function ProductCard({ product }) {
             Add
           </button>
         </div>
-        {note && <p className="home-product-note">{note}</p>}
+        <p className="home-product-note" role="status">{note}</p>
       </div>
     </div>
   );

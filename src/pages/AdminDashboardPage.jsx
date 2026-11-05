@@ -274,7 +274,7 @@ export default function AdminDashboardPage() {
               <EmptyList query={usersList.q} label="users" onClear={usersSearch.clear} />
             ) : (
               <table className="data-table admin-compact-table">
-                <thead><tr><th scope="col">User</th><th scope="col">Role</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
+                <thead><tr><th scope="col">User</th><th scope="col">Role</th><th scope="col" className="table-status">Status</th><th scope="col">Actions</th></tr></thead>
                 <tbody>{visibleUsers.map((entry) => {
                   const busy = mutatingId === `user-${entry.user_id}`;
                   return (
@@ -311,7 +311,7 @@ export default function AdminDashboardPage() {
               <EmptyList query={businessesList.q} label="businesses" onClear={businessesSearch.clear} />
             ) : (
               <table className="data-table admin-compact-table">
-                <thead><tr><th scope="col">Business</th><th scope="col">Type</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
+                <thead><tr><th scope="col">Business</th><th scope="col">Type</th><th scope="col" className="table-status">Status</th><th scope="col">Actions</th></tr></thead>
                 <tbody>{visibleBusinesses.map((business) => {
                   const busy = mutatingId === `business-${business.business_id}`;
                   return (

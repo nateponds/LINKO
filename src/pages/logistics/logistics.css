@@ -733,7 +733,7 @@
   }
 
   .data-table :is(td, th[scope="row"]) {
-    vertical-align: top;
+    vertical-align: middle;
   }
 
   .data-table .parcel-identity {

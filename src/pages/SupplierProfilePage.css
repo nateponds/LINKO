@@ -370,8 +370,10 @@
   }
 
   .product-card {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-row: span 6;
+    row-gap: 0;
     border-radius: 12px;
     overflow: hidden;
     background: white;
@@ -404,9 +406,10 @@
   }
 
   .product-details {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-row: span 5;
+    row-gap: 8px;
     padding: 14px 16px 16px;
   }
 
@@ -414,6 +417,12 @@
     font-size: 0.95rem;
     font-weight: 700;
     color: var(--color-text);
+    overflow-wrap: anywhere;
+  }
+
+  .product-details > .status {
+    justify-self: start;
+    align-self: center;
   }
 
   /* The card image and name are buttons (keyboard-reachable modal triggers);

@@ -330,7 +330,7 @@ export default function OrdersPage() {
                         <tr>
                           <th scope="col">Order</th>
                           <th scope="col">Business</th>
-                          <th scope="col">Status</th>
+                          <th scope="col" className="table-status">Status</th>
                           <th scope="col" className="order-number-cell">Total</th>
                           <th scope="col">Actions</th>
                         </tr>
