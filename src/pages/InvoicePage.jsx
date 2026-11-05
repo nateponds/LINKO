@@ -194,7 +194,7 @@ export default function InvoicePage() {
   return (
     <AppLayout>
       <div className="invoice-page">
-        <div className="invoice-subbar">
+        {invoiceId && <div className="invoice-subbar">
           {invoiceId ? (
             <button className="back-btn" onClick={handleBack}>
               <ArrowLeft size={15} /> Back
@@ -212,13 +212,13 @@ export default function InvoicePage() {
                 : `${listPagination?.total_items ?? 0} visible`}
             </span>
           </div>
-        </div>
+        </div>}
 
         {!invoiceId ? (
           <main className="invoice-list-wrap" aria-busy={listResource.loading}>
             <div className="invoice-list-head">
               <div>
-                <span className="status-eyebrow">Billing workspace</span>
+
                 <h1 className="status-title">Invoices</h1>
               </div>
               <div className="invoice-list-actions">

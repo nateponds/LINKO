@@ -266,10 +266,6 @@
     border-bottom: none;
   }
 
-  .table-height-animator {
-    border-bottom: 1px solid var(--hairline);
-  }
-
   .inventory-table td strong {
     color: var(--color-primary-dark);
     font-weight: 700;
@@ -531,11 +527,6 @@
   @media (max-width: 700px) {
     padding: 16px 12px 40px;
 
-    .col-sku,
-    .col-status {
-      display: none;
-    }
-
     .add-btn-label,
     .filter-btn-label,
     .filter-btn-chevron {
@@ -548,5 +539,90 @@
       width: 44px;
       justify-content: center;
     }
+  }
+}
+
+.inventory-page {
+  max-width: 1360px;
+  margin-inline: auto;
+  padding-inline: clamp(16px, 4vw, 56px);
+
+  .page-head p {
+    margin: 6px 0 0;
+    color: var(--color-muted);
+  }
+
+  .inventory-table-wrap {
+    overflow-x: auto;
+    border: 1px solid #e1e7ef;
+    border-radius: 8px;
+  }
+
+  .inventory-table thead th {
+    background: #f8f9fc;
+    font-size: 0.82rem;
+    text-transform: none;
+    letter-spacing: normal;
+  }
+
+  .inventory-table .inventory-product {
+    min-width: 10rem;
+    color: var(--color-text);
+    font-size: 0.9rem;
+    font-weight: 650;
+    text-transform: none;
+    letter-spacing: normal;
+  }
+
+  .inventory-product small {
+    display: block;
+    margin-top: 3px;
+    color: var(--color-muted);
+    font-size: 0.75rem;
+    font-weight: 400;
+  }
+
+  .inventory-table .inventory-number {
+    text-align: end;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .inventory-table .stock-heading {
+    padding-inline-end: 46px;
+  }
+
+  .inventory-table .stock-value {
+    display: inline-grid;
+    grid-template-columns: minmax(3ch, auto) 28px;
+    align-items: center;
+    gap: 6px;
+    color: var(--color-text);
+  }
+
+  .inventory-manage {
+    min-width: 7rem;
+    font-size: 0.82rem;
+  }
+
+  .inventory-manage summary {
+    width: fit-content;
+    color: var(--color-primary);
+    cursor: pointer;
+  }
+
+  .inventory-manage button {
+    display: block;
+    margin-top: 8px;
+    text-align: start;
+    font-size: inherit;
+  }
+
+  .inventory-manage .inventory-delete {
+    color: #a83d2b;
+  }
+
+  .low-stock-list [hidden] {
+    display: none;
   }
 }

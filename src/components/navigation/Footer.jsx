@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Handshake, MapPin } from "lucide-react";
 import { useAuth } from "../../auth/AuthProvider";
 import { APP_NAV_ITEMS, ROLE_ACCESS } from "../../auth/roleAccess";
 import SupportModal from "../ui/SupportModal";
@@ -24,8 +23,6 @@ function Footer() {
       <div className="footer-grid">
         <div className="footer-brand">
           <div className="footer-wordmark">LINK<span>O</span></div>
-          <p>Connecting MSMEs and buyers with trusted wholesalers across the Philippines.</p>
-          <div className="footer-location"><MapPin size={15} /> Built for the Philippines</div>
         </div>
         <div className="footer-col">
           <h4>Marketplace</h4>
@@ -61,7 +58,6 @@ function Footer() {
       </div>
       <div className="footer-bottom">
         <span>© {new Date().getFullYear()} LINKO. All rights reserved.</span>
-        <span><Handshake size={15} /> Connecting business to opportunity.</span>
       </div>
     </footer>
     <SupportModal open={supportOpen} onClose={() => setSupportOpen(false)} />

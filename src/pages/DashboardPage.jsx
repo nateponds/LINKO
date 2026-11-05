@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Boxes, ClipboardList, PhilippinePeso, TriangleAlert } from "lucide-react";
+import { ChevronDown, TriangleAlert } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   Area,
@@ -12,14 +12,15 @@ import {
 } from "recharts";
 import AppLayout from "../layouts/AppLayout";
 import DecisionStrip from "../components/DecisionStrip";
+import { useAuth } from "../auth/AuthProvider";
 import { apiGet } from "../lib/api";
-import { DashboardSkeleton } from "../components/ui/pageSkeletons";
+import { Skeleton, SkeletonStatus } from "../components/ui/Skeleton";
 import "./DashboardPage.css";
 
 const RANGES = [
   { key: "today", label: "Today" },
-  { key: "7d", label: "7 Days" },
-  { key: "30d", label: "30 Days" },
+  { key: "7d", label: "7 days" },
+  { key: "30d", label: "30 days" },
 ];
 
 const EMPTY_STATS = {
@@ -35,7 +36,8 @@ const EMPTY_STATS = {
 
 const ALERT_STATUSES = new Set(["cancelled", "canceled", "returned", "rejected"]);
 
-const peso = (n) => `₱${Number(n ?? 0).toLocaleString("en-PH")}`;
+const currency = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
+const peso = (value) => currency.format(value ?? 0);
 
 function timeAgo(timestamp) {
   const seconds = Math.max(0, (Date.now() - new Date(timestamp).getTime()) / 1000);
@@ -81,235 +83,229 @@ function SalesTooltip({ active, payload, label }) {
   );
 }
 
+const ACTIVITY_PREVIEW_COUNT = 3;
+
+function RecentActivity({ entries }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <section className="panel">
+      <div className="panel-head">
+        <h2>Recent activity</h2>
+        <Link to="/orders" className="panel-link">View orders</Link>
+      </div>
+      {entries.length === 0 ? (
+        <p className="panel-empty">Order updates will appear here as they happen.</p>
+      ) : (
+        <ol className="activity-list" id="dashboard-activity">
+          {entries.map((entry, index) => (
+            <li
+              key={entry.order_id}
+              className="activity-item"
+              hidden={!expanded && index >= ACTIVITY_PREVIEW_COUNT}
+            >
+              <span
+                aria-hidden="true"
+                className={`activity-dot ${ALERT_STATUSES.has(String(entry.status).toLowerCase()) ? "is-alert" : ""}`}
+              />
+              <div>
+                <span className="activity-text">{activityText(entry)}</span>
+                <time className="activity-time" dateTime={entry.updated_at}>{timeAgo(entry.updated_at)}</time>
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+      {entries.length > ACTIVITY_PREVIEW_COUNT && (
+        <button
+          type="button"
+          className="dashboard-disclosure"
+          aria-expanded={expanded}
+          aria-controls="dashboard-activity"
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? "Show fewer updates" : `Show ${entries.length - ACTIVITY_PREVIEW_COUNT} more updates`}
+          <ChevronDown size={16} aria-hidden="true" />
+        </button>
+      )}
+    </section>
+  );
+}
+
 export default function DashboardPage() {
+  const { activeBusinessId } = useAuth();
   const [range, setRange] = useState("7d");
-  const [stats, setStats] = useState(EMPTY_STATS);
-  const [loading, setLoading] = useState(true);
-  const [settled, setSettled] = useState(false);
-  const [error, setError] = useState(null);
+  const [attempt, setAttempt] = useState(0);
+  const [result, setResult] = useState(null);
+  const [snapshot, setSnapshot] = useState(null);
+  const requestKey = `${activeBusinessId}:${range}:${attempt}`;
+  const current = result?.key === requestKey ? result : null;
+  const loading = current === null;
+  const stats = current?.stats;
+  const overview = snapshot?.businessId === activeBusinessId ? snapshot?.stats : null;
+  const rangeLabel = RANGES.find((item) => item.key === range).label;
 
   useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await apiGet(`/api/dashboard?range=${range}`);
-        if (cancelled) return;
-        setStats({ ...EMPTY_STATS, ...data });
-      } catch (e) {
-        if (cancelled) return;
-        setError(e.message);
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-          setSettled(true);
-        }
-      }
-    }
-    load();
-    return () => { cancelled = true; };
-  }, [range]);
-
-  const rangeLabel = RANGES.find((r) => r.key === range).label;
+    const controller = new AbortController();
+    apiGet(`/api/dashboard?range=${range}`, { signal: controller.signal })
+      .then((data) => {
+        if (controller.signal.aborted) return;
+        const nextStats = { ...EMPTY_STATS, ...data };
+        setSnapshot({ businessId: activeBusinessId, stats: nextStats });
+        setResult({ key: requestKey, stats: nextStats });
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setResult({ key: requestKey, error: true });
+      });
+    return () => controller.abort();
+  }, [activeBusinessId, range, requestKey]);
 
   return (
     <AppLayout>
-      <div className="dashboard-page" aria-busy={loading}>
-        <div className="page-head">
+      <div className="dashboard-page">
+        <header className="dashboard-heading">
           <h1>Dashboard</h1>
-          <div className="range-toggle" role="tablist" aria-label="Time range">
-            {RANGES.map((r) => (
-              <button
-                key={r.key}
-                role="tab"
-                aria-selected={range === r.key}
-                className={range === r.key ? "active" : ""}
-                onClick={() => setRange(r.key)}
-              >
-                {r.label}
-              </button>
-            ))}
-          </div>
-        </div>
 
-        {error && (
-          <p className="dashboard-error">Could not load dashboard: {error}</p>
-        )}
+        </header>
 
-        {loading && !settled ? (
-          <DashboardSkeleton />
-        ) : (
-        <>
-        <div className="stat-grid">
-          <div className="stat-card">
-            <span className="stat-icon revenue"><PhilippinePeso size={26} /></span>
-            <div>
-              <span className="stat-value">{peso(stats.revenue)}</span>
-              <span className="stat-label">Revenue · {rangeLabel}</span>
-            </div>
-          </div>
-          <div className="stat-card">
-            <span className="stat-icon orders"><ClipboardList size={26} /></span>
-            <div>
-              <span className="stat-value">{stats.orders}</span>
-              <span className="stat-label">Orders · {rangeLabel}</span>
-            </div>
-          </div>
-          <div className="stat-card">
-            <span className="stat-icon alert"><TriangleAlert size={26} /></span>
-            <div>
-              <span className="stat-value">{stats.lowStock}</span>
-              <span className="stat-label">Low-stock Items</span>
-            </div>
-          </div>
-          <div className="stat-card">
-            <span className="stat-icon products"><Boxes size={26} /></span>
-            <div>
-              <span className="stat-value">{stats.products}</span>
-              <span className="stat-label">Products Listed</span>
-            </div>
-          </div>
-        </div>
-
-        {!error && (
-        <DecisionStrip
-          label="Orders that need a wholesaler decision"
-          loading={loading}
-          items={[
-            {
-              key: "pending",
-              to: "/orders?status=Pending",
-              value: stats.actionableOrders.pending,
-              label: "Pending orders",
-              hint: "Accept or reject these incoming orders",
-              empty: "No orders waiting to be accepted",
-            },
-            {
-              key: "accepted",
-              to: "/orders?status=Accepted",
-              value: stats.actionableOrders.accepted,
-              label: "Accepted orders",
-              hint: "Start preparing these orders",
-              empty: "No accepted orders waiting to be prepared",
-            },
-          ]}
-        />
-        )}
-
-        <div className="dashboard-columns">
-          <section className="panel">
+        {overview && (
+          <section className="dashboard-work" aria-labelledby="dashboard-work-title">
             <div className="panel-head">
-              <h2>Orders Trend</h2>
-              <span className="panel-sub">{rangeLabel}</span>
+              <h2 id="dashboard-work-title">Orders to handle</h2>
+              <Link to="/orders" className="panel-link">All orders</Link>
             </div>
-            {stats.sales.length === 0 ? (
-              <p className="panel-empty">No orders in this period yet.</p>
-            ) : (
-              <div className="chart-wrap">
-                <ResponsiveContainer width="100%" height={240}>
-                  <AreaChart
-                    data={stats.sales}
-                    margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
-                  >
-                    <CartesianGrid vertical={false} stroke="#eceff5" />
-                    <XAxis
-                      dataKey="label"
-                      tickLine={false}
-                      axisLine={false}
-                      tick={{ fontSize: 12, fill: "#52617d" }}
-                      minTickGap={28}
-                      dy={6}
-                    />
-                    <YAxis
-                      allowDecimals={false}
-                      tickLine={false}
-                      axisLine={false}
-                      tick={{ fontSize: 12, fill: "#52617d" }}
-                      width={36}
-                    />
-                    <Tooltip
-                      content={<SalesTooltip />}
-                      cursor={{ stroke: "#c4cfe2", strokeWidth: 1 }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="value"
-                      stroke="var(--color-primary)"
-                      strokeWidth={2}
-                      strokeLinecap="round"
-                      fill="var(--color-primary)"
-                      fillOpacity={0.1}
-                      dot={false}
-                      activeDot={{ r: 5, stroke: "#ffffff", strokeWidth: 2 }}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+            <DecisionStrip
+              label="Incoming orders that need action"
+              items={[
+                {
+                  key: "pending",
+                  to: "/orders?status=Pending",
+                  value: overview.actionableOrders.pending,
+                  label: "Awaiting a decision",
+                  hint: "Review incoming orders",
+                  empty: "No orders to accept or reject",
+                },
+                {
+                  key: "accepted",
+                  to: "/orders?status=Accepted",
+                  value: overview.actionableOrders.accepted,
+                  label: "Ready to prepare",
+                  hint: "Start preparing accepted orders",
+                  empty: "No accepted orders to prepare",
+                },
+              ]}
+            />
+          </section>
+        )}
+
+        <section className="dashboard-performance" aria-labelledby="dashboard-performance-title" aria-busy={loading}>
+          <div className="panel-head performance-head">
+            <h2 id="dashboard-performance-title">Sales performance</h2>
+            <div className="range-toggle" role="group" aria-label="Sales time range">
+              {RANGES.map((item) => (
+                <button
+                  type="button"
+                  key={item.key}
+                  aria-pressed={range === item.key}
+                  onClick={() => setRange(item.key)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {loading && (
+            <SkeletonStatus label="Loading dashboard data">
+              <Skeleton width="100%" height={62} />
+              <div className="dashboard-columns dashboard-loading">
+                <Skeleton width="100%" height={220} />
+                <Skeleton width="100%" height={220} />
               </div>
-            )}
-          </section>
-
-          <section className="panel">
-            <div className="panel-head">
-              <h2>Recent Activity</h2>
-              <Link to="/orders" className="panel-link">View orders</Link>
+            </SkeletonStatus>
+          )}
+          {current?.error && (
+            <div className="dashboard-error" role="alert">
+              <TriangleAlert size={20} aria-hidden="true" />
+              <div>
+                <strong>{overview ? "Sales data couldn’t load" : "Dashboard couldn’t load"}</strong>
+                <p>Try again to refresh your orders and sales.</p>
+              </div>
+              <button type="button" onClick={() => setAttempt((previous) => previous + 1)}>Try again</button>
             </div>
-            {stats.recentActivity.length === 0 ? (
-              <p className="panel-empty">No order activity yet.</p>
-            ) : (
-              <ul className="activity-list">
-                {stats.recentActivity.map((entry) => (
-                  <li
-                    key={entry.order_id}
-                    className={`activity-item ${
-                      ALERT_STATUSES.has(String(entry.status).toLowerCase())
-                        ? "alert"
-                        : "order"
-                    }`}
-                  >
-                    <span className="activity-dot" />
-                    <div>
-                      <span className="activity-text">{activityText(entry)}</span>
-                      <span className="activity-time">{timeAgo(entry.updated_at)}</span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </div>
+          )}
 
-        <section className="panel">
-          <div className="panel-head">
-            <h2>Top Products · {rangeLabel}</h2>
-            <Link to="/inventory" className="panel-link">View inventory</Link>
-          </div>
-          {stats.topProducts.length === 0 ? (
-            <p className="panel-empty">No products sold in this period yet.</p>
-          ) : (
-            <table className="dashboard-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>SKU</th>
-                  <th>Units Sold</th>
-                  <th>Revenue</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats.topProducts.map((p) => (
-                  <tr key={`${p.name}-${p.sku}`}>
-                    <td><strong>{p.name}</strong></td>
-                    <td>{p.sku ?? "—"}</td>
-                    <td>{p.sold}</td>
-                    <td>{peso(p.revenue)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          {stats && (
+            <>
+              <dl className="stat-grid">
+                <div><dt>Invoiced revenue</dt><dd>{peso(stats.revenue)}</dd></div>
+                <div><dt>Orders placed</dt><dd>{stats.orders.toLocaleString("en-PH")}</dd></div>
+              </dl>
+
+              <div className="dashboard-columns">
+                <section className="panel">
+                  <div className="panel-head">
+                    <h3>Order volume</h3>
+                    <span className="panel-sub">{rangeLabel}</span>
+                  </div>
+                  {stats.sales.some(({ value }) => value > 0) ? (
+                    <div className="chart-wrap">
+                      <ResponsiveContainer width="100%" height={220}>
+                        <AreaChart data={stats.sales} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
+                          <CartesianGrid vertical={false} stroke="#e5e9ef" />
+                          <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: "#52617d" }} minTickGap={28} dy={6} />
+                          <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: "#52617d" }} width={34} />
+                          <Tooltip content={<SalesTooltip />} cursor={{ stroke: "#c4cfe2" }} />
+                          <Area type="linear" dataKey="value" stroke="var(--color-primary)" strokeWidth={2} fill="var(--color-primary)" fillOpacity={0.1} isAnimationActive={false} />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <p className="panel-empty">No orders were placed in this period.</p>
+                  )}
+                </section>
+
+                <section className="panel">
+                  <div className="panel-head"><h3>Top products by units sold</h3></div>
+                  {stats.topProducts.length === 0 ? (
+                    <p className="panel-empty">No product sales to rank in this period.</p>
+                  ) : (
+                    <table className="dashboard-table" aria-label="Top products by units sold">
+                      <thead><tr><th scope="col">Product</th><th scope="col">Units</th><th scope="col">Order value</th></tr></thead>
+                      <tbody>
+                        {stats.topProducts.map((product) => (
+                          <tr key={`${product.name}-${product.sku}`}>
+                            <th scope="row">
+                              {product.name}
+                              {product.sku && <small>{product.sku}</small>}
+                            </th>
+                            <td>{product.sold.toLocaleString("en-PH")}</td>
+                            <td>{peso(product.revenue)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </section>
+              </div>
+            </>
           )}
         </section>
-        </>
+
+        {overview && (
+          <div className="dashboard-columns dashboard-secondary">
+            <RecentActivity key={activeBusinessId} entries={overview.recentActivity} />
+            <section className="panel">
+              <div className="panel-head">
+                <h2>Inventory</h2>
+                <Link to="/inventory" className="panel-link">View inventory</Link>
+              </div>
+              <dl className="stat-grid">
+                <div><dt>Products listed</dt><dd>{overview.products.toLocaleString("en-PH")}</dd></div>
+                <div><dt>Below 10 in stock</dt><dd className={overview.lowStock > 0 ? "stat-warning" : undefined}>{overview.lowStock.toLocaleString("en-PH")}</dd></div>
+              </dl>
+            </section>
+          </div>
         )}
       </div>
     </AppLayout>

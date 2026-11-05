@@ -6,67 +6,30 @@
   --color-plum: #7c5cbf;
   --color-plum-dark: #5a3f96;
 
-  /* ------------------------------------------------------------------ */
-  /* Promo image banners (hidden while a search/category filter is active) */
-  /* ------------------------------------------------------------------ */
-  .home-banner {
-    margin: 44px 70px 0;
-  }
+  max-width: 1420px;
+  margin: 0 auto;
+  padding-bottom: 48px;
 
-  .home-banner--hero {
-    margin-top: 28px;
-  }
-
-  .home-banner a {
-    position: relative;
-    display: block;
-    border-radius: 14px;
+  .market-intro {
+    display: grid;
+    grid-template-columns: 1.15fr 1fr;
+    margin: 32px 48px 0;
+    min-height: 280px;
+    border-radius: 12px;
     overflow: hidden;
-    transition: box-shadow 0.15s ease;
+    background: #edf2f8;
   }
-
-  .home-banner a:hover {
-    box-shadow: 0 8px 24px rgba(23, 33, 61, 0.15);
-  }
-
-  .home-banner img {
-    display: block;
-    width: 100%;
-    aspect-ratio: 3 / 1;
-    object-fit: cover;
-  }
-
-  /* Navigation pill overlaid on the artwork; position/size/colors come from
-     each banner's config so it lands in that image's empty space. */
-  .home-banner-btn {
-    position: absolute;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    border-radius: 999px;
-    font-weight: 700;
-    font-size: clamp(0.68rem, 1.2vw, 1rem);
-    white-space: nowrap;
-    box-shadow: 0 4px 12px rgba(23, 33, 61, 0.18);
-    transition: filter 0.15s ease, transform 0.15s ease;
-  }
-
-  .home-banner-btn svg {
-    width: 1em;
-    height: 1em;
-  }
-
-  .home-banner a:hover .home-banner-btn {
-    filter: brightness(1.08);
-    transform: scale(1.03);
-  }
-
+  .market-intro__copy { padding: 36px 40px; align-self: center; }
+  .market-intro h1 { margin: 0 0 16px; font-size: clamp(30px, 3.5vw, 48px); line-height: 1.08; letter-spacing: -1.8px; font-weight: 600; }
+  .market-intro p { max-width: 32ch; margin: 0 0 24px; color: var(--color-muted); font-size: 15px; line-height: 1.6; }
+  .market-intro__link { display: inline-flex; align-items: center; gap: 12px; color: var(--color-primary); text-decoration: none; font-size: 14px; font-weight: 650; }
+  .market-intro__link:hover { text-decoration: underline; }
+  .market-intro__image { width: 100%; height: 100%; min-height: 280px; object-fit: cover; }
   /* ------------------------------------------------------------------ */
   /* Section shell (Featured / More products, Top wholesalers)           */
   /* ------------------------------------------------------------------ */
   .home-section {
-    margin: 40px 70px 0;
+    margin: 40px 48px 0;
   }
 
   .home-section-head {
@@ -78,7 +41,7 @@
   }
 
   .home-section-head--browse {
-    margin: 40px 70px 0;
+    margin: 40px 48px 0;
   }
 
   .home-section-head h2 {
@@ -103,30 +66,28 @@
   /* ------------------------------------------------------------------ */
   .home-product-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
     gap: 20px;
   }
 
   .home-product-card {
     background: white;
-    /* border-radius: 12px; */
     overflow: hidden;
-    /* border: 4px solid rgba(48, 80, 160, 0.3); */
-    border: 1px solid rgba(0, 0, 0, 0.129);
+    border: 1px solid #e0e5ed;
     border-radius: 0.5rem;
-    box-shadow: 0 2px 10px rgba(23, 33, 61, 0.06);
+    box-shadow: none;
     display: flex;
     flex-direction: column;
     transition: box-shadow 0.15s ease;
   }
 
   .home-product-card:hover {
-    box-shadow: 0 10px 20px rgba(23, 33, 61, 0.12);
+    border-color: #b7c6df;
   }
 
   .home-product-image {
     position: relative;
-    height: 140px;
+    height: 178px;
     overflow: hidden;
   }
 
@@ -140,8 +101,8 @@
   }
 
   .home-product-card:hover .home-product-image img {
-    transform: scale(1.04);
-    filter: grayscale(12%) brightness(88%);
+    transform: none;
+    filter: none;
   }
 
   .home-product-tag {
@@ -157,7 +118,7 @@
   }
 
   .home-product-body {
-    padding: 14px 16px 16px;
+    padding: 18px 16px 16px;
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -188,7 +149,7 @@
 
   .home-product-price {
     font-weight: 800;
-    color: var(--color-sunset-dark);
+    color: var(--color-text);
     font-size: 0.95rem;
   }
 
@@ -203,7 +164,7 @@
     font-weight: 700;
     font-size: 0.82rem;
     padding: 9px 0;
-    border-radius: 20px;
+    border-radius: 6px;
     text-decoration: none;
     transition: background 0.15s ease;
   }
@@ -229,9 +190,9 @@
     justify-content: center;
     gap: 6px;
     border: none;
-    border-radius: 20px;
+    border-radius: 6px;
     padding: 9px 14px;
-    background: var(--color-accent);
+    background: #edf2fc;
     color: var(--color-primary-dark);
     font-weight: 700;
     font-size: 0.82rem;
@@ -342,7 +303,7 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 20px;
-    padding: 20px 70px 70px;
+    padding: 20px 48px 48px;
   }
 
   /* supplier cards are router links; keep the card look */
@@ -393,7 +354,7 @@
   }
 
   .supplier-box:hover .supplier-box-image img {
-    transform: scale(1.04);
+    transform: none;
   }
 
   .supplier-box-info {
@@ -448,7 +409,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 20px 70px 0;
+    padding: 20px 48px 0;
     flex-wrap: wrap;
   }
 
@@ -485,7 +446,7 @@
   }
 
   .supplier-results__pagination {
-    padding: 20px 70px 70px;
+    padding: 20px 48px 48px;
   }
 
   .marketplace-results {
@@ -497,7 +458,7 @@
     align-items: flex-start;
     justify-content: space-between;
     gap: 16px;
-    margin: 28px 70px 0;
+    margin: 28px 48px 0;
   }
 
   .marketplace-results__head h2 {
@@ -516,7 +477,7 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
-    margin: 28px 70px;
+    margin: 28px 48px;
     padding: 28px;
     border: 1px dashed #dbe2ee;
     border-radius: 12px;
@@ -551,13 +512,12 @@
   }
 
   @media (max-width: 700px) {
-    .home-banner--hero {
-      margin-top: 16px;
-    }
-
+    .market-intro { grid-template-columns: 1fr 0.65fr; margin: 20px 16px 0; min-height: 240px; }
+    .market-intro__copy { padding: 24px; }
+    .market-intro h1 { font-size: 30px; letter-spacing: -1px; }
+    .market-intro__image { min-height: 240px; }
     .home-section,
-    .home-section-head--browse,
-    .home-banner {
+    .home-section-head--browse {
       margin-left: 16px;
       margin-right: 16px;
     }
@@ -583,5 +543,14 @@
     .marketplace-results__suppliers {
       padding: 0;
     }
+  }
+
+  @media (max-width: 480px) {
+    .market-intro { grid-template-columns: 1fr; }
+    .market-intro__image { height: 150px; min-height: 0; }
+    .home-product-grid { grid-template-columns: 1fr; }
+    .home-section-head { align-items: flex-start; }
+    .home-section-head a { max-width: 12ch; text-align: right; }
+    .home-product-image { height: 210px; }
   }
 }

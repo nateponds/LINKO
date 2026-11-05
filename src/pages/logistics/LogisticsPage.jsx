@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Search, PackagePlus } from "lucide-react";
+import { Search, Settings } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import AppLayout from "../../layouts/AppLayout";
 import { useAuth } from "../../auth/AuthProvider";
@@ -8,7 +8,7 @@ import { useListUrlState } from "../../hooks/useListUrlState";
 import { apiGet } from "../../lib/api";
 import { peso, shortDate, statusClass } from "../../lib/format";
 import { LogisticsNotice } from "./LogisticsStates";
-import { formatNextStatuses, nextStatusesForRole } from "./workflowHints";
+import ExpandableTableRow from "../../components/ui/ExpandableTableRow";
 import { TableSkeleton } from "../../components/ui/pageSkeletons";
 import "./logistics.css";
 
@@ -78,50 +78,63 @@ export default function LogisticsPage() {
 
   return (
     <AppLayout>
-      <div className="logistics-page">
+      <div className="logistics-page parcel-list-page">
         <div className="page-head">
-          <h1>Logistics</h1>
-          <div className="logistics-head-actions">
-            <div className="search-bar">
-              <input
-                type="search"
-                placeholder="Search parcel no., sender, receiver"
-                key={list.q}
-                defaultValue={list.q}
-                onChange={(event) => queueSearch(event.target.value)}
-              />
-              <button className="search-icon-btn" type="button" aria-label="Search parcels">
-                <Search size={16} />
-              </button>
-            </div>
-            {hasAnyRole(["logistics_coordinator", "platform_admin"]) && (
-              <Link className="book-parcel-btn" to="/logistics/management">
-                <PackagePlus size={16} /> Manage
-              </Link>
-            )}
+          <div>
+            <h1>Logistics</h1>
+
           </div>
+          {canAssign && (
+            <Link className="book-parcel-btn" to="/logistics/management">
+              <Settings size={16} aria-hidden="true" /> Manage logistics
+            </Link>
+          )}
         </div>
 
-        <div className="status-tabs" role="tablist" aria-label="Filter parcels by status">
-          {STATUS_TABS.map((tab) => (
-            <button
-              key={tab}
-              role="tab"
-              aria-selected={statusFilter === tab}
-              className={statusFilter === tab ? "active" : ""}
-              onClick={() => list.setFilters({ status: tab === "All" ? "" : tab })}
-            >
-              {tab}
+        <div className="parcel-list-toolbar">
+          <form
+            className="search-bar"
+            role="search"
+            aria-label="Search parcels"
+            onSubmit={(event) => {
+              event.preventDefault();
+              window.clearTimeout(searchTimerRef.current);
+              list.setQuery(String(new FormData(event.currentTarget).get("q") ?? ""));
+            }}
+          >
+            <input
+              type="search"
+              name="q"
+              aria-label="Parcel number, sender, or receiver"
+              placeholder="Search parcel number, sender, or receiver"
+              key={list.q}
+              defaultValue={list.q}
+              onChange={(event) => queueSearch(event.target.value)}
+            />
+            <button className="search-icon-btn" type="submit" aria-label="Search parcels">
+              <Search size={16} aria-hidden="true" />
             </button>
-          ))}
+          </form>
+          <label className="parcel-status-filter">
+            <span>Status</span>
+            <select value={statusFilter} onChange={(event) => {
+              const status = event.target.value;
+              list.setFilters({ status: status === "All" ? "" : status });
+            }}>
+              {!STATUS_TABS.includes(statusFilter) && <option>{statusFilter}</option>}
+              {STATUS_TABS.map((status) => (
+                <option key={status} value={status}>{status === "All" ? "All statuses" : status}</option>
+              ))}
+            </select>
+          </label>
         </div>
 
-        <main className="table-card" aria-busy={resource.loading}>
+        <section className="table-card" aria-label="Parcel results" aria-busy={resource.loading}>
           {parcels === null && resource.loading ? (
-            <TableSkeleton columns={9} rows={8} label="Loading parcels" />
+            <TableSkeleton columns={4} rows={8} label="Loading parcels" />
           ) : resource.error && !parcels?.length ? (
             <LogisticsNotice
-              message={`Could not load parcels: ${resource.error.message}`}
+              message="Could not load parcels."
               onRetry={resource.reload}
             />
           ) : (parcels?.length ?? 0) === 0 ? (
@@ -134,7 +147,7 @@ export default function LogisticsPage() {
             <>
               {resource.error && (
                 <LogisticsNotice
-                  message={`Could not refresh parcels: ${resource.error.message}`}
+                  message="Could not refresh parcels. Showing previous results."
                   onRetry={resource.reload}
                 />
               )}
@@ -142,48 +155,50 @@ export default function LogisticsPage() {
                 <table className="data-table">
                   <thead>
                     <tr>
-                      <th>Parcel No.</th>
-                      <th>Origin</th>
-                      <th>Destination</th>
-                      <th>Next status</th>
-                      <th>Tier</th>
-                      <th>Weight</th>
-                      <th>Shipping Fee</th>
-                      <th>ETA</th>
-                      <th>Status</th>
-                      {canAssign && <th>Assignment</th>}
-                      <th />
+                      <th scope="col">Parcel</th>
+                      <th scope="col">Route</th>
+                      <th scope="col">Progress</th>
+                      <th scope="col">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {parcels.map((parcel) => {
-                      const next = nextStatusesForRole(parcel.current_status, parcel.return_triggered, canAssign);
+
                       return (
-                        <tr key={parcel.parcel_id}>
-                          <td>#{parcel.parcel_id}</td>
-                          <td>
-                            <strong>{parcel.sender.business_name}</strong>
-                            <span className="route-party">Sender</span>
-                          </td>
-                          <td>
-                            {parcel.receiver.business_name}
-                            <span className="route-party">Receiver</span>
-                          </td>
-                          <td className="next-status-cell">{formatNextStatuses(next)}</td>
-                          <td>{parcel.tier_name}</td>
-                          <td>{parcel.weight_kg} kg</td>
-                          <td>{peso(parcel.shipping_fee)}</td>
-                          <td>{shortDate(parcel.estimated_delivery_date)}</td>
-                          <td><span className={`status ${statusClass(parcel.current_status)}`}>{parcel.current_status ?? "—"}</span></td>
-                          {canAssign && (
-                            <td>{parcel.latest_courier_id ? "Courier assigned" : "Needs a courier"}</td>
-                          )}
-                          <td>
-                            <Link className="track-link" to={`/logistics/${parcel.parcel_id}`}>
-                              {canAssign ? "Assign" : "Track"}
-                            </Link>
-                          </td>
-                        </tr>
+                        <ExpandableTableRow
+                          key={parcel.parcel_id}
+                          label={parcel.parcel_id}
+                          cells={[
+                            {
+                              key: "parcel",
+                              className: "parcel-identity",
+                              content: <>{parcel.parcel_id}<small><span className="sr-only">Estimated delivery </span>{shortDate(parcel.estimated_delivery_date)}</small></>,
+                            },
+                            {
+                              key: "route",
+                              className: "parcel-list-route",
+                              content: <>
+                                <span><small>From</small> {parcel.sender.business_name}</span>
+                                <span><small>To</small> {parcel.receiver.business_name}</span>
+                              </>,
+                            },
+                            { key: "status", className: "parcel-progress", content: <span className={`status ${statusClass(parcel.current_status)}`}>{parcel.current_status ?? "—"}</span> },
+                            {
+                              key: "actions",
+                              className: "parcel-actions",
+                              content: <>
+                                <Link className="track-link" to={`/logistics/${parcel.parcel_id}`}>{canAssign ? "Open parcel" : "Track parcel"}</Link>
+                                {canAssign && <small>{parcel.latest_courier_id ? "Courier assigned" : "Unassigned"}</small>}
+                              </>,
+                            },
+                          ]}
+                        >
+                          <dl>
+                            <div><dt>Service</dt><dd>{parcel.tier_name ?? "—"}</dd></div>
+                            <div><dt>Weight</dt><dd>{parcel.weight_kg == null ? "—" : `${parcel.weight_kg} kg`}</dd></div>
+                            <div><dt>Fee</dt><dd>{peso(parcel.shipping_fee)}</dd></div>
+                          </dl>
+                        </ExpandableTableRow>
                       );
                     })}
                   </tbody>
@@ -192,7 +207,7 @@ export default function LogisticsPage() {
               <PaginationControls pagination={pagination} disabled={resource.loading} onPageChange={list.setPage} onLimitChange={list.setLimit} ariaLabel="Parcels pagination" />
             </>
           )}
-        </main>
+        </section>
       </div>
     </AppLayout>
   );

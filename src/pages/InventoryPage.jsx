@@ -10,6 +10,7 @@ import PaginationControls from "../components/ui/PaginationControls";
 import { readListUrlState, updateListUrlState } from "../lib/pagination";
 import { apiPath, normalizePage, shouldClampPage } from "../features/suppliers/marketplacePagination";
 import { TableSkeleton } from "../components/ui/pageSkeletons";
+import ExpandableTableRow from "../components/ui/ExpandableTableRow";
 import "./InventoryPage.css";
 
 const EMPTY_FORM = {
@@ -72,17 +73,6 @@ export default function InventoryPage() {
   const [confirm, setConfirm] = useState(null);
 
   const filterWrapRef = useRef(null);
-  const tableContentRef = useRef(null);
-  const [tableHeight, setTableHeight] = useState("auto");
-
-  useEffect(() => {
-    if (!tableContentRef.current) return;
-    const observer = new ResizeObserver((entries) => {
-      setTableHeight(entries[0].target.offsetHeight);
-    });
-    observer.observe(tableContentRef.current);
-    return () => observer.disconnect();
-  }, []);
 
   const loadProducts = useCallback(async () => {
     const path = apiPath("/api/products", {
@@ -383,7 +373,7 @@ export default function InventoryPage() {
                 name="q"
                 type="text"
                 aria-label="Search inventory"
-                placeholder="Search"
+                placeholder="Search products"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -392,19 +382,30 @@ export default function InventoryPage() {
               </button>
             </form>
 
-            <div className="filter-wrap" ref={filterWrapRef}>
-              <button className="filter-btn" onClick={handleFilterBtnClick}>
+            <div
+              className="filter-wrap"
+              ref={filterWrapRef}
+              onKeyDown={(event) => {
+                if (event.key !== "Escape" || !filterPanelOpen) return;
+                event.stopPropagation();
+                setFilterPanelOpen(false);
+                filterWrapRef.current?.querySelector(".filter-btn")?.focus();
+              }}
+            >
+              <button type="button" className="filter-btn" aria-label="Inventory filters" aria-expanded={filterPanelOpen} aria-controls="inventory-filters" onClick={handleFilterBtnClick}>
                 <Filter size={15} className="filter-btn-icon" />
-                <span className="filter-btn-label">Filter</span>
+                <span className="filter-btn-label">Filters{Object.values(activeFilters).some(Boolean) ? " active" : ""}</span>
                 <ChevronDown size={15} className="filter-btn-chevron" />
               </button>
               <div
+                id="inventory-filters"
                 className={`filter-panel${filterPanelOpen ? " open" : ""}`}
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="filter-group">
                   <h4>Category</h4>
                   <select
+                    aria-label="Category"
                     value={draftFilters.category}
                     onChange={(e) =>
                       setDraftFilters((f) => ({
@@ -427,6 +428,7 @@ export default function InventoryPage() {
                     <input
                       type="number"
                       placeholder="Min"
+                      aria-label="Minimum price"
                       min="0"
                       value={draftFilters.priceMin}
                       onChange={(e) =>
@@ -440,6 +442,7 @@ export default function InventoryPage() {
                     <input
                       type="number"
                       placeholder="Max"
+                      aria-label="Maximum price"
                       min="0"
                       value={draftFilters.priceMax}
                       onChange={(e) =>
@@ -454,6 +457,7 @@ export default function InventoryPage() {
                 <div className="filter-group">
                   <h4>Stock</h4>
                   <select
+                    aria-label="Stock status"
                     value={draftFilters.stock}
                     onChange={(e) =>
                       setDraftFilters((f) => ({ ...f, stock: e.target.value }))
@@ -485,9 +489,9 @@ export default function InventoryPage() {
             </div>
 
             {ownBusinessId && (
-              <button className="add-btn" onClick={openAddModal}>
+              <button type="button" className="add-btn" aria-label="Add product" onClick={openAddModal}>
                 <Plus size={16} />
-                <span className="add-btn-label">Add Item</span>
+                <span className="add-btn-label">Add product</span>
               </button>
             )}
           </div>
@@ -499,11 +503,10 @@ export default function InventoryPage() {
               <strong>
                 Low stock: {lowStockTotal} product{lowStockTotal === 1 ? "" : "s"}
               </strong>
-              {" "}at 10 or below. Choose a product to set the exact count or add what you received.
             </p>
-            <ul className="low-stock-list">
-              {(showAllLowStock ? lowStockItems : lowStockItems.slice(0, 6)).map((item) => (
-                <li key={item.product_id}>
+            <ul className="low-stock-list" id="inventory-low-stock">
+              {lowStockItems.map((item, index) => (
+                <li key={item.product_id} hidden={!showAllLowStock && index >= 3}>
                   <button
                     type="button"
                     onClick={() => openStockEditor(item, null, "received")}
@@ -514,10 +517,12 @@ export default function InventoryPage() {
                 </li>
               ))}
             </ul>
-            {lowStockItems.length > 6 && (
+            {lowStockItems.length > 3 && (
               <button
                 type="button"
                 className="link-button"
+                aria-expanded={showAllLowStock}
+                aria-controls="inventory-low-stock"
                 onClick={() => setShowAllLowStock((open) => !open)}
               >
                 {showAllLowStock ? "Show fewer" : `Show all ${lowStockItems.length} listed`}
@@ -531,34 +536,30 @@ export default function InventoryPage() {
           </div>
         )}
 
-        <main className="inventory-container" aria-busy={fetching}>
-          <div
-            className="table-height-animator"
-            style={{
-              height: tableHeight === "auto" ? "auto" : `${tableHeight}px`,
-              overflow: "hidden",
-              transition: "height 0.4s cubic-bezier(0.25, 1, 0.5, 1)",
-            }}
-          >
-            <div ref={tableContentRef}>
+        <section className="inventory-container" aria-label="Product results" aria-busy={loading || fetching}>
+          <div>
               {loading && products.length === 0 ? (
-                <TableSkeleton columns={6} rows={8} label="Loading products" className="inventory-table" />
+                <TableSkeleton columns={4} rows={8} label="Loading products" className="inventory-table" />
               ) : error ? (
-                <p className="grid-empty">
-                  Could not load products: {error}
-                </p>
+                <div className="grid-empty" role="alert">
+                  <strong>Could not load products.</strong>{" "}
+                  <button type="button" className="link-button" onClick={() => {
+                    setLoading(true);
+                    loadProducts();
+                  }}>Try again</button>
+                </div>
               ) : visibleProducts.length === 0 ? (
                 <div className="grid-empty"><p>{q || Object.values(activeFilters).some(Boolean) ? "No products match these filters." : "No products yet."}</p>{(q || Object.values(activeFilters).some(Boolean)) && <button type="button" className="link-button" onClick={clearFilters}>Clear filters</button>}</div>
               ) : (
+                <div className="inventory-table-wrap">
                 <table className="inventory-table">
                   <thead>
                     <tr>
-                      <th className="col-sku">SKU</th>
-                      <th>Name</th>
-                      <th>Price</th>
-                      <th>Stock</th>
-                      <th className="col-status">Status</th>
-                      <th></th>
+                      <th scope="col">Product</th>
+                      <th scope="col" className="inventory-number">Unit price</th>
+                      <th scope="col" className="inventory-number stock-heading">On hand</th>
+                      <th scope="col">Status</th>
+
                     </tr>
                   </thead>
                   <tbody>
@@ -567,64 +568,50 @@ export default function InventoryPage() {
                       const canManage =
                         isAdmin || item.business_id === ownBusinessId;
                       return (
-                        <tr key={item.product_id}>
-                          <td className="col-sku">{item.sku ?? "—"}</td>
-                          <td>
-                            <strong>{item.product_name}</strong>
-                          </td>
-                          <td>{peso(item.unit_price)}</td>
-                          <td className="stock-cell">
-                            <span className="stock-value">
-                              {item.stock_quantity}
-                              {canManage && (
-                                <button
-                                  type="button"
-                                  className="stock-edit-btn"
-                                  title="Edit stock"
-                                  onClick={(e) => handleStockEditClick(e, item)}
-                                >
-                                  <Pencil size={14} />
-                                </button>
-                              )}
-                            </span>
-                          </td>
-                          <td className="col-status">
-                            <span className={`status ${status.cls}`}>
-                              {status.label}
-                            </span>
-                          </td>
-                          <td>
-                            {canManage && (
-                              <>
-                                <button
-                                  type="button"
-                                  className="stock-edit-btn"
-                                  title="Edit item"
-                                  onClick={() => openEditModal(item)}
-                                >
-                                  <Pencil size={14} />
-                                </button>
-                                <button
-                                  type="button"
-                                  className="stock-edit-btn"
-                                  title="Delete item"
-                                  onClick={() => requestDelete(item)}
-                                >
-                                  <X size={14} />
-                                </button>
-                              </>
-                            )}
-                          </td>
-                        </tr>
+                        <ExpandableTableRow
+                          key={item.product_id}
+                          label={item.product_name}
+                          cells={[
+                            { key: "product", className: "inventory-product", content: <>{item.product_name}{item.sku && <small>{item.sku}</small>}</> },
+                            { key: "price", className: "inventory-number", content: peso(item.unit_price) },
+                            {
+                              key: "stock",
+                              className: "stock-cell inventory-number",
+                              content: (
+                                <span className="stock-value">
+                                  {item.stock_quantity}
+                                  {canManage && (
+                                    <button
+                                      type="button"
+                                      className="stock-edit-btn"
+                                      aria-label={`Update stock for ${item.product_name}`}
+                                      onClick={(event) => handleStockEditClick(event, item)}
+                                    >
+                                      <Pencil size={14} />
+                                    </button>
+                                  )}
+                                </span>
+                              ),
+                            },
+                            { key: "status", content: <span className={`status ${status.cls}`}>{status.label}</span> },
+                          ]}
+                        >
+                          {canManage && (
+                            <div className="row-panel-actions">
+                              <button type="button" className="link-button" onClick={() => openEditModal(item)}>Edit product</button>
+                              <button type="button" className="link-button inventory-delete" onClick={() => requestDelete(item)}>Delete product</button>
+                            </div>
+                          )}
+                        </ExpandableTableRow>
                       );
                     })}
                   </tbody>
                 </table>
+                </div>
               )}
-            </div>
           </div>
           <PaginationControls pagination={pagination} disabled={fetching} onPageChange={(nextPage) => setSearchParams(updateListUrlState(searchParams, { page: nextPage }))} onLimitChange={(nextLimit) => setSearchParams(updateListUrlState(searchParams, { limit: nextLimit }))} ariaLabel="Inventory pagination" />
-        </main>
+        </section>
 
         {/* ===== Add/Edit item modal ===== */}
         <div className={`modal-overlay${modalOpen ? " open" : ""}`}>

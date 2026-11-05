@@ -53,35 +53,35 @@ export default function LoginPage() {
       <div className="auth-card">
         <div className="auth-form-panel">
           <div className="auth-topbar">
-            <Link to="/" className="auth-back-link">Back</Link>
+            <Link to="/" className="auth-back-link">Back to LINKO</Link>
             <div className="auth-brand-mark">
               LINK<span>O</span>
             </div>
           </div>
 
           <div className="auth-form-body">
-            <h1 className="auth-heading">Login</h1>
+            <h1 className="auth-heading">Welcome back.</h1>
 
             <form onSubmit={handleSubmit} noValidate>
               <label className="auth-field">
-                <span className="sr-only">Email</span>
+                <span className="auth-label">Email address</span>
                 <input
                   type="email"
                   required
                   autoComplete="email"
-                  placeholder="Email"
+                  placeholder="you@business.com"
                   value={form.email}
                   onChange={(event) => setField("email", event.target.value)}
                 />
               </label>
 
               <label className="auth-field">
-                <span className="sr-only">Password</span>
+                <span className="auth-label">Password</span>
                 <input
                   type={showPassword ? "text" : "password"}
                   required
                   autoComplete="current-password"
-                  placeholder="Password"
+                  placeholder="Enter your password"
                   value={form.password}
                   onChange={(event) => setField("password", event.target.value)}
                 />
@@ -95,15 +95,15 @@ export default function LoginPage() {
                 </button>
               </label>
 
-              {submitError && <p className="auth-error">{submitError}</p>}
+              {submitError && <p className="auth-error" role="alert">{submitError}</p>}
 
               <button type="submit" className="auth-submit" disabled={submitting}>
-                {submitting ? "Logging in..." : "Login"}
+                {submitting ? "Signing in..." : "Sign in"}
               </button>
             </form>
 
             <p className="auth-alt">
-              Doesn&apos;t have an account? <Link to="/register">Sign Up</Link>
+              New to LINKO? <Link to="/register">Create an account</Link>
             </p>
           </div>
         </div>

@@ -2,15 +2,15 @@
 
 /* LINKO theme palette — shared by the app shell and standalone screens. */
 :root {
-  --color-primary: #3050a0;
-  --color-primary-dark: #21386f;
-  --color-primary-soft: #d9e3fb;
+  --color-primary: #315bc5;
+  --color-primary-dark: #203c78;
+  --color-primary-soft: #edf2fc;
   --color-accent: #98d868;
   --color-accent-dark: #5b9f35;
-  --color-surface: #dfead2;
-  --color-card: #e5f0dc;
-  --color-text: #17213d;
-  --color-muted: #52617d;
+  --color-surface: #e5e9ef;
+  --color-card: #f5f7fa;
+  --color-text: #1d2c43;
+  --color-muted: #637087;
   --dm-sans: "DM Sans", sans-serif;
 }
 
@@ -30,8 +30,12 @@ html {
 
 body {
   margin: 0;
-  font-family: system-ui, sans-serif;
+  font-family: "DM Sans", sans-serif;
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
 }
+
+button, input, select, textarea { font-family: inherit; }
 
 /* keyboard focus ring (inputs keep their own border-based focus styles) */
 button:focus-visible,

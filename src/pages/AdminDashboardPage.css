@@ -151,3 +151,14 @@
     padding: 20px 16px 40px;
   }
 }
+
+.admin-compact-table {
+  width: 100%;
+  table-layout: fixed;
+}
+.app-shell .admin-compact-table :is(th, td) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.admin-compact-table thead th:first-child { width: 40%; }
+.admin-compact-table .expandable-row th { font-size: .88rem; }
