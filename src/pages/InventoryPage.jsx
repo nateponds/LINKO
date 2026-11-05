@@ -558,7 +558,7 @@ export default function InventoryPage() {
                       <th scope="col">Product</th>
                       <th scope="col" className="inventory-number">Unit price</th>
                       <th scope="col" className="inventory-number stock-heading">On hand</th>
-                      <th scope="col">Status</th>
+                      <th scope="col" className="table-status">Status</th>
 
                     </tr>
                   </thead>

@@ -179,6 +179,12 @@
 
   .invoice-list-row:last-child { border-bottom: none; }
 
+  .invoice-list-header > :is(:nth-child(5), :last-child),
+  .invoice-list-row > :is(:nth-child(5), :last-child) {
+    text-align: end;
+    justify-self: end;
+  }
+
   .invoice-list-row:hover {
     background: #f6f8fc;
   }

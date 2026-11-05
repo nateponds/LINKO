@@ -157,7 +157,7 @@ export default function LogisticsPage() {
                     <tr>
                       <th scope="col">Parcel</th>
                       <th scope="col">Route</th>
-                      <th scope="col">Progress</th>
+                      <th scope="col" className="table-status">Status</th>
                       <th scope="col">Actions</th>
                     </tr>
                   </thead>
