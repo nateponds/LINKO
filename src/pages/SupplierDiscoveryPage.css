@@ -75,12 +75,14 @@
     align-items: center;
     justify-content: center;
     gap: 6px;
-    margin-top: auto;
+    margin-top: 0;
+    min-height: 38px;
     background: var(--color-primary);
     color: white;
     font-weight: 700;
-    font-size: 0.82rem;
-    padding: 9px 0;
+    font-size: 0.8rem;
+    padding: 9px 8px;
+    white-space: nowrap;
     border-radius: 6px;
     text-decoration: none;
     transition: background 0.15s ease;
@@ -92,9 +94,9 @@
 
   .home-product-actions {
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 8px;
-    margin-top: auto;
+    margin-top: 0;
   }
 
   .home-product-actions .home-product-cta {
@@ -108,7 +110,7 @@
     gap: 6px;
     border: none;
     border-radius: 6px;
-    padding: 9px 14px;
+    padding: 9px 10px;
     background: #edf2fc;
     color: var(--color-primary-dark);
     font-weight: 700;
@@ -179,7 +181,7 @@
   }
 
   .home-wholesaler-name {
-    display: flex;
+    display: block;
     align-items: center;
     gap: 5px;
     min-width: 0;

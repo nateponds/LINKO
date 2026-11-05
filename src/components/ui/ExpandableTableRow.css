@@ -40,6 +40,18 @@
 .expandable-row-panel dd { margin: 3px 0 0; font-size: .86rem; }
 .expandable-row-panel .row-panel-actions { display: flex; gap: 16px; margin-top: 12px; }
 
+/* Match each heading to its cells, with actions at the table's trailing edge. */
+.app-shell :is(.data-table, .inventory-table) :is(th.table-status, td[data-column="status"]) {
+  text-align: center;
+  vertical-align: middle;
+}
+.app-shell :is(.data-table, .inventory-table) :is(thead th:last-child, .expandable-row > td:last-child) {
+  text-align: end;
+}
+.app-shell :is(.data-table, .inventory-table) .expandable-row > :is(th, td) {
+  vertical-align: middle;
+}
+
 
 .orders-page {
   .data-table {

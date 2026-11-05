@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { ArrowRight, ShoppingCart } from "lucide-react";
+import { ShoppingCart } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "../cart/CartProvider";
 import { isUnavailable } from "../cart/cart";
 import ProductCard from "./ProductCard";
 
-// Marketplace flavour of ProductCard: card tap and "View Product" both go to the
+// Marketplace flavour of ProductCard: card tap and "View product" both go to the
 // wholesaler page with the product detail modal open. withCart adds the Add button.
 function MarketplaceProductCard({ product, withCart = false }) {
   const navigate = useNavigate();
@@ -22,7 +22,7 @@ function MarketplaceProductCard({ product, withCart = false }) {
     <ProductCard product={product} showSupplier onOpen={() => navigate(href)}>
       <div className="home-product-actions">
         <Link to={href} className="home-product-cta">
-          View Product <ArrowRight size={14} />
+          View product
         </Link>
         {withCart && (
           <button type="button" className="home-product-add" disabled={isUnavailable(product)} onClick={handleAdd}>
@@ -31,7 +31,12 @@ function MarketplaceProductCard({ product, withCart = false }) {
           </button>
         )}
       </div>
-      {withCart && <p className="home-product-note" aria-live="polite">{note}</p>}
+      {withCart ? (
+        <p className="home-product-note" role="status">{note}</p>
+      ) : (
+        // Empty spacer keeps the card's row count equal to the cart variant (subgrid alignment).
+        <p className="home-product-note" aria-hidden="true" />
+      )}
     </ProductCard>
   );
 }
