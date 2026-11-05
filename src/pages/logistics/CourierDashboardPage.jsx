@@ -9,7 +9,7 @@ import { apiGet, apiSend } from "../../lib/api";
 import { statusClass, shortDate } from "../../lib/format";
 import { allowedNext, ONE_TAP_REMARKS, FAIL_REASONS } from "../../lib/statusWorkflow";
 import { LogisticsNotice } from "./LogisticsStates";
-import { COURIER_EMPTY_COPY, courierActionCue } from "./workflowHints";
+import { COURIER_EMPTY_COPY } from "./workflowHints";
 import { CourierCardsSkeleton } from "../../components/ui/pageSkeletons";
 import "./logistics.css";
 
@@ -153,7 +153,7 @@ export default function CourierDashboardPage() {
           </div>
           <div className="parcel-card-receiver"><MapPin size={16} className="parcel-card-icon" /><div><strong>To:</strong> {parcel.receiver.business_name}</div></div>
           <div className="parcel-card-meta"><Package size={14} /><span>{parcel.weight_kg} kg · ETA: {shortDate(parcel.estimated_delivery_date)}</span></div>
-          <p className="parcel-card-next">{courierActionCue(parcel.current_status, parcel.return_triggered)}</p>
+
           <div className="parcel-card-actions">
             {failingParcelId === parcel.parcel_id ? (
               <>
@@ -178,7 +178,7 @@ export default function CourierDashboardPage() {
     <AppLayout>
       <div className="logistics-page">
         <div className="page-head courier-page-head">
-          <div className="page-head-intro"><h1>Courier Dashboard</h1><p className="page-head-subtitle">Manage pickups, delivery progress, and returns</p></div>
+          <div className="page-head-intro"><h1>Courier Dashboard</h1></div>
           <div className="search-bar courier-search-bar">
             <input key={list.q} type="search" placeholder="Search parcel no. or receiver" defaultValue={list.q} onChange={(event) => queueSearch(event.target.value)} />
             <button className="search-icon-btn" type="button" aria-label="Search assignments"><Search size={16} /></button>

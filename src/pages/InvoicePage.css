@@ -447,30 +447,6 @@
   }
 
   /* ---- Status pills ---- */
-  .status.pending,
-  .status.preparing {
-    background: #fdf3d7;
-    color: #9a7b12;
-  }
-
-  .status.accepted,
-  .status.shipped {
-    background: var(--color-primary-soft);
-    color: var(--color-primary-dark);
-  }
-
-  .status.delivered {
-    background: var(--color-card);
-    color: var(--color-accent-dark);
-  }
-
-  .status.returned,
-  .status.cancelled,
-  .status.rejected {
-    background: #fdeaea;
-    color: #c0392b;
-  }
-
   /* ---- Empty / error state ---- */
   .invoice-error {
     margin: 40px auto;

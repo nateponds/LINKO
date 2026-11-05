@@ -249,7 +249,7 @@ function Topbar({ showSearch = false, showCategories = false }) {
       </div>
       <header className="header-nav">
         <Link to="/" className="logo">
-          LINK<span className="logo-accent">O</span>
+          <span>LINK<span className="logo-accent">O</span></span>
           {badgeRole && <span className={`role-badge role-badge-${badgeRole}`}>{badgeLabel}</span>}
         </Link>
 

@@ -1,0 +1,109 @@
+.expandable-row { cursor: pointer; }
+.app-shell .data-table .expandable-row > th {
+  background: transparent;
+  color: var(--color-text);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.expandable-row-toggle {
+  display: block;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 650;
+  text-align: start;
+  cursor: pointer;
+}
+.expandable-row-toggle svg { display: inline; vertical-align: -2px; margin-right: 6px; }
+.expandable-row-toggle[aria-expanded="true"] svg { rotate: 90deg; }
+.expandable-row-toggle { overflow-wrap: anywhere; }
+.expandable-row-toggle small {
+  display: block;
+  padding-inline-start: 20px;
+  color: var(--color-muted);
+  font-size: .75rem;
+  font-weight: 400;
+}
+.expandable-row-panel[hidden] { display: none; }
+.expandable-row-panel > td { background: #f8f9fc; }
+.expandable-row-panel dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+  margin: 0;
+  white-space: normal;
+}
+.expandable-row-panel dt { color: var(--color-muted); font-size: .78rem; }
+.expandable-row-panel dd { margin: 3px 0 0; font-size: .86rem; }
+.expandable-row-panel .row-panel-actions { display: flex; gap: 16px; margin-top: 12px; }
+
+
+.orders-page {
+  .data-table {
+    width: 100%;
+    table-layout: fixed;
+  }
+  .data-table :is(th, td) {
+    padding: 12px 10px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .data-table thead th:first-child { width: 15%; }
+  .data-table thead th:nth-child(2) { width: 28%; }
+  .data-table .order-number-cell { white-space: nowrap; }
+  .order-actions { flex-wrap: wrap; gap: 6px; }
+  .order-actions button { min-width: 0; padding: 6px 8px; }
+  .data-table .order-identity { font-size: .86rem; }
+}
+.inventory-page {
+  .inventory-table { table-layout: fixed; }
+  .inventory-table thead th:first-child { width: 42%; }
+  .inventory-table .inventory-product { min-width: 0; overflow-wrap: anywhere; }
+  .inventory-table th, .inventory-table td { padding-inline: 10px; }
+  .stock-value { min-width: 0; }
+}
+.parcel-list-page.logistics-page {
+  .data-table { min-width: 0; table-layout: fixed; }
+  .data-table thead th:first-child { width: 26%; }
+  .data-table thead th:nth-child(2) { width: 34%; }
+  .data-table :is(th, td) { white-space: normal; overflow-wrap: anywhere; padding: 12px 10px; }
+  .data-table :is(.parcel-list-route, .parcel-progress) { min-width: 0; }
+}
+
+@media (max-width: 640px) {
+  :is(.orders-page, .inventory-page, .parcel-list-page, .admin-page) table {
+    min-width: 0;
+    table-layout: auto;
+  }
+  :is(.orders-page, .inventory-page, .parcel-list-page, .admin-page) thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .expandable-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px 16px;
+    padding: 16px;
+    border-bottom: 1px solid var(--color-surface);
+  }
+  .app-shell :is(.orders-page, .inventory-page, .parcel-list-page, .admin-page) :is(.data-table, .inventory-table) .expandable-row > :is(th, td) {
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    white-space: normal;
+    text-align: start;
+    overflow-wrap: anywhere;
+  }
+  .expandable-row > :is(th, [data-column="partner"], [data-column="route"], [data-column="actions"]) {
+    grid-column: 1 / -1;
+  }
+  .expandable-row-panel { display: block; }
+  .expandable-row-panel > td { display: block; width: 100%; }
+  .expandable-row .status { white-space: normal; }
+}

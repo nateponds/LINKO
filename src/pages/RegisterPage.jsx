@@ -66,18 +66,18 @@ export default function RegisterPage() {
       <div className="auth-card">
         <div className="auth-form-panel">
           <div className="auth-topbar">
-            <Link to="/" className="auth-back-link">Back</Link>
+            <Link to="/" className="auth-back-link">Back to LINKO</Link>
             <div className="auth-brand-mark">
               LINK<span>O</span>
             </div>
           </div>
 
           <div className="auth-form-body">
-            <h1 className="auth-heading">Sign Up</h1>
+            <h1 className="auth-heading">Start with LINKO.</h1>
 
             <form onSubmit={handleSubmit} noValidate>
               <label className="auth-field">
-                <span className="sr-only">Full name</span>
+                <span className="auth-label">Full name</span>
                 <input
                   type="text"
                   required
@@ -89,7 +89,7 @@ export default function RegisterPage() {
               </label>
 
               <label className="auth-field">
-                <span className="sr-only">Email</span>
+                <span className="auth-label">Email address</span>
                 <input
                   type="email"
                   required
@@ -101,7 +101,7 @@ export default function RegisterPage() {
               </label>
 
               <label className="auth-field">
-                <span className="sr-only">Password</span>
+                <span className="auth-label">Password</span>
                 <input
                   type={showPassword ? "text" : "password"}
                   required
@@ -122,7 +122,7 @@ export default function RegisterPage() {
               </label>
 
               <label className="auth-field">
-                <span className="sr-only">Confirm Password</span>
+                <span className="auth-label">Confirm password</span>
                 <input
                   type={showPassword ? "text" : "password"}
                   required
@@ -143,7 +143,7 @@ export default function RegisterPage() {
               </label>
 
               <label className="auth-field">
-                <span className="sr-only">Business name</span>
+                <span className="auth-label">Business name</span>
                 <input
                   type="text"
                   required
@@ -155,7 +155,7 @@ export default function RegisterPage() {
               </label>
 
               <label className="auth-field">
-                <span className="sr-only">Business type</span>
+                <span className="auth-label">Business type</span>
                 <select
                   value={form.business_type}
                   onChange={(event) => setField("business_type", event.target.value)}
@@ -165,10 +165,10 @@ export default function RegisterPage() {
                 </select>
               </label>
 
-              {submitError && <p className="auth-error">{submitError}</p>}
+              {submitError && <p className="auth-error" role="alert">{submitError}</p>}
 
               <button type="submit" className="auth-submit" disabled={submitting}>
-                {submitting ? "Creating account..." : "Sign Up"}
+                {submitting ? "Creating account..." : "Create account"}
               </button>
             </form>
 

@@ -11,6 +11,7 @@ import PaginationControls from "../components/ui/PaginationControls";
 import { useListUrlState } from "../hooks/useListUrlState";
 import { peso, shortDate, statusClass } from "../lib/format";
 import { TableSkeleton, TrackingSkeleton } from "../components/ui/pageSkeletons";
+import ExpandableTableRow from "../components/ui/ExpandableTableRow";
 import "./OrdersPage.css";
 
 // Buyers can watch a parcel from these order states; earlier states have no
@@ -101,20 +102,7 @@ export default function OrdersPage() {
   const pagination = pageData?.pagination ?? null;
   const [updatingId, setUpdatingId] = useState(null);
   const [actionError, setActionError] = useState(null);
-  const tabsContainerRef = useRef(null);
-  const [pillStyle, setPillStyle] = useState({ opacity: 0 });
 
-  const tableContentRef = useRef(null);
-  const [tableHeight, setTableHeight] = useState("auto");
-
-  useEffect(() => {
-    if (!tableContentRef.current || !window.ResizeObserver) return undefined;
-    const observer = new ResizeObserver((entries) => {
-      setTableHeight(entries[0].target.offsetHeight);
-    });
-    observer.observe(tableContentRef.current);
-    return () => observer.disconnect();
-  }, []);
 
   useEffect(() => {
     return () => window.clearTimeout(searchTimerRef.current);
@@ -138,28 +126,6 @@ export default function OrdersPage() {
     const nextQuery = new FormData(event.currentTarget).get("q");
     list.setQuery(String(nextQuery ?? ""));
   }
-
-  useEffect(() => {
-    function updatePill() {
-      if (!tabsContainerRef.current) return;
-      const activeBtn = tabsContainerRef.current.querySelector('button[aria-selected="true"]');
-      if (activeBtn) {
-        setPillStyle({
-          left: activeBtn.offsetLeft,
-          top: activeBtn.offsetTop,
-          width: activeBtn.offsetWidth,
-          height: activeBtn.offsetHeight,
-          opacity: 1,
-        });
-      }
-    }
-    const timer = setTimeout(updatePill, 0);
-    window.addEventListener("resize", updatePill);
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener("resize", updatePill);
-    };
-  }, [statusFilter, orders?.length]);
 
   // Ship-order modal (wholesaler enters weight at handoff).
   const [shipOrder, setShipOrder] = useState(null);
@@ -312,17 +278,14 @@ export default function OrdersPage() {
 
         <div
           className="status-tabs"
-          role="tablist"
+          role="group"
           aria-label="Filter by status"
-          ref={tabsContainerRef}
         >
-          <div className="sliding-pill" style={pillStyle} />
           {STATUS_TABS.map((tab) => (
             <button
               key={tab}
-              role="tab"
-              aria-selected={statusFilter === tab}
-              className={statusFilter === tab ? "active" : ""}
+              type="button"
+              aria-pressed={normalizeStatus(statusFilter) === normalizeStatus(tab)}
               onClick={() => list.setFilters({ status: tab === "All" ? "" : tab.toLowerCase() })}
             >
               {tab}
@@ -330,22 +293,15 @@ export default function OrdersPage() {
           ))}
         </div>
 
-        <main className="table-card" aria-busy={resource.loading}>
-          {actionError && <div className="page-empty page-empty--inline">Could not update order: {actionError}</div>}
-          <div
-            className="table-height-animator"
-            style={{
-              height: tableHeight === "auto" ? "auto" : `${tableHeight}px`,
-              overflow: "hidden",
-              transition: "height 0.4s cubic-bezier(0.25, 1, 0.5, 1)",
-            }}
-          >
-            <div ref={tableContentRef}>
+        <section className="table-card" aria-label="Order results" aria-busy={resource.loading}>
+          {actionError && <div className="page-empty page-empty--inline" role="alert">Could not update order: {actionError}</div>}
+          <div>
               {orders === null && resource.loading ? (
-                <TableSkeleton columns={9} rows={8} label="Loading orders" />
+                <TableSkeleton columns={5} rows={8} label="Loading orders" />
               ) : resource.error && !orders?.length ? (
-                <div className="page-empty">
-                  Could not load orders: {resource.error.message}
+                <div className="page-empty" role="alert">
+                  <strong>Could not load orders.</strong>
+                  <button type="button" className="clear-list-filters" onClick={resource.reload}>Try again</button>
                 </div>
               ) : (orders?.length ?? 0) === 0 ? (
                 <div className="page-empty">
@@ -362,84 +318,73 @@ export default function OrdersPage() {
                 </div>
               ) : (
                 <>
-                  {resource.error && <div className="page-empty page-empty--inline">Could not refresh orders: {resource.error.message}</div>}
+                  {resource.error && (
+                    <div className="page-empty page-empty--inline" role="alert">
+                      Could not refresh orders. Showing previous results.
+                      <button type="button" className="clear-list-filters" onClick={resource.reload}>Try again</button>
+                    </div>
+                  )}
                   <div className="orders-table-wrap">
                     <table className="data-table">
                       <thead>
                         <tr>
-                          <th>Order No.</th>
-                          <th>Customer</th>
-                          <th>Seller</th>
-                          <th>Date</th>
-                          <th>Items</th>
-                          <th>Total</th>
-                          <th>Status</th>
-                          <th>Invoice</th>
-                          <th></th>
+                          <th scope="col">Order</th>
+                          <th scope="col">Business</th>
+                          <th scope="col">Status</th>
+                          <th scope="col" className="order-number-cell">Total</th>
+                          <th scope="col">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {orders.map((order) => {
                         const orderActions = actionsFor(order);
                         const disabled = updatingId === order.order_id;
+                        const buying = activeBusinessId === order.buyer_business_id;
+                        const partner = buying ? order.wholesaler_business_name : order.buyer_business_name;
+                        const otherBusiness = buying ? order.buyer_business_name : order.wholesaler_business_name;
 
                         return (
-                          <tr key={order.order_id}>
-                            <td>#{order.order_id}</td>
-                            <td>
-                              <strong>{order.buyer_business_name ?? "—"}</strong>
-                            </td>
-                            <td>{order.wholesaler_business_name ?? "—"}</td>
-                            <td>{shortDate(order.created_at)}</td>
-                            <td>{itemCount(order)}</td>
-                            <td>{peso(order.total)}</td>
-                            <td>
-                              <span
-                                className={`status ${statusClass(statusLabel(order.status))}`}
-                              >
-                                {statusLabel(order.status)}
-                              </span>
-                            </td>
-                            <td>
-                              {order.invoice?.invoice_id ? (
-                                <Link
-                                  className="track-link"
-                                  to={`/invoices?invoice=${order.invoice.invoice_id}`}
-                                >
-                                  {order.invoice.invoice_number ?? "Invoice"}
-                                </Link>
-                              ) : (
-                                <span className="muted-cell">—</span>
-                              )}
-                            </td>
-                            <td>
-                              {orderActions.length > 0 ? (
-                                <div
-                                  className="order-actions"
-                                  aria-label={`Actions for order ${order.order_id}`}
-                                >
-                                  {orderActions.map((action) => (
-                                    <button
-                                      key={`${action.label}-${action.nextStatus ?? "fn"}`}
-                                      className="track-link action-button"
-                                      type="button"
-                                      disabled={disabled && !action.onClick}
-                                      onClick={
-                                        action.onClick ??
-                                        (() => requestStatusChange(order, action))
-                                      }
-                                    >
-                                      {disabled && !action.onClick
-                                        ? "Updating"
-                                        : action.label}
-                                    </button>
-                                  ))}
-                                </div>
-                              ) : (
-                                <span className="muted-cell">—</span>
-                              )}
-                            </td>
-                          </tr>
+                          <ExpandableTableRow
+                            key={order.order_id}
+                            label={`Order #${order.order_id}`}
+                            cells={[
+                              { key: "order", className: "order-identity", content: <>#{order.order_id}<small>{shortDate(order.created_at)}</small></> },
+                              { key: "partner", content: partner ?? "—" },
+                              { key: "status", content: <span className={`status ${statusClass(statusLabel(order.status))}`}>{statusLabel(order.status)}</span> },
+                              { key: "total", className: "order-number-cell", content: peso(order.total) },
+                              {
+                                key: "actions",
+                                content: orderActions.length > 0 ? (
+                                  <div className="order-actions" aria-label={`Actions for order ${order.order_id}`}>
+                                    {orderActions.map((action) => (
+                                      <button
+                                        key={`${action.label}-${action.nextStatus ?? "fn"}`}
+                                        className="track-link action-button"
+                                        type="button"
+                                        disabled={disabled && !action.onClick}
+                                        onClick={action.onClick ?? (() => requestStatusChange(order, action))}
+                                      >
+                                        {disabled && !action.onClick ? "Updating" : action.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                ) : <span className="muted-cell">—</span>,
+                              },
+                            ]}
+                          >
+                            <dl>
+                              <div><dt>{buying ? "Customer" : "Seller"}</dt><dd>{otherBusiness ?? "—"}</dd></div>
+                              <div><dt>Items</dt><dd>{itemCount(order)}</dd></div>
+                              <div>
+                                <dt>Invoice</dt>
+                                <dd>{order.invoice?.invoice_id ? (
+                                  <Link className="track-link" to={`/invoices?invoice=${order.invoice.invoice_id}`}>
+                                    {order.invoice.invoice_number ?? "View invoice"}
+                                  </Link>
+                                ) : "—"}</dd>
+                              </div>
+                            </dl>
+                          </ExpandableTableRow>
                         );
                       })}
                       </tbody>
@@ -454,9 +399,8 @@ export default function OrdersPage() {
                   />
                 </>
               )}
-            </div>
           </div>
-        </main>
+        </section>
 
         {/* Ship order: wholesaler records the parcel weight at handoff. */}
         <div className={`modal-overlay${shipOrder ? " open" : ""}`}>

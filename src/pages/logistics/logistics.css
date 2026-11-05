@@ -4,30 +4,6 @@
 .logistics-page {
   padding: 30px 40px 60px;
 
-  /* logistics status pills beyond the shell.css set */
-  .status.order-created {
-    background: var(--color-surface);
-    color: var(--color-muted);
-  }
-
-  .status.picked-up,
-  .status.arrived-at-branch,
-  .status.departed-branch,
-  .status.out-for-delivery {
-    background: var(--color-primary-soft);
-    color: var(--color-primary-dark);
-  }
-
-  .status.returned {
-    background: #fdf3d7;
-    color: #9a7b12;
-  }
-
-  .status.delivery-failed {
-    background: #fdecea;
-    color: #b3261e;
-  }
-
   .logistics-head-actions {
     display: flex;
     align-items: center;
@@ -693,5 +669,137 @@
     font: inherit;
     font-weight: 700;
     padding: 8px 16px;
+  }
+}
+
+.parcel-list-page.logistics-page {
+  max-width: 1360px;
+  margin-inline: auto;
+  padding-inline: clamp(16px, 4vw, 56px);
+
+  .page-head {
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--color-surface);
+  }
+
+  .page-head p {
+    margin: 6px 0 0;
+    color: var(--color-muted);
+  }
+
+  .book-parcel-btn {
+    border-radius: 8px;
+  }
+
+  .parcel-list-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .search-bar {
+    min-width: min(100%, 260px);
+    max-width: 420px;
+  }
+
+  .parcel-status-filter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--color-muted);
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .parcel-status-filter select {
+    height: 44px;
+    padding-inline: 10px;
+    border: 1px solid #dce3ee;
+    border-radius: 8px;
+    background: white;
+    color: var(--color-text);
+    font: inherit;
+  }
+
+  .table-card {
+    padding: 0;
+  }
+
+  .data-table {
+    min-width: 0;
+    table-layout: fixed;
+  }
+
+  .data-table :is(td, th[scope="row"]) {
+    vertical-align: top;
+  }
+
+  .data-table .parcel-identity {
+    background: transparent;
+    color: var(--color-text);
+    font-size: 0.88rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .parcel-shipment {
+    margin-top: 4px;
+    font-size: 0.77rem;
+    font-weight: 400;
+  }
+
+  .parcel-shipment summary {
+    width: fit-content;
+    color: var(--color-primary);
+    cursor: pointer;
+  }
+
+  .parcel-shipment dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 3px 8px;
+    margin: 8px 0 0;
+  }
+
+  .parcel-shipment dt,
+  .parcel-list-route small,
+  .parcel-progress small,
+  .parcel-actions small {
+    color: var(--color-muted);
+    font-size: 0.78rem;
+  }
+
+  .parcel-shipment dd {
+    margin: 0;
+    text-align: end;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .data-table :is(.parcel-list-route, .parcel-progress) {
+    white-space: normal;
+    min-width: 155px;
+  }
+
+  .parcel-progress .status,
+  .parcel-actions .track-link {
+    white-space: normal;
+  }
+
+  .parcel-list-route > span {
+    display: block;
+    overflow-wrap: anywhere;
+  }
+
+  .parcel-list-route > span + span,
+  .parcel-progress small,
+  .parcel-actions small {
+    display: block;
+    margin-top: 4px;
+  }
+
+  .parcel-list-route small {
+    display: inline-block;
+    min-width: 2.7em;
   }
 }

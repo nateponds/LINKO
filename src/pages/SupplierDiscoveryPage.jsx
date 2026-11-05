@@ -10,26 +10,8 @@ import { isUnavailable } from "../features/cart/cart";
 import { apiGet } from "../lib/api";
 import { peso, stockBadge } from "../lib/format";
 import { imageForCategory } from "../lib/categoryImages";
-import { pickRandomBanners, productForBanner } from "../lib/productBanners";
 import { normalizePage } from "../features/suppliers/marketplacePagination";
 import { CardGridSkeleton, WholesalerRowSkeleton } from "../components/ui/pageSkeletons";
-
-function PromoBanner({ banner, products, className = "" }) {
-  const product = productForBanner(banner, products);
-  const target = product ? `/suppliers/${product.business_id}` : "/suppliers";
-  const { background, color, ...position } = banner.button;
-
-  return (
-    <section className={`home-banner ${className}`.trim()}>
-      <Link to={target}>
-        <img src={banner.image} alt={banner.alt} />
-        <span className="home-banner-btn" style={{ ...position, background, color }}>
-          Shop Now <ArrowRight size={16} />
-        </span>
-      </Link>
-    </section>
-  );
-}
 
 const AVATAR_PALETTE = [
   "var(--color-primary)",
@@ -127,9 +109,6 @@ function SupplierDiscoveryPage() {
   const [products, setProducts] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [promoLoaded, setPromoLoaded] = useState(false);
-  // Lazy initializer so the pick survives re-renders and only changes on a
-  // fresh mount (i.e., navigating back to the page).
-  const [banners] = useState(() => pickRandomBanners(2));
 
   useEffect(() => {
     if (isFiltered) return undefined;
@@ -168,24 +147,27 @@ function SupplierDiscoveryPage() {
       <div className="discovery-page">
         {!isFiltered && (
           <>
-            <PromoBanner
-              banner={banners[0]}
-              products={products}
-              className="home-banner--hero"
-            />
+            <section className="market-intro">
+              <div className="market-intro__copy">
+                <h1>Your next restock<br />starts here.</h1>
+                <p>Find wholesale essentials and the people who supply them.</p>
+                <a href="#browse-wholesalers" className="market-intro__link">Explore wholesalers <ArrowRight size={17} /></a>
+              </div>
+              <img src={imageForCategory("Produce", 800)} alt="Fresh produce available from wholesale suppliers" className="market-intro__image" />
+            </section>
 
             {!promoLoaded ? (
               <section className="home-section">
                 <div className="home-section-head">
-                  <h2>Featured Products</h2>
+                  <h2>Featured products</h2>
                 </div>
                 <CardGridSkeleton count={5} label="Loading featured products" gridClassName="home-product-grid" />
               </section>
             ) : featuredProducts.length > 0 && (
               <section className="home-section">
                 <div className="home-section-head">
-                  <h2>Featured Products</h2>
-                  <Link to="/">Browse all wholesalers</Link>
+                  <h2>Featured products</h2>
+                  <a href="#browse-wholesalers">Browse wholesalers</a>
                 </div>
                 <div className="home-product-grid">
                   {featuredProducts.map((product) => (
@@ -198,14 +180,14 @@ function SupplierDiscoveryPage() {
             {!promoLoaded ? (
               <section className="home-section" id="top-wholesalers">
                 <div className="home-section-head">
-                  <h2>Top Wholesalers</h2>
+                  <h2>Wholesalers to know</h2>
                 </div>
                 <WholesalerRowSkeleton gridClassName="home-wholesaler-row" />
               </section>
             ) : topWholesalers.length > 0 && (
               <section className="home-section" id="top-wholesalers">
                 <div className="home-section-head">
-                  <h2>Top Wholesalers</h2>
+                  <h2>Wholesalers to know</h2>
                 </div>
                 <div className="home-wholesaler-row">
                   {topWholesalers.map((supplier, index) => (
@@ -215,19 +197,17 @@ function SupplierDiscoveryPage() {
               </section>
             )}
 
-            <PromoBanner banner={banners[1]} products={products} />
-
             {!promoLoaded ? (
               <section className="home-section">
                 <div className="home-section-head">
-                  <h2>More From Our Wholesalers</h2>
+                  <h2>More for your business</h2>
                 </div>
                 <CardGridSkeleton count={5} label="Loading products" gridClassName="home-product-grid" />
               </section>
             ) : moreProducts.length > 0 && (
               <section className="home-section">
                 <div className="home-section-head">
-                  <h2>More From Our Wholesalers</h2>
+                  <h2>More for your business</h2>
                 </div>
                 <div className="home-product-grid">
                   {moreProducts.map((product) => (
@@ -237,8 +217,8 @@ function SupplierDiscoveryPage() {
               </section>
             )}
 
-            <div className="home-section-head home-section-head--browse">
-              <h2>Browse All Wholesalers</h2>
+            <div className="home-section-head home-section-head--browse" id="browse-wholesalers">
+              <h2>All wholesalers</h2>
             </div>
           </>
         )}

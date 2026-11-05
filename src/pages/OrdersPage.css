@@ -15,48 +15,29 @@
     border-bottom: 1px solid var(--hairline);
   }
 
-  /* status filter tabs — flat, no shadows */
   .status-tabs {
     display: flex;
-    gap: 4px;
     flex-wrap: wrap;
-    margin: 18px 0 8px;
-    position: relative;
-    z-index: 1;
-  }
-
-  .status-tabs .sliding-pill {
-    position: absolute;
-    background: var(--color-primary);
-    border-radius: 20px;
-    transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
-    z-index: -1;
-    pointer-events: none;
+    gap: 6px;
+    margin: 0 0 14px;
   }
 
   .status-tabs button {
-    border: none;
-    background: transparent;
+    padding: 7px 12px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: #f5f7fa;
     color: var(--color-muted);
     font-weight: 600;
-    font-size: 0.85rem;
-    padding: 8px 16px;
-    border-radius: 20px;
     cursor: pointer;
-    transition: color 0.2s ease, background 0.2s ease;
   }
 
-  .status-tabs button:hover:not(.active) {
-    background: #f6f8fc;
+  .status-tabs button:hover,
+  .status-tabs button[aria-pressed="true"] {
+    border-color: #ccd9ee;
+    background: #edf2fc;
     color: var(--color-primary-dark);
   }
-
-  .status-tabs button.active {
-    background: transparent;
-    color: white;
-    transition: color 0.2s ease 0.15s;
-  }
-
   /* table — flat on the page, no card, no shadow */
   .orders-table-wrap {
     overflow-x: auto;
@@ -167,23 +148,6 @@
     background: #f8fafc;
     cursor: not-allowed;
     text-decoration: none;
-  }
-
-  .status.pending,
-  .status.preparing {
-    background: #fdf3d7;
-    color: #9a7b12;
-  }
-
-  .status.accepted,
-  .status.shipped {
-    background: var(--color-primary-soft);
-    color: var(--color-primary-dark);
-  }
-
-  .status.rejected {
-    background: #fdeaea;
-    color: #c0392b;
   }
 
   .track-parcel-meta {
@@ -316,4 +280,68 @@
   color: var(--color-muted);
   font-size: 0.9rem;
   margin: 0;
+}
+
+.orders-page {
+  max-width: 1360px;
+  margin-inline: auto;
+  padding-inline: clamp(16px, 4vw, 56px);
+
+  .page-head p {
+    margin: 6px 0 0;
+    color: var(--color-muted);
+  }
+
+  .table-card {
+    padding: 0;
+  }
+
+  .data-table thead th {
+    letter-spacing: normal;
+    font-size: 0.82rem;
+  }
+
+  .data-table .order-number-cell {
+    text-align: end;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .data-table .order-identity {
+    background: transparent;
+    color: var(--color-text);
+    letter-spacing: normal;
+    font-size: 0.9rem;
+  }
+
+  .order-partner-role,
+  .order-details {
+    display: block;
+    margin-top: 3px;
+    color: var(--color-muted);
+    font-size: 0.76rem;
+    font-weight: 400;
+  }
+
+  .order-details {
+    white-space: normal;
+    width: 10rem;
+  }
+
+  .order-details summary {
+    width: fit-content;
+    color: var(--color-primary);
+    cursor: pointer;
+  }
+
+  .order-details[open] summary {
+    margin-bottom: 6px;
+  }
+
+  .order-details :is(div, span, a) {
+    overflow-wrap: anywhere;
+  }
+
+  .orders-table-wrap {
+    min-width: 0;
+  }
 }
