@@ -19,7 +19,9 @@
   * { box-sizing: border-box; }
 
   & {
-    padding: 30px 40px 60px;
+    max-width: var(--layout-max-width);
+    margin-inline: auto;
+    padding: var(--layout-page-start) var(--layout-gutter) var(--layout-page-end);
     color: var(--text);
   }
 
@@ -204,7 +206,7 @@
   /* ============ DETAIL VIEW ============ */
   .invoice-wrap {
     display: grid;
-    grid-template-columns: 320px 1fr;
+    grid-template-columns: 320px minmax(0, 1fr);
     gap: 20px;
     align-items: start;
     padding: 0;
@@ -271,6 +273,7 @@
 
   /* ---- Status panel (right) ---- */
   .status-panel {
+    min-width: 0;
     background: white;
     border-radius: var(--radius);
     box-shadow: var(--shadow-sm);
@@ -492,8 +495,6 @@
   }
 
   @media (max-width: 560px) {
-    padding: 20px 16px 40px;
-
     .invoice-list-row {
       grid-template-columns: 1fr;
     }

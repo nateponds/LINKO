@@ -1,7 +1,7 @@
 /* Become-a-supplier page content styles, shared home palette (vars from shell.css).
    Scoped under .become-supplier-page; the nav shell comes from AppLayout. */
 .become-supplier-page {
-  padding: 30px 40px 60px;
+  padding: var(--layout-page-start) var(--layout-gutter) var(--layout-page-end);
   max-width: 1080px;
   margin: 0 auto;
 
@@ -163,8 +163,6 @@
   }
 
   @media (max-width: 800px) {
-    padding: 20px 16px 40px;
-
     .supplier-columns {
       grid-template-columns: 1fr;
     }

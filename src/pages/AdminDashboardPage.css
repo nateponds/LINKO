@@ -1,7 +1,9 @@
 /* Admin dashboard content styles; heading/table/status primitives come from
    shell.css. Scoped under .admin-page. */
 .admin-page {
-  padding: 30px 40px 60px;
+  max-width: var(--layout-max-width);
+  margin-inline: auto;
+  padding: var(--layout-page-start) var(--layout-gutter) var(--layout-page-end);
 
   .admin-error {
     margin-bottom: 20px;
@@ -78,7 +80,7 @@
 
   .cs-tools-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
     gap: 16px;
   }
 
@@ -147,9 +149,6 @@
     color: var(--color-muted);
   }
 
-  @media (max-width: 700px) {
-    padding: 20px 16px 40px;
-  }
 }
 
 .admin-compact-table {
