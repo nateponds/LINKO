@@ -215,7 +215,7 @@
     font-size: 0.82rem;
   }
 
-  /* product list — borderless, straight on the page; hairlines only */
+  /* product list - borderless, straight on the page; hairlines only */
   .inventory-container {
     overflow-x: auto;
   }

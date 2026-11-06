@@ -74,7 +74,7 @@ function countsByStatus(rows, statuses) {
   return counts;
 }
 
-// GET /api/admin/operations — read-only platform snapshot for the admin strip.
+// GET /api/admin/operations - read-only platform snapshot for the admin strip.
 // Open orders are non-terminal marketplace statuses. A parcel needs assignment
 // when its latest scan is not terminal and has no courier or no branch.
 // Low stock matches the inventory filter (active products, quantity 1–10).
@@ -280,7 +280,7 @@ router.post("/users", async (req, res, next) => {
         if (canonical.rowCount === 0) {
           throw createHttpError(
             500,
-            "canonical logistics business missing — run migration 022",
+            "canonical logistics business missing - run migration 022",
           );
         }
         membershipBusinessId = canonical.rows[0].business_id;

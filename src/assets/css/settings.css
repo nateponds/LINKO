@@ -640,7 +640,7 @@
    pane keeps the soft rounded look. Square corners + red accents read as
    "stop and read this" rather than as a routine dialog. */
 .confirm-dialog-backdrop {
-  background: rgba(0, 0, 0, 0.35);      /* neutral, light dim — no tint, no blur */
+  background: rgba(0, 0, 0, 0.35);      /* neutral, light dim - no tint, no blur */
   animation: confirmFadeIn 200ms ease-out both;
 }
 

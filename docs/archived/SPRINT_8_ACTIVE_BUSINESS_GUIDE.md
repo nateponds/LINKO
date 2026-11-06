@@ -92,7 +92,7 @@ const ROLE_ORDER = { buyer: 0, wholesaler: 1, logistics_coordinator: 2, courier:
 ```
 
 `AuthProvider` also derives `activeRoles` = the roles of the grouped active
-business — the single source for every capability check.
+business - the single source for every capability check.
 
 ### Backend authorization
 
@@ -122,7 +122,7 @@ business — the single source for every capability check.
 - On a business switch, the routed subtree is remounted via
   `key={activeBusinessId}` on the element wrapping `<Outlet>`. This clears all
   business-scoped local component state and re-fires every page's mount fetch
-  against the new active-business header — no per-page cache audit. `api.js`
+  against the new active-business header - no per-page cache audit. `api.js`
   already writes the new selection to `localStorage` synchronously before the
   state change that triggers the remount, so the refetch reads the new header.
 - Login and register always redirect to the mapped default for the active
@@ -137,7 +137,7 @@ business — the single source for every capability check.
 - `OrdersPage` action gating is rewritten to test
   `activeBusinessId === order.<side>_business_id` combined with
   `activeRoles.includes(<role>)`. The prior fallback that scanned all
-  memberships is removed — it leaked capabilities from unselected businesses.
+  memberships is removed - it leaked capabilities from unselected businesses.
 - `getPrimaryMembership` in `roleAccess.js` is dead and is deleted.
 
 ### Tests
@@ -151,7 +151,7 @@ Backend (`node --test`), on the authorization boundary:
 - A multi-business caller with no `X-Active-Business` gets `400` on `/parcels`.
 
 Frontend behavior (switcher, combined labels, cache-clear on switch, redirect
-mapping) is verified by manual demo — no frontend test runner is configured.
+mapping) is verified by manual demo - no frontend test runner is configured.
 
 ## Demo and documentation correction
 

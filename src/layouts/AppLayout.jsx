@@ -7,7 +7,7 @@ import Footer from "../components/navigation/Footer";
 import MobileNav from "../components/navigation/MobileNav";
 import { useAuth } from "../auth/AuthProvider";
 
-// Missing-location reminder (Sprint 13 §9.2). Fully data-derived — no
+// Missing-location reminder (Sprint 13 §9.2). Fully data-derived - no
 // dismissal state: shows while the active buyer/wholesaler business has no
 // pinned coordinates, disappears the moment a Settings save refreshes the
 // session. Logistics-only businesses are exempt (no pin gates apply to them).
@@ -37,7 +37,7 @@ function MissingLocationBanner() {
       <TriangleAlert size={16} />
       <span>
         <strong>{activeBusiness.business_name}</strong> has no pinned{" "}
-        {isBuyer ? "delivery" : "pickup"} location —{" "}
+        {isBuyer ? "delivery" : "pickup"} location -{" "}
         {isBuyer ? "orders can't be placed" : "orders can't be shipped"} until
         it is set.
       </span>

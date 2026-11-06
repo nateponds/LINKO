@@ -160,7 +160,7 @@ function Topbar({ showSearch = false, showCategories = false }) {
   }, [user]);
 
   useEffect(() => {
-    // Marketplace pages only — no fetch when the dropdown is hidden.
+    // Marketplace pages only - no fetch when the dropdown is hidden.
     if (!showCategories) return undefined;
 
     let cancelled = false;

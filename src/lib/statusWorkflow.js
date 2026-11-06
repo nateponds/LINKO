@@ -14,7 +14,7 @@ export const TRACKING_STATUSES = [
 export const RETURN_TRIGGER_FAILS = 3;
 
 // One tap = status + fixed remark (handoff 2026-07-16 §5). Delivered/Returned
-// and the branch checkpoints (Arrived/Departed) send nothing — the backend
+// and the branch checkpoints (Arrived/Departed) send nothing - the backend
 // auto-generates proof of delivery and branch-name remarks from accounts.
 export const ONE_TAP_REMARKS = {
   "Picked Up": "Picked up by courier",
@@ -31,7 +31,7 @@ export const HARD_FAIL_REASONS = ["Bad address", "Delivery refused"];
 const TERMINAL_STATUSES = new Set(["Delivered", "Returned", "Cancelled"]);
 
 // ponytail: this transition map is the single source of truth for courier
-// actions — dashboard buttons and detail-page options both derive from it,
+// actions - dashboard buttons and detail-page options both derive from it,
 // no hardcoded status lists in the UI. Mirrors backend routes/logistics.js.
 const COURIER_TRANSITIONS = {
   "Order Created": ["Picked Up"],

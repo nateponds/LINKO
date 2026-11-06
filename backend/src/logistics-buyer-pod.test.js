@@ -140,7 +140,7 @@ test("shipping records the entered weight and the buyer can track their own parc
       assert.equal(step.status, 200, `wholesaler should reach ${status}`);
     }
 
-    // Weight is required at the physical handoff — no silent placeholder.
+    // Weight is required at the physical handoff - no silent placeholder.
     const noWeight = await patchStatus(orderId, wholesalerCookie, { status: "shipped" });
     assert.equal(noWeight.status, 400);
     assert.match(noWeight.body.error.message, /weight_kg/);
@@ -244,7 +244,7 @@ test("courier terminal scans auto-generate POD; coordinators keep manual remarks
     };
 
     // Delivered: remark is generated from accounts even when the client sends
-    // nothing — and a client-sent remark on a courier terminal scan is replaced.
+    // nothing - and a client-sent remark on a courier terminal scan is replaced.
     const deliveredParcel = await createPoolParcel(pool);
     parcelIds.push(deliveredParcel);
     await walk(deliveredParcel, ["Picked Up", "Out for Delivery"]);
@@ -277,7 +277,7 @@ test("courier terminal scans auto-generate POD; coordinators keep manual remarks
     assert.equal(returned.body.remarks, RETURNED_POD);
 
     // Coordinator keeps the manual-remark override, but still follows the
-    // checkpoint map like couriers (handoff §2) — no Order Created -> Delivered
+    // checkpoint map like couriers (handoff §2) - no Order Created -> Delivered
     // jump. Walk to Out for Delivery, then deliver with a manual remark.
     const correctionParcel = await createPoolParcel(pool);
     parcelIds.push(correctionParcel);
@@ -312,7 +312,7 @@ test("payment lifecycle follows the method", { skip: !hasDb }, async () => {
     const originAddressId = await getAddressIdForBusiness(pool, "Cebu Fresh Wholesale");
     const destinationAddressId = await getAddressIdForBusiness(pool, "Sunrise Retail Cooperative");
 
-    // The checkpoint map binds coordinators too — walk to a terminal status
+    // The checkpoint map binds coordinators too - walk to a terminal status
     // through valid edges before settling the payment.
     const walkTo = async (parcelId, statuses) => {
       for (const status_update of statuses) {

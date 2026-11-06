@@ -483,7 +483,7 @@ export default function LogisticsManagementPage() {
               {branchErrorScope === "create" && branchError ? <p className="logistics-form-error" role="alert">{branchError}</p> : null}
               <button type="submit" disabled={submittingBranch}><Plus size={16} /> {submittingBranch && !editingBranchId ? "Adding…" : "Add Branch"}</button>
             </form>
-            <p className="management-note">Availability stops new automatic assignments only — in-flight parcels and manual assignment are unaffected.</p>
+            <p className="management-note">Availability stops new automatic assignments only - in-flight parcels and manual assignment are unaffected.</p>
             <SearchField value={branchesSearch.value} onChange={branchesSearch.setValue} onSubmit={branchesSearch.submit} onClear={branchesSearch.clear} label="Search branches" placeholder="Name or location" />
             {branchErrorScope === "list" && branchError ? <p className="logistics-form-error" role="alert">{branchError}</p> : null}
             {branchesResource.error && visibleBranches.length > 0 ? (
@@ -515,11 +515,11 @@ export default function LogisticsManagementPage() {
                         ) : (
                           <>
                             <div>
-                              <strong>{branch.branch_name}</strong> — {branch.contact_number}
+                              <strong>{branch.branch_name}</strong> - {branch.contact_number}
                               <br />
                               <small>{branch.city_municipality}, {branch.province}</small>
                               <br />
-                              <small>{branch.latitude != null && branch.longitude != null ? `Pinned at ${branch.latitude}, ${branch.longitude}` : "No coordinates — excluded from nearest-branch assignment"}</small>
+                              <small>{branch.latitude != null && branch.longitude != null ? `Pinned at ${branch.latitude}, ${branch.longitude}` : "No coordinates - excluded from nearest-branch assignment"}</small>
                             </div>
                             <div className="logistics-edit-actions">
                               <label className="management-availability">
@@ -574,7 +574,7 @@ export default function LogisticsManagementPage() {
                         ) : (
                           <>
                             <div>
-                              <strong>{courier.full_name}</strong> — {courier.phone_number || "No phone"}
+                              <strong>{courier.full_name}</strong> - {courier.phone_number || "No phone"}
                               <br />
                               <small>{courier.vehicle_type || "No vehicle"} • Branch: {courier.assigned_branch_name || "None"}</small>
                             </div>

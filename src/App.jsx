@@ -55,7 +55,7 @@ function RouteChrome() {
     const match = TITLES.find(([prefix]) => pathname.startsWith(prefix));
     document.title = match
       ? `${match[1]} · LINKO`
-      : "LINKO — Wholesale Marketplace";
+      : "LINKO - Wholesale Marketplace";
     window.scrollTo(0, 0);
   }, [pathname]);
 

@@ -11,5 +11,5 @@ test("couriers cannot cancel and follow the return leg", () => {
   assert.deepEqual(nextStatusesForRole("Out for Delivery", false, false), ["Delivered", "Delivery Failed"]);
   assert.deepEqual(nextStatusesForRole("Delivery Failed", true, false), ["Arrived at Branch"]);
   assert.match(courierActionCue("Delivery Failed", true), /return leg/i);
-  assert.equal(formatNextStatuses([]), "Finished — no further status");
+  assert.equal(formatNextStatuses([]), "Finished - no further status");
 });

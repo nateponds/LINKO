@@ -138,7 +138,7 @@ test("unauthenticated parcel list is rejected", { skip: !hasDb }, async () => {
 });
 
 // Sprint 8: buyers pass the /parcels gate for single-parcel tracking reads,
-// but the list is operator-only — a buyer-only session enumerates nothing.
+// but the list is operator-only - a buyer-only session enumerates nothing.
 test("buyer session gets an empty parcel list", { skip: !hasDb }, async () => {
   const cookie = await loginAs("buyer@linko.test");
   const response = await request("/api/parcels", {
@@ -1210,7 +1210,7 @@ test("platform admin can view all orders and override order status", { skip: !ha
       `SELECT title, message, type
          FROM notifications
         WHERE message LIKE $1
-          AND title IN ('Delivery Failed — Order Returned', 'Parcel Returning to Sender')`,
+          AND title IN ('Delivery Failed - Order Returned', 'Parcel Returning to Sender')`,
       [`%order #${orderId}%`],
     );
     assert.equal(returnNotifications.rows.length, 2);
@@ -1400,7 +1400,7 @@ test("3-fail return path: count-gated edges, auto-POD, split order side effects"
          FROM notifications n
          JOIN business_memberships bm ON bm.user_id = n.user_id
         WHERE n.message ILIKE $1
-          AND n.title = 'Delivery Failed — Parcel Returning to Sender'`,
+          AND n.title = 'Delivery Failed - Parcel Returning to Sender'`,
       [`%order #${orderId}%`],
     );
     const notifiedBusinesses = thirdFailNotifications.rows.map((row) => row.business_id);
@@ -1483,7 +1483,7 @@ test("3-fail return path: count-gated edges, auto-POD, split order side effects"
         (row) => row.business_id === wholesalerBusinessId && row.title === "Parcel Returned to You",
       ),
     );
-    // Settle message drops the "delivery failed" wording — that already fired
+    // Settle message drops the "delivery failed" wording - that already fired
     // on the 3rd failed attempt.
     assert.ok(
       settleNotifications.rows.every(
@@ -1592,7 +1592,7 @@ test("hard-fail reason opens the return leg on the first fail", { skip: !hasDb }
          FROM notifications n
          JOIN business_memberships bm ON bm.user_id = n.user_id
         WHERE n.message ILIKE $1
-          AND n.title = 'Delivery Failed — Parcel Returning to Sender'`,
+          AND n.title = 'Delivery Failed - Parcel Returning to Sender'`,
       [`%order #${orderId}%`],
     );
     const notifiedBusinesses = hardFailNotifications.rows.map((row) => row.business_id);

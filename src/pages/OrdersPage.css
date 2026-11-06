@@ -38,7 +38,7 @@
     background: #edf2fc;
     color: var(--color-primary-dark);
   }
-  /* table — flat on the page, no card, no shadow */
+  /* table - flat on the page, no card, no shadow */
   .orders-table-wrap {
     overflow-x: auto;
   }

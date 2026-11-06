@@ -272,7 +272,7 @@ export default function SupplierProfilePage() {
               </div>
               <div className="supplier-meta">
                 <span className="location">
-                  <MapPin size={14} /> {supplier?.city ?? "—"}
+                  <MapPin size={14} /> {supplier?.city ?? "-"}
                 </span>
               </div>
             </div>
@@ -335,7 +335,7 @@ export default function SupplierProfilePage() {
                     prices you&apos;ll love.
                   </h1>
                   <p className="shop-hero-sub">
-                    Sourced from local farms and trusted partners — delivered
+                    Sourced from local farms and trusted partners - delivered
                     straight to your door.
                   </p>
                   <button
@@ -384,7 +384,7 @@ export default function SupplierProfilePage() {
                   <MapPin size={26} />
                 </span>
                 <div>
-                  <span className="stat-value">{supplier?.city ?? "—"}</span>
+                  <span className="stat-value">{supplier?.city ?? "-"}</span>
                   <span className="stat-label">Location</span>
                 </div>
               </div>
@@ -424,7 +424,7 @@ export default function SupplierProfilePage() {
                 </div>
                 <div className="feature-title">Easy Returns</div>
                 <div className="feature-desc">
-                  Not satisfied? We&apos;ll sort it — no questions asked.
+                  Not satisfied? We&apos;ll sort it - no questions asked.
                 </div>
               </div>
             </div>

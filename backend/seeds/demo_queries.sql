@@ -1,5 +1,5 @@
 -- ============================================================================
--- LINKO Logistics — DEMO QUERIES for schema/implementation presentation.
+-- LINKO Logistics - DEMO QUERIES for schema/implementation presentation.
 -- Run after migrations (002_logistics_schema + 003_linko_schema) + dev_seed.sql.
 -- Each query is labelled with the DESIGN DECISION it proves. Run them in
 -- order; the header comment is your talking point for that slide.
@@ -7,7 +7,7 @@
 
 
 -- ----------------------------------------------------------------------------
--- Q1. TRIGGER PROOF — shipping_fee is derived (tier base fee + weight_kg x
+-- Q1. TRIGGER PROOF - shipping_fee is derived (tier base fee + weight_kg x
 --     tier rate + distance_km x tier per-km rate) but STORED, set by the
 --     BEFORE INSERT trigger. This recomputes it live and shows the stored
 --     value matches: proof the trigger fired, not hand-entered data.
@@ -35,7 +35,7 @@ LIMIT 10;
 
 
 -- ----------------------------------------------------------------------------
--- Q2. ROLE-VIA-FK — buyer/wholesaler is NOT a column. It is read from which
+-- Q2. ROLE-VIA-FK - buyer/wholesaler is NOT a column. It is read from which
 --     slot a business occupies on a parcel: sender_id = selling, receiver_id =
 --     buying. This classifies every business by BEHAVIOUR, not stored type,
 --     and finds the two who play BOTH sides.
@@ -61,7 +61,7 @@ ORDER BY b.business_id;
 
 
 -- ----------------------------------------------------------------------------
--- Q3. STATUS LIVES ONLY IN TRACKING_LOGS — parcels has no current_status
+-- Q3. STATUS LIVES ONLY IN TRACKING_LOGS - parcels has no current_status
 --     column. "Where is my parcel now" = the latest log row by scanned_at.
 --     DISTINCT ON is the clean Postgres way to grab one latest row per parcel.
 -- ----------------------------------------------------------------------------
@@ -78,7 +78,7 @@ ORDER BY t.parcel_id, t.scanned_at DESC, t.log_id DESC;
 
 
 -- ----------------------------------------------------------------------------
--- Q4. FULL PARCEL JOURNEY — the append-only event history for ONE parcel,
+-- Q4. FULL PARCEL JOURNEY - the append-only event history for ONE parcel,
 --     in order. Shows scanned_at carries per-event timing (Order Created =
 --     creation, Delivered = delivery) with no timestamp columns on parcels.
 --     Change the id to demo a delivered vs a stuck vs a returned parcel.
@@ -97,7 +97,7 @@ ORDER BY t.scanned_at, t.log_id;
 
 
 -- ----------------------------------------------------------------------------
--- Q5. DISPATCH GATE — "await payment before dispatch" is modelled as: a parcel
+-- Q5. DISPATCH GATE - "await payment before dispatch" is modelled as: a parcel
 --     with an unpaid Prepaid/Online payment has NO 'Picked Up' log yet. This
 --     finds every parcel held at the gate (paid up front? no. COD? no).
 -- ----------------------------------------------------------------------------
@@ -119,7 +119,7 @@ ORDER BY p.parcel_id;
 
 
 -- ----------------------------------------------------------------------------
--- Q6. ADDRESS NORMALIZATION + REUSE — one ADDRESSES table feeds businesss,
+-- Q6. ADDRESS NORMALIZATION + REUSE - one ADDRESSES table feeds businesss,
 --     branches, AND both ends of a parcel. This reads a full parcel label by
 --     joining the SAME table twice (origin + destination), proving the 1:N
 --     structured-address design (no flat address_line duplication).
@@ -138,7 +138,7 @@ LIMIT 10;
 
 
 -- ----------------------------------------------------------------------------
--- Q7. OPERATIONS ROLL-UP — parcel volume + revenue per destination hub, by
+-- Q7. OPERATIONS ROLL-UP - parcel volume + revenue per destination hub, by
 --     tier. Shows the schema answers real business questions, and that
 --     estimated_days (the SLA) rides along per tier.
 -- ----------------------------------------------------------------------------
@@ -155,7 +155,7 @@ ORDER BY shipping_revenue DESC;
 
 
 -- ----------------------------------------------------------------------------
--- Q8. COURIER WORKLOAD — who scanned how many parcels, and from which home
+-- Q8. COURIER WORKLOAD - who scanned how many parcels, and from which home
 --     base. Uses the nullable courier FK: the line-haul driver (no home base)
 --     and system scans (NULL courier) both appear correctly.
 -- ----------------------------------------------------------------------------

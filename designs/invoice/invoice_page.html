@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Linko — Order Invoice</title>
+<title>Linko - Order Invoice</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="invoice_page.css">
@@ -53,7 +53,7 @@
     <div class="topbar-right">
       <span class="tracking-label">Tracking No.</span>
       <!-- pulled from order data, see loadOrder() in invoice_page.js -->
-      <span class="tracking-number" id="trackingNumber">&mdash;</span>
+      <span class="tracking-number" id="trackingNumber">-</span>
     </div>
   </header>
 
@@ -63,34 +63,34 @@
     <!-- LEFT: parties (populated from order data) -->
     <aside class="parties">
       <div class="party-card">
-        <div class="shop-name" id="shopName">&mdash;</div>
+        <div class="shop-name" id="shopName">-</div>
 
         <div class="party-block">
           <span class="field-label">Customer Name</span>
-          <span class="field-value" id="customerName">&mdash;</span>
+          <span class="field-value" id="customerName">-</span>
         </div>
         <div class="party-block">
           <span class="field-label">Customer Contact</span>
-          <span class="field-value" id="customerContact">&mdash;</span>
+          <span class="field-value" id="customerContact">-</span>
         </div>
         <div class="party-block">
           <span class="field-label">Delivery Address</span>
-          <span class="field-value" id="customerAddress">&mdash;</span>
+          <span class="field-value" id="customerAddress">-</span>
         </div>
       </div>
 
       <div class="party-card">
         <div class="party-block">
           <span class="field-label">Seller Name / Shop Name</span>
-          <span class="field-value" id="sellerName">&mdash;</span>
+          <span class="field-value" id="sellerName">-</span>
         </div>
         <div class="party-block">
           <span class="field-label">Seller Support</span>
           <span class="field-value">
-            <span id="sellerPhone">&mdash;</span>
+            <span id="sellerPhone">-</span>
             <a href="#" class="show-number" id="showNumberBtn">Show number</a>
           </span>
-          <span class="field-value muted" id="sellerEmail">&mdash;</span>
+          <span class="field-value muted" id="sellerEmail">-</span>
         </div>
       </div>
     </aside>
@@ -100,9 +100,9 @@
 
       <div class="status-head">
         <div>
-          <span class="status-eyebrow" id="statusEyebrow">&mdash;</span>
-          <h1 class="status-title" id="statusTitle">&mdash;</h1>
-          <span class="status-sub" id="statusSub">&mdash;</span>
+          <span class="status-eyebrow" id="statusEyebrow">-</span>
+          <h1 class="status-title" id="statusTitle">-</h1>
+          <span class="status-sub" id="statusSub">-</span>
         </div>
 
         <div class="status-actions">

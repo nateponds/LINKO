@@ -10,8 +10,8 @@ import { haversineKmSql } from "./location.js";
 //      ORDER BY distance ASC, branch_id ASC (deterministic tiebreak).
 //   2. Otherwise (unpinned origin, or no pinned candidate) -> city fallback:
 //      LOWER(TRIM(city_municipality)) match among active + available
-//      branches, ORDER BY branch_id. Permanent safety net — never deleted.
-//   3. Otherwise NULL — the parcel is still created branchless and awaits
+//      branches, ORDER BY branch_id. Permanent safety net - never deleted.
+//   3. Otherwise NULL - the parcel is still created branchless and awaits
 //      manual coordinator assignment. A miss never fails parcel creation.
 // Server-authoritative pricing distance: direct origin -> destination
 // Haversine in km. One formula for both creation paths; branch choice never

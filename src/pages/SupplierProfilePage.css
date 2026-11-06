@@ -120,7 +120,7 @@
     color: #fff;
   }
 
-  /* tab nav — pill toggle like the dashboard's range switcher */
+  /* tab nav - pill toggle like the dashboard's range switcher */
   .tab-nav {
     display: flex;
     width: fit-content;
@@ -279,7 +279,7 @@
     border-radius: 12px;
   }
 
-  /* Stats — one centered strip divided by hairlines, no boxes */
+  /* Stats - one centered strip divided by hairlines, no boxes */
   .stat-grid {
     display: flex;
     align-items: center;
@@ -325,7 +325,7 @@
     color: var(--color-muted);
   }
 
-  /* Feature cards — stretch edge to edge, centered content */
+  /* Feature cards - stretch edge to edge, centered content */
   .shop-features {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -844,7 +844,7 @@
   }
 }
 
-/* Product detail modal — deliberately top-level, not nested inside
+/* Product detail modal - deliberately top-level, not nested inside
    .supplier-profile-page: it is a fixed overlay and must not inherit the page
    container's scoping. Scoped class names rather than joining any of the three
    existing overlay idioms (.settings-modal-backdrop z1000 / .modal-overlay

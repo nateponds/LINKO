@@ -149,7 +149,7 @@
     box-shadow: none;
   }
 
-  /* data table flat on the page — no card, no shadow */
+  /* data table flat on the page - no card, no shadow */
   .invoice-list-header,
   .invoice-list-row {
     display: grid;
@@ -212,7 +212,7 @@
     padding: 0;
   }
 
-  /* ---- Parties (left) — flat, divided by a clean hairline ---- */
+  /* ---- Parties (left) - flat, divided by a clean hairline ---- */
   .parties {
     display: flex;
     flex-direction: column;

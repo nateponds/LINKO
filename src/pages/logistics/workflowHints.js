@@ -7,7 +7,7 @@ export function nextStatusesForRole(currentStatus, returnTriggered, canUpdateAss
 }
 
 export function formatNextStatuses(statuses) {
-  if (!statuses?.length) return "Finished — no further status";
+  if (!statuses?.length) return "Finished - no further status";
   if (statuses.length === 1) return statuses[0];
   return `${statuses.slice(0, -1).join(", ")} or ${statuses[statuses.length - 1]}`;
 }

@@ -1,6 +1,6 @@
 # LINKO Database Specification
 
-This document outlines the final PostgreSQL relational database schema for **LINKO**—a supply chain management platform for MSMEs, integrating inventory management, a wholesale marketplace, and full logistics capabilities.
+This document outlines the final PostgreSQL relational database schema for **LINKO**-a supply chain management platform for MSMEs, integrating inventory management, a wholesale marketplace, and full logistics capabilities.
 
 ---
 
@@ -29,7 +29,7 @@ Active session tokens.
 Companies, wholesalers, and MSME buyers registered on the platform.
 - `business_id` (SERIAL PRIMARY KEY)
 - `business_name` (VARCHAR 100)
-- `business_type` (VARCHAR 20, check: buyer, wholesaler, individual, msme, corporation, other, logistics) — Sprint 9 dropped the `both` value; a single business can no longer be both buyer and wholesaler. The `one_marketplace_role_per_business` partial unique index on `business_memberships (user_id, business_id) WHERE role IN ('buyer','wholesaler')` enforces the same invariant at the membership level. Migration 022 added `logistics` for delivery organizations (canonical: `LINKO Logistics`); it is outside that index because a logistics org holds no marketplace role.
+- `business_type` (VARCHAR 20, check: buyer, wholesaler, individual, msme, corporation, other, logistics) - Sprint 9 dropped the `both` value; a single business can no longer be both buyer and wholesaler. The `one_marketplace_role_per_business` partial unique index on `business_memberships (user_id, business_id) WHERE role IN ('buyer','wholesaler')` enforces the same invariant at the membership level. Migration 022 added `logistics` for delivery organizations (canonical: `LINKO Logistics`); it is outside that index because a logistics org holds no marketplace role.
 - `contact_number` (VARCHAR 20)
 - `is_verified` (BOOLEAN)
 - `created_at` (TIMESTAMP)

@@ -182,7 +182,7 @@ export default function LogisticsPage() {
                                 <span><small>To</small> {parcel.receiver.business_name}</span>
                               </>,
                             },
-                            { key: "status", className: "parcel-progress", content: <span className={`status ${statusClass(parcel.current_status)}`}>{parcel.current_status ?? "—"}</span> },
+                            { key: "status", className: "parcel-progress", content: <span className={`status ${statusClass(parcel.current_status)}`}>{parcel.current_status ?? "-"}</span> },
                             {
                               key: "actions",
                               className: "parcel-actions",
@@ -194,8 +194,8 @@ export default function LogisticsPage() {
                           ]}
                         >
                           <dl>
-                            <div><dt>Service</dt><dd>{parcel.tier_name ?? "—"}</dd></div>
-                            <div><dt>Weight</dt><dd>{parcel.weight_kg == null ? "—" : `${parcel.weight_kg} kg`}</dd></div>
+                            <div><dt>Service</dt><dd>{parcel.tier_name ?? "-"}</dd></div>
+                            <div><dt>Weight</dt><dd>{parcel.weight_kg == null ? "-" : `${parcel.weight_kg} kg`}</dd></div>
                             <div><dt>Fee</dt><dd>{peso(parcel.shipping_fee)}</dd></div>
                           </dl>
                         </ExpandableTableRow>

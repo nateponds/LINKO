@@ -115,7 +115,7 @@ export default function ParcelDetailPage() {
   // The complete options endpoint is intentionally unpaged and exposes the
   // allowed assignees directly; branch compatibility is enforced server-side.
   const filteredCouriers = couriers;
-  // Return leg is derived from the rendered history — retry cap or a hard-fail
+  // Return leg is derived from the rendered history - retry cap or a hard-fail
   // reason opens it. Mirrors the backend's return_triggered list field.
   const returnTriggered = returnTriggeredFromHistory(parcel?.tracking_history);
   const statusOptions = nextStatusesForRole(
@@ -259,10 +259,10 @@ export default function ParcelDetailPage() {
                   <span className="field-label">Weight</span>
                   <span className="field-value">{parcel.weight_kg} kg</span>
                   <span className="field-label">Dimensions</span>
-                  <span className="field-value">{parcel.dimensions ?? "—"}</span>
+                  <span className="field-value">{parcel.dimensions ?? "-"}</span>
                   <span className="field-label">Distance</span>
                   <span className="field-value">
-                    {parcel.total_distance_km != null ? `${parcel.total_distance_km} km` : "—"}
+                    {parcel.total_distance_km != null ? `${parcel.total_distance_km} km` : "-"}
                   </span>
                   <span className="field-label">Promised ETA</span>
                   <span className="field-value">{shortDate(parcel.estimated_delivery_date)}</span>
@@ -276,10 +276,10 @@ export default function ParcelDetailPage() {
                   <span className="field-value">{peso(parcel.declared_value)}</span>
                   <span className="field-label">Shipping Fee</span>
                   <span className="field-value">{peso(parcel.shipping_fee)}</span>
-                  <span className="field-label">Total ({parcel.payment?.method ?? "—"})</span>
+                  <span className="field-label">Total ({parcel.payment?.method ?? "-"})</span>
                   <span className="field-value"><strong>{peso(parcel.payment?.amount)}</strong></span>
                   <span className="field-label">Payment Status</span>
-                  <span className="field-value">{parcel.payment?.payment_status ?? "—"}</span>
+                  <span className="field-value">{parcel.payment?.payment_status ?? "-"}</span>
                 </div>
               </div>
             </aside>
@@ -288,11 +288,11 @@ export default function ParcelDetailPage() {
             <section className={`parcel-status-panel${returning ? " is-returning" : ""}`}>
               <div className="parcel-status-head">
                 <span className="status-eyebrow">
-                  {returning ? "Returning to sender — this parcel is" : "This parcel is"}
+                  {returning ? "Returning to sender - this parcel is" : "This parcel is"}
                 </span>
                 <h1 className="status-title">{parcel.current_status ?? "Unknown"}</h1>
                 <span className={`status ${statusClass(parcel.current_status)}`}>
-                  {parcel.current_status ?? "—"}
+                  {parcel.current_status ?? "-"}
                 </span>
               </div>
 
@@ -380,7 +380,7 @@ export default function ParcelDetailPage() {
                       </div>
 
                       {/* Delivery Failed always uses the canned reason picker,
-                          every role — hard reasons drive the return-leg gate, so
+                          every role - hard reasons drive the return-leg gate, so
                           free text is never allowed here. Couriers never free-type
                           (handoff 2026-07-16 §5): the status carries a fixed remark,
                           terminal scans an auto-generated POD. Only the
@@ -406,9 +406,9 @@ export default function ParcelDetailPage() {
                             required={selectedStatus === "Cancelled"}
                             placeholder={
                               selectedStatus === "Cancelled"
-                                ? "Required — why this parcel is being cancelled"
+                                ? "Required - why this parcel is being cancelled"
                                 : selectedStatus === "Delivered" || selectedStatus === "Returned"
-                                  ? "Optional — proof of delivery is auto-generated"
+                                  ? "Optional - proof of delivery is auto-generated"
                                   : "Optional delivery notes"
                             }
                           />

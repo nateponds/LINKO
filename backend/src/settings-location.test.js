@@ -4,7 +4,7 @@ import test from "node:test";
 import createApp from "./app.js";
 import { createPool } from "./db.js";
 
-// Sprint 13 T10: business location settings — active-business scoping,
+// Sprint 13 T10: business location settings - active-business scoping,
 // create-or-update with placeholder repair, shared coordinate validation,
 // and the has_coordinates membership flag.
 // DB-backed tests skip without DATABASE_URL, same as app.test.js.
@@ -92,7 +92,7 @@ test("location settings are scoped to an active buyer/wholesaler business", { sk
   const coordinatorHeader = await request("/api/settings/location", { cookie: coordinator, business: 3 });
   assert.equal(coordinatorHeader.status, 403);
 
-  // platform admin has no global bypass — no marketplace membership, no access
+  // platform admin has no global bypass - no marketplace membership, no access
   const admin = await loginAs("admin@linko.test");
   const adminGet = await request("/api/settings/location", { cookie: admin });
   assert.equal(adminGet.status, 403);
@@ -199,7 +199,7 @@ test("validation rejects bad text and coordinate input, persisting nothing", { s
   const outOfRange = await put({ ...VALID_BODY, latitude: 91 });
   assert.equal(outOfRange.status, 400);
 
-  // empty strings are not coordinates — they must not coerce to 0
+  // empty strings are not coordinates - they must not coerce to 0
   const emptyStrings = await put({ ...VALID_BODY, latitude: "", longitude: "" });
   assert.equal(emptyStrings.status, 400);
   assert.match(emptyStrings.body.error.message, /finite/);

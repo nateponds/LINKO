@@ -302,9 +302,9 @@ health.
 Description of the Business
 Linko is a specialized Supply Chain Management (SCM) platform engineered to
 bridge the widening digital divide within the Philippine retail sector. While global
-e-commerce leaders utilize high-tier logistics automation, the local market—specifically
+e-commerce leaders utilize high-tier logistics automation, the local market-specifically
 small and medium-sized enterprises (SMEs), franchise stores, and rural
-retailers—remains heavily reliant on antiquated, manual systems. Currently, the industry
+retailers-remains heavily reliant on antiquated, manual systems. Currently, the industry
 standard for these businesses involves physical logbooks for inventory tracking and
 fragmented messaging apps (e.g., Viber, Messenger) for supplier coordination. This
 lack of a centralized, professional medium results in operational "blind spots," leading to
@@ -1029,7 +1029,7 @@ Software skills:
 EDUCATIONAL BACKGROUND
 Primary Education: University of San Carlos (2009 - 2015)
 Secondary Education: University of San Carlos (2015 - 2021)
-Tertiary Education: University of San Carlos — BS Information Technology (2021 -
+Tertiary Education: University of San Carlos - BS Information Technology (2021 -
 Present)
 Certifications & Accreditations:
 ● CCNA: Introduction to Networks
@@ -1081,7 +1081,7 @@ Software skills:
 EDUCATIONAL BACKGROUND
 Primary Education: Maria Montessori International School (2012-2015)
 Secondary Education: Sacred Heart School - Hijas de Jesus (2016-2024)
-Tertiary Education: University of San Carlos — BS Computer Science (2025 - Present)
+Tertiary Education: University of San Carlos - BS Computer Science (2025 - Present)
 Certifications & Accreditations:
 ● CCNA: Introduction to Networks
 ● CCNA: Introduction to Cybersecurity
@@ -1251,8 +1251,8 @@ allocations. 5. Intangible Capital and Intellectual Property
 interest, ownership, and worldwide intellectual property claims over all elements of the
 Service, encompassing software architectures, user interfaces, real-time tracking
 algorithms, mapping mechanisms, automated database protocols, and data logs.
-5.2. Technical Restrictions: The User shall not under any circumstance—nor permit any
-third party to—copy, modify, mirror, deconstruct, reverse engineer, decompile, or
+5.2. Technical Restrictions: The User shall not under any circumstance-nor permit any
+third party to-copy, modify, mirror, deconstruct, reverse engineer, decompile, or
 attempt to derive the underlying software architecture, codebase, or logistical tracking
 data structures of the Service. 6. Confidentiality, Data Control, and Privacy Protection
 6.1. Confidential Frameworks: Each party pledges to preserve absolute data
@@ -1313,9 +1313,9 @@ centralizes and automates supply chain management for small businesses. The
 corporation aims to provide small business owners and suppliers with an integrated
 digital platform for communication, logistics, sourcing, and inventory management,
 particularly as follows:
-1.) To develop, operate, and continuously improve Linko — a mobile application
+1.) To develop, operate, and continuously improve Linko - a mobile application
 offering a centralized communication hub, real-time delivery tracking, supplier
-finder, and automated inventory logging — for small businesses and their
+finder, and automated inventory logging - for small businesses and their
 suppliers across the Philippines and beyond.
 60
 

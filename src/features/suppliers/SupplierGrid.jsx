@@ -8,7 +8,7 @@ import { apiPath, normalizePage, shouldClampPage } from "./marketplacePagination
 import { hueOf, imageForSupplier, initialOf } from "../../lib/categoryImages";
 import { SupplierCardGridSkeleton } from "../../components/ui/pageSkeletons";
 
-/* Stock photo with a monogram fallback — an image that 404s or is blocked
+/* Stock photo with a monogram fallback - an image that 404s or is blocked
    swaps to the business initial instead of leaving a broken tile. */
 function SupplierImage({ businessId, businessName }) {
   const [failed, setFailed] = useState(false);
@@ -127,7 +127,7 @@ function SupplierGrid() {
               <SupplierImage businessId={supplier.business_id} businessName={supplier.business_name} />
               <div className="supplier-box-info">
                 <h3>{supplier.business_name}{supplier.is_verified && <BadgeCheck size={16} className="verified-badge" aria-label="Verified" />}</h3>
-                <p className="supplier-box-meta"><MapPin size={14} /> {supplier.city_municipality ?? supplier.city ?? "—"}</p>
+                <p className="supplier-box-meta"><MapPin size={14} /> {supplier.city_municipality ?? supplier.city ?? "-"}</p>
                 <p className="supplier-box-meta"><Package size={14} /> {supplier.product_count} product{supplier.product_count === 1 ? "" : "s"}</p>
               </div>
             </Link>

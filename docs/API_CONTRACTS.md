@@ -204,7 +204,7 @@ For example, `GET /api/categories/options` returns
 
 ---
 
-## 1. Inventory Domain — removed
+## 1. Inventory Domain - removed
 
 The warehouse-level inventory subsystem (`/api/inventory`, `inventory_items`,
 `inventory_transactions`) was phased out in migration `019`. The app never
@@ -250,7 +250,7 @@ List businesses acting as wholesalers, each with a count of their active product
 
 ---
 
-## 2b. Product & Category Domain (`/api/products`, `/api/categories`) — Milestone 2
+## 2b. Product & Category Domain (`/api/products`, `/api/categories`) - Milestone 2
 
 All endpoints require authentication (`401` unauthenticated). `stock_status` is derived, never stored: `out_of_stock` when `stock_quantity = 0`, `low_stock` at 1–10, `in_stock` above 10. `unit_price` is a decimal string (`NUMERIC(12,2)`).
 
@@ -313,7 +313,7 @@ Same auth/ownership as PATCH. Soft delete (`is_active = FALSE`). `204`. Already 
 
 ---
 
-## 2c. Orders & Invoices Domain (`/api/orders`, `/api/invoices`) — Milestone 3
+## 2c. Orders & Invoices Domain (`/api/orders`, `/api/invoices`) - Milestone 3
 
 All endpoints require authentication (`401` unauthenticated). Roles: `buyer`, `wholesaler`, or `platform_admin`; logistics/courier-only users receive `403`.
 
@@ -396,7 +396,7 @@ Role: `buyer` (or platform admin with explicit `buyer_business_id`).
 
 Owning `buyer_business_id` comes from the caller's buyer membership: 0 memberships → `403`; more than 1 → `400` ("multiple buyer businesses not supported yet"). Order items must reference active products, all from one wholesaler business. Product prices are snapshotted into `order_items.unit_price_snapshot` when the order is created. Placing the order decrements each product's `stock_quantity` in the same transaction. If any line lacks enough stock, the request returns `400` and neither the order nor stock changes.
 
-**Location pin gate (Sprint 13):** placing an order requires the buyer business to be pinned — its canonical logistics address (`businesses.logistics_address_id`, §5) must have both coordinates. Unpinned buyer → **`409`** with message `Pin your business location in Settings before placing orders`. The frontend treats a `409` from this endpoint as the pin gate and links to Settings. Platform admins acting with an explicit `buyer_business_id` are gated on that business the same way.
+**Location pin gate (Sprint 13):** placing an order requires the buyer business to be pinned - its canonical logistics address (`businesses.logistics_address_id`, §5) must have both coordinates. Unpinned buyer → **`409`** with message `Pin your business location in Settings before placing orders`. The frontend treats a `409` from this endpoint as the pin gate and links to Settings. Platform admins acting with an explicit `buyer_business_id` are gated on that business the same way.
 
 **Body:**
 
@@ -427,14 +427,14 @@ Roles: `buyer`, `wholesaler`, or `platform_admin` (admin acts as a manual overri
 
 Accepting an order generates exactly one invoice and does not change `stock_quantity` again. Cancelling an order (including a shipped-order cancel) adds each line's quantity back. `returned` does not restock; the wholesaler adjusts `stock_quantity` manually. Rejecting an order uses status `cancelled`.
 
-Marking an order `shipped` **requires** `weight_kg` (a number > 0; missing or non-positive → `400`) and accepts optional `dimensions`. Shipping auto-creates a parcel (`order_id` set, migration 009) plus its payment row and an `'Order Created'` tracking log; the parcel then appears in the courier pickup pool (§3.1). ETA derives from the service tier's `estimated_days`. `parcels.declared_value` is the frozen order-item subtotal; `parcels.shipping_fee` comes from the tier pricing trigger (base + weight + distance components — the same formula as standalone bookings; an earlier revision of this document wrongly claimed `total_distance_km` stays `NULL` and the fee is `base_fee` only). The auto-created payment is `Online`/`'Paid'` at ship time (§3.3).
+Marking an order `shipped` **requires** `weight_kg` (a number > 0; missing or non-positive → `400`) and accepts optional `dimensions`. Shipping auto-creates a parcel (`order_id` set, migration 009) plus its payment row and an `'Order Created'` tracking log; the parcel then appears in the courier pickup pool (§3.1). ETA derives from the service tier's `estimated_days`. `parcels.declared_value` is the frozen order-item subtotal; `parcels.shipping_fee` comes from the tier pricing trigger (base + weight + distance components - the same formula as standalone bookings; an earlier revision of this document wrongly claimed `total_distance_km` stays `NULL` and the fee is `base_fee` only). The auto-created payment is `Online`/`'Paid'` at ship time (§3.3).
 
-**Distance & routing (Sprint 13):** `parcels.total_distance_km` is **server-computed** — direct origin → destination Haversine between the two canonical business addresses. The request field `total_distance_km` is removed from this contract and ignored if sent (before Sprint 13 lands, the interim code still requires it from the client). Parcel origin = the wholesaler business's canonical logistics address; destination = the buyer business's canonical logistics address (§5) — replacing the previous first-address pick. The initial branch comes from the shared nearest-available-branch resolver (§3.3).
+**Distance & routing (Sprint 13):** `parcels.total_distance_km` is **server-computed** - direct origin → destination Haversine between the two canonical business addresses. The request field `total_distance_km` is removed from this contract and ignored if sent (before Sprint 13 lands, the interim code still requires it from the client). Parcel origin = the wholesaler business's canonical logistics address; destination = the buyer business's canonical logistics address (§5) - replacing the previous first-address pick. The initial branch comes from the shared nearest-available-branch resolver (§3.3).
 
-**Ship pin gates (Sprint 13, `409` + full rollback — order stays `preparing`, no parcel/payment/tracking rows):**
+**Ship pin gates (Sprint 13, `409` + full rollback - order stays `preparing`, no parcel/payment/tracking rows):**
 
 - Wholesaler business unpinned → `409`, message `Pin your business location in Settings before shipping orders`.
-- Buyer canonical address missing or unpinned at ship time (defensive — buyers are normally gated at order placement) → `409`, message `Buyer business has no pinned location`.
+- Buyer canonical address missing or unpinned at ship time (defensive - buyers are normally gated at order placement) → `409`, message `Buyer business has no pinned location`.
 
 Returns the updated order.
 
@@ -473,7 +473,7 @@ Returns one visible invoice with item rows. Missing, non-numeric, or not-owned i
 
 ---
 
-## 3. Logistics Domain (course deliverable — Sprint 2-CD)
+## 3. Logistics Domain (course deliverable - Sprint 2-CD)
 
 Exposes the CIS 2104 courier subsystem (migrations 002/003) for the demo UI. Money and measurement fields are JSON numbers. `current_status` is always derived from the latest `tracking_logs` row, never stored on the parcel (see `docs/LINKO_ERD.md`). Since migration 009 a parcel may carry a nullable `order_id` linking it to the marketplace order that spawned it.
 
@@ -508,7 +508,7 @@ List parcels with derived current status, most recently scanned first. Row visib
 
 `return_triggered` is a derived boolean: `true` once the parcel has 3 `'Delivery Failed'` rows **or** any `'Delivery Failed'` row with a hard-reason remark (`'Bad address'` or `'Delivery refused'`), otherwise `false`. It is the single flag the courier UI reads to switch from retry to return-leg actions.
 
-Failure-reason contract: a `POST .../tracking` submission with `status_update = 'Delivery Failed'` requires `remarks` to be exactly one of `Receiver unavailable`, `Delivery refused`, or `Bad address` (`400` otherwise). Soft reason (`Receiver unavailable`) retries up to 3 attempts; hard reasons (`Bad address`, `Delivery refused`) open the return leg on the first fail. On the buyer/receiver-only parcel detail view, the tracking timeline is truncated at and including the triggering `'Delivery Failed'` row — the internal return leg is hidden.
+Failure-reason contract: a `POST .../tracking` submission with `status_update = 'Delivery Failed'` requires `remarks` to be exactly one of `Receiver unavailable`, `Delivery refused`, or `Bad address` (`400` otherwise). Soft reason (`Receiver unavailable`) retries up to 3 attempts; hard reasons (`Bad address`, `Delivery refused`) open the return leg on the first fail. On the buyer/receiver-only parcel detail view, the tracking timeline is truncated at and including the triggering `'Delivery Failed'` row - the internal return leg is hidden.
 
 ### 3.2 `GET /api/parcels/:id`
 
@@ -563,7 +563,7 @@ Parcel detail with full tracking timeline (oldest first). `404` if unknown. `bra
 }
 ```
 
-**`planned_route` (Sprint 13):** the immutable route snapshot from `parcel_route_stops`, ordered by `stop_order` (1 = origin, 2 = branch, 3 = destination). `stop_type` ∈ `origin | branch | destination`; `branch_id` is non-null only on the branch stop. `latitude`/`longitude` are JSON numbers or `null` (a NULL-coordinate stop is kept in the array but rendered without a map marker). The array is **`[]`** when no snapshot exists (parcel created branchless and never assigned) — the UI renders an explanatory empty state. Planned stops are display-only reference data and are never mixed into `tracking_history`; actual tracking (hub transfers, reassignment, return leg) diverges freely and never rewrites the snapshot.
+**`planned_route` (Sprint 13):** the immutable route snapshot from `parcel_route_stops`, ordered by `stop_order` (1 = origin, 2 = branch, 3 = destination). `stop_type` ∈ `origin | branch | destination`; `branch_id` is non-null only on the branch stop. `latitude`/`longitude` are JSON numbers or `null` (a NULL-coordinate stop is kept in the array but rendered without a map marker). The array is **`[]`** when no snapshot exists (parcel created branchless and never assigned) - the UI renders an explanatory empty state. Planned stops are display-only reference data and are never mixed into `tracking_history`; actual tracking (hub transfers, reassignment, return leg) diverges freely and never rewrites the snapshot.
 
 ### 3.3 `POST /api/parcels`
 
@@ -592,7 +592,7 @@ Book a parcel. The database fills `shipping_fee` (tier pricing trigger) and `pay
 - `total_distance_km` is removed from the request (ignored if sent). The server computes it as the direct origin → destination Haversine between the two addresses and feeds it to the fee trigger.
 - **Address ownership is validated:** `origin_address_id` must belong to `sender_id` and `destination_address_id` to `receiver_id`; a foreign address ID → `400`.
 - **Pin gate:** both addresses must have coordinates. Either endpoint unpinned → **`409`**, message `Origin and destination addresses must have coordinates before booking`.
-- **Branch assignment** uses the shared resolver: Haversine nearest branch among branches that are `is_active`, `is_available`, and have pinned addresses (`ORDER BY distance ASC, branch_id ASC`); if no candidate, case/whitespace-insensitive city match against active + available branches (`ORDER BY branch_id`); if neither resolves, `branch_id = NULL` on the `'Order Created'` log for manual coordinator assignment — assignment miss never fails the booking. When a branch resolves, the parcel's immutable `planned_route` snapshot (§3.2) is created in the same transaction; a branchless parcel gets its snapshot when a coordinator first assigns a branch via the tracking route (§3.6).
+- **Branch assignment** uses the shared resolver: Haversine nearest branch among branches that are `is_active`, `is_available`, and have pinned addresses (`ORDER BY distance ASC, branch_id ASC`); if no candidate, case/whitespace-insensitive city match against active + available branches (`ORDER BY branch_id`); if neither resolves, `branch_id = NULL` on the `'Order Created'` log for manual coordinator assignment - assignment miss never fails the booking. When a branch resolves, the parcel's immutable `planned_route` snapshot (§3.2) is created in the same transaction; a branchless parcel gets its snapshot when a coordinator first assigns a branch via the tracking route (§3.6).
 
 **Response Body (`201 Created`):**
 
@@ -654,7 +654,7 @@ Roles: `courier`, `logistics_coordinator`, `platform_admin`. Appends a tracking 
 
 Courier identity is server-side: a courier caller's scan is stamped with their own linked `couriers.user_id` row and assigned handling branch, and any body `courier_id` / `branch_id` is ignored (a courier without a linked row gets `403`). Admin "create courier user" inserts the linked `couriers` row in the same transaction as the user account, so this link always exists for newly provisioned couriers. Coordinators/admins may pass an explicit `courier_id` and `branch_id` (or none). If no branch is supplied, the API carries forward the latest non-null branch for that parcel; if no courier is supplied by a coordinator/admin, the scan deliberately unassigns the parcel back to that branch pool. A courier's first scan on a pool parcel (`Picked Up`) is the claim that assigns it to them.
 
-Courier-role updates follow an explicit **transition map** (migration 020 — the flow is non-linear, so the old forward-only integer rank is gone). Couriers cannot initialize parcels with a missing tracking status; those require coordinator review. Unknown statuses expose no courier actions and updates are rejected. Coordinators/admins retain initialization for legacy parcels with no tracking history:
+Courier-role updates follow an explicit **transition map** (migration 020 - the flow is non-linear, so the old forward-only integer rank is gone). Couriers cannot initialize parcels with a missing tracking status; those require coordinator review. Unknown statuses expose no courier actions and updates are rejected. Coordinators/admins retain initialization for legacy parcels with no tracking history:
 
 ```
 Order Created     → Picked Up
@@ -673,24 +673,24 @@ The fail count is derived from `tracking_logs` (never stored on `parcels`) and g
 
 **Automatic terminal proof:** for courier callers, `Delivered` generates `courier full_name → receiver business_name`; `Returned` generates `courier full_name → sender business_name`. Any client-sent courier remarks on those terminal scans are replaced. `Arrived at Branch` generates `Arrived at {branches.branch_name}` and `Departed Branch` generates `Departed from {branches.branch_name}`, using the scan's resolved `branch_id`. `Out for Return` is non-terminal and carries the fixed one-tap movement remark. `Delivery Failed` carries a canned failure reason. Coordinators and platform admins retain manual remarks on every status, including the branch checkpoints.
 
-**Payment settlement:** a scan on a parcel whose payment is `COD` and still `Pending` settles inside the same transaction — `Delivered → 'Paid'`, `Returned`/`Cancelled → 'Failed'`. Non-COD payments settle at booking (§3.3); no refund path on cancellation.
+**Payment settlement:** a scan on a parcel whose payment is `COD` and still `Pending` settles inside the same transaction - `Delivered → 'Paid'`, `Returned`/`Cancelled → 'Failed'`. Non-COD payments settle at booking (§3.3); no refund path on cancellation.
 
-Side effects on a parcel with an `order_id` (transactional, all roles): `Delivered` → order `delivered`, notifies buyer. `Returned` → order `returned`, notifies wholesaler. `Cancelled` → order `cancelled`, notifies both buyer and wholesaler. All three guard on the order still being `shipped`. `PATCH /api/orders/:id/status` separately allows `platform_admin` to force `shipped → cancelled` directly (never buyer/wholesaler) — order-status only, no parcel/payment cascade.
+Side effects on a parcel with an `order_id` (transactional, all roles): `Delivered` → order `delivered`, notifies buyer. `Returned` → order `returned`, notifies wholesaler. `Cancelled` → order `cancelled`, notifies both buyer and wholesaler. All three guard on the order still being `shipped`. `PATCH /api/orders/:id/status` separately allows `platform_admin` to force `shipped → cancelled` directly (never buyer/wholesaler) - order-status only, no parcel/payment cascade.
 
 **Response Body (`201 Created`):** the inserted `tracking_logs` row.
 
 ### 3.6a Buyer read scope on `GET /api/parcels/:id`
 
-`GET /api/parcels/:id` gains a **buyer** scope: a buyer may read a single parcel when its `receiver_id` is one of their buyer businesses — this backs the read-only "Track parcel" modal on the Orders screen. As with every other role, an out-of-scope parcel returns **404** (existence is not leaked), and the internal `sender_id` / `receiver_id` fields are stripped from the response.
+`GET /api/parcels/:id` gains a **buyer** scope: a buyer may read a single parcel when its `receiver_id` is one of their buyer businesses - this backs the read-only "Track parcel" modal on the Orders screen. As with every other role, an out-of-scope parcel returns **404** (existence is not leaked), and the internal `sender_id` / `receiver_id` fields are stripped from the response.
 
-The parcel **list** (`GET /api/parcels`) stays **operator-only**: a buyer-only caller receives an empty list — buyers can never enumerate parcels, only read their own delivery by id. The tracking **write** route (§3.6) is unchanged and still excludes `buyer`. A business is exactly one of buyer or wholesaler; a user holding both roles does so via two distinct businesses, and only the active business's roles apply to a given request.
+The parcel **list** (`GET /api/parcels`) stays **operator-only**: a buyer-only caller receives an empty list - buyers can never enumerate parcels, only read their own delivery by id. The tracking **write** route (§3.6) is unchanged and still excludes `buyer`. A business is exactly one of buyer or wholesaler; a user holding both roles does so via two distinct businesses, and only the active business's roles apply to a given request.
 
 ### 3.7 Branches (`/api/branches`)
 
 `GET /api/branches` is a paginated list; its legacy array example below is a
 single item shape only. Pagination/filter details are in the controlling contract.
 
-`GET /api/branches` — any authenticated logistics reader. Active branches with their address, joined for display. Sprint 13 adds `address_id`, `postal_code`, `latitude`, `longitude` (JSON numbers or `null` — `NUMERIC` is cast to `float8`), and `is_available`.
+`GET /api/branches` - any authenticated logistics reader. Active branches with their address, joined for display. Sprint 13 adds `address_id`, `postal_code`, `latitude`, `longitude` (JSON numbers or `null` - `NUMERIC` is cast to `float8`), and `is_available`.
 
 ```json
 [
@@ -703,7 +703,7 @@ single item shape only. Pagination/filter details are in the controlling contrac
 
 `is_available` gates **new automatic assignment only** (§3.3 resolver). It never blocks manual coordinator assignment via §3.6, never blocks status transitions on in-flight parcels, and toggling it never unassigns couriers. Retirement stays with `is_active`/DELETE below.
 
-`POST /api/branches` — roles: `logistics_coordinator`, `platform_admin`. Transactional: inserts an `addresses` row then the `branches` row referencing it. Sprint 13 adds optional `latitude`/`longitude` to the body — both or neither (shared coordinate validator: finite numbers or numeric strings; latitude ∈ [-90, 90], longitude ∈ [-180, 180]; exact (0,0) rejected; one-sided pair rejected; violations → `400`). New branches start `is_available: true`.
+`POST /api/branches` - roles: `logistics_coordinator`, `platform_admin`. Transactional: inserts an `addresses` row then the `branches` row referencing it. Sprint 13 adds optional `latitude`/`longitude` to the body - both or neither (shared coordinate validator: finite numbers or numeric strings; latitude ∈ [-90, 90], longitude ∈ [-180, 180]; exact (0,0) rejected; one-sided pair rejected; violations → `400`). New branches start `is_available: true`.
 
 **Request Body:**
 
@@ -716,20 +716,20 @@ single item shape only. Pagination/filter details are in the controlling contrac
 
 **Response (`201 Created`):** the created branch in the `GET` row shape (plus `is_active: true`).
 
-`PATCH /api/branches/:id` — **Sprint 13, new.** Roles: `logistics_coordinator`, `platform_admin`. Partial update; omitted keys unchanged. Editable: `branch_name`, `contact_number`, `is_available` (boolean), and the address fields (`province`, `city_municipality`, `barangay`, `street_address`, `postal_code`, `latitude`, `longitude`). Branch row and its referenced `addresses` row are updated in one transaction. Coordinates follow the shared validator above; an explicit `latitude: null, longitude: null` pair unpins the branch (it then drops out of Haversine candidacy). Editing a branch address never rewrites existing parcels' `planned_route` snapshots. **`400`** on validation failure; **`404`** if no active branch with that id.
+`PATCH /api/branches/:id` - **Sprint 13, new.** Roles: `logistics_coordinator`, `platform_admin`. Partial update; omitted keys unchanged. Editable: `branch_name`, `contact_number`, `is_available` (boolean), and the address fields (`province`, `city_municipality`, `barangay`, `street_address`, `postal_code`, `latitude`, `longitude`). Branch row and its referenced `addresses` row are updated in one transaction. Coordinates follow the shared validator above; an explicit `latitude: null, longitude: null` pair unpins the branch (it then drops out of Haversine candidacy). Editing a branch address never rewrites existing parcels' `planned_route` snapshots. **`400`** on validation failure; **`404`** if no active branch with that id.
 
 **Response (`200 OK`):** the updated branch in the `GET` row shape.
 
-`DELETE /api/branches/:id` — roles: `logistics_coordinator`, `platform_admin`. Soft delete (`is_active = false`); parcel history is preserved. **`409`** if the branch's unassigned pool still holds live (non-terminal) parcels — reassign them first. On success it also unassigns (`assigned_branch_id = NULL`) any couriers pointing at the branch. Returns **`204`** (or `404` if not found/already inactive).
+`DELETE /api/branches/:id` - roles: `logistics_coordinator`, `platform_admin`. Soft delete (`is_active = false`); parcel history is preserved. **`409`** if the branch's unassigned pool still holds live (non-terminal) parcels - reassign them first. On success it also unassigns (`assigned_branch_id = NULL`) any couriers pointing at the branch. Returns **`204`** (or `404` if not found/already inactive).
 
 ### 3.8 Couriers (`/api/couriers`)
 
 `GET /api/couriers` is a paginated list; its legacy array example below is a
 single item shape only. Pagination/filter details are in the controlling contract.
 
-Couriers are **created only via `POST /api/admin/users` with `kind = "courier"`** (§4) — that path mints the login and the linked `couriers` row (with optional logistics fields) in one transaction. There is no `POST /api/couriers`.
+Couriers are **created only via `POST /api/admin/users` with `kind = "courier"`** (§4) - that path mints the login and the linked `couriers` row (with optional logistics fields) in one transaction. There is no `POST /api/couriers`.
 
-`GET /api/couriers` — any authenticated logistics reader. Active couriers.
+`GET /api/couriers` - any authenticated logistics reader. Active couriers.
 
 ```json
 [
@@ -738,7 +738,7 @@ Couriers are **created only via `POST /api/admin/users` with `kind = "courier"`*
 ]
 ```
 
-`PATCH /api/couriers/:id` — roles: `logistics_coordinator`, `platform_admin`. Edits an existing courier's logistics fields. `full_name` is **not** editable (it mirrors the linked user account).
+`PATCH /api/couriers/:id` - roles: `logistics_coordinator`, `platform_admin`. Edits an existing courier's logistics fields. `full_name` is **not** editable (it mirrors the linked user account).
 
 **Request Body (all optional, partial update):**
 
@@ -750,11 +750,11 @@ Omitted keys are left unchanged. An explicit `"assigned_branch_id": null` unassi
 
 **Response (`200 OK`):** the updated courier in the `GET` shape. **`404`** if no active courier with that id.
 
-`DELETE /api/couriers/:id` — roles: `logistics_coordinator`, `platform_admin`. Soft delete (`is_active = false`); tracking history is preserved. Returns **`204`** (or `404` if not found/already inactive).
+`DELETE /api/couriers/:id` - roles: `logistics_coordinator`, `platform_admin`. Soft delete (`is_active = false`); tracking history is preserved. Returns **`204`** (or `404` if not found/already inactive).
 
 ## 4. Admin Domain (`/api/admin`)
 
-Every route is mounted behind `requireAuth` + `requireGlobalRole("platform_admin")` — non-admins get `403`, unauthenticated get `401`.
+Every route is mounted behind `requireAuth` + `requireGlobalRole("platform_admin")` - non-admins get `403`, unauthenticated get `401`.
 
 ### 4.1 `GET /api/admin/users`
 
@@ -777,9 +777,9 @@ Create a privileged user. `kind` ∈ `logistics_coordinator | courier | platform
 
 `business_id` handling depends on `kind`:
 
-- **`logistics_coordinator`** — **required**; inserts a membership row on that business. Missing/invalid → `400`. Admin UIs should offer only `business_type = 'logistics'` businesses (filter client-side; §4.4 intentionally returns all businesses).
-- **`courier`** — **ignored if sent.** Couriers are staff of the canonical `LINKO Logistics` org, which the server resolves by name (migration 022); the membership always lands there. If that business is missing → `500`.
-- **`platform_admin`** — takes no business; no membership row.
+- **`logistics_coordinator`** - **required**; inserts a membership row on that business. Missing/invalid → `400`. Admin UIs should offer only `business_type = 'logistics'` businesses (filter client-side; §4.4 intentionally returns all businesses).
+- **`courier`** - **ignored if sent.** Couriers are staff of the canonical `LINKO Logistics` org, which the server resolves by name (migration 022); the membership always lands there. If that business is missing → `500`.
+- **`platform_admin`** - takes no business; no membership row.
 
 **Request Body:**
 
@@ -820,11 +820,11 @@ Body `{ "is_verified": boolean }`. **Response (`200 OK`):** the updated business
 
 ## 5. Business Location Settings & Session Location State (Sprint 13)
 
-The canonical logistics location of a business is the `addresses` row referenced by `businesses.logistics_address_id` — a buyer's delivery location / a wholesaler's pickup location (design record: `docs/LOCATION_ROUTING.md`). Registration points it at the placeholder address it creates; this Settings surface is the one place that repairs/edits it. Coordinates cross the wire as JSON **numbers** (or `null`), always named `latitude`/`longitude`.
+The canonical logistics location of a business is the `addresses` row referenced by `businesses.logistics_address_id` - a buyer's delivery location / a wholesaler's pickup location (design record: `docs/LOCATION_ROUTING.md`). Registration points it at the placeholder address it creates; this Settings surface is the one place that repairs/edits it. Coordinates cross the wire as JSON **numbers** (or `null`), always named `latitude`/`longitude`.
 
 ### 5.1 `GET /api/settings/location`
 
-Auth: `requireAuth`; the **active business** (resolved via the `X-Active-Business` header and membership ownership: `400` when a multi-business caller omits the header, `403` when selecting a non-member business) must hold a `buyer` or `wholesaler` role — logistics-only and courier-only callers get `403`. Platform admins have no global bypass: they edit a location only through their own buyer/wholesaler membership.
+Auth: `requireAuth`; the **active business** (resolved via the `X-Active-Business` header and membership ownership: `400` when a multi-business caller omits the header, `403` when selecting a non-member business) must hold a `buyer` or `wholesaler` role - logistics-only and courier-only callers get `403`. Platform admins have no global bypass: they edit a location only through their own buyer/wholesaler membership.
 
 **Response (`200 OK`):**
 
@@ -844,7 +844,7 @@ Auth: `requireAuth`; the **active business** (resolved via the `X-Active-Busines
 }
 ```
 
-When the business has no canonical address yet (`logistics_address_id` NULL), the response is still `200` with `address_id` and every address/coordinate field `null` and `has_coordinates: false` — the Settings form renders empty and the first PUT creates the row.
+When the business has no canonical address yet (`logistics_address_id` NULL), the response is still `200` with `address_id` and every address/coordinate field `null` and `has_coordinates: false` - the Settings form renders empty and the first PUT creates the row.
 
 ### 5.2 `PUT /api/settings/location`
 
@@ -870,13 +870,13 @@ Validation (`400` with a specific message on failure):
 
 - All five text fields required non-empty strings.
 - Coordinates use the shared validator: both present or both `null` (one-sided pair rejected); finite numbers or numeric strings (empty string is **not** 0); latitude ∈ [-90, 90], longitude ∈ [-180, 180]; exact (0,0) rejected.
-- An explicit `latitude: null, longitude: null` pair is a valid **unpin** — `has_coordinates` returns to `false` and the §2c.3/§2c.4/§3.3 pin gates re-engage. Existing parcels, snapshots, and frozen fees are unaffected.
+- An explicit `latitude: null, longitude: null` pair is a valid **unpin** - `has_coordinates` returns to `false` and the §2c.3/§2c.4/§3.3 pin gates re-engage. Existing parcels, snapshots, and frozen fees are unaffected.
 
 **Response (`200 OK`):** the §5.1 GET shape with the saved values.
 
 ### 5.3 Session membership shape (`/api/auth/me`, login, register)
 
-Each membership object in the session payload (`GET /api/auth/me`, `POST /api/auth/login`, and the `memberships` array of `POST /api/auth/register` — all three share one shape) gains `has_coordinates`:
+Each membership object in the session payload (`GET /api/auth/me`, `POST /api/auth/login`, and the `memberships` array of `POST /api/auth/register` - all three share one shape) gains `has_coordinates`:
 
 ```json
 {

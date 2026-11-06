@@ -1,5 +1,5 @@
 -- ==========================================================================
--- LINKO dev_seed.sql — Extended seed for development with 30 diverse parcels,
+-- LINKO dev_seed.sql - Extended seed for development with 30 diverse parcels,
 -- 5 delivery hubs and a fleet of 8 couriers.
 --
 -- Replaces ALL data. Run with:
@@ -13,7 +13,7 @@
 BEGIN;
 
 -- ---------------------------------------------------------------------------
--- 0. WIPE — reverse FK order, keep reference tables (service_tiers, categories)
+-- 0. WIPE - reverse FK order, keep reference tables (service_tiers, categories)
 -- ---------------------------------------------------------------------------
 TRUNCATE notifications, payments, tracking_logs, parcel_route_stops, parcels,
          invoices, order_items, orders,
@@ -103,8 +103,8 @@ INSERT INTO businesses (business_id, business_name, business_type, contact_numbe
   (5, 'LINKO Platform', 'other', '+639170000005', TRUE),
   (6, 'Davao Sari-Sari Mart', 'buyer', '+639170000006', TRUE),
   (7, 'Mandaue Agri Supply', 'wholesaler', '+639170000007', TRUE),
-  (8, 'Metro Cebu Trading — Retail', 'buyer', '+639170000008', TRUE),
-  (10, 'Metro Cebu Trading — Wholesale', 'wholesaler', '+639170000010', TRUE),
+  (8, 'Metro Cebu Trading - Retail', 'buyer', '+639170000008', TRUE),
+  (10, 'Metro Cebu Trading - Wholesale', 'wholesaler', '+639170000010', TRUE),
   (14, 'Talisay Grains & Provisions', 'wholesaler', '+639170001000', TRUE),
   (15, 'Guadalupe Bulk Traders', 'wholesaler', '+639170001001', TRUE),
   (16, 'Talamban Supply Depot', 'wholesaler', '+639170001002', TRUE),
@@ -297,34 +297,34 @@ INSERT INTO warehouses (business_id, warehouse_name, address_id) VALUES
   (18, 'Mactan Dry Goods Depot', 23);
 
 INSERT INTO products (product_id, business_id, product_name, sku, category_id, description, unit_price, stock_quantity, image_url, is_active) VALUES
-  (1, 2, 'Pork Belly — 10kg case', 'CFW-PK001', 1, '10kg vacuum-sealed pork belly slabs, 4-5 pcs per case', 2800, 45, 'https://images.unsplash.com/photo-1602470520998-f4a52199a3d6?auto=format&fit=crop&q=80&w=400', TRUE),
-  (2, 2, 'Beef Ribeye — 5kg case (10 steaks)', 'CFW-BF001', 2, '5kg case, 10x 500g USDA-grade ribeye steaks', 5200, 20, 'https://images.unsplash.com/photo-1603048297172-c92544798d5a?auto=format&fit=crop&q=80&w=400', TRUE),
-  (3, 2, 'Dressed Chicken — crate of 12', 'CFW-CK001', 3, 'Crate of 12 whole free-range dressed chickens (~1.2kg each)', 2340, 60, 'https://images.unsplash.com/photo-1587593810167-a84920ea0781?auto=format&fit=crop&q=80&w=400', TRUE),
-  (4, 2, 'Bangus Boneless — 10kg box', 'CFW-FS001', 5, '10kg box of deboned butterflied milkfish (~20 pcs)', 3300, 35, 'https://images.unsplash.com/photo-1611171711912-e3f6b536f532?auto=format&fit=crop&q=80&w=400', TRUE),
-  (5, 2, 'Tiger Prawns — 5kg styro box', 'CFW-SH001', 6, '5kg iced styrofoam box, wild-caught tiger prawns', 3400, 15, 'https://images.unsplash.com/photo-1565680018434-b513d5e5fd47?auto=format&fit=crop&q=80&w=400', TRUE),
-  (6, 2, 'Carabao Mango — 20kg crate', 'CFW-PR001', 7, '20kg crate of export-quality Cebu carabao mangoes (~50 pcs)', 2400, 80, 'https://images.unsplash.com/photo-1553279768-865429fa0078?auto=format&fit=crop&q=80&w=400', TRUE),
-  (7, 7, 'Pandesal — tray of 100 pcs', 'MAS-BK001', 8, 'Tray of 100 freshly baked traditional pandesal rolls', 450, 100, 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=400', TRUE),
-  (8, 7, 'Carabao Milk — crate of 12L', 'MAS-DY001', 9, 'Crate of 12x 1L fresh pasteurized carabao milk', 1020, 40, 'https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&q=80&w=400', TRUE),
-  (9, 7, 'Lumpia Shanghai — 5kg bulk pack', 'MAS-FZ001', 10, '5kg bulk pack frozen pork lumpia shanghai (~200 pcs)', 1400, 55, 'https://images.unsplash.com/photo-1603048297172-c92544798d5a?auto=format&fit=crop&q=80&w=400', TRUE),
-  (10, 7, 'Calamansi Juice — case of 24 bottles', 'MAS-BV001', 12, 'Case of 24x 500mL pure calamansi concentrate, no preservatives', 1560, 70, 'https://images.unsplash.com/photo-1621263764928-df1444c5e859?auto=format&fit=crop&q=80&w=400', TRUE),
-  (11, 7, 'Brown Paper Bags — bundle of 500', 'MAS-PK001', 11, 'Bundle of 500 medium kraft paper bags for retail use', 900, 200, 'https://images.unsplash.com/photo-1607166452427-7e4477079cb9?auto=format&fit=crop&q=80&w=400', TRUE),
-  (12, 10, 'Chicharon Baboy — box of 48 packs', 'MCT-CHP01', 4, 'Box of 48x 200g crispy pork chicharon, Cebu-style', 3600, 90, 'https://images.unsplash.com/photo-1566478989037-eec170784d0b?auto=format&fit=crop&q=80&w=400', TRUE),
-  (13, 10, 'Dried Pusit — 5kg sack', 'MCT-FS001', 5, '5kg sack of sun-dried squid, ready to grill', 2200, 30, 'https://images.unsplash.com/photo-1559737558-2f5a35f4523b?auto=format&fit=crop&q=80&w=400', TRUE),
-  (14, 14, 'Blue Crab — 10kg crate', 'TGP-SH001', 6, '10kg crate of live Cebu blue crabs (~25 pcs)', 4036.00, 57, 'https://images.unsplash.com/photo-1565680018434-b513d5e5fd47?auto=format&fit=crop&q=80&w=400', TRUE),
-  (15, 14, 'Green Mussels — 5kg sack', 'TGP-SH002', 6, '5kg sack of cleaned green mussels', 658.00, 12, 'https://images.unsplash.com/photo-1565680018434-b513d5e5fd47?auto=format&fit=crop&q=80&w=400', TRUE),
-  (16, 14, 'Pork Shoulder — 10kg case', 'TGP-PK001', 1, '10kg case of trimmed pork shoulder cuts', 1439.00, 19, 'https://images.unsplash.com/photo-1602470520998-f4a52199a3d6?auto=format&fit=crop&q=80&w=400', TRUE),
-  (17, 15, 'Chicken Wings — 10kg box', 'GBT-CK001', 3, '10kg box of frozen chicken wings (~120 pcs)', 2196.00, 27, 'https://images.unsplash.com/photo-1587593810167-a84920ea0781?auto=format&fit=crop&q=80&w=400', TRUE),
-  (18, 15, 'Tiger Prawns — 5kg box', 'GBT-SH001', 6, '5kg iced box of farm-raised tiger prawns', 3217.00, 70, 'https://images.unsplash.com/photo-1565680018434-b513d5e5fd47?auto=format&fit=crop&q=80&w=400', TRUE),
-  (19, 15, 'Beef Brisket — 5kg case', 'GBT-BF001', 2, '5kg case of trimmed beef brisket cuts', 4730.00, 25, 'https://images.unsplash.com/photo-1603048297172-c92544798d5a?auto=format&fit=crop&q=80&w=400', TRUE),
-  (20, 16, 'Plastic Grocery Bags — bundle of 1000', 'TSD-PK001', 11, 'Bundle of 1000 medium HDPE grocery bags', 3157.00, 87, 'https://images.unsplash.com/photo-1607166452427-7e4477079cb9?auto=format&fit=crop&q=80&w=400', TRUE),
-  (21, 16, 'Dried Danggit — 3kg pack', 'TSD-FS001', 5, '3kg pack of salted sun-dried rabbitfish', 1883.00, 13, 'https://images.unsplash.com/photo-1611171711912-e3f6b536f532?auto=format&fit=crop&q=80&w=400', TRUE),
-  (22, 16, 'Sliced Loaf Bread — case of 24', 'TSD-BK001', 8, 'Case of 24 loaves of sliced white bread', 4812.00, 87, 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=400', TRUE),
-  (23, 17, 'Evaporated Milk — case of 48', 'OMT-DY001', 9, 'Case of 48x 370mL evaporated filled milk', 4617.00, 83, 'https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&q=80&w=400', TRUE),
-  (24, 17, 'Frozen Tuna Steaks — 10kg box', 'OMT-FZ001', 10, '10kg box of vacuum-packed yellowfin tuna steaks', 1868.00, 83, 'https://images.unsplash.com/photo-1603048297172-c92544798d5a?auto=format&fit=crop&q=80&w=400', TRUE),
-  (25, 17, 'Ice Candy Wrappers — pack of 500', 'OMT-FZ002', 10, 'Pack of 500 food-grade ice candy tubes', 123.00, 34, 'https://images.unsplash.com/photo-1603048297172-c92544798d5a?auto=format&fit=crop&q=80&w=400', TRUE),
-  (26, 18, 'Banana Chips — box of 50 packs', 'MDG-CH001', 4, 'Box of 50x 100g crispy sweetened banana chips', 3101.00, 11, 'https://images.unsplash.com/photo-1566478989037-eec170784d0b?auto=format&fit=crop&q=80&w=400', TRUE),
-  (27, 18, 'Powdered Milk — case of 24', 'MDG-DY001', 9, 'Case of 24x 900g full-cream powdered milk', 926.00, 37, 'https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&q=80&w=400', TRUE),
-  (28, 18, 'Pandesal Rolls — tray of 150', 'MDG-BK001', 8, 'Tray of 150 freshly baked pandesal rolls', 504.00, 26, 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=400', TRUE);
+  (1, 2, 'Pork Belly - 10kg case', 'CFW-PK001', 1, '10kg vacuum-sealed pork belly slabs, 4-5 pcs per case', 2800, 45, 'https://images.unsplash.com/photo-1602470520998-f4a52199a3d6?auto=format&fit=crop&q=80&w=400', TRUE),
+  (2, 2, 'Beef Ribeye - 5kg case (10 steaks)', 'CFW-BF001', 2, '5kg case, 10x 500g USDA-grade ribeye steaks', 5200, 20, 'https://images.unsplash.com/photo-1603048297172-c92544798d5a?auto=format&fit=crop&q=80&w=400', TRUE),
+  (3, 2, 'Dressed Chicken - crate of 12', 'CFW-CK001', 3, 'Crate of 12 whole free-range dressed chickens (~1.2kg each)', 2340, 60, 'https://images.unsplash.com/photo-1587593810167-a84920ea0781?auto=format&fit=crop&q=80&w=400', TRUE),
+  (4, 2, 'Bangus Boneless - 10kg box', 'CFW-FS001', 5, '10kg box of deboned butterflied milkfish (~20 pcs)', 3300, 35, 'https://images.unsplash.com/photo-1611171711912-e3f6b536f532?auto=format&fit=crop&q=80&w=400', TRUE),
+  (5, 2, 'Tiger Prawns - 5kg styro box', 'CFW-SH001', 6, '5kg iced styrofoam box, wild-caught tiger prawns', 3400, 15, 'https://images.unsplash.com/photo-1565680018434-b513d5e5fd47?auto=format&fit=crop&q=80&w=400', TRUE),
+  (6, 2, 'Carabao Mango - 20kg crate', 'CFW-PR001', 7, '20kg crate of export-quality Cebu carabao mangoes (~50 pcs)', 2400, 80, 'https://images.unsplash.com/photo-1553279768-865429fa0078?auto=format&fit=crop&q=80&w=400', TRUE),
+  (7, 7, 'Pandesal - tray of 100 pcs', 'MAS-BK001', 8, 'Tray of 100 freshly baked traditional pandesal rolls', 450, 100, 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=400', TRUE),
+  (8, 7, 'Carabao Milk - crate of 12L', 'MAS-DY001', 9, 'Crate of 12x 1L fresh pasteurized carabao milk', 1020, 40, 'https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&q=80&w=400', TRUE),
+  (9, 7, 'Lumpia Shanghai - 5kg bulk pack', 'MAS-FZ001', 10, '5kg bulk pack frozen pork lumpia shanghai (~200 pcs)', 1400, 55, 'https://images.unsplash.com/photo-1603048297172-c92544798d5a?auto=format&fit=crop&q=80&w=400', TRUE),
+  (10, 7, 'Calamansi Juice - case of 24 bottles', 'MAS-BV001', 12, 'Case of 24x 500mL pure calamansi concentrate, no preservatives', 1560, 70, 'https://images.unsplash.com/photo-1621263764928-df1444c5e859?auto=format&fit=crop&q=80&w=400', TRUE),
+  (11, 7, 'Brown Paper Bags - bundle of 500', 'MAS-PK001', 11, 'Bundle of 500 medium kraft paper bags for retail use', 900, 200, 'https://images.unsplash.com/photo-1607166452427-7e4477079cb9?auto=format&fit=crop&q=80&w=400', TRUE),
+  (12, 10, 'Chicharon Baboy - box of 48 packs', 'MCT-CHP01', 4, 'Box of 48x 200g crispy pork chicharon, Cebu-style', 3600, 90, 'https://images.unsplash.com/photo-1566478989037-eec170784d0b?auto=format&fit=crop&q=80&w=400', TRUE),
+  (13, 10, 'Dried Pusit - 5kg sack', 'MCT-FS001', 5, '5kg sack of sun-dried squid, ready to grill', 2200, 30, 'https://images.unsplash.com/photo-1559737558-2f5a35f4523b?auto=format&fit=crop&q=80&w=400', TRUE),
+  (14, 14, 'Blue Crab - 10kg crate', 'TGP-SH001', 6, '10kg crate of live Cebu blue crabs (~25 pcs)', 4036.00, 57, 'https://images.unsplash.com/photo-1565680018434-b513d5e5fd47?auto=format&fit=crop&q=80&w=400', TRUE),
+  (15, 14, 'Green Mussels - 5kg sack', 'TGP-SH002', 6, '5kg sack of cleaned green mussels', 658.00, 12, 'https://images.unsplash.com/photo-1565680018434-b513d5e5fd47?auto=format&fit=crop&q=80&w=400', TRUE),
+  (16, 14, 'Pork Shoulder - 10kg case', 'TGP-PK001', 1, '10kg case of trimmed pork shoulder cuts', 1439.00, 19, 'https://images.unsplash.com/photo-1602470520998-f4a52199a3d6?auto=format&fit=crop&q=80&w=400', TRUE),
+  (17, 15, 'Chicken Wings - 10kg box', 'GBT-CK001', 3, '10kg box of frozen chicken wings (~120 pcs)', 2196.00, 27, 'https://images.unsplash.com/photo-1587593810167-a84920ea0781?auto=format&fit=crop&q=80&w=400', TRUE),
+  (18, 15, 'Tiger Prawns - 5kg box', 'GBT-SH001', 6, '5kg iced box of farm-raised tiger prawns', 3217.00, 70, 'https://images.unsplash.com/photo-1565680018434-b513d5e5fd47?auto=format&fit=crop&q=80&w=400', TRUE),
+  (19, 15, 'Beef Brisket - 5kg case', 'GBT-BF001', 2, '5kg case of trimmed beef brisket cuts', 4730.00, 25, 'https://images.unsplash.com/photo-1603048297172-c92544798d5a?auto=format&fit=crop&q=80&w=400', TRUE),
+  (20, 16, 'Plastic Grocery Bags - bundle of 1000', 'TSD-PK001', 11, 'Bundle of 1000 medium HDPE grocery bags', 3157.00, 87, 'https://images.unsplash.com/photo-1607166452427-7e4477079cb9?auto=format&fit=crop&q=80&w=400', TRUE),
+  (21, 16, 'Dried Danggit - 3kg pack', 'TSD-FS001', 5, '3kg pack of salted sun-dried rabbitfish', 1883.00, 13, 'https://images.unsplash.com/photo-1611171711912-e3f6b536f532?auto=format&fit=crop&q=80&w=400', TRUE),
+  (22, 16, 'Sliced Loaf Bread - case of 24', 'TSD-BK001', 8, 'Case of 24 loaves of sliced white bread', 4812.00, 87, 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=400', TRUE),
+  (23, 17, 'Evaporated Milk - case of 48', 'OMT-DY001', 9, 'Case of 48x 370mL evaporated filled milk', 4617.00, 83, 'https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&q=80&w=400', TRUE),
+  (24, 17, 'Frozen Tuna Steaks - 10kg box', 'OMT-FZ001', 10, '10kg box of vacuum-packed yellowfin tuna steaks', 1868.00, 83, 'https://images.unsplash.com/photo-1603048297172-c92544798d5a?auto=format&fit=crop&q=80&w=400', TRUE),
+  (25, 17, 'Ice Candy Wrappers - pack of 500', 'OMT-FZ002', 10, 'Pack of 500 food-grade ice candy tubes', 123.00, 34, 'https://images.unsplash.com/photo-1603048297172-c92544798d5a?auto=format&fit=crop&q=80&w=400', TRUE),
+  (26, 18, 'Banana Chips - box of 50 packs', 'MDG-CH001', 4, 'Box of 50x 100g crispy sweetened banana chips', 3101.00, 11, 'https://images.unsplash.com/photo-1566478989037-eec170784d0b?auto=format&fit=crop&q=80&w=400', TRUE),
+  (27, 18, 'Powdered Milk - case of 24', 'MDG-DY001', 9, 'Case of 24x 900g full-cream powdered milk', 926.00, 37, 'https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&q=80&w=400', TRUE),
+  (28, 18, 'Pandesal Rolls - tray of 150', 'MDG-BK001', 8, 'Tray of 150 freshly baked pandesal rolls', 504.00, 26, 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=400', TRUE);
 
 SELECT setval('products_product_id_seq', 28, true);
 
@@ -773,7 +773,7 @@ INSERT INTO parcel_route_stops
   ('LKO-00000007', 3, 'destination', 36, NULL, 'Lawaan Community Store', 'Cebu', 'Talisay City', 'Guadalupe', '790 Retail St', '6000', 10.2678000, 123.9087000),
   ('LKO-00000008', 1, 'origin', 23, NULL, 'Mactan Dry Goods Distributors', 'Cebu', 'Mandaue City', 'Guadalupe', '661 Warehouse Ave', '6000', 10.3980000, 123.9955000),
   ('LKO-00000008', 2, 'branch', 12, 2, 'LINKO Mandaue Hub', 'Cebu', 'Mandaue City', 'Centro', 'National Highway Hub', '6014', 10.3280000, 123.9400000),
-  ('LKO-00000008', 3, 'destination', 10, NULL, 'Metro Cebu Trading — Retail', 'Cebu', 'Cebu City', 'Guadalupe', '55 V. Rama Ave', '6000', 10.3157000, 123.8854000),
+  ('LKO-00000008', 3, 'destination', 10, NULL, 'Metro Cebu Trading - Retail', 'Cebu', 'Cebu City', 'Guadalupe', '55 V. Rama Ave', '6000', 10.3157000, 123.8854000),
   ('LKO-00000009', 1, 'origin', 23, NULL, 'Mactan Dry Goods Distributors', 'Cebu', 'Mandaue City', 'Guadalupe', '661 Warehouse Ave', '6000', 10.3980000, 123.9955000),
   ('LKO-00000009', 2, 'branch', 12, 2, 'LINKO Mandaue Hub', 'Cebu', 'Mandaue City', 'Centro', 'National Highway Hub', '6014', 10.3280000, 123.9400000),
   ('LKO-00000009', 3, 'destination', 26, NULL, 'Banilad Mini Grocery', 'Cebu', 'Mandaue City', 'Banilad', '95 Retail St', '6000', 10.3291000, 123.8114000),
@@ -816,7 +816,7 @@ INSERT INTO parcel_route_stops
   ('LKO-00000022', 1, 'origin', 15, NULL, 'Talisay Grains & Provisions', 'Cebu', 'Talisay City', 'Subangdaku', '573 Warehouse Ave', '6000', 10.2906000, 123.9083000),
   ('LKO-00000022', 2, 'branch', 12, 2, 'LINKO Mandaue Hub', 'Cebu', 'Mandaue City', 'Centro', 'National Highway Hub', '6014', 10.3280000, 123.9400000),
   ('LKO-00000022', 3, 'destination', 32, NULL, 'Maria Clara Variety Store', 'Cebu', 'Cebu City', 'Talamban', '339 Retail St', '6000', 10.3796000, 123.8592000),
-  ('LKO-00000023', 1, 'origin', 13, NULL, 'Metro Cebu Trading — Wholesale', 'Cebu', 'Cebu City', 'Guadalupe', '55 V. Rama Ave Bldg B', '6000', 10.3157000, 123.8854000),
+  ('LKO-00000023', 1, 'origin', 13, NULL, 'Metro Cebu Trading - Wholesale', 'Cebu', 'Cebu City', 'Guadalupe', '55 V. Rama Ave Bldg B', '6000', 10.3157000, 123.8854000),
   ('LKO-00000023', 2, 'branch', 12, 2, 'LINKO Mandaue Hub', 'Cebu', 'Mandaue City', 'Centro', 'National Highway Hub', '6014', 10.3280000, 123.9400000),
   ('LKO-00000023', 3, 'destination', 26, NULL, 'Banilad Mini Grocery', 'Cebu', 'Mandaue City', 'Banilad', '95 Retail St', '6000', 10.3291000, 123.8114000),
   ('LKO-00000024', 1, 'origin', 19, NULL, 'Talamban Supply Depot', 'Cebu', 'Lapu-Lapu City', 'Lahug', '813 Warehouse Ave', '6000', 10.3713000, 123.8081000),

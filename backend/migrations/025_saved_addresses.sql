@@ -1,4 +1,4 @@
--- 025_saved_addresses.sql — multiple saved addresses per business.
+-- 025_saved_addresses.sql - multiple saved addresses per business.
 -- businesses.logistics_address_id stays the single canonical pin used by
 -- order placement and parcel routing. The address book marks exactly one
 -- owned row as the default, and that row is the pin. Coordinate checks from

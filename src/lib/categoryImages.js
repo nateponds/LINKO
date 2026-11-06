@@ -23,7 +23,7 @@ export function imageForCategory(name, width = 400) {
 }
 
 /* Warehouse/storefront stock photos for supplier cards. Businesses have no
-   image column, so pick from the pool by id — stable per supplier, varied
+   image column, so pick from the pool by id - stable per supplier, varied
    across the grid. */
 const SUPPLIER_IMAGES = [
   "https://images.unsplash.com/photo-1553413077-190dd305871c",
@@ -45,7 +45,7 @@ const SUPPLIER_IMAGES = [
 ];
 
 export function imageForSupplier(businessId, width = 600) {
-  // ponytail: modulo the id — no hashing, ids are already well distributed
+  // ponytail: modulo the id - no hashing, ids are already well distributed
   const index = Math.abs(Number(businessId) || 0) % SUPPLIER_IMAGES.length;
   return `${SUPPLIER_IMAGES[index]}?auto=format&fit=crop&q=80&w=${width}`;
 }

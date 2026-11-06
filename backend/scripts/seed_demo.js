@@ -1,4 +1,4 @@
-// Demo seed runner — `npm run seed:demo`.
+// Demo seed runner - `npm run seed:demo`.
 //
 // Idempotent RESET: dev_seed.sql already wipes the transactional tables in
 // reverse-FK order (TRUNCATE ... CASCADE) and restarts sequences before

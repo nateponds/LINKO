@@ -5,7 +5,7 @@
 // .confirm-dialog* block in settings.css for the destructive-action styling
 // and the slide-from-bottom transition.
 // Callers own their own `open` state; there is no context or portal here.
-// ponytail: no `busy`/in-flight prop — every caller closes the dialog
+// ponytail: no `busy`/in-flight prop - every caller closes the dialog
 // synchronously in onConfirm, so it unmounts before a second click can land.
 // Add one only if a caller needs to keep the dialog open across an await.
 import { useEffect, useRef, useState } from "react";
