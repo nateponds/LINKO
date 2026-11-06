@@ -12,6 +12,10 @@
   --color-text: #1d2c43;
   --color-muted: #637087;
   --dm-sans: "DM Sans", sans-serif;
+  --layout-max-width: 1360px;
+  --layout-gutter: clamp(16px, 3vw, 40px);
+  --layout-page-start: clamp(24px, 3vw, 32px);
+  --layout-page-end: 48px;
 }
 
 * {

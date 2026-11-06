@@ -38,6 +38,14 @@ test("allowedNext locks terminal statuses", () => {
   assert.deepEqual(allowedNext("Cancelled"), []);
 });
 
+test("couriers get no actions for missing or unrecognized tracking states", () => {
+  for (const status of [null, undefined, "", "In Transit", "unknown"]) {
+    assert.deepEqual(allowedNext(status), []);
+    assert.deepEqual(selectableTrackingStatuses(status, false), []);
+  }
+  assert.ok(selectableTrackingStatuses(null, true).includes("Order Created"));
+});
+
 test("selectableTrackingStatuses binds privileged users to the map plus Cancelled", () => {
   // Coordinators follow the same checkpoint map as couriers; their only extra
   // move is Cancelled (never off a terminal status).

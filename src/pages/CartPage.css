@@ -1,9 +1,10 @@
 .cart-page {
-  padding: 30px 40px 60px;
+  padding: var(--layout-page-start) var(--layout-gutter) var(--layout-page-end);
   display: flex;
   flex-direction: column;
   gap: 16px;
   max-width: 880px;
+  margin-inline: auto;
 
   h1, h2, p {
     margin: 0;
@@ -232,11 +233,5 @@
 
   .checkout-btn:hover:not(:disabled) {
     background: var(--color-primary-dark);
-  }
-}
-
-@media (max-width: 560px) {
-  .cart-page {
-    padding: 20px 16px 40px;
   }
 }

@@ -47,7 +47,7 @@ const COURIER_TRANSITIONS = {
 
 export function allowedNext(currentStatus, returnTriggered = false) {
   if (!currentStatus || !TRACKING_STATUSES.includes(currentStatus)) {
-    return TRACKING_STATUSES.filter((status) => status !== "Cancelled");
+    return [];
   }
   if (TERMINAL_STATUSES.has(currentStatus)) return [];
   if (currentStatus === "Delivery Failed") {
@@ -65,6 +65,8 @@ export function allowedNext(currentStatus, returnTriggered = false) {
 }
 
 export function selectableTrackingStatuses(currentStatus, canUpdateAssignment, returnTriggered = false) {
+  // Coordinators can initialize legacy parcels that have no tracking history.
+  if (canUpdateAssignment && !currentStatus) return TRACKING_STATUSES.filter((status) => status !== "Cancelled");
   const next = allowedNext(currentStatus, returnTriggered);
   // Coordinators/admins follow the same checkpoint map as couriers; their only
   // extra move is 'Cancelled' (terminal escape hatch), and never off a terminal.

@@ -33,11 +33,12 @@ export async function createSession(userId, db = getPool()) {
   return token;
 }
 
-export async function getSessionUser(sessionToken, db = getPool()) {
+export async function getSessionUser(sessionToken, db) {
   if (!sessionToken) {
     return null;
   }
 
+  db ??= getPool();
   const tokenHash = hashSessionToken(sessionToken);
   const result = await db.query(
     `SELECT
@@ -81,11 +82,12 @@ export async function getSessionUser(sessionToken, db = getPool()) {
   return buildSessionPayload(result.rows[0]);
 }
 
-export async function destroySession(sessionToken, db = getPool()) {
+export async function destroySession(sessionToken, db) {
   if (!sessionToken) {
     return;
   }
 
+  db ??= getPool();
   await db.query("DELETE FROM auth_sessions WHERE token_hash = $1", [hashSessionToken(sessionToken)]);
 }
 

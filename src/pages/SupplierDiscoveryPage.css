@@ -6,14 +6,14 @@
   --color-plum: #7c5cbf;
   --color-plum-dark: #5a3f96;
 
-  max-width: 1420px;
+  max-width: var(--layout-max-width);
   margin: 0 auto;
   padding-bottom: 48px;
 
   .market-intro {
     display: grid;
     grid-template-columns: 1.15fr 1fr;
-    margin: 32px 48px 0;
+    margin: var(--layout-page-start) var(--layout-gutter) 0;
     min-height: 280px;
     border-radius: 12px;
     overflow: hidden;
@@ -29,7 +29,7 @@
   /* Section shell (Featured / More products, Top wholesalers)           */
   /* ------------------------------------------------------------------ */
   .home-section {
-    margin: 40px 48px 0;
+    margin: 32px var(--layout-gutter) 0;
   }
 
   .home-section-head {
@@ -41,7 +41,7 @@
   }
 
   .home-section-head--browse {
-    margin: 40px 48px 0;
+    margin: 32px var(--layout-gutter) 0;
   }
 
   .home-section-head h2 {
@@ -303,7 +303,7 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 20px;
-    padding: 20px 48px 48px;
+    padding: 20px var(--layout-gutter) 32px;
   }
 
   /* supplier cards are router links; keep the card look */
@@ -409,7 +409,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 20px 48px 0;
+    padding: 20px var(--layout-gutter) 0;
     flex-wrap: wrap;
   }
 
@@ -446,7 +446,7 @@
   }
 
   .supplier-results__pagination {
-    padding: 20px 48px 48px;
+    padding: 20px var(--layout-gutter) 32px;
   }
 
   .marketplace-results {
@@ -458,7 +458,7 @@
     align-items: flex-start;
     justify-content: space-between;
     gap: 16px;
-    margin: 28px 48px 0;
+    margin: 28px var(--layout-gutter) 0;
   }
 
   .marketplace-results__head h2 {
@@ -477,7 +477,7 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
-    margin: 28px 48px;
+    margin: 28px var(--layout-gutter);
     padding: 28px;
     border: 1px dashed #dbe2ee;
     border-radius: 12px;

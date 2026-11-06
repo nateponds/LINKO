@@ -1,8 +1,8 @@
 .dashboard-page {
   --dashboard-line: #e1e7ef;
-  max-width: 1360px;
+  max-width: var(--layout-max-width);
   margin-inline: auto;
-  padding: 32px clamp(16px, 4vw, 56px) 64px;
+  padding: var(--layout-page-start) var(--layout-gutter) var(--layout-page-end);
 }
 
 .dashboard-heading h1 {

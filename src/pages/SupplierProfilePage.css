@@ -3,7 +3,9 @@
    shadows (vars from shell.css). Scoped under .supplier-profile-page;
    the nav shell comes from AppLayout. */
 .supplier-profile-page {
-  padding: 30px 40px 60px;
+  max-width: var(--layout-max-width);
+  margin-inline: auto;
+  padding: var(--layout-page-start) var(--layout-gutter) var(--layout-page-end);
 
   /* profile header card */
   .profile-bar {
@@ -22,6 +24,7 @@
     display: flex;
     align-items: center;
     gap: 16px;
+    min-width: 0;
   }
 
   .circle-btn {
@@ -54,6 +57,8 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .supplier-name {
@@ -69,6 +74,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-wrap: wrap;
     font-size: 0.88rem;
     color: var(--color-muted);
   }
@@ -799,8 +805,6 @@
   }
 
   @media (max-width: 560px) {
-    padding: 20px 16px 40px;
-
     .stat-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
