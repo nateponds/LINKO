@@ -425,7 +425,7 @@ export default function ParcelDetailPage() {
                       </button>
                     </>
                   ) : (
-                    <p className="form-note">This parcel has reached a final courier outcome.</p>
+                    <p className="form-note">No status updates are available. If this parcel is unfinished, ask a logistics coordinator to review it.</p>
                   )}
                 </div>
               )}

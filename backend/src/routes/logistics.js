@@ -144,7 +144,7 @@ const COURIER_TRANSITIONS = {
 // hit OR any prior fail carried a hard reason. Computed by the caller (the
 // POST handler and the list query) — see isHardFailReason / RETURN_TRIGGER_FAILS.
 export function courierAllowedNextStatuses(currentStatus, returnTriggered = false) {
-  if (!currentStatus) return VALID_TRACKING_STATUSES.filter((s) => s !== "Cancelled");
+  if (!currentStatus) return [];
   if (TERMINAL_TRACKING_STATUSES.has(currentStatus)) return [];
   if (currentStatus === "Delivery Failed") {
     return returnTriggered ? ["Arrived at Branch"] : ["Out for Delivery"];
@@ -179,6 +179,9 @@ function asClientError(error) {
 }
 
 export function canCourierSubmitTrackingStatus(currentStatus, nextStatus, returnTriggered = false) {
+  if (!currentStatus) {
+    return { allowed: false, message: "This parcel has no tracking status. Ask a logistics coordinator to review it." };
+  }
   if (nextStatus === "Cancelled") {
     return {
       allowed: false,
