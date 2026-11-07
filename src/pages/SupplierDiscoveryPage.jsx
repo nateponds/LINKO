@@ -1,14 +1,12 @@
 import "./SupplierDiscoveryPage.css";
 import { useEffect, useState } from "react";
-import { ArrowRight, BadgeCheck, ShoppingCart } from "lucide-react";
+import { ArrowRight, BadgeCheck } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
 import MarketplaceResults from "../features/search/MarketplaceResults";
 import SupplierGrid from "../features/suppliers/SupplierGrid";
-import { useCart } from "../features/cart/CartProvider";
-import { isUnavailable } from "../features/cart/cart";
+import MarketplaceProductCard from "../features/products/MarketplaceProductCard";
 import { apiGet } from "../lib/api";
-import { peso, stockBadge } from "../lib/format";
 import { imageForCategory } from "../lib/categoryImages";
 import { normalizePage } from "../features/suppliers/marketplacePagination";
 import { CardGridSkeleton, WholesalerRowSkeleton } from "../components/ui/pageSkeletons";
@@ -19,58 +17,6 @@ const AVATAR_PALETTE = [
   "var(--color-sunset)",
   "var(--color-plum)",
 ];
-
-function ProductCard({ product }) {
-  const badge = stockBadge(product.stock_status);
-  const { addProduct } = useCart();
-  const [note, setNote] = useState(null);
-  const available = !isUnavailable(product);
-
-  function handleAdd() {
-    const result = addProduct(product, 1);
-    setNote(result.error ?? "Added to cart.");
-  }
-
-  return (
-    <div className="home-product-card">
-      <div className="home-product-image">
-        <img
-          src={product.image_url ?? imageForCategory(product.category_name)}
-          alt={product.product_name}
-        />
-        {product.category_name && (
-          <span className="home-product-tag">{product.category_name}</span>
-        )}
-      </div>
-      <div className="home-product-body">
-        <p className="home-product-name" title={product.product_name}>{product.product_name}</p>
-        <p className="home-product-by" title={product.business_name}>by {product.business_name}</p>
-        <div className="home-product-meta">
-          <span className="home-product-price">{peso(product.unit_price)}</span>
-          <span className={`status ${badge.cls}`}>{badge.label}</span>
-        </div>
-        <div className="home-product-actions">
-          <Link
-            to={`/suppliers/${product.business_id}?product_id=${product.product_id}`}
-            className="home-product-cta"
-          >
-            View Product <ArrowRight size={14} />
-          </Link>
-          <button
-            type="button"
-            className="home-product-add"
-            disabled={!available}
-            onClick={handleAdd}
-          >
-            <ShoppingCart size={14} />
-            Add
-          </button>
-        </div>
-        <p className="home-product-note" aria-live="polite">{note}</p>
-      </div>
-    </div>
-  );
-}
 
 function WholesalerCard({ supplier, index }) {
   const initial = supplier.business_name?.charAt(0).toUpperCase() ?? "?";
@@ -89,7 +35,7 @@ function WholesalerCard({ supplier, index }) {
       </span>
       <span className="home-wholesaler-info">
         <span className="home-wholesaler-name">
-          {supplier.business_name}
+          <span className="home-wholesaler-name-text">{supplier.business_name}</span>
           {supplier.is_verified && <BadgeCheck size={15} className="verified-badge" />}
         </span>
         <span className="home-wholesaler-meta">
@@ -171,7 +117,7 @@ function SupplierDiscoveryPage() {
                 </div>
                 <div className="home-product-grid">
                   {featuredProducts.map((product) => (
-                    <ProductCard product={product} key={product.product_id} />
+                    <MarketplaceProductCard product={product} withCart key={product.product_id} />
                   ))}
                 </div>
               </section>
@@ -211,7 +157,7 @@ function SupplierDiscoveryPage() {
                 </div>
                 <div className="home-product-grid">
                   {moreProducts.map((product) => (
-                    <ProductCard product={product} key={product.product_id} />
+                    <MarketplaceProductCard product={product} withCart key={product.product_id} />
                   ))}
                 </div>
               </section>

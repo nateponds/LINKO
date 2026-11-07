@@ -3,8 +3,8 @@ import { Link, useSearchParams } from "react-router-dom";
 import { BadgeCheck, MapPin, Package, Search } from "lucide-react";
 import PaginationControls from "../../components/ui/PaginationControls";
 import { apiGet } from "../../lib/api";
-import { hueOf, imageForCategory, imageForSupplier, initialOf } from "../../lib/categoryImages";
-import { peso, stockBadge } from "../../lib/format";
+import { hueOf, imageForSupplier, initialOf } from "../../lib/categoryImages";
+import MarketplaceProductCard from "../products/MarketplaceProductCard";
 import { readListUrlState, updateListUrlState } from "../../lib/pagination";
 import { apiPath, normalizePage, shouldClampPage } from "../suppliers/marketplacePagination";
 import { normalizeSearchQuery, searchParamsWithoutQuery } from "./marketplaceSearch.js";
@@ -21,29 +21,6 @@ function SupplierImage({ businessId, businessName }) {
   return (
     <div className="supplier-box-image">
       <img src={imageForSupplier(businessId)} alt="" onError={() => setFailed(true)} />
-    </div>
-  );
-}
-
-function ProductResult({ product }) {
-  const badge = stockBadge(product.stock_status);
-  return (
-    <div className="home-product-card">
-      <div className="home-product-image">
-        <img src={product.image_url ?? imageForCategory(product.category_name)} alt={product.product_name} />
-        {product.category_name && <span className="home-product-tag">{product.category_name}</span>}
-      </div>
-      <div className="home-product-body">
-        <p className="home-product-name" title={product.product_name}>{product.product_name}</p>
-        <p className="home-product-by" title={product.business_name}>by {product.business_name}</p>
-        <div className="home-product-meta">
-          <span className="home-product-price">{peso(product.unit_price)}</span>
-          <span className={`status ${badge.cls}`}>{badge.label}</span>
-        </div>
-        <Link to={`/suppliers/${product.business_id}?product_id=${product.product_id}`} className="home-product-cta">
-          View Product
-        </Link>
-      </div>
     </div>
   );
 }
@@ -166,7 +143,7 @@ function MarketplaceResults() {
               <p className="grid-empty">No products match “{q}”{scope}.</p>
             ) : (
               <div className="home-product-grid">
-                {products.map((product) => <ProductResult product={product} key={product.product_id} />)}
+                {products.map((product) => <MarketplaceProductCard product={product} key={product.product_id} />)}
               </div>
             )}
             <PaginationControls
