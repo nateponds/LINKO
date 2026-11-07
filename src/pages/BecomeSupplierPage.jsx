@@ -30,7 +30,7 @@ const PERKS = [
   {
     Icon: Handshake,
     title: "Tools included",
-    desc: "Inventory, orders, invoices, and wait lists come built in — no extra software.",
+    desc: "Inventory, orders, invoices, and wait lists come built in - no extra software.",
   },
 ];
 

@@ -66,7 +66,7 @@ function activityText(entry) {
     returned: "returned by",
     cancelled: "cancelled by",
   };
-  const verb = phrasing[status] ?? `${status} —`;
+  const verb = phrasing[status] ?? `${status} -`;
   return `Order #${entry.order_id} ${verb} ${entry.buyer_business_name}`;
 }
 

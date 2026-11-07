@@ -4,7 +4,7 @@ import test from "node:test";
 import createApp from "./app.js";
 import { createPool } from "./db.js";
 
-// Sprint 13 T05: standalone parcel booking — ownership validation, pin
+// Sprint 13 T05: standalone parcel booking - ownership validation, pin
 // gates, server-computed distance, shared resolver, route snapshots.
 // Sprint 13 T07 (bottom of file): late branch assignment snapshots.
 // DB-backed tests skip without DATABASE_URL, same as app.test.js.

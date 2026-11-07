@@ -15,9 +15,9 @@ import {
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
 import { apiGet } from "../lib/api";
-import { peso, stockBadge } from "../lib/format";
 import { bannersForProducts } from "../lib/productBanners";
 import ProductDetailModal from "../components/ui/ProductDetailModal";
+import ProductCard from "../features/products/ProductCard";
 import { SupplierProfileSkeleton } from "../components/ui/pageSkeletons";
 import PaginationControls from "../components/ui/PaginationControls";
 import { readListUrlState, updateListUrlState } from "../lib/pagination";
@@ -254,7 +254,7 @@ export default function SupplierProfilePage() {
 
   return (
     <AppLayout>
-      <div className="supplier-profile-page">
+      <div className={`supplier-profile-page${activeTab === "products" ? " supplier-profile-page--products" : ""}`}>
         <section className="profile-bar">
           <div className="profile-info">
             <button className="circle-btn">
@@ -265,14 +265,14 @@ export default function SupplierProfilePage() {
             </button>
             <div className="profile-text">
               <div className="supplier-name">
-                {supplier?.business_name ?? "Supplier"}
+                <span>{supplier?.business_name ?? "Supplier"}</span>
                 {supplier?.is_verified && (
                   <BadgeCheck size={18} aria-label="Verified" />
                 )}
               </div>
               <div className="supplier-meta">
                 <span className="location">
-                  <MapPin size={14} /> {supplier?.city ?? "—"}
+                  <MapPin size={14} /> {supplier?.city ?? "-"}
                 </span>
               </div>
             </div>
@@ -299,7 +299,9 @@ export default function SupplierProfilePage() {
           </div>
         </section>
 
-        <nav className="tab-nav">
+        <div className="supplier-profile-tools">
+        {activeTab === "products" && <label className="supplier-list-search supplier-product-search">Search products<input type="search" value={productSearchInput} onChange={(event) => setProductSearchInput(event.target.value)} /></label>}
+        <nav className="tab-nav" aria-label="Supplier sections">
           {["shop", "products", "categories"].map((tab) => (
             <button
               key={tab}
@@ -310,6 +312,7 @@ export default function SupplierProfilePage() {
             </button>
           ))}
         </nav>
+        </div>
 
         {activeTab === "shop" && (
           <section className="shop-section">
@@ -335,7 +338,7 @@ export default function SupplierProfilePage() {
                     prices you&apos;ll love.
                   </h1>
                   <p className="shop-hero-sub">
-                    Sourced from local farms and trusted partners — delivered
+                    Sourced from local farms and trusted partners - delivered
                     straight to your door.
                   </p>
                   <button
@@ -384,7 +387,7 @@ export default function SupplierProfilePage() {
                   <MapPin size={26} />
                 </span>
                 <div>
-                  <span className="stat-value">{supplier?.city ?? "—"}</span>
+                  <span className="stat-value">{supplier?.city ?? "-"}</span>
                   <span className="stat-label">Location</span>
                 </div>
               </div>
@@ -424,7 +427,7 @@ export default function SupplierProfilePage() {
                 </div>
                 <div className="feature-title">Easy Returns</div>
                 <div className="feature-desc">
-                  Not satisfied? We&apos;ll sort it — no questions asked.
+                  Not satisfied? We&apos;ll sort it - no questions asked.
                 </div>
               </div>
             </div>
@@ -444,77 +447,47 @@ export default function SupplierProfilePage() {
 
         {activeTab === "products" &&
           (products.length === 0 ? (
-            <p className="grid-empty">This supplier has no products yet.</p>
+            <p className="grid-empty">{productState.q || selectedCategory ? "No products match your filters." : "This supplier has no products yet."}</p>
           ) : (
             <section className="product-grid">
                 {products.map((product) => {
-                  const badge = stockBadge(product.stock_status);
                   const maxQuantity = stockLimit(product);
                   const isAvailable =
                     product.stock_status !== "out_of_stock" && maxQuantity > 0;
                   const draftQuantity = quantityDrafts[product.product_id] ?? 1;
 
                   return (
-                    <div className="product-card" key={product.product_id}>
-                      <button
-                        type="button"
-                        className="product-image product-detail-trigger"
-                        aria-label={`View details for ${product.product_name}`}
-                        onClick={() => openProductDetail(product)}
-                      >
-                        <img
-                          src={
-                            product.image_url ??
-                            "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=400"
-                          }
-                          alt={product.product_name}
-                        />
-                      </button>
-                      <div className="product-details">
+                    <ProductCard
+                      key={product.product_id}
+                      product={product}
+                      onOpen={openProductDetail}
+                      stockText={maxQuantity > 0 ? `${maxQuantity} available` : "No stock available"}
+                    >
+                      <div className="product-cart-controls">
+                        <label className="quantity-field">
+                          <span>Qty</span>
+                          <input
+                            type="number"
+                            min="1"
+                            max={Math.max(maxQuantity, 1)}
+                            value={isAvailable ? draftQuantity : 0}
+                            disabled={!isAvailable}
+                            onChange={(event) =>
+                              setProductDraft(product, event.target.value)
+                            }
+                          />
+                        </label>
                         <button
                           type="button"
-                          className="product-name product-detail-trigger"
-                          onClick={() => openProductDetail(product)}
+                          className="add-cart-btn"
+                          disabled={!isAvailable}
+                          onClick={() => addToCart(product)}
                         >
-                          {product.product_name}
+                          <ShoppingCart size={15} />
+                          Add
                         </button>
-                        <div className="product-price">
-                          {peso(product.unit_price)}
-                        </div>
-                        <span className={`status ${badge.cls}`}>
-                          {badge.label}
-                        </span>
-                        <div className="product-stock">
-                          {maxQuantity > 0
-                            ? `${maxQuantity} available`
-                            : "No stock available"}
-                        </div>
-                        <div className="product-cart-controls">
-                          <label className="quantity-field">
-                            <span>Qty</span>
-                            <input
-                              type="number"
-                              min="1"
-                              max={Math.max(maxQuantity, 1)}
-                              value={isAvailable ? draftQuantity : 0}
-                              disabled={!isAvailable}
-                              onChange={(event) =>
-                                setProductDraft(product, event.target.value)
-                              }
-                            />
-                          </label>
-                          <button
-                            type="button"
-                            className="add-cart-btn"
-                            disabled={!isAvailable}
-                            onClick={() => addToCart(product)}
-                          >
-                            <ShoppingCart size={15} />
-                            Add
-                          </button>
-                        </div>
                       </div>
-                    </div>
+                    </ProductCard>
                   );
                 })}
               </section>
@@ -535,8 +508,6 @@ export default function SupplierProfilePage() {
         {activeTab === "products" && (
           <PaginationControls pagination={productPagination} disabled={productsFetching} onPageChange={(nextPage) => setSearchParams(updateListUrlState(searchParams, { page: nextPage }, { prefix: "product" }))} onLimitChange={(nextLimit) => setSearchParams(updateListUrlState(searchParams, { limit: nextLimit }, { prefix: "product" }))} ariaLabel="Supplier products pagination" className="supplier-profile-pagination" />
         )}
-
-        {activeTab === "products" && <label className="supplier-list-search">Search products<input value={productSearchInput} onChange={(event) => setProductSearchInput(event.target.value)} /></label>}
 
         {activeTab === "products" && productError && <p className="grid-empty" role="alert">Could not load products: {productError}</p>}
 
@@ -567,8 +538,10 @@ export default function SupplierProfilePage() {
         <ProductDetailModal
           open={!!detailId}
           product={detailProduct}
-          loading={detailLoading}
-          error={detailError}
+          // Gate on needsDetailFetch: a cancelled fetch (modal closed mid-load) never
+          // resets detailLoading/detailError, which would otherwise stick on every later open.
+          loading={needsDetailFetch && detailLoading}
+          error={needsDetailFetch ? detailError : null}
           quantity={detailProduct ? quantityDrafts[detailProduct.product_id] ?? 1 : 1}
           maxQuantity={stockLimit(detailProduct)}
           onQuantityChange={setProductDraft}

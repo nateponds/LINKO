@@ -3,7 +3,9 @@
    shadows (vars from shell.css). Scoped under .supplier-profile-page;
    the nav shell comes from AppLayout. */
 .supplier-profile-page {
-  padding: 30px 40px 60px;
+  max-width: var(--layout-max-width);
+  margin-inline: auto;
+  padding: var(--layout-page-start) var(--layout-gutter) var(--layout-page-end);
 
   /* profile header card */
   .profile-bar {
@@ -22,6 +24,7 @@
     display: flex;
     align-items: center;
     gap: 16px;
+    min-width: 0;
   }
 
   .circle-btn {
@@ -54,6 +57,8 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .supplier-name {
@@ -65,10 +70,15 @@
     color: var(--color-primary-dark);
   }
 
+  .supplier-name > span {
+    min-width: 0;
+  }
+
   .supplier-meta {
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-wrap: wrap;
     font-size: 0.88rem;
     color: var(--color-muted);
   }
@@ -77,6 +87,7 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
+    min-width: 0;
   }
 
   .action-buttons {
@@ -114,7 +125,14 @@
     color: #fff;
   }
 
-  /* tab nav — pill toggle like the dashboard's range switcher */
+  /* tab nav - pill toggle like the dashboard's range switcher */
+  .supplier-profile-tools {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin: 22px 0 20px;
+  }
+
   .tab-nav {
     display: flex;
     width: fit-content;
@@ -123,7 +141,7 @@
     border-radius: 25px;
     padding: 4px;
     gap: 4px;
-    margin: 22px 0 20px;
+    margin: 0;
   }
 
   .tab-btn {
@@ -273,7 +291,7 @@
     border-radius: 12px;
   }
 
-  /* Stats — one centered strip divided by hairlines, no boxes */
+  /* Stats - one centered strip divided by hairlines, no boxes */
   .stat-grid {
     display: flex;
     align-items: center;
@@ -287,6 +305,12 @@
     align-items: center;
     gap: 12px;
     padding: 6px 44px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .stat-card > div {
+    min-width: 0;
   }
 
   .stat-card + .stat-card {
@@ -319,7 +343,7 @@
     color: var(--color-muted);
   }
 
-  /* Feature cards — stretch edge to edge, centered content */
+  /* Feature cards - stretch edge to edge, centered content */
   .shop-features {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -364,106 +388,17 @@
   /* ── Products tab ── */
   .product-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     gap: 16px;
     padding: 0;
-  }
-
-  .product-card {
-    display: grid;
-    grid-template-rows: subgrid;
-    grid-row: span 6;
-    row-gap: 0;
-    border-radius: 12px;
-    overflow: hidden;
-    background: white;
-    box-shadow: 0 2px 8px rgba(23, 33, 61, 0.08);
-    transition: box-shadow 0.15s ease, transform 0.15s ease;
-  }
-
-  .product-card:hover {
-    box-shadow: 0 8px 20px rgba(23, 33, 61, 0.14);
-    transform: translateY(-2px);
-  }
-
-  .product-image {
-    width: 100%;
-    aspect-ratio: 4 / 3;
-    background: var(--color-primary-soft);
-    overflow: hidden;
-  }
-
-  .product-image img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-    transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-  }
-
-  .product-card:hover .product-image img {
-    transform: scale(1.04);
-  }
-
-  .product-details {
-    display: grid;
-    grid-template-rows: subgrid;
-    grid-row: span 5;
-    row-gap: 8px;
-    padding: 14px 16px 16px;
-  }
-
-  .product-name {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: var(--color-text);
-    overflow-wrap: anywhere;
-  }
-
-  .product-details > .status {
-    justify-self: start;
-    align-self: center;
-  }
-
-  /* The card image and name are buttons (keyboard-reachable modal triggers);
-     strip the native chrome so they still read as plain card content. */
-  .product-detail-trigger {
-    display: block;
-    width: 100%;
-    padding: 0;
-    border: none;
-    background: none;
-    font: inherit;
-    color: inherit;
-    text-align: left;
-    cursor: pointer;
-  }
-
-  .product-detail-trigger:focus-visible {
-    outline: 2px solid var(--color-primary);
-    outline-offset: 2px;
-  }
-
-  .product-name.product-detail-trigger:hover {
-    color: var(--color-primary-dark);
-  }
-
-  .product-price {
-    font-size: 1rem;
-    font-weight: 800;
-    color: var(--color-primary-dark);
-  }
-
-  .product-stock {
-    font-size: 0.78rem;
-    color: var(--color-muted);
   }
 
   .product-cart-controls {
     display: grid;
     grid-template-columns: 82px 1fr;
     gap: 8px;
-    margin-top: 8px;
+    margin-top: auto;
+    padding-top: 8px;
   }
 
   .quantity-field {
@@ -797,6 +732,10 @@
     font: inherit;
   }
 
+  .supplier-product-search {
+    margin: 0;
+  }
+
   .supplier-profile-pagination {
     margin-top: 20px;
   }
@@ -807,9 +746,32 @@
     font-weight: 800;
   }
 
-  @media (max-width: 560px) {
-    padding: 20px 16px 40px;
+  @media (max-width: 700px) {
+    &.supplier-profile-page--products {
+      padding-bottom: calc(var(--layout-page-end) + 76px);
+    }
 
+    .supplier-product-search {
+      position: fixed;
+      left: 16px;
+      right: 16px;
+      bottom: calc(64px + env(safe-area-inset-bottom));
+      z-index: 901;
+      display: flex;
+      padding: 10px 12px;
+      border: 1px solid #dbe2ee;
+      border-radius: 10px;
+      background: white;
+      box-shadow: 0 4px 16px rgba(23, 33, 61, 0.18);
+    }
+
+    .supplier-product-search input {
+      min-width: 0;
+      flex: 1;
+    }
+  }
+
+  @media (max-width: 560px) {
     .stat-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -849,7 +811,7 @@
   }
 }
 
-/* Product detail modal — deliberately top-level, not nested inside
+/* Product detail modal - deliberately top-level, not nested inside
    .supplier-profile-page: it is a fixed overlay and must not inherit the page
    container's scoping. Scoped class names rather than joining any of the three
    existing overlay idioms (.settings-modal-backdrop z1000 / .modal-overlay

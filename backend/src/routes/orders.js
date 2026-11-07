@@ -545,7 +545,7 @@ router.patch(
     const client = await pool.connect();
     try {
       const orderId = parsePositiveId(req.params.id, "Order");
-      // Sprint 13: total_distance_km is no longer read from the body — the
+      // Sprint 13: total_distance_km is no longer read from the body - the
       // server computes the origin -> destination distance itself.
       const { status, weight_kg, dimensions } = req.body ?? {};
       const validStatuses = [
@@ -603,7 +603,7 @@ router.patch(
           );
           // Sprint 13: parcel endpoints come from each business's CANONICAL
           // logistics address (never a LIMIT 1 pick). A missing or unpinned
-          // address hard-rolls-back the whole transition — shipping never
+          // address hard-rolls-back the whole transition - shipping never
           // silently skips parcel creation (docs/LOCATION_ROUTING.md).
           const endpoints = await client.query(
             `SELECT b.business_id, a.address_id,
@@ -676,8 +676,8 @@ router.patch(
         await notifyBusiness(
           client,
           order.buyer_business_id,
-          "Delivery Failed — Order Returned",
-          `Delivery failed — order #${orderId} returned to sender.`,
+          "Delivery Failed - Order Returned",
+          `Delivery failed - order #${orderId} returned to sender.`,
           "warning",
         );
         await notifyBusiness(

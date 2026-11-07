@@ -219,7 +219,7 @@ export default function LocationModal({ open, onClose, onSaved, address = null }
                       </div>
                     </div>
                     <p className="settings-modal-hint">
-                      Pick on the map or enter coordinates directly — both or
+                      Pick on the map or enter coordinates directly - both or
                       neither. Clearing both unpins the business and re-enables the
                       reminder.
                     </p>

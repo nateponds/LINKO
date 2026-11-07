@@ -418,7 +418,7 @@ async function main() {
     activeBranches = await branchRes.json();
 
     // Tracking scans (default depth) need an active courier and branch. Hard-stop
-    // if either is empty — same contract as categories/tiers above. Prevents the
+    // if either is empty - same contract as categories/tiers above. Prevents the
     // silent courier_id/branch_id guessing that produced 400s on every scan.
     if (depth === 'delivered') {
       if (!Array.isArray(activeCouriers) || !activeCouriers.length) {
@@ -792,13 +792,13 @@ async function main() {
 
     const isReturnedOutcome = Math.random() < 0.1; // 10% chance of delivery failure and return
     // Reference data is guaranteed non-empty here (hard-stopped at setup for
-    // depth 'delivered'), so no fallback guess — a guessed id could reference an
+    // depth 'delivered'), so no fallback guess - a guessed id could reference an
     // inactive courier and 400 every scan.
     const courierId = activeCouriers[Math.floor(Math.random() * activeCouriers.length)].courier_id;
 
     // The parcel's serving branch was assigned server-side at ship
     // (resolveInitialBranchId). Read it so branch scans carry a real branch_id
-    // instead of null — null-branch 'Arrived at Branch' scans produce empty
+    // instead of null - null-branch 'Arrived at Branch' scans produce empty
     // auto-remarks and cannot enter a courier's branch pool (logistics.js).
     let parcelBranchId = null;
     try {

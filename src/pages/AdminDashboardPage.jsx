@@ -28,12 +28,12 @@ const EMPTY_FORM = {
 };
 
 function membershipSummary(memberships) {
-  if (!Array.isArray(memberships) || memberships.length === 0) return "—";
+  if (!Array.isArray(memberships) || memberships.length === 0) return "-";
   return memberships.map((membership) => `${membership.business_name ?? "Business"} (${formatRoleLabel(membership.role)})`).join(", ");
 }
 
 function memberSummary(members) {
-  if (!Array.isArray(members) || members.length === 0) return "—";
+  if (!Array.isArray(members) || members.length === 0) return "-";
   return members.map((member) => `${member.full_name ?? member.email ?? "Member"} (${formatRoleLabel(member.role)})`).join(", ");
 }
 
@@ -255,7 +255,7 @@ export default function AdminDashboardPage() {
           <div className="cs-tools-grid">
             <div className="admin-create-form"><h3 className="cs-tool-title">Parcel lookup</h3><form onSubmit={submitLookup}><div className="admin-form-grid"><label><span>Parcel ID</span><input type="text" value={lookupId} onChange={(event) => setLookupId(event.target.value)} placeholder="LKO-00000001" /></label></div><div className="admin-form-actions"><button type="submit" className="admin-primary-btn">Open parcel</button></div></form></div>
             <div className="admin-create-form"><h3 className="cs-tool-title">Quick Cancel</h3><form onSubmit={submitCancel}><div className="admin-form-grid"><label><span>Parcel ID</span><input type="text" value={cancelId} onChange={(event) => setCancelId(event.target.value)} placeholder="LKO-00000001" /></label><label><span>Reason</span><input type="text" value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} placeholder="Customer request" /></label></div><div className="admin-form-actions">{cancelError ? <span className="admin-form-error">{cancelError}</span> : null}{cancelSuccess ? <span className="admin-form-success">{cancelSuccess}</span> : null}<button type="submit" className="admin-primary-btn" disabled={cancelBusy}>{cancelBusy ? "Cancelling…" : "Cancel parcel"}</button></div></form></div>
-            <div className="admin-create-form"><h3 className="cs-tool-title">Reassign courier</h3><p className="cs-tool-text">Courier reassignment is logged with a delivery event — open the parcel and use Log Delivery Event.</p><div className="cs-tool-links"><Link to="/logistics">Parcel list</Link><Link to="/logistics/management">Logistics management</Link></div></div>
+            <div className="admin-create-form"><h3 className="cs-tool-title">Reassign courier</h3><p className="cs-tool-text">Courier reassignment is logged with a delivery event - open the parcel and use Log Delivery Event.</p><div className="cs-tool-links"><Link to="/logistics">Parcel list</Link><Link to="/logistics/management">Logistics management</Link></div></div>
           </div>
         </section>
         <section className="admin-section">
@@ -283,7 +283,7 @@ export default function AdminDashboardPage() {
                       label={entry.full_name ?? entry.email}
                       cells={[
                         { key: "user", content: <>{entry.full_name ?? entry.email}<small>{entry.email}</small></> },
-                        { key: "role", content: entry.global_role ? formatRoleLabel(entry.global_role) : "—" },
+                        { key: "role", content: entry.global_role ? formatRoleLabel(entry.global_role) : "-" },
                         { key: "status", content: <span className={`status ${entry.is_active ? "notified" : "cancelled"}`}>{entry.is_active ? "Active" : "Inactive"}</span> },
                         { key: "actions", content: <button type="button" className="admin-action-btn" disabled={busy} onClick={() => requestToggleUserActive(entry)}>{busy ? "Updating…" : entry.is_active ? "Deactivate" : "Reactivate"}</button> },
                       ]}
@@ -320,7 +320,7 @@ export default function AdminDashboardPage() {
                       label={business.business_name}
                       cells={[
                         { key: "business", content: business.business_name },
-                        { key: "type", content: business.business_type ?? "—" },
+                        { key: "type", content: business.business_type ?? "-" },
                         { key: "status", content: <span className={`status ${business.is_verified ? "notified" : "waiting"}`}>{business.is_verified ? "Verified" : "Unverified"}</span> },
                         { key: "actions", content: <button type="button" className="admin-action-btn" disabled={busy} onClick={() => requestToggleBusinessVerified(business)}>{busy ? "Updating…" : business.is_verified ? "Unverify" : "Verify"}</button> },
                       ]}

@@ -1,10 +1,10 @@
-// Shared coordinate validation (Sprint 13 T03). Pure — no DB, no HTTP.
+// Shared coordinate validation (Sprint 13 T03). Pure - no DB, no HTTP.
 // One policy for every surface that accepts coordinates (settings, branches,
 // parcel booking), mirroring the migration 023 CHECK constraints:
 // paired, in range, finite, never exactly (0,0) ("Null Island").
 
 // Guarded coercion: only actual numbers and non-empty numeric strings count.
-// Number(null), Number("") and Number(true) all coerce to 0/1 — those must
+// Number(null), Number("") and Number(true) all coerce to 0/1 - those must
 // NOT sneak in as coordinates, so anything else returns NaN.
 function coerceCoordinate(value) {
   if (typeof value === "number") return value;
@@ -13,9 +13,9 @@ function coerceCoordinate(value) {
 }
 
 // Validates a coordinate pair from untrusted input. Returns
-//   { ok: true, latitude, longitude }  — normalized numbers, or both null
+//   { ok: true, latitude, longitude }  - normalized numbers, or both null
 //                                        (explicit unpin: gates re-engage)
-//   { ok: false, error }               — human-readable rejection reason
+//   { ok: false, error }               - human-readable rejection reason
 export function validateCoordinatePair(latitude, longitude) {
   const latMissing = latitude === null || latitude === undefined;
   const lngMissing = longitude === null || longitude === undefined;
@@ -48,7 +48,7 @@ export function validateCoordinatePair(latitude, longitude) {
 
 // Great-circle distance in km as a SQL fragment (docs/LOCATION_ROUTING.md
 // §Haversine). latParam/lngParam are placeholders ($n), latColumn/lngColumn
-// are column references — all fixed strings from code, never user input.
+// are column references - all fixed strings from code, never user input.
 // The LEAST/GREATEST clamp keeps acos in domain when both points are
 // identical (floating point can push the argument past 1.0 -> NaN).
 export function haversineKmSql(latParam, lngParam, latColumn, lngColumn) {

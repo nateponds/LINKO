@@ -5,7 +5,7 @@ import "./Skeleton.css";
 // Shared click-to-pin map (Sprint 13 §9.4). Dumb controlled component: the
 // parent owns draft/saved coordinate state; this only renders it and reports
 // picks via onChange({ latitude, longitude }) as numbers. Positional
-// [lng, lat] arrays exist ONLY inside this file — everything else in the app
+// [lng, lat] arrays exist ONLY inside this file - everything else in the app
 // speaks named latitude/longitude.
 //
 // Geocoder is pin assist only: a search result moves the map and pin and
@@ -13,11 +13,11 @@ import "./Skeleton.css";
 // text fields (PH barangay coverage is spotty; manual click is ground truth).
 //
 // mapbox-gl is dynamically imported so the main bundle doesn't carry it and
-// a missing VITE_MAPBOX_TOKEN or a failed load degrades to nothing — the
+// a missing VITE_MAPBOX_TOKEN or a failed load degrades to nothing - the
 // parents' numeric coordinate inputs remain the always-working fallback.
 
 const TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
-// Cebu metro — matches the seeded branch geometry demoed for the course.
+// Cebu metro - matches the seeded branch geometry demoed for the course.
 const DEFAULT_CENTER = [123.9, 10.33];
 
 function toFinite(value) {
@@ -163,7 +163,7 @@ export default function MapPicker({ latitude, longitude, onChange, onStatusChang
         {status === "no-token"
           ? "Map unavailable (no Mapbox token configured)"
           : "Map failed to load"}
-        {" — use the coordinate fields below."}
+        {" - use the coordinate fields below."}
       </p>
     );
   }
@@ -181,7 +181,7 @@ export default function MapPicker({ latitude, longitude, onChange, onStatusChang
         {status === "loading" ? (
           <span className="skeleton-sr">Loading map</span>
         ) : (
-          "Click the map to place the pin. Search moves the pin only — the address fields stay yours to edit."
+          "Click the map to place the pin. Search moves the pin only - the address fields stay yours to edit."
         )}
       </p>
       {geocoderHint && (
@@ -390,7 +390,7 @@ export function ParcelRouteMap({ stops }) {
                 <strong>{stop.label}</strong>
                 <small>
                   {stop.stop_type}
-                  {!hasCoordinates ? " — location not mapped" : ""}
+                  {!hasCoordinates ? " - location not mapped" : ""}
                 </small>
               </span>
             </li>

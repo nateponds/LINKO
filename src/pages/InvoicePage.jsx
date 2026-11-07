@@ -281,11 +281,11 @@ export default function InvoicePage() {
                     </span>
                     <span>
                       <span className="invoice-row-label">Buyer</span>
-                      {visibleInvoice.buyer_business_name ?? "—"}
+                      {visibleInvoice.buyer_business_name ?? "-"}
                     </span>
                     <span>
                       <span className="invoice-row-label">Seller</span>
-                      {visibleInvoice.wholesaler_business_name ?? "—"}
+                      {visibleInvoice.wholesaler_business_name ?? "-"}
                     </span>
                     <span>{shortDate(visibleInvoice.issued_at)}</span>
                     <span>{peso(visibleInvoice.total)}</span>
@@ -319,19 +319,19 @@ export default function InvoicePage() {
             <aside className="parties">
               <div className="party-card">
                 <div className="shop-name">
-                  {invoice?.invoice_number ?? "—"}
+                  {invoice?.invoice_number ?? "-"}
                 </div>
 
                 <div className="party-block">
                   <span className="field-label">Buyer Business</span>
                   <span className="field-value">
-                    {invoice?.buyer_business_name ?? "—"}
+                    {invoice?.buyer_business_name ?? "-"}
                   </span>
                 </div>
                 <div className="party-block">
                   <span className="field-label">Order No.</span>
                   <span className="field-value">
-                    #{invoice?.order_id ?? "—"}
+                    #{invoice?.order_id ?? "-"}
                   </span>
                 </div>
                 <div className="party-block">
@@ -346,7 +346,7 @@ export default function InvoicePage() {
                 <div className="party-block">
                   <span className="field-label">Seller Name / Shop Name</span>
                   <span className="field-value">
-                    {invoice?.wholesaler_business_name ?? "—"}
+                    {invoice?.wholesaler_business_name ?? "-"}
                   </span>
                 </div>
                 <div className="party-block">
@@ -373,7 +373,7 @@ export default function InvoicePage() {
                   </h1>
                   <span className="status-sub">
                     Issued {shortDate(invoice?.issued_at)} for order #
-                    {invoice?.order_id ?? "—"}
+                    {invoice?.order_id ?? "-"}
                   </span>
                 </div>
 
@@ -424,9 +424,9 @@ export default function InvoicePage() {
                   <tbody>
                     {(invoice?.items ?? []).map((item) => (
                       <tr key={`${item.product_id}-${item.sku}`}>
-                        <td>{item.product_name ?? "—"}</td>
-                        <td>{item.sku ?? "—"}</td>
-                        <td>{item.quantity ?? "—"}</td>
+                        <td>{item.product_name ?? "-"}</td>
+                        <td>{item.sku ?? "-"}</td>
+                        <td>{item.quantity ?? "-"}</td>
                         <td>{peso(item.unit_price_snapshot)}</td>
                         <td>{peso(item.line_total)}</td>
                       </tr>

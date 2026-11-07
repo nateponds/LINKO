@@ -1,4 +1,4 @@
-# LINKO Courier & Parcel Tracking System — Functional Requirements
+# LINKO Courier & Parcel Tracking System - Functional Requirements
 
 Derived from the corrected use-case model (`LINKO_USE-CASE.md`, `LINKO_USE-CASE_Requirements.md`),
 the integrated ERD (`LINKO_ERD.md`), the current database schema, and the implemented API contracts.
@@ -23,8 +23,8 @@ recognizes five user classes, enforced by role-based access control (RBAC):
 | **Platform Administrator** | Manages user accounts and business verification across the whole platform. |
 
 The canonical use-case diagram (`LINKO_USE-CASE.md`) models these same
-five roles. In the ERD, *sender* and *receiver* are per-parcel FK roles on `businesses` — the
-shipping wholesaler is the sender, the receiving buyer is the receiver — not separate login
+five roles. In the ERD, *sender* and *receiver* are per-parcel FK roles on `businesses` - the
+shipping wholesaler is the sender, the receiving buyer is the receiver - not separate login
 actors; the table above ties them to the marketplace roles.
 
 ---
@@ -69,9 +69,9 @@ actors; the table above ties them to the marketplace roles.
 
 - **FR-6.1** The system shall generate exactly one invoice when an order is accepted, freezing the accepted line-item total plus the selected service tier's base fee.
 - **FR-6.2** The system shall let the relevant parties view invoices scoped to their active business.
-- **FR-6.3** The system shall record exactly one payment per parcel and settle it according to method — prepaid at booking, cash-on-delivery on delivery or return. *(Payment is modeled and tracked, not payment-gateway enforced.)*
+- **FR-6.3** The system shall record exactly one payment per parcel and settle it according to method - prepaid at booking, cash-on-delivery on delivery or return. *(Payment is modeled and tracked, not payment-gateway enforced.)*
 
-## 8. Parcel Registration & Shipping Fee — *UC1–UC3, UC11–UC12*
+## 8. Parcel Registration & Shipping Fee - *UC1–UC3, UC11–UC12*
 
 - **FR-7.1** The system shall register a parcel either when a wholesaler ships an order or when a wholesaler, logistics coordinator, or platform administrator creates a standalone booking, recording sender, receiver, service tier, weight, and declared value.
 - **FR-7.2** The system shall generate a unique, collision-proof tracking number for every parcel at registration.
@@ -79,7 +79,7 @@ actors; the table above ties them to the marketplace roles.
 - **FR-7.4** The system shall create an initial "Order Created" tracking-log entry for every parcel at registration.
 - **FR-7.5** The system shall resolve and snapshot the parcel's initial branch and planned route based on origin/destination location.
 
-## 9. Parcel Tracking & Status Updates — *UC4, UC6, UC13*
+## 9. Parcel Tracking & Status Updates - *UC4, UC6, UC13*
 
 - **FR-8.1** The system shall let a courier update assigned parcels through the valid tracking state machine: *Order Created → Picked Up → Arrived at Branch → Departed Branch → Out for Delivery → Delivered*, plus the return path *Delivery Failed → Out for Return → Returned* triggered by three soft failures or the first hard-failure reason.
 - **FR-8.2** The system shall record every status update as an append-only tracking-log entry, keeping tracking history as the source of truth and surfacing the latest entry as the parcel's current status.
@@ -88,7 +88,7 @@ actors; the table above ties them to the marketplace roles.
 - **FR-8.5** The system shall let a buyer track their own parcel and view its tracking history and details, while denying access to unrelated parcels.
 - **FR-8.6** The system shall end a receiver's delivery timeline at the third delivery failure, while retaining full return-leg visibility for staff.
 
-## 10. Courier, Branch & Routing Operations — *UC7, UC9, UC10*
+## 10. Courier, Branch & Routing Operations - *UC7, UC9, UC10*
 
 - **FR-9.1** The system shall let a logistics coordinator create, update, and soft-delete branches.
 - **FR-9.2** The system shall soft-delete branches and shall block deactivation when it would strand live, unassigned parcels in the branch pool.
@@ -96,12 +96,12 @@ actors; the table above ties them to the marketplace roles.
 - **FR-9.4** The system shall let a coordinator assign a courier to a parcel, and shall let a courier self-claim a parcel from the pool.
 - **FR-9.5** The system shall route parcels to the nearest active, available, pinned branch by distance, falling back to a city match when no pinned branch candidate resolves.
 
-## 11. Service Tier Management — *UC8*
+## 11. Service Tier Management - *UC8*
 
 - **FR-10.1** The system shall maintain service tiers (e.g., Standard, Express, Next-Day) with their fee parameters and estimated delivery days.
 - **FR-10.2** The system shall make service tiers available for shipping-fee calculation and shall let a platform administrator edit existing tier definitions; adding and deleting tiers are outside this release.
 
-## 12. Parcel Cancellation — *UC14*
+## 12. Parcel Cancellation - *UC14*
 
 - **FR-11.1** The system shall let a logistics coordinator or platform administrator cancel a nonterminal parcel, recording the cancellation as a `Cancelled` tracking-log entry.
 - **FR-11.2** The system shall treat `Cancelled` as an administrative override distinct from the courier's normal delivery-state flow; couriers shall not be able to produce a `Cancelled` state.
@@ -134,7 +134,7 @@ actors; the table above ties them to the marketplace roles.
 
 The following are explicitly **not** functional requirements of this release:
 
-- **Commissions and wholesaler remittances** — removed entirely in migration `018` (no `commissions`/`commission_brackets` tables, no `wholesaler_remittances` view, no trigger); never a graded requirement and not to be reintroduced. The goods payment goes to the wholesaler undivided.
-- **Returns and payment refunds** — delivery-return tracking exists, but refund and payment-reversal semantics are not implemented.
-- **Self-service password reset, email notifications, and two-factor authentication** — not implemented in this release.
-- **Real payment-gateway settlement** — payment status is modeled and tracked, not gateway-enforced.
+- **Commissions and wholesaler remittances** - removed entirely in migration `018` (no `commissions`/`commission_brackets` tables, no `wholesaler_remittances` view, no trigger); never a graded requirement and not to be reintroduced. The goods payment goes to the wholesaler undivided.
+- **Returns and payment refunds** - delivery-return tracking exists, but refund and payment-reversal semantics are not implemented.
+- **Self-service password reset, email notifications, and two-factor authentication** - not implemented in this release.
+- **Real payment-gateway settlement** - payment status is modeled and tracked, not gateway-enforced.

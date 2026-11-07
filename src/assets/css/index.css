@@ -1,6 +1,6 @@
 @import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Manrope:wght@200..800&display=swap");
 
-/* LINKO theme palette — shared by the app shell and standalone screens. */
+/* LINKO theme palette - shared by the app shell and standalone screens. */
 :root {
   --color-primary: #315bc5;
   --color-primary-dark: #203c78;
@@ -12,6 +12,10 @@
   --color-text: #1d2c43;
   --color-muted: #637087;
   --dm-sans: "DM Sans", sans-serif;
+  --layout-max-width: 1360px;
+  --layout-gutter: clamp(16px, 3vw, 40px);
+  --layout-page-start: clamp(24px, 3vw, 32px);
+  --layout-page-end: 48px;
 }
 
 * {
@@ -37,6 +41,9 @@ body {
 
 button, input, select, textarea { font-family: inherit; }
 
+/* Icons keep their intended size when adjacent text needs to shrink or wrap. */
+svg.lucide { flex-shrink: 0; }
+
 /* keyboard focus ring (inputs keep their own border-based focus styles) */
 button:focus-visible,
 a:focus-visible,
@@ -59,7 +66,7 @@ select:focus-visible {
 }
 
 /* Mapbox geocoder search icon overlapped the input text. Vendor base (narrow)
-   puts the 23px icon at left:12px — ending at 35px — but pads the input only
+   puts the 23px icon at left:12px - ending at 35px - but pads the input only
    45px, so long queries ran under it. Pull the icon left and widen the padding.
    Two-class selectors so these win over the vendor sheet, which MapPicker
    loads dynamically after this file. */
@@ -67,7 +74,7 @@ select:focus-visible {
    input and relies on hand-tuned left/padding pairs to keep them apart, so
    long queries ran under the icon. The icon and input are already adjacent
    siblings in the control (lib/index.js appends searchIcon then input), so
-   lay them out as a flex row instead — clearance comes from `gap` and cannot
+   lay them out as a flex row instead - clearance comes from `gap` and cannot
    drift when the vendor retunes its pixel values.
    Two-class selectors so these win over the vendor sheet, which MapPicker
    loads dynamically after this file. */
@@ -93,7 +100,7 @@ select:focus-visible {
 }
 
 /* The clear/loading buttons are absolutely positioned individually, but their
-   wrapper is not — as a flex item it would claim width in the row. Take it
+   wrapper is not - as a flex item it would claim width in the row. Take it
    out of flow; the input keeps the vendor's right padding to clear them. */
 .mapboxgl-ctrl-geocoder .mapboxgl-ctrl-geocoder--pin-right {
   position: absolute;

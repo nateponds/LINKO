@@ -184,6 +184,42 @@
   align-items: center;
 }
 
+.landing-hero-grid > * {
+  min-width: 0;
+}
+
+/* Banner artwork also appears outside discovery; keep its layout local. */
+.landing-page .home-banner a {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: 14px;
+}
+
+.landing-page .home-banner img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 1;
+  object-fit: cover;
+}
+
+.landing-page .home-banner-btn {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 999px;
+  font-size: clamp(0.68rem, 1.2vw, 1rem);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.landing-page .home-banner-btn svg {
+  width: 1em;
+  height: 1em;
+}
+
 .landing-hero h1 {
   margin: 0;
   color: var(--color-primary-dark);

@@ -6,7 +6,7 @@
     --control-border: #dbe2ee;
   }
 
-  padding: 30px 40px 60px;
+  padding: var(--layout-page-start) var(--layout-gutter) var(--layout-page-end);
 
   /* heading row is the shared .page-head from shell.css; a minimal gray
      line divides it from the content below */
@@ -38,7 +38,7 @@
     background: #edf2fc;
     color: var(--color-primary-dark);
   }
-  /* table — flat on the page, no card, no shadow */
+  /* table - flat on the page, no card, no shadow */
   .orders-table-wrap {
     overflow-x: auto;
   }
@@ -159,9 +159,6 @@
     gap: 8px;
   }
 
-  @media (max-width: 700px) {
-    padding: 20px 16px 40px;
-  }
 }
 
 /* Ship + track modals. Overlay/box live outside .orders-page so the fixed
@@ -283,9 +280,8 @@
 }
 
 .orders-page {
-  max-width: 1360px;
+  max-width: var(--layout-max-width);
   margin-inline: auto;
-  padding-inline: clamp(16px, 4vw, 56px);
 
   .page-head p {
     margin: 6px 0 0;

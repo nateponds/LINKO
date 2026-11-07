@@ -1,8 +1,8 @@
--- 024_location_routing_constraints.sql — the location-routing delta that was
+-- 024_location_routing_constraints.sql - the location-routing delta that was
 -- once folded into an edited 023. Migration 023 shipped to staging (and to
 -- developers' local databases) with only the bare latitude/longitude columns
 -- and branches.is_available. The migration runner keys off filename, so an
--- already-applied 023 can never gain new statements — the coordinate
+-- already-applied 023 can never gain new statements - the coordinate
 -- constraints, the businesses.logistics_address_id pointer, and the
 -- parcel_route_stops snapshot table live here in a new sequential file instead.
 -- A fresh database applies 023 then 024 and lands on the same final schema.
@@ -20,7 +20,7 @@ UPDATE addresses
 
 -- Coordinates on addresses (WGS84 decimal degrees) for Mapbox pinning and
 -- Haversine routing. Paired (both NULL = unpinned), in range, and never
--- exactly (0,0) — the Mapbox default-center misfire.
+-- exactly (0,0) - the Mapbox default-center misfire.
 ALTER TABLE addresses
     ADD CONSTRAINT addresses_coords_paired
         CHECK ((latitude IS NULL) = (longitude IS NULL)),
@@ -44,7 +44,7 @@ ALTER TABLE businesses
 -- recomputed. Text and coordinates are copies, not joins: parcels point at
 -- mutable address rows, and re-pinning a business or branch must never
 -- rewrite history. The PK makes snapshot creation idempotent under retries.
--- Display-only reference data — actual tracking diverges freely.
+-- Display-only reference data - actual tracking diverges freely.
 CREATE TABLE parcel_route_stops (
     parcel_id VARCHAR(20) NOT NULL REFERENCES parcels(parcel_id) ON UPDATE CASCADE ON DELETE CASCADE,
     stop_order SMALLINT NOT NULL CHECK (stop_order BETWEEN 1 AND 3),

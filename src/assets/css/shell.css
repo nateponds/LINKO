@@ -20,7 +20,8 @@
   .topbar {
     background: white;
     color: var(--color-text);
-    padding: 8px max(24px, calc((100vw - 1280px) / 2));
+    padding: 8px max(var(--layout-gutter), calc((100% - 1280px) / 2));
+    overflow-wrap: anywhere;
     font-size: 12px;
     border-bottom: 1px solid var(--color-surface);
   }
@@ -44,7 +45,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 20px max(24px, calc((100vw - 1280px) / 2));
+    padding: 16px max(var(--layout-gutter), calc((100% - 1280px) / 2));
     gap: 24px;
     border-bottom: 1px solid var(--color-surface);
     /* border-bottom: 4px solid var(--color-accent); */
@@ -386,6 +387,13 @@
   .notif-list li.notif-row {
     cursor: pointer;
     transition: background 0.15s ease;
+  }
+
+  .notif-row > div,
+  .profile-head > div,
+  .menu-profile > div {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .notif-list li.notif-row:hover {
@@ -737,6 +745,8 @@
     font-size: 1.8rem;
     font-weight: 600;
     letter-spacing: -0.8px;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
   }
 
   .search-bar {
@@ -744,7 +754,7 @@
     align-items: center;
     gap: 8px;
     flex: 1;
-    min-width: 220px;
+    min-width: min(220px, 100%);
     max-width: 460px;
     height: 44px;
     border-radius: 8px;
@@ -762,6 +772,8 @@
     border: none;
     outline: none;
     flex: 1;
+    min-width: 0;
+    width: 100%;
     height: 100%;
     font-size: 0.95rem;
     background: transparent;
@@ -996,10 +1008,10 @@
     display: none;
   }
 
-  /* footer — matches landing footer design (assets/css/landing.css) */
+  /* footer - matches landing footer design (assets/css/landing.css) */
   .app-footer {
-    padding: 70px 0 24px;
-    margin-top: 40px;
+    padding: 40px 0 24px;
+    margin-top: 0;
     background: #21386f;
     color: rgba(237, 242, 255, 0.68);
   }
@@ -1007,9 +1019,9 @@
   .footer-grid {
     display: grid;
     grid-template-columns: 2fr 1fr 1fr 1fr;
-    gap: 45px;
-    padding: 0 40px 55px;
-    max-width: 1200px;
+    gap: 32px;
+    padding: 0 var(--layout-gutter) 32px;
+    max-width: var(--layout-max-width);
     margin: 0 auto;
   }
 
@@ -1072,9 +1084,9 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    max-width: 1200px;
+    max-width: var(--layout-max-width);
     margin: 0 auto;
-    padding: 18px 40px 0;
+    padding: 18px var(--layout-gutter) 0;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
     color: rgba(237, 242, 255, 0.36);
     font-size: 0.61rem;
@@ -1086,16 +1098,9 @@
     align-items: center;
   }
 
-  /* Logistics Management page */
-  .logistics-page {
-    padding: 2rem;
-    max-width: 1200px;
-    margin: 0 auto;
-  }
-
   .logistics-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 420px));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 2rem;
     justify-content: center;
   }
@@ -1211,6 +1216,11 @@
     gap: 1rem;
   }
 
+  .logistics-list-row > :first-child {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
   .logistics-delete-btn {
     flex-shrink: 0;
     display: inline-flex;
@@ -1319,7 +1329,7 @@
 
   @media (max-width: 700px) {
     .app-layout {
-      padding-bottom: 64px;
+      padding-bottom: calc(64px + env(safe-area-inset-bottom));
     }
 
     .logistics-grid {
@@ -1350,6 +1360,8 @@
       font-weight: 600;
       padding: 4px 8px;
       border-radius: 8px;
+      min-width: 0;
+      min-height: 44px;
     }
 
     .mobile-nav a.active {
@@ -1358,7 +1370,13 @@
 
     .footer-grid {
       grid-template-columns: 1fr 1fr;
-      padding: 24px;
+      gap: 24px;
+      padding: 0 var(--layout-gutter) 24px;
+    }
+
+    .pagination-controls :is(select, button),
+    .list-search :is(input, button) {
+      min-height: 44px;
     }
 
     .pagination-controls__actions {

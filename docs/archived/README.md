@@ -1,11 +1,11 @@
-# LINKO Documentation Review — Full Report
+# LINKO Documentation Review - Full Report
 
 > **Reviewed:** June 28, 2026
 > **Files Analyzed:** 21 documents across 5 directories
 > **Total Documentation Size:** ~162 KB
 
 > [!NOTE]
-> **Point-in-time snapshot** — findings reflect June 28, 2026. Since then: `LAYOUT_QUESTIONNAIRE.md`, `LINKO_BPMN_PROCESS_GUIDE.md`, and `linko_logistics_specification.md` moved to `archived/`; Sprint 1 completed and Sprint 2 planned in `SPRINTS.md`; migrations 002/003 added a logistics subsystem that is a **CIS 2104 course deliverable** (see [course-deliverable.md](./course-deliverable.md) and [LINKO_ERD.md](./LINKO_ERD.md)), not product scope. Links in the tables below have been repaired to current locations; the prose findings are historical.
+> **Point-in-time snapshot** - findings reflect June 28, 2026. Since then: `LAYOUT_QUESTIONNAIRE.md`, `LINKO_BPMN_PROCESS_GUIDE.md`, and `linko_logistics_specification.md` moved to `archived/`; Sprint 1 completed and Sprint 2 planned in `SPRINTS.md`; migrations 002/003 added a logistics subsystem that is a **CIS 2104 course deliverable** (see [course-deliverable.md](./course-deliverable.md) and [LINKO_ERD.md](./LINKO_ERD.md)), not product scope. Links in the tables below have been repaired to current locations; the prose findings are historical.
 
 ---
 
@@ -25,10 +25,10 @@
 
 ## Project Overview
 
-**LINKO** (LINKO Technologies, Inc.) is a supply chain management platform for MSMEs (Micro, Small, and Medium Enterprises) — primarily sari-sari stores, local franchises, and independent retailers in the Philippines. The platform centralizes supplier discovery, logistics coordination, shipment visibility, and inventory-related workflows.
+**LINKO** (LINKO Technologies, Inc.) is a supply chain management platform for MSMEs (Micro, Small, and Medium Enterprises) - primarily sari-sari stores, local franchises, and independent retailers in the Philippines. The platform centralizes supplier discovery, logistics coordination, shipment visibility, and inventory-related workflows.
 
-- **Company:** Registered in Cebu, Philippines. 5 co-founders (academic origin — University of San Carlos, Information Management II course).
-- **Tech Stack:** React 19 + Vite 8 (frontend), Node.js/Express + PostgreSQL planned (backend — not yet implemented).
+- **Company:** Registered in Cebu, Philippines. 5 co-founders (academic origin - University of San Carlos, Information Management II course).
+- **Tech Stack:** React 19 + Vite 8 (frontend), Node.js/Express + PostgreSQL planned (backend - not yet implemented).
 - **Stage:** Design and early frontend scaffolding. Sprint 1 active (ends 2026-07-05).
 - **License:** MIT
 
@@ -75,18 +75,18 @@
 - Points to ROADMAP.md, FRONTEND_GUIDE.md, BACKEND_GUIDE.md, BACKLOG.md, SPRINTS.md
 
 > [!WARNING]
-> **No setup/install instructions** (npm install, npm run dev, etc.) — a gap for new contributors. Listed as a near-term backlog item in ROADMAP.md.
+> **No setup/install instructions** (npm install, npm run dev, etc.) - a gap for new contributors. Listed as a near-term backlog item in ROADMAP.md.
 
 ---
 
 ### ROADMAP.md
 
-**Role:** Central strategic planning document — product vision, 11 development phases, build order, backlog, and open questions.
+**Role:** Central strategic planning document - product vision, 11 development phases, build order, backlog, and open questions.
 
 - **8 Core Product Domains:** Inventory, Warehouse Ops, Supplier Discovery, Supplier Matching, Orders & Fulfillment, Client Acquisition, Logistics, Analytics
 - **Phases 0–4 (MVP):** Foundation → Web App → Data Modeling → Inventory/Warehouse → Supplier Directory
 - **Phases 5–10:** All **deferred post-MVP** (Matching, Orders, Logistics, Auth, Mobile, Hardening)
-- **MVP matching constraint:** Location/proximity only — explicitly excludes category, MOQ, lead time, price
+- **MVP matching constraint:** Location/proximity only - explicitly excludes category, MOQ, lead time, price
 
 > [!IMPORTANT]
 > **6 open product questions remain unresolved:**
@@ -104,7 +104,7 @@
 
 ### LICENSE & package.json
 
-- **MIT License** — Copyright 2026 LINKO Team
+- **MIT License** - Copyright 2026 LINKO Team
 - **Frontend deps:** React 19 + Vite 8 only. No router, no state management, no frontend test framework.
 - **Backend deps:** Express 5 + pg. Test harness is Node's built-in `node --test` (no extra packages needed).
 
@@ -127,12 +127,12 @@
 
 ### BACKEND_GUIDE.md
 
-**Role:** Master backend planning document — architecture, domains, APIs, auth, matching logic.
+**Role:** Master backend planning document - architecture, domains, APIs, auth, matching logic.
 
 - **9 Backend Domains** defined with capabilities
 - **12 API Route Groups** sketched
 - **5 User Roles:** MSME owner, Wholesaler, Warehouse staff, Logistics coordinator, Platform admin
-- **Development priorities ordered** — Stack (Done) → Contracts (Done) → DB Spec (Done) → Migrations → Scaffold → Build endpoints
+- **Development priorities ordered** - Stack (Done) → Contracts (Done) → DB Spec (Done) → Migrations → Scaffold → Build endpoints
 
 > [!WARNING]
 > **Duplicate header bug:** Lines 1-11 contain a copy-paste duplication of the heading and purpose paragraph.
@@ -143,7 +143,7 @@
 
 **Role:** Structured backlog of proposed/deferred work items.
 
-- 6 items total — 3 High priority (Auth, API Scaffolding, DB Setup), 1 Medium, 2 Low/Deferred
+- 6 items total - 3 High priority (Auth, API Scaffolding, DB Setup), 1 Medium, 2 Low/Deferred
 - All items added 2026-06-19 to 2026-06-21
 
 > [!NOTE]
@@ -166,7 +166,7 @@
 **Role:** 6 unresolved UI/UX design questions spawned from PROPOSED_LAYOUT.md.
 
 > [!CAUTION]
-> **All 6 answers are blank** — no team member has filled in their picks yet. This is a **blocking dependency** for finalizing the layout. The summary table is also completely empty.
+> **All 6 answers are blank** - no team member has filled in their picks yet. This is a **blocking dependency** for finalizing the layout. The summary table is also completely empty.
 
 Topics: Product Statistic header behavior, Supplier sidebar filtering, Category band pills, DataTable columns, Status values, Logistics page plan.
 
@@ -174,11 +174,11 @@ Topics: Product Statistic header behavior, Supplier sidebar filtering, Category 
 
 ### PROPOSED_LAYOUT.md
 
-**Role:** Foundational UI/UX layout proposal — page structures, component hierarchy, React folder architecture.
+**Role:** Foundational UI/UX layout proposal - page structures, component hierarchy, React folder architecture.
 
 - **9 shared components** defined (AppHeader, SearchBar, FilterDropdown, Card, DataTable, etc.)
 - **4 page layouts:** Dashboard, Inventory, Suppliers, Supplier Details
-- Logistics page **explicitly excluded** — "under deliberation"
+- Logistics page **explicitly excluded** - "under deliberation"
 - No responsive breakpoints, CSS framework, or design tokens mentioned
 
 ---
@@ -187,8 +187,8 @@ Topics: Product Statistic header behavior, Supplier sidebar filtering, Category 
 
 **Role:** Active sprint tracker.
 
-- **Sprint 1-FE** (Jun 21 – Jul 5): 4 tasks, Lead @BaelJM — all unchecked
-- **Sprint 1-BE** (Jun 21 – Jul 5): 4 tasks, Lead @nateponds — all unchecked
+- **Sprint 1-FE** (Jun 21 – Jul 5): 4 tasks, Lead @BaelJM - all unchecked
+- **Sprint 1-BE** (Jun 21 – Jul 5): 4 tasks, Lead @nateponds - all unchecked
 
 > [!WARNING]
 > **Sprint ends Jul 5** but all 8 tasks show unchecked, even though some backend tasks (stack selection, API contracts, DB spec) are marked "Done" in BACKEND_GUIDE.md. Checkboxes haven't been updated.
@@ -212,7 +212,7 @@ Topics: Product Statistic header behavior, Supplier sidebar filtering, Category 
 
 ### glossary.md
 
-**Role:** Canonical terminology reference — standardizes language across code, APIs, DB, docs, and UI.
+**Role:** Canonical terminology reference - standardizes language across code, APIs, DB, docs, and UI.
 
 - Carefully distinguishes: `supplier` (umbrella) vs. `wholesaler` (preferred canonical term)
 - Distinguishes: `inventory` vs. `product` vs. `inventory item` vs. `inventory transaction`
@@ -235,16 +235,16 @@ Topics: Product Statistic header behavior, Supplier sidebar filtering, Category 
 > [!NOTE]
 > **Design observations:**
 >
-> - `trust_rating` defaults to 5.00 (maximum) for new suppliers — potentially misleading
+> - `trust_rating` defaults to 5.00 (maximum) for new suppliers - potentially misleading
 > - No `updated_at` columns on any table
 > - No soft-delete mechanism (`is_active` / `deleted_at`)
-> - Only `city` VARCHAR for location — no lat/lon or PostGIS for real distance matching
+> - Only `city` VARCHAR for location - no lat/lon or PostGIS for real distance matching
 
 ---
 
 ### CODEBASE_OVERVIEW.md (docs/codebase-notes/)
 
-**Role:** Living document explaining the codebase as it exists right now — intended for student developers.
+**Role:** Living document explaining the codebase as it exists right now - intended for student developers.
 
 - Explains the two-package structure: root Vite/React app + `backend/` Node package
 - Documents the full backend request flow (server.js → app.js → routes → errorHandler)
@@ -268,8 +268,8 @@ All archived docs include clear "Archive Notes" at the top explaining why they w
 
 ### Example Templates (2 files)
 
-- [EXAMPLE_BACKLOG.md](./examples/EXAMPLE_BACKLOG.md) — Template for proposing backlog items
-- [EXAMPLE_SPRINTS.md](./examples/EXAMPLE_SPRINTS.md) — Template for structuring sprint plans
+- [EXAMPLE_BACKLOG.md](./examples/EXAMPLE_BACKLOG.md) - Template for proposing backlog items
+- [EXAMPLE_SPRINTS.md](./examples/EXAMPLE_SPRINTS.md) - Template for structuring sprint plans
 
 > [!NOTE]
 > Both example files reference `FRONTEND_GUIDE.md` which is now archived. Should be updated to reference current docs.
@@ -280,12 +280,12 @@ All archived docs include clear "Archive Notes" at the top explaining why they w
 
 ### ✅ Strengths
 
-1. **Exceptional documentation for an early-stage project** — 266KB across 24 files covering strategy, architecture, processes, tutorials, and team governance
-2. **Clear archival discipline** — superseded docs are properly archived with notes pointing to replacements
-3. **Strong glossary** — resolves terminology ambiguity proactively with explicit canonical rules
-4. **Well-defined MVP constraints** — matching limited to location/proximity only, consistently enforced across all docs
-5. **Sources of truth clearly identified** — API_CONTRACTS.md, LINKO_database_specification.md, BACKEND_GUIDE.md, CODEBASE_OVERVIEW.md, ROADMAP.md
-6. **Backend scaffold committed** — Express 5 + PostgreSQL with migration runner and Node test harness now live in `backend/`
+1. **Exceptional documentation for an early-stage project** - 266KB across 24 files covering strategy, architecture, processes, tutorials, and team governance
+2. **Clear archival discipline** - superseded docs are properly archived with notes pointing to replacements
+3. **Strong glossary** - resolves terminology ambiguity proactively with explicit canonical rules
+4. **Well-defined MVP constraints** - matching limited to location/proximity only, consistently enforced across all docs
+5. **Sources of truth clearly identified** - API_CONTRACTS.md, LINKO_database_specification.md, BACKEND_GUIDE.md, CODEBASE_OVERVIEW.md, ROADMAP.md
+6. **Backend scaffold committed** - Express 5 + PostgreSQL with migration runner and Node test harness now live in `backend/`
 
 ### ⚠️ Terminology Inconsistency
 
@@ -293,13 +293,13 @@ The terms **"supplier"** and **"wholesaler"** were used interchangeably across a
 
 - **Glossary** prefers `wholesaler` as the canonical term ✅
 - **Database migration SQL** now uses `'wholesaler'` in CHECK constraints ✅ _(resolved)_
-- **API routes** use `/api/suppliers` — intentionally kept for implementation continuity per API_CONTRACTS.md note
+- **API routes** use `/api/suppliers` - intentionally kept for implementation continuity per API_CONTRACTS.md note
 
 ### 📊 Status Tracking Drift
 
 | What             | BACKEND_GUIDE says | SPRINTS.md says | BACKLOG.md says            |
 | ---------------- | ------------------ | --------------- | -------------------------- |
-| Stack selection  | Done ✅            | Unchecked ☐     | —                          |
+| Stack selection  | Done ✅            | Unchecked ☐     | -                          |
 | API contracts    | Done ✅            | Checked ✅      | Proposed                   |
 | DB spec          | Done ✅            | Checked ✅      | Done ✅ _(updated Jun 28)_ |
 | Backend scaffold | Done ✅            | Checked ✅      | Done ✅ _(updated Jun 28)_ |
@@ -315,7 +315,7 @@ The terms **"supplier"** and **"wholesaler"** were used interchangeably across a
 
 | #   | Issue                                                                                   | Location                |
 | --- | --------------------------------------------------------------------------------------- | ----------------------- |
-| 1   | **All layout questionnaire answers blank** — blocking UI finalization                   | LAYOUT_QUESTIONNAIRE.md |
+| 1   | **All layout questionnaire answers blank** - blocking UI finalization                   | LAYOUT_QUESTIONNAIRE.md |
 | 2   | **Stack selection sprint checkbox still unchecked** despite being Done in BACKEND_GUIDE | SPRINTS.md              |
 
 ### 🟡 Moderate Issues
@@ -342,7 +342,7 @@ The terms **"supplier"** and **"wholesaler"** were used interchangeably across a
 | 15  | No pagination strategy for GET endpoints                                      | API_CONTRACTS.md                |
 | 16  | Missing commit types (`test`, `ci`, `perf`) and scopes (`auth`, `warehouses`) | CONVENTIONAL_COMMITS.md         |
 | 17  | Logistics & Reports pages in nav but have no designs or contracts             | PROPOSED_LAYOUT.md              |
-| 18  | Only `city` VARCHAR for location — no coordinates for real proximity matching | LINKO_database_specification.md |
+| 18  | Only `city` VARCHAR for location - no coordinates for real proximity matching | LINKO_database_specification.md |
 
 ---
 
@@ -350,23 +350,23 @@ The terms **"supplier"** and **"wholesaler"** were used interchangeably across a
 
 ### Immediate (This Sprint)
 
-1. **Update SPRINTS.md checkboxes** to reflect actual progress — backend tasks like stack selection, API contracts, and DB spec appear to be done
-2. **Reconcile BACKLOG.md statuses** — items that moved to Sprint 1 should be marked "In Sprint"
-3. **Complete the Layout Questionnaire** — this is blocking frontend finalization
+1. **Update SPRINTS.md checkboxes** to reflect actual progress - backend tasks like stack selection, API contracts, and DB spec appear to be done
+2. **Reconcile BACKLOG.md statuses** - items that moved to Sprint 1 should be marked "In Sprint"
+3. **Complete the Layout Questionnaire** - this is blocking frontend finalization
 
 ### Short-Term (Next Sprint)
 
 4. **Add setup instructions to README** (`npm install`, `npm run dev`, environment requirements)
-5. **Fix beginner_backend_guide.md** — update Exercise 3 to use current Inventory/Supplier schema, fix broken file link
+5. **Fix beginner_backend_guide.md** - update Exercise 3 to use current Inventory/Supplier schema, fix broken file link
 6. **Fix BACKEND_GUIDE.md** duplicate header
 7. **Add `updated_at` columns** to database schema (standard practice)
-8. **Review `trust_rating` default** — consider defaulting to NULL or 0 instead of 5.00
+8. **Review `trust_rating` default** - consider defaulting to NULL or 0 instead of 5.00
 9. **Update example templates** to reference current docs instead of archived FRONTEND_GUIDE.md
 
 ### Medium-Term
 
 10. **Define error response shapes** in API_CONTRACTS.md
 11. **Add pagination strategy** for GET endpoints
-12. **Plan geographic coordinates** — add lat/lon to Businesses/Warehouses for real proximity matching
+12. **Plan geographic coordinates** - add lat/lon to Businesses/Warehouses for real proximity matching
 13. **Install react-router-dom** when multi-page navigation begins
 14. **Harmonize "supplier" vs. "wholesaler"** terminology in code (CHECK constraints, route names)

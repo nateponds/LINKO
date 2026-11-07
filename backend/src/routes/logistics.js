@@ -113,7 +113,7 @@ async function selectBranch(db, branchId, { includeActive = false } = {}) {
 
 // Delivery failure reasons. A Delivery Failed scan must carry exactly one of
 // these as its remark (enforced in POST /parcels/:id/tracking). Mirrors
-// src/lib/statusWorkflow.js — keep both lists in sync.
+// src/lib/statusWorkflow.js - keep both lists in sync.
 const FAIL_REASONS = ["Receiver unavailable", "Delivery refused", "Bad address"];
 // Hard reasons open the return leg immediately on the fail they occur, skipping
 // the retry loop. Soft reasons (the remainder) get retries up to RETURN_TRIGGER_FAILS.
@@ -124,7 +124,7 @@ const isHardFailReason = (remarks) =>
 // The flow is non-linear (checkpoints repeat, delivery retries, the return leg
 // retraces hubs "backwards"), so courier moves are an explicit transition map
 // rather than an integer rank. The 'Delivery Failed' edge is count-aware:
-// < 3 fails allows a retry, the 3rd fail opens the return leg — the count
+// < 3 fails allows a retry, the 3rd fail opens the return leg - the count
 // gates the transition, it never auto-writes 'Returned'.
 const COURIER_TRANSITIONS = {
   "Order Created": ["Picked Up"],
@@ -142,9 +142,9 @@ const COURIER_TRANSITIONS = {
 
 // returnTriggered is the derived return-leg signal: true once the retry cap is
 // hit OR any prior fail carried a hard reason. Computed by the caller (the
-// POST handler and the list query) — see isHardFailReason / RETURN_TRIGGER_FAILS.
+// POST handler and the list query) - see isHardFailReason / RETURN_TRIGGER_FAILS.
 export function courierAllowedNextStatuses(currentStatus, returnTriggered = false) {
-  if (!currentStatus) return VALID_TRACKING_STATUSES.filter((s) => s !== "Cancelled");
+  if (!currentStatus) return [];
   if (TERMINAL_TRACKING_STATUSES.has(currentStatus)) return [];
   if (currentStatus === "Delivery Failed") {
     return returnTriggered ? ["Arrived at Branch"] : ["Out for Delivery"];
@@ -179,6 +179,9 @@ function asClientError(error) {
 }
 
 export function canCourierSubmitTrackingStatus(currentStatus, nextStatus, returnTriggered = false) {
+  if (!currentStatus) {
+    return { allowed: false, message: "This parcel has no tracking status. Ask a logistics coordinator to review it." };
+  }
   if (nextStatus === "Cancelled") {
     return {
       allowed: false,
@@ -654,7 +657,7 @@ router.post(
   "/parcels",
   requireAnyRole(["wholesaler", "logistics_coordinator", "platform_admin"]),
   async (req, res, next) => {
-  // Sprint 13: total_distance_km is no longer read from the body — the
+  // Sprint 13: total_distance_km is no longer read from the body - the
   // server computes the pricing distance itself (ignored if sent).
   const {
     sender_id,
@@ -751,7 +754,7 @@ router.post(
     }
 
     // Pin gate (Sprint 13): pricing distance needs both endpoints. BLOCK,
-    // not degrade — pre-launch means there is no legacy class to grandfather.
+    // not degrade - pre-launch means there is no legacy class to grandfather.
     if (
       origin.latitude === null || origin.longitude === null ||
       destination.latitude === null || destination.longitude === null
@@ -1032,12 +1035,12 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
       throw error;
     }
 
-    // Fail count is derived, never stored on parcels — parcel state lives only
+    // Fail count is derived, never stored on parcels - parcel state lives only
     // in tracking_logs (docs/LINKO_ERD.md design notes). It gates the courier
     // Delivery Failed edge and fires the 3rd-fail notification below.
     // Counts 'Delivery Failed' rows, not 'Out for Delivery' rows: OFD is
     // ambiguous (≠ failure) and counting it would trip the return leg the instant
-    // the 3rd OFD scans — before attempt #3 actually fails. The explicit failure
+    // the 3rd OFD scans - before attempt #3 actually fails. The explicit failure
     // event is recorded, not inferred. A derived count also can't drift the way a
     // stored delivery_attempts column would.
     const failCount = await client.query(
@@ -1294,8 +1297,8 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
 
     // Order-side effects are split across the return flow (AGENT_HANDOFF §7):
     // the 3rd Delivery Failed notifies both parties that the return leg is
-    // beginning (no money/order change), and the final Returned scan — the
-    // terminal scan back at the sender — settles the order and payment.
+    // beginning (no money/order change), and the final Returned scan - the
+    // terminal scan back at the sender - settles the order and payment.
     // Fire the return-leg notification exactly once, on the fail that triggers
     // the return. Trigger = this fail carries a hard reason, OR it is the
     // RETURN_TRIGGER_FAILS-th fail. !returnTriggered is the fire-once guard:
@@ -1323,14 +1326,14 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
         await notifyBusiness(
           client,
           order.buyer_business_id,
-          "Delivery Failed — Parcel Returning to Sender",
+          "Delivery Failed - Parcel Returning to Sender",
           message,
           "warning",
         );
         await notifyBusiness(
           client,
           order.wholesaler_business_id,
-          "Delivery Failed — Parcel Returning to Sender",
+          "Delivery Failed - Parcel Returning to Sender",
           message,
           "warning",
         );

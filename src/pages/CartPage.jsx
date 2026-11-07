@@ -304,7 +304,7 @@ export default function CartPage() {
                     <option key={address.address_id} value={address.address_id}>
                       {address.label}
                       {address.is_default ? " (default)" : ""}
-                      {" — "}
+                      {" - "}
                       {formatAddress(address)}
                       {address.has_coordinates ? "" : " (not pinned)"}
                     </option>
@@ -322,7 +322,7 @@ export default function CartPage() {
               >
                 {tiers.map((tier) => (
                   <option key={tier.tier_id} value={tier.tier_id}>
-                    {tier.tier_name} ({tier.estimated_days} days) — {peso(tierBaseFee(tier))} per order
+                    {tier.tier_name} ({tier.estimated_days} days) - {peso(tierBaseFee(tier))} per order
                   </option>
                 ))}
               </select>

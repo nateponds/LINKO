@@ -137,7 +137,7 @@ It creates these tables:
 
 (The `inventory_items` and `inventory_transactions` tables, their mutation
 trigger, and their indexes were created here originally but dropped in
-migration `019` — stock lives on `products.stock_quantity` instead.)
+migration `019` - stock lives on `products.stock_quantity` instead.)
 
 It also creates:
 

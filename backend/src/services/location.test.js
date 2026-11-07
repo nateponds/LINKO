@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { validateCoordinatePair } from "./location.js";
 
-// Pure unit tests — run without DATABASE_URL.
+// Pure unit tests - run without DATABASE_URL.
 
 function ok(latitude, longitude) {
   return { ok: true, latitude, longitude };

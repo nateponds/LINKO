@@ -14,7 +14,7 @@ This detailed logistics database specification has been marked as OUTDATED and r
 
 ## 1. System Overview & Roadmap Alignment
 
-This document outlines the database schema for the **Logistics Coordination** domain of **LINKO**—a supply chain management platform for MSMEs with a wholesaler-facing marketplace. While the complete LINKO ecosystem eventually tracks Inventory, Suppliers, and Matching workflows, this specific relational schema fulfills the core requirements for managing a parcel's lifecycle from pickup to drop-off.
+This document outlines the database schema for the **Logistics Coordination** domain of **LINKO**-a supply chain management platform for MSMEs with a wholesaler-facing marketplace. While the complete LINKO ecosystem eventually tracks Inventory, Suppliers, and Matching workflows, this specific relational schema fulfills the core requirements for managing a parcel's lifecycle from pickup to drop-off.
 
 ### Domain Integration Hooks:
 

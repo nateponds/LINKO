@@ -8,7 +8,7 @@
     --control-border: #dbe2ee;
   }
 
-  padding: 30px 40px 60px;
+  padding: var(--layout-page-start) var(--layout-gutter) var(--layout-page-end);
 
   /* heading row is the shared .page-head from shell.css; a minimal gray
      line divides it from the product list below */
@@ -215,7 +215,7 @@
     font-size: 0.82rem;
   }
 
-  /* product list — borderless, straight on the page; hairlines only */
+  /* product list - borderless, straight on the page; hairlines only */
   .inventory-container {
     overflow-x: auto;
   }
@@ -525,8 +525,6 @@
   }
 
   @media (max-width: 700px) {
-    padding: 16px 12px 40px;
-
     .add-btn-label,
     .filter-btn-label,
     .filter-btn-chevron {
@@ -543,9 +541,8 @@
 }
 
 .inventory-page {
-  max-width: 1360px;
+  max-width: var(--layout-max-width);
   margin-inline: auto;
-  padding-inline: clamp(16px, 4vw, 56px);
 
   .page-head p {
     margin: 6px 0 0;

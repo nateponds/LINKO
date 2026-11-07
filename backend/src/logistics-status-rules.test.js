@@ -6,12 +6,30 @@ import {
   canSubmitTrackingStatus,
   courierAllowedNextStatuses,
 } from "./routes/logistics.js";
+import { allowedNext, TRACKING_STATUSES } from "../../src/lib/statusWorkflow.js";
+
+test("frontend courier actions match backend transitions for every stage and return state", () => {
+  for (const status of [...TRACKING_STATUSES, null, "In Transit"]) {
+    for (const returning of [false, true]) {
+      assert.deepEqual(allowedNext(status, returning), courierAllowedNextStatuses(status, returning));
+    }
+  }
+});
 
 test("canCourierSubmitTrackingStatus rejects courier cancellation", () => {
   const result = canCourierSubmitTrackingStatus("Out for Delivery", "Cancelled");
 
   assert.equal(result.allowed, false);
   assert.match(result.message, /cannot cancel/i);
+});
+
+test("couriers cannot initialize missing or unrecognized tracking states", () => {
+  for (const status of [null, undefined, "", "In Transit"]) {
+    assert.deepEqual(courierAllowedNextStatuses(status), []);
+    assert.equal(canCourierSubmitTrackingStatus(status, "Delivered").allowed, false);
+    assert.equal(canCourierSubmitTrackingStatus(status, "Picked Up").allowed, false);
+  }
+  assert.equal(canSubmitTrackingStatus(null, "Order Created").allowed, true);
 });
 
 test("canCourierSubmitTrackingStatus rejects updates after delivered or returned", () => {

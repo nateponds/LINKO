@@ -3,7 +3,7 @@
 // which until now was only ever visible to the owning wholesaler in Inventory.
 // Callers own `open` and all cart logic; this component only renders and reports
 // intent, mirroring the prop-driven contract of ConfirmDialog.
-// ponytail: no exit animation — ConfirmDialog carries `closing`/EXIT_MS only to
+// ponytail: no exit animation - ConfirmDialog carries `closing`/EXIT_MS only to
 // sync with a CSS slide-out. A plain fade needs no unmount delay.
 import { useEffect, useRef } from "react";
 import { ShoppingCart, X } from "lucide-react";

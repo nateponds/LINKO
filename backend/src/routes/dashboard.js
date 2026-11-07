@@ -125,7 +125,7 @@ router.get("/dashboard", requireAuth, async (req, res, next) => {
        LIMIT 6`;
 
     // Incoming orders the wholesaler still has to accept or start preparing.
-    // Scoped to wholesaler_business_id only — a buyer membership must not
+    // Scoped to wholesaler_business_id only - a buyer membership must not
     // inflate the "needs action" count.
     const actionableOrdersQuery = `
       SELECT o.status, COUNT(*)::int AS count

@@ -211,7 +211,7 @@ export default function OrdersPage() {
     const actions = [];
 
     // Buyer parcel tracking is available to whoever can see the order (buyer,
-    // wholesaler, admin) once a parcel exists — a read-only modal, no logistics
+    // wholesaler, admin) once a parcel exists - a read-only modal, no logistics
     // workspace access. Operators still have the full parcel detail page.
     if (order.parcel_id && TRACKABLE_STATUSES.has(status)) {
       actions.push({ label: "Track parcel", onClick: () => openTracking(order) });
@@ -246,7 +246,7 @@ export default function OrdersPage() {
     if (status === "accepted") {
       actions.push({ label: "Preparing", nextStatus: "preparing" });
     } else if (status === "preparing") {
-      // Ship collects the real weight at handoff — open the modal, don't PATCH.
+      // Ship collects the real weight at handoff - open the modal, don't PATCH.
       actions.push({ label: "Ship", onClick: () => setShipOrder(order) });
     }
     // Past "shipped" the courier owns the parcel; delivery is confirmed by
@@ -349,7 +349,7 @@ export default function OrdersPage() {
                             label={`Order #${order.order_id}`}
                             cells={[
                               { key: "order", className: "order-identity", content: <>#{order.order_id}<small>{shortDate(order.created_at)}</small></> },
-                              { key: "partner", content: partner ?? "—" },
+                              { key: "partner", content: partner ?? "-" },
                               { key: "status", content: <span className={`status ${statusClass(statusLabel(order.status))}`}>{statusLabel(order.status)}</span> },
                               { key: "total", className: "order-number-cell", content: peso(order.total) },
                               {
@@ -368,12 +368,12 @@ export default function OrdersPage() {
                                       </button>
                                     ))}
                                   </div>
-                                ) : <span className="muted-cell">—</span>,
+                                ) : <span className="muted-cell">-</span>,
                               },
                             ]}
                           >
                             <dl>
-                              <div><dt>{buying ? "Customer" : "Seller"}</dt><dd>{otherBusiness ?? "—"}</dd></div>
+                              <div><dt>{buying ? "Customer" : "Seller"}</dt><dd>{otherBusiness ?? "-"}</dd></div>
                               <div><dt>Items</dt><dd>{itemCount(order)}</dd></div>
                               <div>
                                 <dt>Invoice</dt>
@@ -381,7 +381,7 @@ export default function OrdersPage() {
                                   <Link className="track-link" to={`/invoices?invoice=${order.invoice.invoice_id}`}>
                                     {order.invoice.invoice_number ?? "View invoice"}
                                   </Link>
-                                ) : "—"}</dd>
+                                ) : "-"}</dd>
                               </div>
                             </dl>
                           </ExpandableTableRow>
@@ -491,7 +491,7 @@ export default function OrdersPage() {
                         trackParcel.parcel.current_status,
                       )}`}
                     >
-                      {trackParcel.parcel.current_status ?? "—"}
+                      {trackParcel.parcel.current_status ?? "-"}
                     </span>
                   </p>
                   <TrackingTimeline parcel={trackParcel.parcel} />

@@ -44,7 +44,7 @@ services:
   # PRODUCTION ENVIRONMENT (linko.nateponds.com)
   # Production uses a managed Supabase Postgres. DATABASE_URL is injected from
   # the PROD_DATABASE_URL GitHub Actions secret (include ?sslmode=require).
-  # No local prod Postgres container — Supabase is the source of truth.
+  # No local prod Postgres container - Supabase is the source of truth.
   # =========================================================================
   linko-backend-production:
     build:

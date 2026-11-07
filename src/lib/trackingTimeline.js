@@ -13,7 +13,7 @@ function formatAddress(address) {
 
 export function trackingLocationText(step, parcel) {
   // Delivery attempts (successful or failed) happen at the destination, not a
-  // branch — showing a "handled by" branch there would mislead.
+  // branch - showing a "handled by" branch there would mislead.
   if (step.status_update === "Out for Delivery" || step.status_update === "Delivery Failed") {
     return "";
   }

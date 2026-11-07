@@ -2,8 +2,8 @@
    DATA LAYER
    ---------------------------------------------------------------------
    This stands in for a future database/API call. Everything the page
-   displays — tracking no., customer, seller, status, and tracking
-   history — comes from the object returned by fetchOrder().
+   displays - tracking no., customer, seller, status, and tracking
+   history - comes from the object returned by fetchOrder().
 
    To wire this up to a real backend later, replace the body of
    fetchOrder() with an actual request, e.g.:
@@ -39,11 +39,11 @@ const MOCK_ORDER_DB = {
         sub: "as on 27 Jun 2026, Friday · last updated 29 Jun 2026, Sunday"
       },
       timeline: [
-        { title: "Delivered", meta: "27 Jun 2026 · 2:30 PM — at Cebu City, PH", state: "current" },
-        { title: "Out for delivery", meta: "27 Jun 2026 · 11:30 AM — at Cebu City, PH", state: "done" },
-        { title: "In transit", meta: "25 Jun 2026 · 5:30 PM — Manila, PH → Cebu City, PH", state: "done" },
-        { title: "Order picked up", meta: "24 Jun 2026 · 7:26 AM — from Manila, PH", state: "done" },
-        { title: "Order received", meta: "23 Jun 2026 · 12:46 PM — at Manila, PH", state: "done" }
+        { title: "Delivered", meta: "27 Jun 2026 · 2:30 PM - at Cebu City, PH", state: "current" },
+        { title: "Out for delivery", meta: "27 Jun 2026 · 11:30 AM - at Cebu City, PH", state: "done" },
+        { title: "In transit", meta: "25 Jun 2026 · 5:30 PM - Manila, PH → Cebu City, PH", state: "done" },
+        { title: "Order picked up", meta: "24 Jun 2026 · 7:26 AM - from Manila, PH", state: "done" },
+        { title: "Order received", meta: "23 Jun 2026 · 12:46 PM - at Manila, PH", state: "done" }
       ]
     }
   };

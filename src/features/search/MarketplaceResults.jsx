@@ -3,8 +3,8 @@ import { Link, useSearchParams } from "react-router-dom";
 import { BadgeCheck, MapPin, Package, Search } from "lucide-react";
 import PaginationControls from "../../components/ui/PaginationControls";
 import { apiGet } from "../../lib/api";
-import { hueOf, imageForCategory, imageForSupplier, initialOf } from "../../lib/categoryImages";
-import { peso, stockBadge } from "../../lib/format";
+import { hueOf, imageForSupplier, initialOf } from "../../lib/categoryImages";
+import MarketplaceProductCard from "../products/MarketplaceProductCard";
 import { readListUrlState, updateListUrlState } from "../../lib/pagination";
 import { apiPath, normalizePage, shouldClampPage } from "../suppliers/marketplacePagination";
 import { normalizeSearchQuery, searchParamsWithoutQuery } from "./marketplaceSearch.js";
@@ -21,30 +21,6 @@ function SupplierImage({ businessId, businessName }) {
   return (
     <div className="supplier-box-image">
       <img src={imageForSupplier(businessId)} alt="" onError={() => setFailed(true)} />
-    </div>
-  );
-}
-
-function ProductResult({ product }) {
-  const badge = stockBadge(product.stock_status);
-  return (
-    <div className="home-product-card">
-      <div className="home-product-image">
-        <img src={product.image_url ?? imageForCategory(product.category_name)} alt={product.product_name} />
-        {product.category_name && <span className="home-product-tag">{product.category_name}</span>}
-      </div>
-      <div className="home-product-body">
-        <p className="home-product-name">{product.product_name}</p>
-        <p className="home-product-by">by {product.business_name}</p>
-        <div className="home-product-meta">
-          <span className="home-product-price">{peso(product.unit_price)}</span>
-          <span className={`status ${badge.cls}`}>{badge.label}</span>
-        </div>
-        <Link to={`/suppliers/${product.business_id}?product_id=${product.product_id}`} className="home-product-cta">
-          View product
-        </Link>
-        <p className="home-product-note" aria-hidden="true" />
-      </div>
     </div>
   );
 }
@@ -167,7 +143,7 @@ function MarketplaceResults() {
               <p className="grid-empty">No products match “{q}”{scope}.</p>
             ) : (
               <div className="home-product-grid">
-                {products.map((product) => <ProductResult product={product} key={product.product_id} />)}
+                {products.map((product) => <MarketplaceProductCard product={product} key={product.product_id} />)}
               </div>
             )}
             <PaginationControls
@@ -192,10 +168,10 @@ function MarketplaceResults() {
                     <SupplierImage businessId={supplier.business_id} businessName={supplier.business_name} />
                     <div className="supplier-box-info">
                       <h3>
-                        {supplier.business_name}
+                        <span className="supplier-box-name" title={supplier.business_name}>{supplier.business_name}</span>
                         {supplier.is_verified && <BadgeCheck size={16} className="verified-badge" aria-label="Verified" />}
                       </h3>
-                      <p className="supplier-box-meta"><MapPin size={14} /> {supplier.city_municipality ?? supplier.city ?? "—"}</p>
+                      <p className="supplier-box-meta"><MapPin size={14} /> {supplier.city_municipality ?? supplier.city ?? "-"}</p>
                       <p className="supplier-box-meta"><Package size={14} /> {supplier.product_count} product{supplier.product_count === 1 ? "" : "s"}</p>
                     </div>
                   </Link>

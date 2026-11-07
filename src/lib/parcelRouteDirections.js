@@ -8,10 +8,10 @@ export const ROAD_MATCH_METERS = 200;
 
 export const ROUTE_CAPTIONS = {
   roads: "Route follows roads.",
-  noToken: "Dashed line — no Mapbox token.",
-  unavailable: "Dashed line — directions unavailable.",
-  offRoad: "Dashed line — off-road location.",
-  noCoordinates: "Dashed line — a stop has no coordinates.",
+  noToken: "Dashed line - no Mapbox token.",
+  unavailable: "Dashed line - directions unavailable.",
+  offRoad: "Dashed line - off-road location.",
+  noCoordinates: "Dashed line - a stop has no coordinates.",
   noLegs: "No driving legs between stops.",
   mixedOffRoad: "Route follows roads; dashed line for off-road locations.",
   mixedNoCoordinates: "Route follows roads; dashed line where a stop has no coordinates.",

@@ -72,7 +72,7 @@ const categories = [
 const categoryBackBar = document.getElementById("categoryBackBar");
 const categoryBackBtn = document.getElementById("categoryBackBtn");
 
-// Back button — return to category grid
+// Back button - return to category grid
 categoryBackBtn.addEventListener("click", () => {
   grid.style.display = "none";
   categoryBackBar.style.display = "none";

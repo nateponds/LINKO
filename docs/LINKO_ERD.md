@@ -1,4 +1,4 @@
-# LINKO — Entity Relationship Diagram
+# LINKO - Entity Relationship Diagram
 
 This diagram covers the 21 application tables in `backend/schema.sql`. The technical
 `schema_migrations` bookkeeping table is intentionally omitted.

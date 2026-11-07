@@ -4,7 +4,7 @@ import test from "node:test";
 import createApp from "./app.js";
 import { createPool } from "./db.js";
 
-// Sprint 13 T06: marketplace shipments — buyer pin gate at order placement,
+// Sprint 13 T06: marketplace shipments - buyer pin gate at order placement,
 // wholesaler pin gate at ship time, canonical logistics addresses, server
 // distance, route snapshots, hard rollback on missing addresses.
 // DB-backed tests skip without DATABASE_URL, same as app.test.js.
@@ -259,7 +259,7 @@ test("unpinned wholesaler cannot ship: 409, order stays preparing, nothing persi
       assert.equal(await orderStatus(pool, orderId), "preparing", "409 rolls back the transition");
       await assertNoParcel(pool, orderId, "unpinned wholesaler ship");
 
-      // Missing canonical address (pointer NULL) hard-fails the same way —
+      // Missing canonical address (pointer NULL) hard-fails the same way -
       // shipping never silently skips parcel creation.
       await pool.query(
         "UPDATE businesses SET logistics_address_id = NULL WHERE business_id = $1",
