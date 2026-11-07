@@ -254,7 +254,7 @@ export default function SupplierProfilePage() {
 
   return (
     <AppLayout>
-      <div className="supplier-profile-page">
+      <div className={`supplier-profile-page${activeTab === "products" ? " supplier-profile-page--products" : ""}`}>
         <section className="profile-bar">
           <div className="profile-info">
             <button className="circle-btn">
@@ -299,7 +299,9 @@ export default function SupplierProfilePage() {
           </div>
         </section>
 
-        <nav className="tab-nav">
+        <div className="supplier-profile-tools">
+        {activeTab === "products" && <label className="supplier-list-search supplier-product-search">Search products<input type="search" value={productSearchInput} onChange={(event) => setProductSearchInput(event.target.value)} /></label>}
+        <nav className="tab-nav" aria-label="Supplier sections">
           {["shop", "products", "categories"].map((tab) => (
             <button
               key={tab}
@@ -310,6 +312,7 @@ export default function SupplierProfilePage() {
             </button>
           ))}
         </nav>
+        </div>
 
         {activeTab === "shop" && (
           <section className="shop-section">
@@ -444,7 +447,7 @@ export default function SupplierProfilePage() {
 
         {activeTab === "products" &&
           (products.length === 0 ? (
-            <p className="grid-empty">This supplier has no products yet.</p>
+            <p className="grid-empty">{productState.q || selectedCategory ? "No products match your filters." : "This supplier has no products yet."}</p>
           ) : (
             <section className="product-grid">
                 {products.map((product) => {
@@ -479,12 +482,14 @@ export default function SupplierProfilePage() {
                         >
                           {product.product_name}
                         </button>
-                        <div className="product-price">
-                          {peso(product.unit_price)}
+                        <div className="product-meta">
+                          <div className="product-price">
+                            {peso(product.unit_price)}
+                          </div>
+                          <span className={`status ${badge.cls}`}>
+                            {badge.label}
+                          </span>
                         </div>
-                        <span className={`status ${badge.cls}`}>
-                          {badge.label}
-                        </span>
                         <div className="product-stock">
                           {maxQuantity > 0
                             ? `${maxQuantity} available`
@@ -536,8 +541,6 @@ export default function SupplierProfilePage() {
         {activeTab === "products" && (
           <PaginationControls pagination={productPagination} disabled={productsFetching} onPageChange={(nextPage) => setSearchParams(updateListUrlState(searchParams, { page: nextPage }, { prefix: "product" }))} onLimitChange={(nextLimit) => setSearchParams(updateListUrlState(searchParams, { limit: nextLimit }, { prefix: "product" }))} ariaLabel="Supplier products pagination" className="supplier-profile-pagination" />
         )}
-
-        {activeTab === "products" && <label className="supplier-list-search">Search products<input value={productSearchInput} onChange={(event) => setProductSearchInput(event.target.value)} /></label>}
 
         {activeTab === "products" && productError && <p className="grid-empty" role="alert">Could not load products: {productError}</p>}
 
