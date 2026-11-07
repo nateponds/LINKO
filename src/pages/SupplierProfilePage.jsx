@@ -474,6 +474,7 @@ export default function SupplierProfilePage() {
                         <button
                           type="button"
                           className="product-name product-detail-trigger"
+                          title={product.product_name}
                           onClick={() => openProductDetail(product)}
                         >
                           {product.product_name}

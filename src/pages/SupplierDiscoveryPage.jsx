@@ -43,8 +43,8 @@ function ProductCard({ product }) {
         )}
       </div>
       <div className="home-product-body">
-        <p className="home-product-name">{product.product_name}</p>
-        <p className="home-product-by">by {product.business_name}</p>
+        <p className="home-product-name" title={product.product_name}>{product.product_name}</p>
+        <p className="home-product-by" title={product.business_name}>by {product.business_name}</p>
         <div className="home-product-meta">
           <span className="home-product-price">{peso(product.unit_price)}</span>
           <span className={`status ${badge.cls}`}>{badge.label}</span>
@@ -66,7 +66,7 @@ function ProductCard({ product }) {
             Add
           </button>
         </div>
-        {note && <p className="home-product-note">{note}</p>}
+        <p className="home-product-note" aria-live="polite">{note}</p>
       </div>
     </div>
   );

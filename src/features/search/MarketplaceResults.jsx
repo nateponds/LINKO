@@ -34,8 +34,8 @@ function ProductResult({ product }) {
         {product.category_name && <span className="home-product-tag">{product.category_name}</span>}
       </div>
       <div className="home-product-body">
-        <p className="home-product-name">{product.product_name}</p>
-        <p className="home-product-by">by {product.business_name}</p>
+        <p className="home-product-name" title={product.product_name}>{product.product_name}</p>
+        <p className="home-product-by" title={product.business_name}>by {product.business_name}</p>
         <div className="home-product-meta">
           <span className="home-product-price">{peso(product.unit_price)}</span>
           <span className={`status ${badge.cls}`}>{badge.label}</span>
