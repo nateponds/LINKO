@@ -265,7 +265,7 @@ export default function SupplierProfilePage() {
             </button>
             <div className="profile-text">
               <div className="supplier-name">
-                {supplier?.business_name ?? "Supplier"}
+                <span>{supplier?.business_name ?? "Supplier"}</span>
                 {supplier?.is_verified && (
                   <BadgeCheck size={18} aria-label="Verified" />
                 )}
@@ -538,8 +538,10 @@ export default function SupplierProfilePage() {
         <ProductDetailModal
           open={!!detailId}
           product={detailProduct}
-          loading={detailLoading}
-          error={detailError}
+          // Gate on needsDetailFetch: a cancelled fetch (modal closed mid-load) never
+          // resets detailLoading/detailError, which would otherwise stick on every later open.
+          loading={needsDetailFetch && detailLoading}
+          error={needsDetailFetch ? detailError : null}
           quantity={detailProduct ? quantityDrafts[detailProduct.product_id] ?? 1 : 1}
           maxQuantity={stockLimit(detailProduct)}
           onQuantityChange={setProductDraft}

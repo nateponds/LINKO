@@ -827,7 +827,8 @@
     text-underline-offset: 4px;
   }
 
-  .parcel-card-receiver { grid-column: 1; gap: 12px; }
+  .parcel-card-receiver { grid-column: 1; gap: 12px; min-width: 0; }
+  .parcel-card-receiver > div { min-width: 0; }
   .parcel-card-icon { margin-top: 4px; color: var(--color-primary); }
   .courier-destination-label { display: block; color: #53627a; font-size: 0.82rem; }
   .parcel-card-receiver h2 { margin: 3px 0 0; font-size: 1.2rem; line-height: 1.35; overflow-wrap: anywhere; }
@@ -890,6 +891,7 @@
     gap: 8px;
     font-size: 0.9rem;
     line-height: 1.5;
+    overflow-wrap: anywhere;
   }
   .courier-status-notice { grid-column: 1 / -1; margin: 16px 0 0; padding-top: 16px; border-top: 1px solid #e2e7ef; color: #765000; }
   .parcel-card-error { grid-column: 1 / -1; }

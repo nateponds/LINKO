@@ -35,7 +35,7 @@ function MissingLocationBanner() {
       }}
     >
       <TriangleAlert size={16} />
-      <span>
+      <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
         <strong>{activeBusiness.business_name}</strong> has no pinned{" "}
         {isBuyer ? "delivery" : "pickup"} location -{" "}
         {isBuyer ? "orders can't be placed" : "orders can't be shipped"} until

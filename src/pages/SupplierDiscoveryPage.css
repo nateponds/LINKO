@@ -139,6 +139,7 @@
   }
 
   .home-wholesaler-card {
+    min-width: 0;
     display: flex;
     align-items: center;
     gap: 14px;
@@ -295,14 +296,19 @@
     font-size: 1rem;
     font-weight: 700;
     color: var(--color-primary-dark);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    min-width: 0;
 
     .verified-badge {
       color: var(--color-accent-dark);
       flex-shrink: 0;
     }
+  }
+
+  .supplier-box-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .supplier-box-meta {
@@ -312,6 +318,7 @@
     margin: 0;
     font-size: 0.84rem;
     color: var(--color-muted);
+    overflow-wrap: anywhere;
   }
 
   .supplier-box-meta svg {

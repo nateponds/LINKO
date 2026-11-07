@@ -389,6 +389,13 @@
     transition: background 0.15s ease;
   }
 
+  .notif-row > div,
+  .profile-head > div,
+  .menu-profile > div {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
   .notif-list li.notif-row:hover {
     background: rgba(64, 130, 230, 0.08);
   }
@@ -1207,6 +1214,11 @@
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
+  }
+
+  .logistics-list-row > :first-child {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .logistics-delete-btn {

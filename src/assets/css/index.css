@@ -41,6 +41,9 @@ body {
 
 button, input, select, textarea { font-family: inherit; }
 
+/* Icons keep their intended size when adjacent text needs to shrink or wrap. */
+svg.lucide { flex-shrink: 0; }
+
 /* keyboard focus ring (inputs keep their own border-based focus styles) */
 button:focus-visible,
 a:focus-visible,

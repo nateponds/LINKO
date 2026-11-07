@@ -70,6 +70,10 @@
     color: var(--color-primary-dark);
   }
 
+  .supplier-name > span {
+    min-width: 0;
+  }
+
   .supplier-meta {
     display: flex;
     align-items: center;
@@ -83,6 +87,7 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
+    min-width: 0;
   }
 
   .action-buttons {
@@ -300,6 +305,12 @@
     align-items: center;
     gap: 12px;
     padding: 6px 44px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .stat-card > div {
+    min-width: 0;
   }
 
   .stat-card + .stat-card {

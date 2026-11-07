@@ -374,8 +374,15 @@
   gap: 0.45rem;
 }
 
+.address-row-main,
+.address-row-title strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .address-row-actions {
   display: flex;
+  flex-shrink: 0;
   flex-wrap: wrap;
   gap: 0.5rem;
   justify-content: flex-end;
@@ -444,8 +451,14 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  gap: 1rem;
   padding: 1.5rem;
   border-bottom: 1px solid #e9ecef;
+}
+
+.settings-modal-title-group {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .settings-modal-title {
@@ -460,6 +473,7 @@
 }
 
 .settings-modal-close {
+  flex-shrink: 0;
   background: none;
   border: none;
   cursor: pointer;

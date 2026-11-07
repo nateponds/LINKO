@@ -126,7 +126,7 @@ function SupplierGrid() {
             <Link to={`/suppliers/${supplier.business_id}`} className="supplier-box" key={supplier.business_id}>
               <SupplierImage businessId={supplier.business_id} businessName={supplier.business_name} />
               <div className="supplier-box-info">
-                <h3>{supplier.business_name}{supplier.is_verified && <BadgeCheck size={16} className="verified-badge" aria-label="Verified" />}</h3>
+                <h3><span className="supplier-box-name" title={supplier.business_name}>{supplier.business_name}</span>{supplier.is_verified && <BadgeCheck size={16} className="verified-badge" aria-label="Verified" />}</h3>
                 <p className="supplier-box-meta"><MapPin size={14} /> {supplier.city_municipality ?? supplier.city ?? "-"}</p>
                 <p className="supplier-box-meta"><Package size={14} /> {supplier.product_count} product{supplier.product_count === 1 ? "" : "s"}</p>
               </div>
