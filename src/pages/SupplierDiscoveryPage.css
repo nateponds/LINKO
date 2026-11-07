@@ -181,7 +181,7 @@
   }
 
   .home-wholesaler-name {
-    display: block;
+    display: flex;
     align-items: center;
     gap: 5px;
     min-width: 0;
