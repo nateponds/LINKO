@@ -89,7 +89,7 @@
 
 .product-card__by {
   margin: 0;
-  height: 2.6em;
+  height: 2.9em; /* two lines at line-height 1.45 */
   overflow: hidden;
   overflow-wrap: anywhere;
   display: -webkit-box;
