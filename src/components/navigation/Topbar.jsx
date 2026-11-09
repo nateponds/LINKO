@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Bell,
   Boxes,
@@ -23,11 +23,12 @@ import { GoChevronDown } from "react-icons/go";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../auth/AuthProvider";
 import { useCart } from "../../features/cart/CartProvider";
-import { formatRoleLabel, primaryRole, ROLE_ACCESS } from "../../auth/roleAccess";
+import { APP_NAV_ITEMS, formatRoleLabel, primaryRole, ROLE_ACCESS } from "../../auth/roleAccess";
 import MarketplaceSearch from "../../features/search/MarketplaceSearch.jsx";
 import { marketplaceSearchPath } from "../../features/search/marketplaceSearch";
 import ConfirmDialog from "../ui/ConfirmDialog";
-import Sidebar from "./Sidebar";
+import { cartLineItems, bundleSubtotal } from "../../features/cart/cart";
+import { peso } from "../../lib/format";
 
 function getIconForType(type) {
   if (type === "warning") return TriangleAlert;
@@ -35,27 +36,7 @@ function getIconForType(type) {
   return Package;
 }
 
-function focusIfVisible(element) {
-  if (!element?.isConnected) return;
-
-  const styles = window.getComputedStyle(element);
-  if (
-    styles.display === "none" ||
-    styles.visibility === "hidden" ||
-    styles.visibility === "collapse" ||
-    element.getClientRects().length === 0
-  ) {
-    return;
-  }
-
-  element.focus();
-}
-
 function Topbar({ showSearch = false, showCategories = false }) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const closeSidebar = useCallback(() => setMenuOpen(false), []);
-  const menuButtonRef = useRef(null);
-  const sidebarLogoutRef = useRef(false);
   const [openPanel, setOpenPanel] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [notificationPage, setNotificationPage] = useState(1);
@@ -76,7 +57,8 @@ function Topbar({ showSearch = false, showCategories = false }) {
     logout,
     hasAnyRole,
   } = useAuth();
-  const { count: cartCount } = useCart();
+  const { count: cartCount, cart } = useCart();
+  const cartItems = cartLineItems(cart);
   const displayName = user?.full_name || user?.email || "LINKO User";
   const displayBusiness = activeBusiness?.business_name || "No business assigned";
   const displayRole =
@@ -89,23 +71,17 @@ function Topbar({ showSearch = false, showCategories = false }) {
   const badgeLabel = BADGE_LABELS[badgeRole] ?? formatRoleLabel(badgeRole);
   const avatarLetter = displayName.charAt(0).toUpperCase();
 
-  function requestLogoutConfirmation(fromSidebar = false) {
-    sidebarLogoutRef.current = fromSidebar;
+  function requestLogoutConfirmation() {
+    setOpenPanel(null);
     setConfirmLogout(true);
   }
 
   function cancelLogoutConfirmation() {
     setConfirmLogout(false);
-    if (!sidebarLogoutRef.current) return;
-
-    sidebarLogoutRef.current = false;
-    requestAnimationFrame(() => focusIfVisible(menuButtonRef.current));
   }
 
   async function handleLogout() {
-    sidebarLogoutRef.current = false;
     setOpenPanel(null);
-    setMenuOpen(false);
     await logout();
     navigate("/login", { replace: true });
   }
@@ -302,15 +278,31 @@ function Topbar({ showSearch = false, showCategories = false }) {
         )}
         <div className="header-actions">
           {hasAnyRole(ROLE_ACCESS.marketplace) && (
-            <Link
-              to="/cart"
-              className="icon-action"
-              title="Cart"
-              aria-label={`Cart, ${cartCount} item${cartCount === 1 ? "" : "s"}`}
-            >
-              <ShoppingCart size={16} />
-              {cartCount > 0 && <span className="notif-badge">{cartCount}</span>}
-            </Link>
+            <div className="dropdown-anchor">
+              <button type="button" className="icon-action" title="Cart"
+                aria-label={`Cart, ${cartCount} item${cartCount === 1 ? "" : "s"}`}
+                aria-expanded={openPanel === "cart"}
+                onClick={(event) => togglePanel(event, "cart")}>
+                <ShoppingCart size={16} />
+                {cartCount > 0 && <span className="notif-badge">{cartCount}</span>}
+              </button>
+              <div className={`dropdown-panel animated ${openPanel === "cart" ? "open" : ""}`}
+                onClick={(event) => event.stopPropagation()}>
+                <div className="dropdown-head">Cart</div>
+                {cartItems.length === 0 ? <p className="cart-popover-empty">Your cart is empty.</p> : (
+                  <div className="cart-popover-items">
+                    {cartItems.map((line) => (
+                      <div className="cart-popover-line" key={line.productId}>
+                        <span>{line.product.product_name}<small>Qty {line.quantity}</small></span>
+                        <strong>{peso(line.lineTotal)}</strong>
+                      </div>
+                    ))}
+                    <div className="cart-popover-line"><strong>Subtotal</strong><strong>{peso(bundleSubtotal(cart))}</strong></div>
+                  </div>
+                )}
+                <nav className="dropdown-menu"><Link to="/cart" onClick={() => setOpenPanel(null)}>View cart and checkout</Link></nav>
+              </div>
+            </div>
           )}
           <div className="dropdown-anchor">
             <button
@@ -424,16 +416,22 @@ function Topbar({ showSearch = false, showCategories = false }) {
             </div>
           </div>
 
-          <button
-            className="icon-action"
-            ref={menuButtonRef}
-            title={menuOpen ? "Close menu" : "Menu"}
-            aria-expanded={menuOpen}
-            aria-label={menuOpen ? "Close menu" : "Open menu"}
-            onClick={() => setMenuOpen((current) => !current)}
-          >
-            <Menu size={16} />
-          </button>
+          <div className="dropdown-anchor">
+            <button type="button" className="icon-action" title="Menu" aria-label="Open menu"
+              aria-expanded={openPanel === "menu"} onClick={(event) => togglePanel(event, "menu")}>
+              <Menu size={16} />
+            </button>
+            <div className={`dropdown-panel animated ${openPanel === "menu" ? "open" : ""}`}
+              onClick={(event) => event.stopPropagation()}>
+              <div className="dropdown-head">Menu</div>
+              <nav className="dropdown-menu" aria-label="Main menu">
+                {APP_NAV_ITEMS.filter((item) => hasAnyRole(item.roles)).map((item) => (
+                  <Link key={item.name} to={item.link} onClick={() => setOpenPanel(null)}>{item.name}</Link>
+                ))}
+                <button type="button" className="danger" onClick={requestLogoutConfirmation}>Logout</button>
+              </nav>
+            </div>
+          </div>
 
           <div className="dropdown-anchor">
             <button
@@ -489,12 +487,6 @@ function Topbar({ showSearch = false, showCategories = false }) {
           </div>
         </div>
       </header>
-      <Sidebar
-        isOpen={menuOpen}
-        onClose={closeSidebar}
-        onLogout={() => requestLogoutConfirmation(true)}
-        openerRef={menuButtonRef}
-      />
       <ConfirmDialog
         open={confirmLogout}
         title="Log out?"
