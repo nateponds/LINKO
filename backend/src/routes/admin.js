@@ -257,16 +257,13 @@ router.post("/users", async (req, res, next) => {
     }
 
     const passwordHash = await hashPassword(password);
-    // users.role is the legacy 001 column; 'admin' for platform admins,
-    // 'staff' for logistics/courier accounts (mirrors the seed convention).
-    const legacyRole = isAdminKind ? "admin" : "staff";
     const globalRole = isAdminKind ? "platform_admin" : null;
 
     const userResult = await client.query(
-      `INSERT INTO users (username, email, full_name, password_hash, role, global_role)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO users (username, email, full_name, password_hash, global_role)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING user_id, full_name, email, global_role, is_active, created_at`,
-      [email.slice(0, 50), email, fullName, passwordHash, legacyRole, globalRole],
+      [email.slice(0, 50), email, fullName, passwordHash, globalRole],
     );
     const user = userResult.rows[0];
 

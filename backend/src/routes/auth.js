@@ -23,10 +23,6 @@ function normalizeEmail(email) {
   return typeof email === "string" ? email.trim().toLowerCase() : "";
 }
 
-function deriveLegacyRole(businessType) {
-  return businessType === "wholesaler" ? "wholesaler" : "staff";
-}
-
 function deriveUsername(email) {
   return email.slice(0, 50);
 }
@@ -64,10 +60,10 @@ router.post("/register", async (req, res, next) => {
 
     const passwordHash = await hashPassword(password);
     const userResult = await client.query(
-      `INSERT INTO users (username, email, full_name, password_hash, role, global_role)
-       VALUES ($1, $2, $3, $4, $5, NULL)
+      `INSERT INTO users (username, email, full_name, password_hash, global_role)
+       VALUES ($1, $2, $3, $4, NULL)
        RETURNING user_id, email, full_name, global_role`,
-      [deriveUsername(email), email, fullName, passwordHash, deriveLegacyRole(businessType)],
+      [deriveUsername(email), email, fullName, passwordHash],
     );
 
     const businessResult = await client.query(
