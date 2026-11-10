@@ -1431,3 +1431,9 @@
     }
   }
 }
+  .cart-popover-empty { margin: 0; padding: 20px 16px; color: #64748b; font-size: 0.875rem; }
+  .cart-popover-items { max-height: 260px; overflow-y: auto; }
+  .cart-popover-line { display: flex; justify-content: space-between; gap: 12px; padding: 10px 16px; font-size: 0.875rem; }
+  .cart-popover-line + .cart-popover-line { border-top: 1px solid #edf0f5; }
+  .cart-popover-line small { display: block; color: #64748b; margin-top: 3px; }
+  .cart-popover-line strong { white-space: nowrap; }
