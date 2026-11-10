@@ -160,9 +160,8 @@ test("expiry boundaries, date validation, and stock independence", { skip: !hasD
     assert.equal(product.status, 201);
     productId = product.body.product_id;
     const { rows: dates } = await pool.query(`SELECT
-      CURRENT_DATE::text AS today,
-      (CURRENT_DATE + 30)::text AS boundary,
-      (CURRENT_DATE + 31)::text AS later`);
+      d::text AS today, (d + 30)::text AS boundary, (d + 31)::text AS later
+      FROM (SELECT (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila')::date AS d) manila`);
     for (const [key, expected] of [["today", "expiring_soon"], ["boundary", "expiring_soon"], ["later", "fresh"]]) {
       const batch = await sendJson("/api/inventory-batches", cookie, "POST", {
         product_id: productId, batch_number: key, expires_on: dates[0][key],
@@ -184,6 +183,10 @@ test("expiry boundaries, date validation, and stock independence", { skip: !hasD
       const bad = await sendJson(`/api/inventory-batches/${batchId}`, cookie, "PATCH", body);
       assert.equal(bad.status, 400, JSON.stringify(body));
     }
+    // Mutation responses use the caller's ?days= window, like GET does.
+    const narrowed = await sendJson(`/api/inventory-batches/${list.body.items[1].batch_id}?days=0`, cookie, "PATCH", { notes: "window check" });
+    assert.equal(narrowed.status, 200);
+    assert.equal(narrowed.body.expiry_status, "fresh");
     for (const query of ["days=-1", "days=3651", "status=unknown", "days=7&days=14", "product_id=abc"]) {
       const bad = await request(`/api/inventory-batches?${query}`, { headers: { Cookie: cookie } });
       assert.equal(bad.status, 400, query);

@@ -12,6 +12,10 @@ const router = Router();
 const DEFAULT_EXPIRY_WINDOW_DAYS = 30;
 const MAX_EXPIRY_WINDOW_DAYS = 3650;
 const MANAGER_ROLES = ["wholesaler", "platform_admin"];
+// ponytail: business calendar is fixed to Philippine time (no DST). The DB
+// session runs in UTC on Supabase, so CURRENT_DATE would lag a day from
+// 00:00-08:00 PHT. Move to a per-business timezone if LINKO leaves PH.
+const TODAY = "(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila')::date";
 
 function asClientError(error) {
   if (error.code === "23505") {
@@ -177,11 +181,11 @@ function batchSelect(daysPlaceholder = "$1") {
                  ib.notes,
                  ib.created_at,
                  ib.updated_at,
-                 (ib.expires_on - CURRENT_DATE)::int AS days_until_expiry,
+                 (ib.expires_on - ${TODAY})::int AS days_until_expiry,
                  CASE
                    WHEN ib.depleted_at IS NOT NULL THEN 'depleted'
-                   WHEN ib.expires_on < CURRENT_DATE THEN 'expired'
-                   WHEN ib.expires_on <= CURRENT_DATE + ${daysPlaceholder}::integer THEN 'expiring_soon'
+                   WHEN ib.expires_on < ${TODAY} THEN 'expired'
+                   WHEN ib.expires_on <= ${TODAY} + ${daysPlaceholder}::integer THEN 'expiring_soon'
                    ELSE 'fresh'
                  END AS expiry_status
             FROM inventory_batches ib
@@ -232,11 +236,11 @@ router.get(
       const status = readSingletonQueryString(req.query, "status");
       const statusConditions = {
         depleted: "ib.depleted_at IS NOT NULL",
-        expired: "ib.depleted_at IS NULL AND ib.expires_on < CURRENT_DATE",
+        expired: `ib.depleted_at IS NULL AND ib.expires_on < ${TODAY}`,
         expiring_soon: `ib.depleted_at IS NULL
-          AND ib.expires_on BETWEEN CURRENT_DATE AND CURRENT_DATE + $1::integer`,
+          AND ib.expires_on BETWEEN ${TODAY} AND ${TODAY} + $1::integer`,
         fresh: `ib.depleted_at IS NULL
-          AND ib.expires_on > CURRENT_DATE + $1::integer`,
+          AND ib.expires_on > ${TODAY} + $1::integer`,
       };
       if (status !== undefined) {
         if (!Object.hasOwn(statusConditions, status)) {
@@ -286,6 +290,7 @@ router.post(
   async (req, res, next) => {
     try {
       const body = req.body ?? {};
+      const warningDays = parseWarningDays(req.query);
       const productId = parsePositiveInt(body.product_id, "product_id");
       await assertProductAccess(req, productId, { requireActive: true });
 
@@ -301,11 +306,11 @@ router.post(
       const { rows } = await query(
         `INSERT INTO inventory_batches
            (product_id, batch_number, manufactured_on, received_on, expires_on, notes)
-         VALUES ($1, $2, $3, COALESCE($4::date, CURRENT_DATE), $5, $6)
+         VALUES ($1, $2, $3, COALESCE($4::date, ${TODAY}), $5, $6)
          RETURNING batch_id`,
         [productId, batchNumber, manufacturedOn ?? null, receivedOn ?? null, expiresOn, notes ?? null],
       );
-      const created = await findBatch(rows[0].batch_id);
+      const created = await findBatch(rows[0].batch_id, warningDays);
       res.status(201).json(created);
     } catch (error) {
       next(asClientError(error));
@@ -320,6 +325,7 @@ router.patch(
   async (req, res, next) => {
     try {
       const existing = await loadOwnedBatch(req, req.params.id);
+      const warningDays = parseWarningDays(req.query);
       const body = req.body ?? {};
       if ("product_id" in body) {
         throw createHttpError(400, "product_id cannot be changed");
@@ -375,7 +381,7 @@ router.patch(
           WHERE batch_id = $${params.length}`,
         params,
       );
-      res.json(await findBatch(existing.batch_id));
+      res.json(await findBatch(existing.batch_id, warningDays));
     } catch (error) {
       next(asClientError(error));
     }

@@ -258,6 +258,10 @@ warning window, and `fresh` after it. The warning window defaults to 30 days.
   `depleted: true|false`. `product_id` is immutable.
 - `DELETE /api/inventory-batches/:id` — removes an incorrectly entered record.
 
+POST and PATCH also accept `?days=` and use it for `expiry_status` in their
+response. "Today" for expiry status and the `received_on` default is the
+Philippine calendar date (`Asia/Manila`), not the database server's date.
+
 Dates use `YYYY-MM-DD`. `batch_number` must be unique within a product, and
 `manufactured_on` cannot be after `expires_on`.
 List responses use the standard `items` / `pagination` envelope and include
