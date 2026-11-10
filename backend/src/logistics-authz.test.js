@@ -291,8 +291,8 @@ test("deactivated courier loses list and write access", { skip: !hasDb }, async 
 
     userId = (
       await pool.query(
-        `INSERT INTO users (username, email, full_name, password_hash, role)
-         VALUES ($1, $2, 'Disposable Courier', $3, 'staff')
+        `INSERT INTO users (username, email, full_name, password_hash)
+         VALUES ($1, $2, 'Disposable Courier', $3)
          RETURNING user_id`,
         [`disposable_courier_${stamp}`, email, passwordHash],
       )

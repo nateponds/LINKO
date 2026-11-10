@@ -91,7 +91,7 @@ test("takedown, owner visibility, editing, relisting and final deletion", { skip
   }
 });
 
-test("registration and admin provisioning leave users.role NULL", { skip: !process.env.DATABASE_URL }, async () => {
+test("registration and admin provisioning succeed", { skip: !process.env.DATABASE_URL }, async () => {
   const pool = createPool();
   const emails = [`a2-register-${Date.now()}@linko.test`, `a2-admin-${Date.now()}@linko.test`];
   const businessIds = [];
@@ -105,8 +105,8 @@ test("registration and admin provisioning leave users.role NULL", { skip: !proce
       email: emails[1], password: "Password123!", full_name: "A2 Admin", kind: "platform_admin",
     });
     assert.equal(provisioned.status, 201);
-    const rows = (await pool.query("SELECT role FROM users WHERE email = ANY($1::text[])", [emails])).rows;
-    assert.equal(rows.length, 2); assert.ok(rows.every((r) => r.role === null));
+    const rows = (await pool.query("SELECT user_id FROM users WHERE email = ANY($1::text[])", [emails])).rows;
+    assert.equal(rows.length, 2);
   } finally {
     await pool.query("DELETE FROM users WHERE email = ANY($1::text[])", [emails]);
     await pool.query("DELETE FROM businesses WHERE business_id = ANY($1::int[])", [businessIds]);

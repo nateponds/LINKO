@@ -69,8 +69,6 @@ CREATE TABLE users (
     password_hash TEXT NOT NULL,
     email         VARCHAR(100) NOT NULL UNIQUE,
     full_name     VARCHAR(100) NOT NULL,                       -- 004
-    role          VARCHAR(20)
-        CHECK (role IN ('owner', 'staff', 'wholesaler', 'admin')),
     global_role   VARCHAR(20),                                 -- 004
     is_active     BOOLEAN NOT NULL DEFAULT TRUE,               -- 011
     created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -543,7 +541,8 @@ INSERT INTO schema_migrations (filename) VALUES
     ('025_saved_addresses.sql'),
     ('026_inventory_batches.sql'),
     ('028_users_role_nullable.sql'),
-    ('029_actor_and_takedown_columns.sql')
+    ('029_actor_and_takedown_columns.sql'),
+    ('030_drop_users_role.sql')
 ON CONFLICT (filename) DO NOTHING;
 
 COMMIT;

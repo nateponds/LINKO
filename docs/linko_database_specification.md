@@ -12,7 +12,6 @@ System users including MSME owners, staff, couriers, and administrators.
 - `username` (VARCHAR 50, UNIQUE)
 - `password_hash` (TEXT)
 - `email` (VARCHAR 100, UNIQUE)
-- `role` (VARCHAR 20, check: owner, staff, wholesaler, admin)
 - `full_name` (VARCHAR 100)
 - `global_role` (VARCHAR 20)
 - `created_at` (TIMESTAMP)
