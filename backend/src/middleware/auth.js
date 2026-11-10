@@ -1,4 +1,5 @@
 import { getSessionUser } from "../auth/sessions.js";
+import { activeMemberships, isPlatformAdmin } from "./ownership.js";
 
 function parseCookies(header = "") {
   return header
@@ -40,19 +41,30 @@ export async function requireAuth(req, _res, next) {
   }
 }
 
+// RBAC policy (mirrored client-side in src/auth/roleAccess.js):
+//   - Business roles count only for the ACTIVE business (X-Active-Business, or
+//     the caller's single business). Roles on other businesses grant nothing.
+//   - platform_admin passes ONLY where `roles` names it. No implicit bypass:
+//     admin reach is an explicit, per-route decision.
+export const MARKETPLACE_ROLES = ["buyer", "wholesaler"];
+
 export function requireAnyRole(roles) {
   return (req, _res, next) => {
     if (!req.auth) {
       return next(createHttpError(401, "Authentication required"));
     }
 
-    if (req.auth.user.global_role === "platform_admin") {
+    if (isPlatformAdmin(req.auth.user) && roles.includes("platform_admin")) {
       return next();
     }
 
-    const hasRole = req.auth.memberships.some((membership) => roles.includes(membership.role));
-    if (!hasRole) {
-      return next(createHttpError(403, "Forbidden"));
+    try {
+      const activeRoles = activeMemberships(req).map((m) => m.role);
+      if (!activeRoles.some((role) => roles.includes(role))) {
+        return next(createHttpError(403, "Forbidden"));
+      }
+    } catch (error) {
+      return next(error);
     }
 
     return next();

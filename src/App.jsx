@@ -9,7 +9,7 @@ import {
 import { AuthProvider, useAuth } from "./auth/AuthProvider";
 import { CartProvider } from "./features/cart/CartProvider";
 import ProtectedRoute from "./auth/ProtectedRoute";
-import { ROLE_ACCESS, redirectPathForRoles } from "./auth/roleAccess";
+import { ROUTE_ACCESS, redirectPathForRoles } from "./auth/roleAccess";
 import SupplierDiscoveryPage from "./pages/SupplierDiscoveryPage";
 import SupplierProfilePage from "./pages/SupplierProfilePage";
 import InventoryPage from "./pages/InventoryPage";
@@ -63,7 +63,7 @@ function RouteChrome() {
 }
 
 function UnknownRouteRedirect() {
-  const { loading, user, activeRoles } = useAuth();
+  const { loading, user, activeRoles, isAdmin } = useAuth();
 
   if (loading) {
     return <AppShellSkeleton />;
@@ -73,8 +73,18 @@ function UnknownRouteRedirect() {
     return <Navigate to="/landing" replace />;
   }
 
-  const defaultPath = redirectPathForRoles(activeRoles, user.global_role === "platform_admin");
+  const defaultPath = redirectPathForRoles(activeRoles, isAdmin);
   return <Navigate to={defaultPath} replace />;
+}
+
+// One guard per path, read from the route table, so no page inherits another
+// page's role list by sitting in the same <Route> group.
+function guarded(path, element) {
+  return (
+    <Route key={path} element={<ProtectedRoute roles={ROUTE_ACCESS[path]} />}>
+      <Route path={path} element={element} />
+    </Route>
+  );
 }
 
 function AppRoutes() {
@@ -84,49 +94,35 @@ function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
 
-      <Route element={<ProtectedRoute roles={ROLE_ACCESS.dashboard} />}>
-        <Route path="/dashboard" element={<DashboardPage />} />
-      </Route>
+      {guarded("/", <SupplierDiscoveryPage />)}
+      {guarded("/suppliers", <SupplierDiscoveryPage />)}
+      {guarded("/suppliers/:supplierId", <SupplierProfilePage />)}
+      {guarded("/cart", <CartPage />)}
+      {guarded("/become-a-supplier", <BecomeSupplierPage />)}
+      {guarded("/orders", <OrdersPage />)}
+      {guarded("/invoices", <InvoicePage />)}
+      {guarded("/dashboard", <DashboardPage />)}
+      {guarded("/inventory", <InventoryPage />)}
+      {guarded("/logistics", <LogisticsPage />)}
+      {guarded("/logistics/management", <LogisticsManagementPage />)}
+      {guarded("/logistics/:parcelId", <ParcelDetailPage />)}
+      {guarded("/courier", <CourierDashboardPage />)}
+      {guarded("/admin", <AdminDashboardPage />)}
 
-      <Route element={<ProtectedRoute roles={ROLE_ACCESS.marketplace} />}>
-        <Route path="/" element={<SupplierDiscoveryPage />} />
-        <Route path="/cart" element={<CartPage />} />
-        <Route path="/suppliers" element={<SupplierDiscoveryPage />} />
-        <Route
-          path="/suppliers/:supplierId"
-          element={<SupplierProfilePage />}
-        />
-        <Route path="/invoices" element={<InvoicePage />} />
-        <Route path="/orders" element={<OrdersPage />} />
-        <Route path="/become-a-supplier" element={<BecomeSupplierPage />} />
-      </Route>
-
-      <Route element={<ProtectedRoute roles={ROLE_ACCESS.inventory} />}>
-        <Route path="/inventory" element={<InventoryPage />} />
-      </Route>
-
-      <Route element={<ProtectedRoute roles={ROLE_ACCESS.logistics} />}>
-        <Route path="/logistics" element={<LogisticsPage />} />
-        <Route path="/logistics/:parcelId" element={<ParcelDetailPage />} />
-        <Route path="/courier" element={<CourierDashboardPage />} />
-      </Route>
-
-      <Route element={<ProtectedRoute roles={ROLE_ACCESS.logisticsManagement} />}>
-        <Route
-          path="/logistics/management"
-          element={<LogisticsManagementPage />}
-        />
-      </Route>
-
-      <Route element={<ProtectedRoute roles={ROLE_ACCESS.admin} />}>
-        <Route path="/admin" element={<AdminDashboardPage />} />
-      </Route>
-
-      <Route element={<ProtectedRoute roles={ROLE_ACCESS.settings} />}>
+      <Route element={<ProtectedRoute roles={ROUTE_ACCESS["/settings"]} />}>
         <Route path="/settings" element={<SettingsPage />}>
           <Route index element={<Navigate to="profile" replace />} />
           <Route path="profile" element={<Profile />} />
-          <Route path="business-location" element={<BusinessLocation />} />
+          <Route
+            element={
+              <ProtectedRoute
+                roles={ROUTE_ACCESS["/settings/business-location"]}
+                redirectTo="/settings/profile"
+              />
+            }
+          >
+            <Route path="business-location" element={<BusinessLocation />} />
+          </Route>
           <Route path="*" element={<Navigate to="profile" replace />} />
         </Route>
       </Route>

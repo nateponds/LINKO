@@ -210,13 +210,12 @@ test("unpinned buyer cannot place an order (409, contracted message)", { skip: !
         "Pin your business location in Settings before placing orders",
       );
 
-      // Admin acting with an explicit buyer_business_id is gated on that
-      // business the same way.
-      const adminGated = await postJson("/api/orders", adminCookie, {
+      // platform_admin never places orders, even naming a buyer business.
+      const adminRefused = await postJson("/api/orders", adminCookie, {
         ...body,
         buyer_business_id: buyer.businessId,
       });
-      assert.equal(adminGated.status, 409);
+      assert.equal(adminRefused.status, 403);
 
       const { rows } = await pool.query(
         "SELECT COUNT(*)::int AS n FROM orders WHERE buyer_business_id = $1",

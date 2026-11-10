@@ -316,3 +316,144 @@ test("admin toggles business verification", { skip: !hasDb }, async () => {
     await pool.end();
   }
 });
+
+// Migration 027: admins never hold memberships, enforced in both directions.
+test("db rejects memberships for platform_admin users", { skip: !hasDb }, async () => {
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+  const client = await pool.connect();
+  const rejectedByGuard = (err) =>
+    err.code === "23514" && err.constraint === "admin_no_memberships";
+
+  try {
+    const { rows: [admin] } = await client.query(
+      "SELECT user_id FROM users WHERE email = 'admin@linko.test'",
+    );
+    const { rows: [member] } = await client.query(
+      "SELECT membership_id, user_id, business_id FROM business_memberships LIMIT 1",
+    );
+
+    // Reassigning an existing membership to the admin.
+    await client.query("BEGIN");
+    await assert.rejects(
+      client.query("UPDATE business_memberships SET user_id = $1 WHERE membership_id = $2", [
+        admin.user_id,
+        member.membership_id,
+      ]),
+      rejectedByGuard,
+    );
+    await client.query("ROLLBACK");
+
+    await client.query("BEGIN");
+    await assert.rejects(
+      client.query(
+        "INSERT INTO business_memberships (user_id, business_id, role) VALUES ($1, $2, 'buyer')",
+        [admin.user_id, member.business_id],
+      ),
+      rejectedByGuard,
+    );
+    await client.query("ROLLBACK");
+
+    await client.query("BEGIN");
+    await assert.rejects(
+      client.query("UPDATE users SET global_role = 'platform_admin' WHERE user_id = $1", [
+        member.user_id,
+      ]),
+      rejectedByGuard,
+    );
+    await client.query("ROLLBACK");
+  } finally {
+    client.release();
+    await pool.end();
+  }
+});
+
+// Migration 027 race: a membership insert and a promotion of the same user, in
+// two open transactions. Whichever runs first, at most one may commit; the DB
+// must never end with an admin who holds a membership.
+test("concurrent membership insert and promotion cannot both commit", { skip: !hasDb }, async () => {
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+  const insertMembership = (c, userId, businessId) =>
+    c.query(
+      "INSERT INTO business_memberships (user_id, business_id, role) VALUES ($1, $2, 'buyer')",
+      [userId, businessId],
+    );
+  const promote = (c, userId) =>
+    c.query("UPDATE users SET global_role = 'platform_admin' WHERE user_id = $1", [userId]);
+
+  const { rows: [biz] } = await pool.query("SELECT business_id FROM businesses LIMIT 1");
+  const levels = ["READ COMMITTED", "REPEATABLE READ", "SERIALIZABLE"];
+  const orders = [
+    ["membership", insertMembership, "promotion", promote],
+    ["promotion", promote, "membership", insertMembership],
+  ];
+
+  for (const level of levels) {
+    for (const [firstName, first, secondName, second] of orders) {
+      const label = `${level}: ${firstName} then ${secondName}`;
+      const email = `race-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
+      const { rows: [user] } = await pool.query(
+        `INSERT INTO users (username, email, full_name, password_hash, role)
+         VALUES ($1, $1, 'Race User', 'x', 'staff') RETURNING user_id`,
+        [email],
+      );
+      const a = await pool.connect();
+      const b = await pool.connect();
+      try {
+        const { rows: [{ pid: bPid }] } = await b.query("SELECT pg_backend_pid() AS pid");
+        await a.query(`BEGIN ISOLATION LEVEL ${level}`);
+        await b.query(`BEGIN ISOLATION LEVEL ${level}`);
+        await first(a, user.user_id, biz.business_id);
+
+        // Start the second write; it either finishes at once (unguarded) or
+        // blocks on a lock the first transaction holds.
+        let settled = false;
+        const secondResult = second(b, user.user_id, biz.business_id).then(
+          () => { settled = true; return null; },
+          (err) => { settled = true; return err; },
+        );
+        for (let i = 0; i < 250 && !settled; i += 1) {
+          const { rows } = await pool.query(
+            "SELECT wait_event_type FROM pg_stat_activity WHERE pid = $1",
+            [bPid],
+          );
+          if (rows[0]?.wait_event_type === "Lock") break;
+          await new Promise((r) => setTimeout(r, 20));
+        }
+
+        await a.query("COMMIT");
+        let bError = await secondResult;
+        if (bError) {
+          await b.query("ROLLBACK");
+        } else {
+          bError = await b.query("COMMIT").then(() => null, (err) => err);
+        }
+
+        assert.ok(bError, `${label}: second transaction must not commit`);
+        assert.ok(
+          bError.code === "40001" ||
+            (bError.code === "23514" && bError.constraint === "admin_no_memberships"),
+          `${label}: unexpected error ${bError.code} ${bError.message}`,
+        );
+        const { rows: [state] } = await pool.query(
+          `SELECT u.global_role,
+                  (SELECT COUNT(*) FROM business_memberships WHERE user_id = u.user_id)::int AS n
+             FROM users u WHERE u.user_id = $1`,
+          [user.user_id],
+        );
+        assert.ok(
+          !(state.global_role === "platform_admin" && state.n > 0),
+          `${label}: admin ended up with ${state.n} membership(s)`,
+        );
+      } finally {
+        await a.query("ROLLBACK").catch(() => {});
+        await b.query("ROLLBACK").catch(() => {});
+        a.release();
+        b.release();
+        await pool.query("DELETE FROM users WHERE user_id = $1", [user.user_id]);
+      }
+    }
+  }
+  await pool.end();
+});

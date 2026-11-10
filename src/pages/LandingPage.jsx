@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { ArrowRight, Handshake, MapPin, Menu, Package, ShieldCheck, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
-import { redirectPathForRoles } from "../auth/roleAccess";
+import { ROUTE_ACCESS, redirectPathForRoles } from "../auth/roleAccess";
 import HeroVideoPreview from "../features/landing/HeroVideoPreview";
 import { BANNERS } from "../lib/productBanners";
 import "../assets/css/shell.css";
@@ -18,6 +18,7 @@ const DESTINATION_LABELS = {
   "/courier": "Courier dashboard",
   "/admin": "Admin dashboard",
   "/dashboard": "Open dashboard",
+  "/settings/profile": "Open your profile",
 };
 
 const PERKS = [
@@ -65,13 +66,13 @@ function LandingBanner({ banner, destination, className = "", priority = false }
 }
 
 export default function LandingPage() {
-  const { user, activeRoles } = useAuth();
+  const { user, activeRoles, isAdmin, hasAnyRole } = useAuth();
   const signedIn = Boolean(user);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuToggleRef = useRef(null);
   const year = new Date().getFullYear();
   const destinationPath = signedIn
-    ? redirectPathForRoles(activeRoles, user.global_role === "platform_admin")
+    ? redirectPathForRoles(activeRoles, isAdmin)
     : null;
   const destination = destinationPath
     ? { path: destinationPath, label: DESTINATION_LABELS[destinationPath] }
@@ -258,10 +259,12 @@ export default function LandingPage() {
                 </>
               )}
             </div>
-            <div className="footer-col">
-              <h4>Suppliers</h4>
-              <Link to={signedIn ? "/become-a-supplier" : "/register"}>Become a supplier</Link>
-            </div>
+            {(!signedIn || hasAnyRole(ROUTE_ACCESS["/become-a-supplier"])) && (
+              <div className="footer-col">
+                <h4>Suppliers</h4>
+                <Link to={signedIn ? "/become-a-supplier" : "/register"}>Become a supplier</Link>
+              </div>
+            )}
           </div>
           <div className="footer-bottom">
             <span>© {year} LINKO. All rights reserved.</span>

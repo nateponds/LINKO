@@ -33,11 +33,10 @@ function statusFor(status) {
 }
 
 export default function InventoryPage() {
-  const { user, activeBusinessId, activeRoles } = useAuth();
+  const { isAdmin, activeBusinessId, activeRoles } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const { page, limit, q } = readListUrlState(searchParams);
 
-  const isAdmin = user?.global_role === "platform_admin";
   const ownBusinessId = activeRoles.includes("wholesaler")
     ? activeBusinessId
     : null;
@@ -565,8 +564,8 @@ export default function InventoryPage() {
                   <tbody>
                     {visibleProducts.map((item) => {
                       const status = statusFor(item.stock_status);
-                      const canManage =
-                        isAdmin || item.business_id === ownBusinessId;
+                      // Only the owner edits; platform_admin may only take a product down.
+                      const canManage = item.business_id === ownBusinessId;
                       return (
                         <ExpandableTableRow
                           key={item.product_id}
@@ -596,9 +595,9 @@ export default function InventoryPage() {
                             { key: "status", content: <span className={`status ${status.cls}`}>{status.label}</span> },
                           ]}
                         >
-                          {canManage && (
+                          {(canManage || isAdmin) && (
                             <div className="row-panel-actions">
-                              <button type="button" className="link-button" onClick={() => openEditModal(item)}>Edit product</button>
+                              {canManage && <button type="button" className="link-button" onClick={() => openEditModal(item)}>Edit product</button>}
                               <button type="button" className="link-button inventory-delete" onClick={() => requestDelete(item)}>Delete product</button>
                             </div>
                           )}

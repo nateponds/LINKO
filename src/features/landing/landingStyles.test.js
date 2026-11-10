@@ -43,7 +43,7 @@ test("signed-in landing actions use the role-aware destination helper", async ()
     "utf8",
   );
 
-  assert.match(page, /redirectPathForRoles\(activeRoles, user\.global_role === "platform_admin"\)/);
+  assert.match(page, /redirectPathForRoles\(activeRoles, isAdmin\)/);
   assert.match(page, /"\/": "Enter marketplace"/);
   assert.match(page, /"\/logistics": "Open logistics"/);
   assert.match(page, /"\/courier": "Courier dashboard"/);

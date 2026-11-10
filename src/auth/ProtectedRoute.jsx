@@ -9,7 +9,7 @@ function AuthLoading() {
 
 export default function ProtectedRoute({ roles, redirectTo }) {
   const location = useLocation();
-  const { loading, user, activeBusinessId, activeRoles, hasAnyRole } = useAuth();
+  const { loading, user, activeBusinessId, activeRoles, hasAnyRole, isAdmin } = useAuth();
 
   if (loading) {
     return <AuthLoading />;
@@ -25,7 +25,7 @@ export default function ProtectedRoute({ roles, redirectTo }) {
   // stays put.
   if (Array.isArray(roles) && roles.length > 0 && !hasAnyRole(roles)) {
     const target =
-      redirectTo ?? redirectPathForRoles(activeRoles, user.global_role === "platform_admin");
+      redirectTo ?? redirectPathForRoles(activeRoles, isAdmin);
     return <Navigate to={target} replace />;
   }
 

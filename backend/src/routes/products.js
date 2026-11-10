@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { query } from "../db.js";
 import { requireAnyRole, requireAuth } from "../middleware/auth.js";
-import { getActiveMembership } from "../middleware/ownership.js";
+import { activeMemberships, isPlatformAdmin } from "../middleware/ownership.js";
 import { buildPaginatedResponse, parsePaginationQuery } from "../services/pagination.js";
 
 const router = Router();
@@ -104,26 +104,18 @@ async function findProduct(productId) {
 }
 
 // The wholesaler business the caller owns products under. Returns:
-//   businessId (number)         -> the active wholesaler membership
-//   null                        -> platform_admin with no wholesaler membership
-//                                  (caller must then name business_id in body)
-//   throws 403                  -> no wholesaler membership (and not admin)
-//   throws 400                  -> multiple wholesaler memberships and no
-//                                  X-Active-Business header to disambiguate
-// Multi-business users select which business via the X-Active-Business header
-// (validated in getActiveMembership); single-membership behavior is unchanged.
+//   businessId (number)         -> the active business, when it is a wholesaler
+//   throws 403                  -> active business is not a wholesaler
+//                                  (always for platform_admin: it holds no memberships)
+//   throws 400                  -> multiple businesses and no X-Active-Business
+// Wholesaler roles on other (unselected) businesses grant nothing.
 function resolveWholesalerBusiness(req) {
-  const hasWholesaler = req.auth.memberships.some((m) => m.role === "wholesaler");
-  if (!hasWholesaler) {
-    if (req.auth.user.global_role === "platform_admin") {
-      return null;
-    }
-    throw createHttpError(403, "You must belong to a wholesaler business to manage products");
+  const active = activeMemberships(req).find((m) => m.role === "wholesaler");
+  if (active) {
+    return active.business_id;
   }
-  return getActiveMembership(req, ["wholesaler"]).business_id;
+  throw createHttpError(403, "You must belong to a wholesaler business to manage products");
 }
-
-const isAdmin = (auth) => auth.user.global_role === "platform_admin";
 
 // ---------------------------------------------------------------------------
 // Categories -- any authenticated user.
@@ -255,12 +247,12 @@ router.get("/products/:id", requireAuth, async (req, res, next) => {
 });
 
 // ---------------------------------------------------------------------------
-// Create -- wholesaler or platform_admin.
+// Create -- wholesaler only (platform_admin is never a seller).
 // ---------------------------------------------------------------------------
 router.post(
   "/products",
   requireAuth,
-  requireAnyRole(["wholesaler", "platform_admin"]),
+  requireAnyRole(["wholesaler"]),
   async (req, res, next) => {
     try {
       const {
@@ -271,10 +263,9 @@ router.post(
         category_id,
         stock_quantity,
         image_url,
-        business_id: bodyBusinessId,
       } = req.body ?? {};
 
-      // ---- Field validation (never trust body business_id except admin) ----
+      // ---- Field validation (owner comes from the active business, never the body) ----
       if (typeof product_name !== "string" || product_name.trim() === "") {
         throw createHttpError(400, "product_name is required");
       }
@@ -297,24 +288,7 @@ router.post(
       }
 
       // ---- Resolve the owning business ----
-      const ownedBusinessId = resolveWholesalerBusiness(req);
-      let businessId = ownedBusinessId;
-
-      if (ownedBusinessId === null) {
-        // platform_admin with no wholesaler membership must name the business.
-        if (bodyBusinessId === undefined || bodyBusinessId === null) {
-          throw createHttpError(400, "business_id is required when creating as an administrator");
-        }
-        const { rows } = await query(
-          `SELECT business_id FROM businesses
-            WHERE business_id = $1 AND business_type = 'wholesaler'`,
-          [Number(bodyBusinessId)],
-        );
-        if (!rows.length) {
-          throw createHttpError(400, "business_id must reference an existing wholesaler business");
-        }
-        businessId = rows[0].business_id;
-      }
+      const businessId = resolveWholesalerBusiness(req);
 
       const insert = await query(
         `INSERT INTO products
@@ -343,6 +317,8 @@ router.post(
 
 // Shared ownership guard for PATCH / DELETE: returns the target row (active) or
 // throws 404; throws 403 unless caller owns the product's business or is admin.
+// The admin bypass is reachable only from DELETE (governance takedown): PATCH's
+// role list excludes platform_admin.
 async function loadOwnedProduct(req) {
   const productId = parseProductId(req.params.id);
   const { rows } = await query(
@@ -354,10 +330,10 @@ async function loadOwnedProduct(req) {
     throw createHttpError(404, `Product ${req.params.id} not found`);
   }
 
-  if (isAdmin(req.auth)) {
+  if (isPlatformAdmin(req.auth.user)) {
     return rows[0];
   }
-  const owns = req.auth.memberships.some(
+  const owns = activeMemberships(req).some(
     (m) => m.role === "wholesaler" && m.business_id === rows[0].business_id,
   );
   if (!owns) {
@@ -367,12 +343,12 @@ async function loadOwnedProduct(req) {
 }
 
 // ---------------------------------------------------------------------------
-// Update -- wholesaler (own product) or platform_admin (any). Partial.
+// Update -- wholesaler (own product only). Partial.
 // ---------------------------------------------------------------------------
 router.patch(
   "/products/:id",
   requireAuth,
-  requireAnyRole(["wholesaler", "platform_admin"]),
+  requireAnyRole(["wholesaler"]),
   async (req, res, next) => {
     try {
       await loadOwnedProduct(req);
@@ -445,7 +421,8 @@ router.patch(
 );
 
 // ---------------------------------------------------------------------------
-// Delete -- soft delete (is_active = FALSE). Same auth/ownership as PATCH.
+// Delete -- soft delete (is_active = FALSE). Owning wholesaler, or
+// platform_admin (any product) as a governance takedown.
 // ---------------------------------------------------------------------------
 router.delete(
   "/products/:id",
