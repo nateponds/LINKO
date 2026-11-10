@@ -75,6 +75,9 @@ Marketplace catalog and inventory items.
 - `stock_quantity` (INTEGER)
 - `is_active` (BOOLEAN, default TRUE - used for soft deletes)
 - `created_at` (TIMESTAMP)
+- `removed_by` (INT FK -> users, nullable, ON DELETE SET NULL)
+- `removal_reason` (TEXT, nullable)
+- `removed_at` (TIMESTAMP, nullable; currently taken down when non-null)
 
 ### `inventory_batches`
 Batch-level expiry metadata for products. A product may have many batches with
@@ -108,7 +111,6 @@ Extends business profiles for wholesalers.
 - `lead_time_days` (INT)
 - `delivery_terms` (TEXT)
 - `trust_rating` (DECIMAL 3,2, default 5.00)
-- `verification_status` (VARCHAR 20, check: pending, verified, rejected)
 
 ---
 
@@ -124,6 +126,7 @@ Marketplace orders between buyers and wholesalers.
 - `created_by` (INT FK -> users)
 - `created_at` (TIMESTAMP)
 - `updated_at` (TIMESTAMP)
+- `status_updated_by` (INT FK -> users, nullable, ON DELETE SET NULL)
 
 ### `order_items`
 Snapshot of products and prices at the time of order.
@@ -199,6 +202,7 @@ Append-only scan history for parcels.
 - `status_update` (VARCHAR 50)
 - `remarks` (TEXT)
 - `scanned_at` (TIMESTAMP)
+- `recorded_by` (INT FK -> users, nullable, ON DELETE SET NULL)
 
 ### `payments`
 Settlement for a parcel (goods + shipping). `amount` is set by trigger from `parcel`.

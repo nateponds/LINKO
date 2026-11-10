@@ -808,9 +808,9 @@ router.post(
     const originBranchId = await resolveInitialBranchId(client, origin_address_id);
 
     await client.query(
-      `INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id)
-       VALUES ($1, 'Order Created', 'Booking confirmed', $2)`,
-      [parcelId, originBranchId],
+      `INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id, recorded_by)
+       VALUES ($1, 'Order Created', 'Booking confirmed', $2, $3)`,
+      [parcelId, originBranchId, req.auth.user.user_id],
     );
 
     await createInitialRouteSnapshot(client, parcelId, originBranchId);
@@ -1225,10 +1225,10 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
     // suggested_courier_id on the parcel detail is not applied here: an
     // explicit courier_id is kept, and an omitted one stays null.
     const { rows } = await client.query(
-      `INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id, courier_id)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id, courier_id, recorded_by)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [parcelId, status_update, effectiveRemarks, effectiveBranchId, effectiveCourierId]
+      [parcelId, status_update, effectiveRemarks, effectiveBranchId, effectiveCourierId, req.auth.user.user_id]
     );
 
     // Late routing (Sprint 13 §8.3): a parcel created branchless (resolver
@@ -1273,13 +1273,13 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
     if (status_update === "Delivered") {
       const { rows: orderRows } = await client.query(
         `UPDATE orders o
-            SET status = 'delivered', updated_at = CURRENT_TIMESTAMP
+            SET status = 'delivered', status_updated_by = $2, updated_at = CURRENT_TIMESTAMP
            FROM parcels p
           WHERE p.parcel_id = $1
             AND o.order_id = p.order_id
             AND o.status = 'shipped'
         RETURNING o.order_id, o.buyer_business_id`,
-        [parcelId],
+        [parcelId, req.auth.user.user_id],
       );
       if (orderRows.length) {
         await notifyBusiness(
@@ -1340,13 +1340,13 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
     if (status_update === "Returned") {
       const { rows: orderRows } = await client.query(
         `UPDATE orders o
-            SET status = 'returned', updated_at = CURRENT_TIMESTAMP
+            SET status = 'returned', status_updated_by = $2, updated_at = CURRENT_TIMESTAMP
            FROM parcels p
           WHERE p.parcel_id = $1
             AND o.order_id = p.order_id
             AND o.status = 'shipped'
         RETURNING o.order_id, o.buyer_business_id, o.wholesaler_business_id`,
-        [parcelId],
+        [parcelId, req.auth.user.user_id],
       );
       if (orderRows.length) {
         const order = orderRows[0];
@@ -1370,13 +1370,13 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
     if (status_update === "Cancelled") {
       const { rows: orderRows } = await client.query(
         `UPDATE orders o
-            SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP
+            SET status = 'cancelled', status_updated_by = $2, updated_at = CURRENT_TIMESTAMP
            FROM parcels p
           WHERE p.parcel_id = $1
             AND o.order_id = p.order_id
             AND o.status = 'shipped'
         RETURNING o.order_id, o.buyer_business_id, o.wholesaler_business_id`,
-        [parcelId],
+        [parcelId, req.auth.user.user_id],
       );
       if (orderRows.length) {
         const order = orderRows[0];

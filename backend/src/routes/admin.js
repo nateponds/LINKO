@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { getPool, query } from "../db.js";
+import { notifyBusiness } from "../services/notify.js";
 import { hashPassword } from "../auth/passwords.js";
 import { buildPaginatedResponse, parsePaginationQuery } from "../services/pagination.js";
 
@@ -257,16 +258,13 @@ router.post("/users", async (req, res, next) => {
     }
 
     const passwordHash = await hashPassword(password);
-    // users.role is the legacy 001 column; 'admin' for platform admins,
-    // 'staff' for logistics/courier accounts (mirrors the seed convention).
-    const legacyRole = isAdminKind ? "admin" : "staff";
     const globalRole = isAdminKind ? "platform_admin" : null;
 
     const userResult = await client.query(
-      `INSERT INTO users (username, email, full_name, password_hash, role, global_role)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO users (username, email, full_name, password_hash, global_role)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING user_id, full_name, email, global_role, is_active, created_at`,
-      [email.slice(0, 50), email, fullName, passwordHash, legacyRole, globalRole],
+      [email.slice(0, 50), email, fullName, passwordHash, globalRole],
     );
     const user = userResult.rows[0];
 
@@ -456,6 +454,32 @@ router.patch("/businesses/:id", async (req, res, next) => {
     res.json(rows[0]);
   } catch (err) {
     next(asClientError(err));
+  }
+});
+
+router.post("/products/:id/takedown", async (req, res, next) => {
+  const client = await getPool().connect();
+  try {
+    const productId = parsePositiveId(req.params.id, "Product");
+    const reason = req.body?.reason;
+    if (typeof reason !== "string" || !reason.trim()) throw createHttpError(400, "reason is required");
+    await client.query("BEGIN");
+    const { rows } = await client.query(
+      `UPDATE products SET is_active = FALSE, removed_by = $2, removal_reason = $3,
+                           removed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+        WHERE product_id = $1 AND is_active = TRUE RETURNING product_id, business_id, product_name`,
+      [productId, req.auth.user.user_id, reason.trim()],
+    );
+    if (!rows.length) throw createHttpError(404, `Product ${productId} not found`);
+    await notifyBusiness(client, rows[0].business_id, "Product taken down",
+      `${rows[0].product_name} was taken down: ${reason.trim()}`, "warning");
+    await client.query("COMMIT");
+    res.json(rows[0]);
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    next(asClientError(error));
+  } finally {
+    client.release();
   }
 });
 

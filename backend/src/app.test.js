@@ -723,12 +723,12 @@ test("platform admin cannot create or edit products but can take one down", { sk
     });
     assert.equal(patched.status, 403);
 
-    // Governance takedown: admin soft-deletes a product it does not own.
+    // Admin deletion is forbidden; moderation uses the reasoned takedown route.
     const removed = await request(`/api/products/${productId}`, {
       method: "DELETE",
       headers: { Cookie: adminCookie },
     });
-    assert.equal(removed.status, 204);
+    assert.equal(removed.status, 403);
   } finally {
     await pool.query("DELETE FROM products WHERE product_id = $1", [productId]);
     await pool.end();
@@ -1056,6 +1056,7 @@ test("order status transitions and ownership are enforced", { skip: !hasDb }, as
     });
     assert.equal(cancelled.status, 200);
     assert.equal(cancelled.body.status, "cancelled");
+    assert.equal((await pool.query("SELECT status_updated_by FROM orders WHERE order_id = $1", [orderId])).rows[0].status_updated_by, 1);
     assert.equal(cancelled.body.invoice, null);
     assert.equal(await getProductStock(pool, productId), 2);
   } finally {

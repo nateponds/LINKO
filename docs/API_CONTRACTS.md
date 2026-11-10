@@ -277,7 +277,7 @@ records for review; permanently deleting a product cascades to its batches.
 
 Note: the route name remains `suppliers` for implementation continuity, but in product language this domain primarily represents wholesaler-facing marketplace profiles.
 
-> **Milestone 2 reconciliation.** The Sprint 1 sketch below (nested `supplier_profiles` shape, `POST`/`PATCH`) has been replaced by a real, read-only listing. The `POST`/`PATCH` supplier-registration endpoints and the `supplier_profiles`-nested payload are **not implemented**; suppliers are derived from `businesses` where `business_type = 'wholesaler'`. Any authenticated user may read. See §2.1 for the shipped shape.
+> Suppliers are derived from wholesaler businesses. Supplier upgrade/application is not offered; account type is chosen at `/api/auth/register`. There are no supplier POST/PATCH registration routes.
 
 ### 2.1 `GET /api/suppliers` (shipped, Milestone 2)
 
@@ -306,7 +306,7 @@ List businesses acting as wholesalers, each with a count of their active product
 ]
 ```
 
-`POST /api/suppliers` and `PATCH /api/suppliers/:id` are not implemented in Milestone 2 (business/wholesaler registration happens through `/api/auth/register`).
+Supplier upgrade/application is not offered. Account type is chosen at `/api/auth/register`; `POST /api/suppliers` and `PATCH /api/suppliers/:id` are not available.
 
 ---
 
@@ -365,11 +365,22 @@ Owning `business_id` comes from the caller's `wholesaler` membership: 0 membersh
 
 ### 2b.5 `PATCH /api/products/:id`
 
-Roles: `wholesaler` (own product only). Partial update of the POST fields (not `business_id`). Not owner → `403`. Missing/inactive → `404`. Returns the updated product.
+Roles: `wholesaler` (own product only). Partial update of the POST fields (not `business_id`). Not owner → `403`. Missing/owner-deleted → `404`. Currently taken-down products remain editable by their owning wholesaler. Returns the updated product.
 
 ### 2b.6 `DELETE /api/products/:id`
 
-Roles: `wholesaler` (own product only) or `platform_admin` (any product, as a governance takedown). Soft delete (`is_active = FALSE`). `204`. Already inactive/missing → `404`.
+Roles: `wholesaler` (own product only). Admin DELETE returns `403`. Final owner deletion sets `is_active = FALSE` and clears `removed_at`; it cannot be relisted. Returns `204`; missing/owner-deleted returns `404`.
+
+### 2b.7 `POST /api/admin/products/:id/takedown`
+
+Platform admin only (`403` otherwise). Body: `{ "reason": "Required non-empty explanation" }`; missing/blank/non-string reason returns `400`. In one transaction, sets `is_active = FALSE`, `removed_by` to the admin, `removal_reason` to the trimmed reason, and `removed_at` to now, and notifies the owning business with type `warning`. Returns `200` with product_id, business_id, product_name; missing or inactive product returns `404` without changes.
+
+### 2b.8 `POST /api/products/:id/relist`
+
+Owning wholesaler only. Only a currently taken-down product (`removed_at IS NOT NULL`) can be relisted. Sets `is_active = TRUE` and clears `removed_at`, retaining `removed_by` and `removal_reason` as the prior strike. Returns `200` with the product; active-SKU conflict returns `409` with instructions to edit the SKU. Missing/owner-deleted returns `404`; an already-active product returns `409`.
+
+Product GET and PATCH expose currently removed rows only to their owning wholesaler. Product lists include currently removed rows owned by the caller's active wholesaler business, with or without a `business_id` filter; non-owner reads remain active-only. Product responses include `is_active`, `removed_by`, `removal_reason`, and `removed_at`. Owner-deleted rows stay invisible.
+
 
 ---
 

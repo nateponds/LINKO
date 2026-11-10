@@ -128,9 +128,11 @@ test("shipping routes from canonical addresses with server distance and snapshot
       assert.equal(created.status, 201);
       orderId = created.body.order_id;
 
+      assert.equal((await pool.query("SELECT status_updated_by FROM orders WHERE order_id = $1", [orderId])).rows[0].status_updated_by, 1);
       for (const status of ["accepted", "preparing"]) {
         const step = await patchStatus(orderId, wholesalerCookie, { status });
         assert.equal(step.status, 200);
+        assert.equal((await pool.query("SELECT status_updated_by FROM orders WHERE order_id = $1", [orderId])).rows[0].status_updated_by, 2);
       }
       // client-supplied distance must be ignored
       const shipped = await patchStatus(orderId, wholesalerCookie, {
@@ -139,6 +141,7 @@ test("shipping routes from canonical addresses with server distance and snapshot
         total_distance_km: 9999,
       });
       assert.equal(shipped.status, 200);
+      assert.equal((await pool.query("SELECT status_updated_by FROM orders WHERE order_id = $1", [orderId])).rows[0].status_updated_by, 2);
 
       const parcel = await pool.query(
         `SELECT parcel_id, origin_address_id, destination_address_id,
@@ -159,10 +162,11 @@ test("shipping routes from canonical addresses with server distance and snapshot
       assert.ok(Math.abs(row.fee - (50 + 40 + row.distance_km * 2)) < 0.05, `fee from server distance, got ${row.fee}`);
 
       const log = await pool.query(
-        "SELECT branch_id FROM tracking_logs WHERE parcel_id = $1 ORDER BY log_id",
+        "SELECT branch_id, recorded_by FROM tracking_logs WHERE parcel_id = $1 ORDER BY log_id",
         [row.parcel_id],
       );
       assert.equal(log.rows.length, 1);
+      assert.equal(log.rows[0].recorded_by, 2);
       assert.equal(log.rows[0].branch_id, 1, "warehouse addr 3 is nearest the Cebu hub");
 
       const stops = await pool.query(

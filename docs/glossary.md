@@ -246,11 +246,7 @@ Verification is the business concept of checking whether a supply-side participa
 
 Use this term when the implementation needs a true-or-false summary.
 
-### `verification_status`
-
-`verification_status` is the richer lifecycle field that stores a more specific verification state such as `pending`, `verified`, or `rejected`.
-
-Use this when the implementation needs more than a boolean.
+Account type is chosen at registration. Supplier upgrade/application is not offered.
 
 ### `trust_rating`
 

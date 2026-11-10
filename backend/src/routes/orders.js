@@ -341,12 +341,12 @@ export async function restoreOrderStock(client, orderId) {
   }
 }
 
-async function acceptOrder(client, orderId) {
+async function acceptOrder(client, orderId, actorId) {
   await client.query(
     `UPDATE orders
-        SET status = 'accepted', updated_at = CURRENT_TIMESTAMP
+        SET status = 'accepted', status_updated_by = $2, updated_at = CURRENT_TIMESTAMP
       WHERE order_id = $1`,
-    [orderId],
+    [orderId, actorId],
   );
   await createInvoiceForAcceptedOrder(client, orderId);
 }
@@ -466,8 +466,8 @@ router.post(
       await client.query("BEGIN");
       const orderResult = await client.query(
         `INSERT INTO orders
-           (buyer_business_id, wholesaler_business_id, tier_id, status, created_by)
-         VALUES ($1, $2, $3, 'pending', $4)
+           (buyer_business_id, wholesaler_business_id, tier_id, status, created_by, status_updated_by)
+         VALUES ($1, $2, $3, 'pending', $4, $4)
          RETURNING order_id`,
         [buyerBusinessId, wholesalerBusinessId, tierId, req.auth.user.user_id],
       );
@@ -549,13 +549,13 @@ router.patch(
       assertTransitionAllowed(req, order, side, status);
 
       if (status === "accepted") {
-        await acceptOrder(client, orderId);
+        await acceptOrder(client, orderId, req.auth.user.user_id);
       } else {
         await client.query(
           `UPDATE orders
-              SET status = $1, updated_at = CURRENT_TIMESTAMP
+              SET status = $1, status_updated_by = $3, updated_at = CURRENT_TIMESTAMP
             WHERE order_id = $2`,
-          [status, orderId],
+          [status, orderId, req.auth.user.user_id],
         );
 
         if (status === "cancelled") {
@@ -633,9 +633,9 @@ router.patch(
 
           const branchId = await resolveInitialBranchId(client, origin.address_id);
           await client.query(
-            `INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id)
-             VALUES ($1, 'Order Created', 'System-generated from marketplace order', $2)`,
-            [parcelId, branchId]
+            `INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id, recorded_by)
+             VALUES ($1, 'Order Created', 'System-generated from marketplace order', $2, $3)`,
+            [parcelId, branchId, req.auth.user.user_id]
           );
           await createInitialRouteSnapshot(client, parcelId, branchId);
         }

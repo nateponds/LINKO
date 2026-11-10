@@ -2,12 +2,11 @@ import { useRef, useState } from "react";
 import { ArrowRight, Handshake, MapPin, Menu, Package, ShieldCheck, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
-import { ROUTE_ACCESS, redirectPathForRoles } from "../auth/roleAccess";
+import { redirectPathForRoles } from "../auth/roleAccess";
 import HeroVideoPreview from "../features/landing/HeroVideoPreview";
 import { BANNERS } from "../lib/productBanners";
 import "../assets/css/shell.css";
 import "./SupplierDiscoveryPage.css";
-import "./BecomeSupplierPage.css";
 import "../assets/css/landing.css";
 
 const MILK_BANNER = BANNERS[0];
@@ -66,7 +65,7 @@ function LandingBanner({ banner, destination, className = "", priority = false }
 }
 
 export default function LandingPage() {
-  const { user, activeRoles, isAdmin, hasAnyRole } = useAuth();
+  const { user, activeRoles, isAdmin } = useAuth();
   const signedIn = Boolean(user);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuToggleRef = useRef(null);
@@ -174,7 +173,7 @@ export default function LandingPage() {
             </div>
           </section>
 
-          <section className="become-supplier-page landing-how" id="how" tabIndex={-1}>
+          <section className="landing-how" id="how" tabIndex={-1}>
             <h2>How it works</h2>
             <p className="landing-lead">
               Search supplier listings, review listed product prices, and manage orders in one marketplace.
@@ -259,10 +258,10 @@ export default function LandingPage() {
                 </>
               )}
             </div>
-            {(!signedIn || hasAnyRole(ROUTE_ACCESS["/become-a-supplier"])) && (
+            {!signedIn && (
               <div className="footer-col">
                 <h4>Suppliers</h4>
-                <Link to={signedIn ? "/become-a-supplier" : "/register"}>Become a supplier</Link>
+                <Link to="/register">Become a supplier</Link>
               </div>
             )}
           </div>

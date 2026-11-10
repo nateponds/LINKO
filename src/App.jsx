@@ -20,7 +20,6 @@ import LogisticsPage from "./pages/logistics/LogisticsPage";
 import LogisticsManagementPage from "./pages/logistics/LogisticsManagementPage";
 import ParcelDetailPage from "./pages/logistics/ParcelDetailPage";
 import CourierDashboardPage from "./pages/logistics/CourierDashboardPage";
-import BecomeSupplierPage from "./pages/BecomeSupplierPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import LandingPage from "./pages/LandingPage";
@@ -34,7 +33,6 @@ import { AppShellSkeleton } from "./components/ui/pageSkeletons";
 const TITLES = [
   ["/landing", "Wholesale Marketplace"],
   ["/register", "Register"],
-  ["/become-a-supplier", "Become a Supplier"],
   ["/login", "Log In"],
   ["/inventory", "My Products"],
   ["/invoices", "Invoice Tracking"],
@@ -98,7 +96,6 @@ function AppRoutes() {
       {guarded("/suppliers", <SupplierDiscoveryPage />)}
       {guarded("/suppliers/:supplierId", <SupplierProfilePage />)}
       {guarded("/cart", <CartPage />)}
-      {guarded("/become-a-supplier", <BecomeSupplierPage />)}
       {guarded("/orders", <OrdersPage />)}
       {guarded("/invoices", <InvoicePage />)}
       {guarded("/dashboard", <DashboardPage />)}
