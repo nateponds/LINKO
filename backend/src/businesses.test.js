@@ -61,6 +61,9 @@ test("buyer adds businesses without a cap and switches business context without 
       const dashboard = await request("/api/dashboard", { headers: { Cookie: cookie, "X-Active-Business": String(businessId) } });
       assert.equal(dashboard.status, status);
     }
+    const buyerOrders = await request("/api/orders", { headers: { Cookie: cookie, "X-Active-Business": String(buyer.business_id) } });
+    assert.equal(buyerOrders.status, 200);
+    assert.deepEqual(buyerOrders.body.items, []);
     assert.equal((await request("/api/dashboard", { headers: { Cookie: cookie } })).status, 400);
     const third = await post("/api/businesses", { business_name: "Second Wholesaler", business_type: "wholesaler" }, cookie);
     assert.equal(third.status, 201);
@@ -70,6 +73,7 @@ test("buyer adds businesses without a cap and switches business context without 
     if (userId) {
       const { rows } = await pool.query("SELECT business_id FROM user_businesses WHERE user_id = $1", [userId]);
       await pool.query("DELETE FROM users WHERE user_id = $1", [userId]);
+      await pool.query("DELETE FROM addresses WHERE business_id = ANY($1::int[])", [rows.map((row) => row.business_id)]);
       await pool.query("DELETE FROM businesses WHERE business_id = ANY($1::int[])", [rows.map((row) => row.business_id)]);
     }
     await pool.end();
