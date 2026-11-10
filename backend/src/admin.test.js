@@ -316,3 +316,43 @@ test("admin toggles business verification", { skip: !hasDb }, async () => {
     await pool.end();
   }
 });
+
+// Migration 027: admins never hold memberships, enforced in both directions.
+test("db rejects memberships for platform_admin users", { skip: !hasDb }, async () => {
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+  const client = await pool.connect();
+  const rejectedByGuard = (err) =>
+    err.code === "23514" && err.constraint === "admin_no_memberships";
+
+  try {
+    const { rows: [admin] } = await client.query(
+      "SELECT user_id FROM users WHERE email = 'admin@linko.test'",
+    );
+    const { rows: [member] } = await client.query(
+      "SELECT user_id, business_id FROM business_memberships LIMIT 1",
+    );
+
+    await client.query("BEGIN");
+    await assert.rejects(
+      client.query(
+        "INSERT INTO business_memberships (user_id, business_id, role) VALUES ($1, $2, 'buyer')",
+        [admin.user_id, member.business_id],
+      ),
+      rejectedByGuard,
+    );
+    await client.query("ROLLBACK");
+
+    await client.query("BEGIN");
+    await assert.rejects(
+      client.query("UPDATE users SET global_role = 'platform_admin' WHERE user_id = $1", [
+        member.user_id,
+      ]),
+      rejectedByGuard,
+    );
+    await client.query("ROLLBACK");
+  } finally {
+    client.release();
+    await pool.end();
+  }
+});

@@ -193,7 +193,8 @@ function listScope(req) {
 }
 
 // Which side of `order` the active business is on: "buyer", "wholesaler", or
-// null when it is not a party to the order.
+// null when it is not a party to the order. Always null for platform_admin:
+// admins hold no memberships (migration 027), so they never resolve a side.
 function orderSide(req, order) {
   const businessId = resolveActiveBusinessId(req);
   if (businessId === order.buyer_business_id) return "buyer";
