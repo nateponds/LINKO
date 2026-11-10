@@ -330,8 +330,19 @@ test("db rejects memberships for platform_admin users", { skip: !hasDb }, async 
       "SELECT user_id FROM users WHERE email = 'admin@linko.test'",
     );
     const { rows: [member] } = await client.query(
-      "SELECT user_id, business_id FROM business_memberships LIMIT 1",
+      "SELECT membership_id, user_id, business_id FROM business_memberships LIMIT 1",
     );
+
+    // Reassigning an existing membership to the admin.
+    await client.query("BEGIN");
+    await assert.rejects(
+      client.query("UPDATE business_memberships SET user_id = $1 WHERE membership_id = $2", [
+        admin.user_id,
+        member.membership_id,
+      ]),
+      rejectedByGuard,
+    );
+    await client.query("ROLLBACK");
 
     await client.query("BEGIN");
     await assert.rejects(
