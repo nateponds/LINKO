@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { query } from "../db.js";
 import { requireAnyRole, requireAuth } from "../middleware/auth.js";
-import { activeMemberships, isPlatformAdmin } from "../middleware/ownership.js";
+import { activeMemberships } from "../middleware/ownership.js";
 import { buildPaginatedResponse, parsePaginationQuery } from "../services/pagination.js";
 
 const router = Router();
@@ -89,16 +89,25 @@ const PRODUCT_SELECT = `
            ELSE 'in_stock'
          END AS stock_status,
          p.image_url,
+         p.is_active,
+         p.removed_by,
+         p.removal_reason,
+         p.removed_at,
          p.created_at
     FROM products p
     JOIN businesses b ON b.business_id = p.business_id
     LEFT JOIN categories c ON c.category_id = p.category_id`;
 
-// Load one active product by id in the full shape, or null.
-async function findProduct(productId) {
+// Removed products remain visible only to their owning wholesaler.
+function ownerBusinessId(req) {
+  return activeMemberships(req).find((m) => m.role === "wholesaler")?.business_id ?? null;
+}
+
+// Load one visible product by id in the full shape, or null.
+async function findProduct(productId, businessId = null) {
   const { rows } = await query(
-    `${PRODUCT_SELECT} WHERE p.product_id = $1 AND p.is_active = TRUE`,
-    [productId],
+    `${PRODUCT_SELECT} WHERE p.product_id = $1 AND (p.is_active = TRUE OR (p.removed_at IS NOT NULL AND p.business_id = $2))`,
+    [productId, businessId],
   );
   return rows[0] ?? null;
 }
@@ -153,8 +162,9 @@ router.get("/categories/options", requireAuth, async (_req, res, next) => {
 router.get("/products", requireAuth, async (req, res, next) => {
   try {
     const { page, limit, offset, q } = parsePaginationQuery(req.query);
-    const conditions = ["p.is_active = TRUE"];
-    const params = [];
+    const ownerId = ownerBusinessId(req);
+    const conditions = ["(p.is_active = TRUE OR (p.removed_at IS NOT NULL AND p.business_id = $1))"];
+    const params = [Number(req.query.business_id) === ownerId ? ownerId : null];
 
     const businessId = parsePositiveQueryId(req.query, "business_id");
     if (businessId !== undefined) {
@@ -236,7 +246,7 @@ router.get("/products", requireAuth, async (req, res, next) => {
 router.get("/products/:id", requireAuth, async (req, res, next) => {
   try {
     const productId = parseProductId(req.params.id);
-    const product = await findProduct(productId);
+    const product = await findProduct(productId, ownerBusinessId(req));
     if (!product) {
       throw createHttpError(404, `Product ${req.params.id} not found`);
     }
@@ -315,24 +325,18 @@ router.post(
   },
 );
 
-// Shared ownership guard for PATCH / DELETE: returns the target row (active) or
-// throws 404; throws 403 unless caller owns the product's business or is admin.
-// The admin bypass is reachable only from DELETE (governance takedown): PATCH's
-// role list excludes platform_admin.
+// Shared ownership guard for product mutations.
 async function loadOwnedProduct(req) {
   const productId = parseProductId(req.params.id);
   const { rows } = await query(
     `SELECT product_id, business_id FROM products
-      WHERE product_id = $1 AND is_active = TRUE`,
+      WHERE product_id = $1 AND (is_active = TRUE OR removed_at IS NOT NULL)`,
     [productId],
   );
   if (!rows.length) {
     throw createHttpError(404, `Product ${req.params.id} not found`);
   }
 
-  if (isPlatformAdmin(req.auth.user)) {
-    return rows[0];
-  }
   const owns = activeMemberships(req).some(
     (m) => m.role === "wholesaler" && m.business_id === rows[0].business_id,
   );
@@ -412,7 +416,7 @@ router.patch(
         );
       }
 
-      const updated = await findProduct(req.params.id);
+      const updated = await findProduct(req.params.id, ownerBusinessId(req));
       res.json(updated);
     } catch (error) {
       next(asClientError(error));
@@ -421,18 +425,17 @@ router.patch(
 );
 
 // ---------------------------------------------------------------------------
-// Delete -- soft delete (is_active = FALSE). Owning wholesaler, or
-// platform_admin (any product) as a governance takedown.
+// Delete -- final owner deletion, including a currently removed product.
 // ---------------------------------------------------------------------------
 router.delete(
   "/products/:id",
   requireAuth,
-  requireAnyRole(["wholesaler", "platform_admin"]),
+  requireAnyRole(["wholesaler"]),
   async (req, res, next) => {
     try {
       await loadOwnedProduct(req);
       await query(
-        `UPDATE products SET is_active = FALSE WHERE product_id = $1`,
+        `UPDATE products SET is_active = FALSE, removed_at = NULL WHERE product_id = $1`,
         [req.params.id],
       );
       res.status(204).end();
@@ -441,5 +444,25 @@ router.delete(
     }
   },
 );
+
+router.post("/products/:id/relist", requireAuth, requireAnyRole(["wholesaler"]), async (req, res, next) => {
+  try {
+    const product = await loadOwnedProduct(req);
+    const result = await query(
+      `UPDATE products SET is_active = TRUE, removed_at = NULL, updated_at = CURRENT_TIMESTAMP
+        WHERE product_id = $1 AND business_id = $2 AND removed_at IS NOT NULL
+        RETURNING product_id`,
+      [product.product_id, product.business_id],
+    );
+    if (!result.rowCount) throw createHttpError(409, "Only currently removed products can be relisted");
+    res.json(await findProduct(product.product_id));
+  } catch (error) {
+    if (error.code === "23505") {
+      next(createHttpError(409, "Another active product uses this SKU. Change the SKU before relisting."));
+    } else {
+      next(asClientError(error));
+    }
+  }
+});
 
 export default router;

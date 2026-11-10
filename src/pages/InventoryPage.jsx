@@ -268,6 +268,15 @@ export default function InventoryPage() {
     }
   }
 
+  async function handleRelist(item) {
+    try {
+      await apiSend(`/api/products/${item.product_id}/relist`);
+      await Promise.all([loadProducts(), loadLowStock()]);
+    } catch (err) {
+      setError(err.status === 409 ? "Cannot relist: another active product may use this SKU. Edit the SKU and try again." : err.message);
+    }
+  }
+
   /* ===== stock inline-edit popover ===== */
   function openStockEditor(item, anchor, focus = "exact") {
     setStockError(null);
@@ -563,8 +572,8 @@ export default function InventoryPage() {
                   </thead>
                   <tbody>
                     {visibleProducts.map((item) => {
-                      const status = statusFor(item.stock_status);
-                      // Only the owner edits; platform_admin may only take a product down.
+                      const status = item.removed_at ? { cls: "warning", label: "Taken down" } : statusFor(item.stock_status);
+                      // Only the owning wholesaler manages products.
                       const canManage = item.business_id === ownBusinessId;
                       return (
                         <ExpandableTableRow
@@ -595,11 +604,15 @@ export default function InventoryPage() {
                             { key: "status", content: <span className={`status ${status.cls}`}>{status.label}</span> },
                           ]}
                         >
-                          {(canManage || isAdmin) && (
-                            <div className="row-panel-actions">
-                              {canManage && <button type="button" className="link-button" onClick={() => openEditModal(item)}>Edit product</button>}
-                              <button type="button" className="link-button inventory-delete" onClick={() => requestDelete(item)}>Delete product</button>
-                            </div>
+                          {canManage && (
+                            <>
+                              {item.removed_at && <p role="status">Taken down: {item.removal_reason}</p>}
+                              <div className="row-panel-actions">
+                                <button type="button" className="link-button" onClick={() => openEditModal(item)}>Edit product</button>
+                                {item.removed_at && <button type="button" className="link-button" onClick={() => handleRelist(item)}>Relist product</button>}
+                                <button type="button" className="link-button inventory-delete" onClick={() => requestDelete(item)}>Delete product</button>
+                              </div>
+                            </>
                           )}
                         </ExpandableTableRow>
                       );
