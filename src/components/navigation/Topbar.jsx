@@ -222,6 +222,9 @@ function Topbar({ showSearch = false, showCategories = false }) {
           ) : (
             ""
           )}
+          {hasAnyRole(ROUTE_ACCESS["/businesses/new"]) && (
+            <> {" - "}<Link to="/businesses/new">Add a business</Link></>
+          )}
         </span>
       </div>
       <header className="header-nav">
@@ -456,6 +459,9 @@ function Topbar({ showSearch = false, showCategories = false }) {
                   </div>
                 </div>
                 <nav className="dropdown-menu">
+                  {hasAnyRole(ROUTE_ACCESS["/businesses/new"]) && (
+                    <Link to="/businesses/new" onClick={() => setOpenPanel(null)}>Add a business</Link>
+                  )}
                   {hasAnyRole(ROUTE_ACCESS["/dashboard"]) && (
                     <Link to="/dashboard" onClick={() => setOpenPanel(null)}>
                       <LayoutDashboard size={15} /> Dashboard

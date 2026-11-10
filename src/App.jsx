@@ -21,6 +21,7 @@ import LogisticsManagementPage from "./pages/logistics/LogisticsManagementPage";
 import ParcelDetailPage from "./pages/logistics/ParcelDetailPage";
 import CourierDashboardPage from "./pages/logistics/CourierDashboardPage";
 import LoginPage from "./pages/LoginPage";
+import AddBusinessPage from "./pages/AddBusinessPage";
 import RegisterPage from "./pages/RegisterPage";
 import LandingPage from "./pages/LandingPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
@@ -33,6 +34,7 @@ import { AppShellSkeleton } from "./components/ui/pageSkeletons";
 const TITLES = [
   ["/landing", "Wholesale Marketplace"],
   ["/register", "Register"],
+  ["/businesses/new", "Add a business"],
   ["/login", "Log In"],
   ["/inventory", "My Products"],
   ["/invoices", "Invoice Tracking"],
@@ -95,6 +97,7 @@ function AppRoutes() {
       {guarded("/", <SupplierDiscoveryPage />)}
       {guarded("/suppliers", <SupplierDiscoveryPage />)}
       {guarded("/suppliers/:supplierId", <SupplierProfilePage />)}
+      {guarded("/businesses/new", <AddBusinessPage />)}
       {guarded("/cart", <CartPage />)}
       {guarded("/orders", <OrdersPage />)}
       {guarded("/invoices", <InvoicePage />)}

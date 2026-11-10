@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { APP_NAV_ITEMS, ROUTE_ACCESS, hasAccess, redirectPathForRoles } from "./roleAccess.js";
+import { APP_NAV_ITEMS, ROUTE_ACCESS, groupMemberships, defaultPathForSession, hasAccess, redirectPathForRoles } from "./roleAccess.js";
 
 const PUBLIC_PATHS = new Set(["/landing", "/login", "/register", "*"]);
 
@@ -49,4 +49,30 @@ test("only the active business's roles count", () => {
   const user = { user_id: 1 };
   assert.equal(hasAccess(user, ["buyer"], ROUTE_ACCESS["/dashboard"]), false);
   assert.equal(hasAccess(user, ["wholesaler"], ROUTE_ACCESS["/dashboard"]), true);
+});
+
+test("add business is available to buyers and wholesalers, not admins or operational roles", () => {
+  for (const role of ["buyer", "wholesaler"]) {
+    assert.equal(hasAccess({ user_id: 1 }, [role], ROUTE_ACCESS["/businesses/new"]), true);
+  }
+  for (const role of ["courier", "logistics_coordinator"]) {
+    assert.equal(hasAccess({ user_id: 1 }, [role], ROUTE_ACCESS["/businesses/new"]), false);
+  }
+  assert.equal(hasAccess({ global_role: "platform_admin" }, [], ROUTE_ACCESS["/businesses/new"]), false);
+});
+
+test("additional businesses remain separate switcher options and select their own capabilities", () => {
+  const memberships = [
+    { business_id: 1, business_name: "Buyer", business_type: "buyer", role: "buyer" },
+    { business_id: 2, business_name: "Seller", business_type: "wholesaler", role: "wholesaler" },
+    { business_id: 3, business_name: "Second seller", business_type: "wholesaler", role: "wholesaler" },
+  ];
+  assert.equal(groupMemberships(memberships.slice(0, 1)).length, 1);
+  assert.equal(groupMemberships(memberships.slice(0, 2)).length, 2);
+  const businesses = groupMemberships(memberships);
+  assert.equal(businesses.length, 3);
+  for (const business of businesses) {
+    assert.equal(hasAccess({ user_id: 1 }, business.roles, ROUTE_ACCESS["/dashboard"]), business.business_type === "wholesaler");
+    assert.equal(defaultPathForSession({ memberships }, String(business.business_id)), "/");
+  }
 });

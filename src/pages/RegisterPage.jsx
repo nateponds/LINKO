@@ -55,7 +55,9 @@ export default function RegisterPage() {
       const defaultPath = defaultPathForSession(payload, stored);
       navigate(defaultPath, { replace: true });
     } catch (error) {
-      setSubmitError(error.message);
+      setSubmitError(error.status === 409
+        ? 'Email already registered. Log in and use "Add a business" to create another business.'
+        : error.message);
     } finally {
       setSubmitting(false);
     }

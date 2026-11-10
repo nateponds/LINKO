@@ -13,6 +13,7 @@ export const ROUTE_ACCESS = {
   "/": MARKETPLACE,
   "/suppliers": MARKETPLACE,
   "/suppliers/:supplierId": MARKETPLACE,
+  "/businesses/new": ["buyer", "wholesaler"],
   "/cart": ["buyer", "wholesaler"], // admins never buy (POST /api/orders rejects them)
   "/orders": MARKETPLACE,
   "/invoices": MARKETPLACE,

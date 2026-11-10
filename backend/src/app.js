@@ -1,4 +1,5 @@
 import express from "express";
+import businessesRouter from "./routes/businesses.js";
 import authRouter from "./routes/auth.js";
 import logisticsRouter from "./routes/logistics.js";
 import ordersRouter from "./routes/orders.js";
@@ -25,6 +26,7 @@ export function createApp() {
 
   // These routers own their domain paths.
   app.use("/api/auth", authRouter);
+  app.use("/api/businesses", requireAuth, businessesRouter);
   // Suppliers is a read-only marketplace listing for any authenticated user
   // (buyers browse wholesalers), so it only needs requireAuth -- no role gate.
   app.use("/api/suppliers", requireAuth, suppliersRouter);
