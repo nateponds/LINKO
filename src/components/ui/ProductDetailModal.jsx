@@ -112,28 +112,30 @@ export default function ProductDetailModal({
                 {product.description || "No description provided."}
               </p>
 
-              <div className="product-modal-actions">
-                <label className="quantity-field">
-                  <span>Qty</span>
-                  <input
-                    type="number"
-                    min="1"
-                    max={Math.max(maxQuantity, 1)}
-                    value={isAvailable ? quantity : 0}
+              {onAddToCart && (
+                <div className="product-modal-actions">
+                  <label className="quantity-field">
+                    <span>Qty</span>
+                    <input
+                      type="number"
+                      min="1"
+                      max={Math.max(maxQuantity, 1)}
+                      value={isAvailable ? quantity : 0}
+                      disabled={!isAvailable}
+                      onChange={(event) => onQuantityChange?.(product, event.target.value)}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="add-cart-btn"
                     disabled={!isAvailable}
-                    onChange={(event) => onQuantityChange?.(product, event.target.value)}
-                  />
-                </label>
-                <button
-                  type="button"
-                  className="add-cart-btn"
-                  disabled={!isAvailable}
-                  onClick={() => onAddToCart?.(product)}
-                >
-                  <ShoppingCart size={15} />
-                  Add to cart
-                </button>
-              </div>
+                    onClick={() => onAddToCart(product)}
+                  >
+                    <ShoppingCart size={15} />
+                    Add to cart
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
