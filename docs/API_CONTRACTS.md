@@ -297,19 +297,19 @@ Any authenticated user. `404` if missing or inactive.
 
 ### 2b.4 `POST /api/products`
 
-Roles: `wholesaler` or `platform_admin`.
+Roles: `wholesaler` (platform admins get `403`: they are never sellers).
 
 **Body:** `product_name` (required, non-empty, ≤100), `unit_price` (required, number ≥ 0), `sku?` (≤50), `description?`, `category_id?`, `stock_quantity?` (int ≥ 0, default 0), `image_url?`.
 
-Owning `business_id` comes from the caller's `wholesaler` membership: 0 memberships and not admin → `403`; more than 1 → `400` ("multiple wholesaler businesses not supported yet"). A `platform_admin` with no wholesaler membership **must** pass `business_id` in the body; it is validated to exist with `business_type = 'wholesaler'`, else `400`. Duplicate `sku` → `400`. Returns `201` + the created product (full shape).
+Owning `business_id` comes from the caller's `wholesaler` membership: 0 memberships → `403`; more than 1 → `400` ("multiple wholesaler businesses not supported yet"). A body `business_id` is ignored. Duplicate `sku` → `400`. Returns `201` + the created product (full shape).
 
 ### 2b.5 `PATCH /api/products/:id`
 
-Roles: `wholesaler` (own product only) or `platform_admin` (any). Partial update of the POST fields (not `business_id`). Not owner → `403`. Missing/inactive → `404`. Returns the updated product.
+Roles: `wholesaler` (own product only). Partial update of the POST fields (not `business_id`). Not owner → `403`. Missing/inactive → `404`. Returns the updated product.
 
 ### 2b.6 `DELETE /api/products/:id`
 
-Same auth/ownership as PATCH. Soft delete (`is_active = FALSE`). `204`. Already inactive/missing → `404`.
+Roles: `wholesaler` (own product only) or `platform_admin` (any product, as a governance takedown). Soft delete (`is_active = FALSE`). `204`. Already inactive/missing → `404`.
 
 ---
 

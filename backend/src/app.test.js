@@ -701,44 +701,34 @@ test("wholesaler cannot patch a product owned by another business", { skip: !has
   }
 });
 
-test("platform admin manages products across businesses", { skip: !hasDb }, async () => {
+test("platform admin cannot create or edit products but can take one down", { skip: !hasDb }, async () => {
   const adminCookie = await loginAs("admin@linko.test");
   const { createPool } = await import("./db.js");
   const pool = createPool();
-
-  // Resolve Harbor's business_id by name (SERIAL, never hardcoded).
-  const harbor = await pool.query(
-    "SELECT business_id FROM businesses WHERE business_name = 'Cebu Fresh Wholesale'",
-  );
-  const harborId = harbor.rows[0].business_id;
-
-  // Admin has no wholesaler membership, so POST without business_id -> 400.
-  const noBiz = await postJson("/api/products", adminCookie, {
-    product_name: "Admin No Business",
-    unit_price: 10,
-  });
-  assert.equal(noBiz.status, 400);
-  assert.match(noBiz.body.error.message, /business_id/i);
-
-  // POST with a valid wholesaler business_id -> 201.
-  const created = await postJson("/api/products", adminCookie, {
-    product_name: "Admin Created Product",
-    unit_price: 42,
-    sku: `ADMIN-${Date.now()}`,
-    business_id: harborId,
-  });
-  assert.equal(created.status, 201);
-  const productId = created.body.product_id;
+  const productId = await createTestProduct(pool);
 
   try {
-    // Admin can patch a product it does not "own".
+    const harborId = await getBusinessIdByName(pool, "Cebu Fresh Wholesale");
+    const created = await postJson("/api/products", adminCookie, {
+      product_name: "Admin Created Product",
+      unit_price: 42,
+      business_id: harborId,
+    });
+    assert.equal(created.status, 403);
+
     const patched = await request(`/api/products/${productId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Cookie: adminCookie },
       body: JSON.stringify({ unit_price: 99 }),
     });
-    assert.equal(patched.status, 200);
-    assert.equal(patched.body.unit_price, "99.00");
+    assert.equal(patched.status, 403);
+
+    // Governance takedown: admin soft-deletes a product it does not own.
+    const removed = await request(`/api/products/${productId}`, {
+      method: "DELETE",
+      headers: { Cookie: adminCookie },
+    });
+    assert.equal(removed.status, 204);
   } finally {
     await pool.query("DELETE FROM products WHERE product_id = $1", [productId]);
     await pool.end();
