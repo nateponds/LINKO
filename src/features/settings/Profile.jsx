@@ -1,7 +1,7 @@
 import { useAuth } from "../../auth/AuthProvider";
 
 export default function Profile() {
-  const { user, activeBusiness } = useAuth();
+  const { user, isAdmin, activeBusiness } = useAuth();
   
   const getInitials = (name) => {
     return name ? name.charAt(0).toUpperCase() : "?";
@@ -49,7 +49,7 @@ export default function Profile() {
             </div>
             <div className="settings-info-group">
               <label>Current Role</label>
-              <p className="role-badge">{user?.global_role === 'platform_admin' ? 'Admin' : 'User'}</p>
+              <p className="role-badge">{isAdmin ? 'Admin' : 'User'}</p>
             </div>
           </div>
         </div>

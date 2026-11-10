@@ -33,11 +33,10 @@ function statusFor(status) {
 }
 
 export default function InventoryPage() {
-  const { user, activeBusinessId, activeRoles } = useAuth();
+  const { isAdmin, activeBusinessId, activeRoles } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const { page, limit, q } = readListUrlState(searchParams);
 
-  const isAdmin = user?.global_role === "platform_admin";
   const ownBusinessId = activeRoles.includes("wholesaler")
     ? activeBusinessId
     : null;

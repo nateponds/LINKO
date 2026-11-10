@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { groupMemberships, hasAccess } from "./roleAccess";
+import { groupMemberships, hasAccess, isPlatformAdmin } from "./roleAccess";
 
 const AuthContext = createContext(null);
 
@@ -263,9 +263,12 @@ export function AuthProvider({ children }) {
     [activeRoles, user],
   );
 
+  const isAdmin = isPlatformAdmin(user);
+
   const value = useMemo(
     () => ({
       user,
+      isAdmin,
       memberships,
       businesses,
       activeBusinessId,
@@ -289,6 +292,7 @@ export function AuthProvider({ children }) {
       businesses,
       error,
       hasAnyRole,
+      isAdmin,
       loading,
       login,
       logout,

@@ -88,7 +88,7 @@ function useOrderPage(path) {
 }
 
 export default function OrdersPage() {
-  const { activeBusinessId, activeRoles, user } = useAuth();
+  const { activeBusinessId, isAdmin } = useAuth();
   const location = useLocation();
   const list = useListUrlState();
   const statusFilter = new URLSearchParams(location.search).get("status") || "All";
@@ -217,17 +217,14 @@ export default function OrdersPage() {
       actions.push({ label: "Track parcel", onClick: () => openTracking(order) });
     }
 
-    if (user?.global_role === "platform_admin") {
+    if (isAdmin) {
       return actions;
     }
-    // Actions are scoped to the ACTIVE business only: the caller must be acting
-    // as the order's buyer/wholesaler side through their selected business.
-    // Capabilities from any unselected business grant nothing here.
-    const ownsBuyerSide =
-      activeBusinessId === order.buyer_business_id && activeRoles.includes("buyer");
-    const ownsWholesalerSide =
-      activeBusinessId === order.wholesaler_business_id &&
-      activeRoles.includes("wholesaler");
+    // Your side of an order is decided by the order, not by your role: the
+    // active business is the buyer side if it placed the order (a wholesaler
+    // buying stock included) and the seller side if it is the wholesaler.
+    const ownsBuyerSide = activeBusinessId === order.buyer_business_id;
+    const ownsWholesalerSide = activeBusinessId === order.wholesaler_business_id;
 
     if (status === "pending") {
       if (ownsWholesalerSide) {

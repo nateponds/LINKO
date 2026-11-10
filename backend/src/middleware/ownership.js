@@ -105,6 +105,15 @@ export function resolveActiveBusinessId(req) {
   return null;
 }
 
+// The caller's membership rows for the business they are acting as. This is
+// the only role set any authorization decision may read (roles on other
+// businesses grant nothing). Throws 400 for a multi-business caller with no
+// X-Active-Business; empty for a caller with no memberships.
+export function activeMemberships(req) {
+  const businessId = resolveActiveBusinessId(req);
+  return req.auth.memberships.filter((m) => m.business_id === businessId);
+}
+
 // True when the caller is a platform admin or a member of `businessId`.
 // Throws 403 otherwise.
 export function assertBusinessAccess(req, businessId) {

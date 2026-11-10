@@ -14,6 +14,7 @@ import {
   FAIL_REASONS,
 } from "../../lib/statusWorkflow";
 import { useAuth } from "../../auth/AuthProvider";
+import { ACTION_ACCESS } from "../../auth/roleAccess";
 import { apiGet, apiSend } from "../../lib/api";
 import { LogisticsNotice } from "./LogisticsStates";
 import { formatNextStatuses, nextStatusesForRole } from "./workflowHints";
@@ -54,7 +55,7 @@ export default function ParcelDetailPage() {
   const [formBranch, setFormBranch] = useState("");
   const [formCourier, setFormCourier] = useState("");
   const [formRemarks, setFormRemarks] = useState("");
-  const canUpdateAssignment = hasAnyRole(["logistics_coordinator", "platform_admin"]);
+  const canUpdateAssignment = hasAnyRole(ACTION_ACCESS.assignParcel);
 
   const loadKey = `${parcelId}:${reloadToken}`;
 
@@ -322,7 +323,7 @@ export default function ParcelDetailPage() {
                 stops={parcel.planned_route}
               />
 
-              {hasAnyRole(["logistics_coordinator", "platform_admin", "courier"]) && (
+              {hasAnyRole(ACTION_ACCESS.logParcelStatus) && (
                 <div className="update-status-form">
                   <h3>{canUpdateAssignment ? "Assign and log the next status" : "Log the next status"}</h3>
                   <p className="form-note">

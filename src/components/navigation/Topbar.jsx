@@ -23,7 +23,7 @@ import { GoChevronDown } from "react-icons/go";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../auth/AuthProvider";
 import { useCart } from "../../features/cart/CartProvider";
-import { formatRoleLabel, primaryRole, ROLE_ACCESS } from "../../auth/roleAccess";
+import { formatRoleLabel, primaryRole, ROUTE_ACCESS } from "../../auth/roleAccess";
 import MarketplaceSearch from "../../features/search/MarketplaceSearch.jsx";
 import { marketplaceSearchPath } from "../../features/search/marketplaceSearch";
 import ConfirmDialog from "../ui/ConfirmDialog";
@@ -75,12 +75,13 @@ function Topbar({ showSearch = false, showCategories = false }) {
     setActiveBusiness,
     logout,
     hasAnyRole,
+    isAdmin,
   } = useAuth();
   const { count: cartCount } = useCart();
   const displayName = user?.full_name || user?.email || "LINKO User";
   const displayBusiness = activeBusiness?.business_name || "No business assigned";
   const displayRole =
-    user?.global_role === "platform_admin"
+    isAdmin
       ? formatRoleLabel("platform_admin")
       : activeRoles.map(formatRoleLabel).join(", ") || "Member";
   const badgeRole = primaryRole(user, activeRoles);
@@ -301,7 +302,7 @@ function Topbar({ showSearch = false, showCategories = false }) {
           />
         )}
         <div className="header-actions">
-          {hasAnyRole(ROLE_ACCESS.marketplace) && (
+          {hasAnyRole(ROUTE_ACCESS["/cart"]) && (
             <Link
               to="/cart"
               className="icon-action"
@@ -457,22 +458,22 @@ function Topbar({ showSearch = false, showCategories = false }) {
                   </div>
                 </div>
                 <nav className="dropdown-menu">
-                  {hasAnyRole(ROLE_ACCESS.dashboard) && (
+                  {hasAnyRole(ROUTE_ACCESS["/dashboard"]) && (
                     <Link to="/dashboard" onClick={() => setOpenPanel(null)}>
                       <LayoutDashboard size={15} /> Dashboard
                     </Link>
                   )}
-                  {hasAnyRole(ROLE_ACCESS.inventory) && (
+                  {hasAnyRole(ROUTE_ACCESS["/inventory"]) && (
                     <Link to="/inventory" onClick={() => setOpenPanel(null)}>
                       <Boxes size={15} /> Inventory
                     </Link>
                   )}
-                  {hasAnyRole(ROLE_ACCESS.orders) && (
+                  {hasAnyRole(ROUTE_ACCESS["/orders"]) && (
                     <Link to="/orders" onClick={() => setOpenPanel(null)}>
                       <ClipboardList size={15} /> Orders
                     </Link>
                   )}
-                  {hasAnyRole(ROLE_ACCESS.settings) && (
+                  {hasAnyRole(ROUTE_ACCESS["/settings"]) && (
                     <Link to="/settings" onClick={() => setOpenPanel(null)}>
                       <Settings size={15} /> Settings
                     </Link>

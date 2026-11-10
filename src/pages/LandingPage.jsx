@@ -18,6 +18,7 @@ const DESTINATION_LABELS = {
   "/courier": "Courier dashboard",
   "/admin": "Admin dashboard",
   "/dashboard": "Open dashboard",
+  "/settings/profile": "Open your profile",
 };
 
 const PERKS = [
@@ -65,13 +66,13 @@ function LandingBanner({ banner, destination, className = "", priority = false }
 }
 
 export default function LandingPage() {
-  const { user, activeRoles } = useAuth();
+  const { user, activeRoles, isAdmin } = useAuth();
   const signedIn = Boolean(user);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuToggleRef = useRef(null);
   const year = new Date().getFullYear();
   const destinationPath = signedIn
-    ? redirectPathForRoles(activeRoles, user.global_role === "platform_admin")
+    ? redirectPathForRoles(activeRoles, isAdmin)
     : null;
   const destination = destinationPath
     ? { path: destinationPath, label: DESTINATION_LABELS[destinationPath] }

@@ -16,7 +16,7 @@ const INITIAL_FORM = {
 };
 
 export default function RegisterPage() {
-  const { user, register: authRegister, activeRoles } = useAuth();
+  const { user, register: authRegister, activeRoles, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState(INITIAL_FORM);
   const [showPassword, setShowPassword] = useState(false);
@@ -24,7 +24,7 @@ export default function RegisterPage() {
   const [submitting, setSubmitting] = useState(false);
 
   if (user) {
-    const defaultPath = redirectPathForRoles(activeRoles, user.global_role === "platform_admin");
+    const defaultPath = redirectPathForRoles(activeRoles, isAdmin);
     return <Navigate to={defaultPath} replace />;
   }
 

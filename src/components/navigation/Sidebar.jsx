@@ -24,7 +24,7 @@ function focusIfVisible(element) {
 }
 
 function Sidebar({ isOpen, onClose, onLogout, openerRef }) {
-  const { user, activeMembership, activeRoles, hasAnyRole } = useAuth();
+  const { user, isAdmin, activeMembership, activeRoles, hasAnyRole } = useAuth();
   const wasOpen = useRef(false);
   const restoreFocusOnClose = useRef(true);
   const displayName = user?.full_name || user?.email || "LINKO User";
@@ -33,7 +33,7 @@ function Sidebar({ isOpen, onClose, onLogout, openerRef }) {
   // roles on the active business sees all of them, not just whichever row
   // happened to sort first in the session payload.
   const displayRole =
-    user?.global_role === "platform_admin"
+    isAdmin
       ? formatRoleLabel("platform_admin")
       : activeRoles.map(formatRoleLabel).join(", ") || "Member";
   const menuItems = APP_NAV_ITEMS.filter((item) => hasAnyRole(item.roles));
