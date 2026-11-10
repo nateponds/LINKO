@@ -83,15 +83,22 @@ test("a wholesaler business sees and can cancel an order it placed as buyer", { 
 });
 
 // bizswitch@linko.test: buyer on business 8, wholesaler on business 10. The
-// wholesaler role on the unselected business must grant nothing.
-test("a buyer-active multi-business user is forbidden on a wholesaler-only route", { skip: !hasDb }, async () => {
+// wholesaler role on the unselected business must grant nothing. The dashboard
+// check is the one that catches an any-membership gate: its handler has no
+// second ownership check behind requireAnyRole.
+test("a buyer-active multi-business user is forbidden on wholesaler-only routes", { skip: !hasDb }, async () => {
   const cookie = await loginAs("bizswitch@linko.test");
-  const response = await request("/api/products", {
+  const headers = { "Content-Type": "application/json", Cookie: cookie, "X-Active-Business": "8" };
+
+  const dashboard = await request("/api/dashboard", { headers });
+  assert.equal(dashboard.status, 403);
+
+  const product = await request("/api/products", {
     method: "POST",
-    headers: { "Content-Type": "application/json", Cookie: cookie, "X-Active-Business": "8" },
+    headers,
     body: JSON.stringify({ product_name: "Should Fail", unit_price: 5 }),
   });
-  assert.equal(response.status, 403);
+  assert.equal(product.status, 403);
 });
 
 test("dashboard counts the active wholesaler's sales, not its purchases", { skip: !hasDb }, async () => {
