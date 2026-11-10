@@ -373,13 +373,13 @@ Roles: `wholesaler` (own product only). Admin DELETE returns `403`. Final owner 
 
 ### 2b.7 `POST /api/admin/products/:id/takedown`
 
-Platform admin only (`403` otherwise). Body: `{ "reason": "Required non-empty explanation" }`; missing/blank/non-string reason returns `400`. In one transaction, sets `is_active = FALSE`, `removed_by` to the admin, `removal_reason` to the trimmed reason, and `removed_at` to now, and notifies the owning business with type `warning`. Returns `200` with product_id, business_id, product_name; missing product returns `404`.
+Platform admin only (`403` otherwise). Body: `{ "reason": "Required non-empty explanation" }`; missing/blank/non-string reason returns `400`. In one transaction, sets `is_active = FALSE`, `removed_by` to the admin, `removal_reason` to the trimmed reason, and `removed_at` to now, and notifies the owning business with type `warning`. Returns `200` with product_id, business_id, product_name; missing or inactive product returns `404` without changes.
 
 ### 2b.8 `POST /api/products/:id/relist`
 
 Owning wholesaler only. Only a currently taken-down product (`removed_at IS NOT NULL`) can be relisted. Sets `is_active = TRUE` and clears `removed_at`, retaining `removed_by` and `removal_reason` as the prior strike. Returns `200` with the product; active-SKU conflict returns `409` with instructions to edit the SKU. Missing/owner-deleted returns `404`; an already-active product returns `409`.
 
-Product GET and PATCH expose currently removed rows only to their owning wholesaler. Owner product lists include them when filtered by the owner's `business_id`; marketplace lists and non-owner reads remain active-only. Product responses include `is_active`, `removed_by`, `removal_reason`, and `removed_at`. Owner-deleted rows stay invisible.
+Product GET and PATCH expose currently removed rows only to their owning wholesaler. Product lists include currently removed rows owned by the caller's active wholesaler business, with or without a `business_id` filter; non-owner reads remain active-only. Product responses include `is_active`, `removed_by`, `removal_reason`, and `removed_at`. Owner-deleted rows stay invisible.
 
 
 ---

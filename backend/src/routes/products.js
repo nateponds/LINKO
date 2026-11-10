@@ -157,14 +157,14 @@ router.get("/categories/options", requireAuth, async (_req, res, next) => {
 });
 
 // ---------------------------------------------------------------------------
-// Product listing / detail -- any authenticated user, active products only.
+// Product reads include removed rows only for their active-business owner.
 // ---------------------------------------------------------------------------
 router.get("/products", requireAuth, async (req, res, next) => {
   try {
     const { page, limit, offset, q } = parsePaginationQuery(req.query);
     const ownerId = ownerBusinessId(req);
     const conditions = ["(p.is_active = TRUE OR (p.removed_at IS NOT NULL AND p.business_id = $1))"];
-    const params = [Number(req.query.business_id) === ownerId ? ownerId : null];
+    const params = [ownerId];
 
     const businessId = parsePositiveQueryId(req.query, "business_id");
     if (businessId !== undefined) {

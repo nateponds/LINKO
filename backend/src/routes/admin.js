@@ -467,7 +467,7 @@ router.post("/products/:id/takedown", async (req, res, next) => {
     const { rows } = await client.query(
       `UPDATE products SET is_active = FALSE, removed_by = $2, removal_reason = $3,
                            removed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-        WHERE product_id = $1 RETURNING product_id, business_id, product_name`,
+        WHERE product_id = $1 AND is_active = TRUE RETURNING product_id, business_id, product_name`,
       [productId, req.auth.user.user_id, reason.trim()],
     );
     if (!rows.length) throw createHttpError(404, `Product ${productId} not found`);
