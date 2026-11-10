@@ -14,7 +14,6 @@ export const ROUTE_ACCESS = {
   "/suppliers": MARKETPLACE,
   "/suppliers/:supplierId": MARKETPLACE,
   "/cart": ["buyer", "wholesaler"], // admins never buy (POST /api/orders rejects them)
-  "/become-a-supplier": ["buyer", "wholesaler"], // admins hold no business, so they never apply as a supplier
   "/orders": MARKETPLACE,
   "/invoices": MARKETPLACE,
   "/dashboard": ["wholesaler"], // a wholesaler's own sales workspace
