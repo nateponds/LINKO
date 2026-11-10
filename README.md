@@ -48,7 +48,7 @@ Additional test accounts (`buyer2`, `wholesaler2`, `bizswitch`, `courier2–8`) 
 The product is designed for small and growing businesses that need practical tools for procurement and stock visibility without taking on the complexity of a full enterprise supply-chain system. LINKO focuses on the direct buyer-wholesaler relationship: *who can supply, where they can serve, how buyers can connect with them, and how those connections can become operational workflows over time.*
 
 > [!IMPORTANT]
-> **Pre-launch status.** LINKO is not production-launched. The public deployment at `linko.nateponds.com` is a showcase, and every database in use (local development, staging, and the showcase itself) contains disposable development fixtures - seeded demo data, not real customer records. Schema and seed changes may reset these databases at any time; do not build migrations, backfills, or compatibility layers around preserving them.
+> **Pre-launch status.** LINKO is not production-launched. The public deployment at `linko.nateponds.com` is a showcase, and every database in use (each developer's local Postgres and the showcase's Supabase database) contains disposable development fixtures - seeded demo data, not real customer records. Schema and seed changes may reset these databases at any time; do not build migrations, backfills, or compatibility layers around preserving them.
 
 ---
 
@@ -162,11 +162,10 @@ Start here if you are evaluating, contributing to, or extending the project:
 
 ## Development Workflow
 
-We use `staging` as the active integration branch. 
-
-1. Branch off `staging` for feature work.
-2. Submit a Pull Request targeting `staging`.
-3. Code only reaches `main` when it is ready to represent the public project.
+- **UI/UX and other non-database work:** branch from `main` (`dev/<name>`) and open the Pull Request against `main`.
+- **Database changes** (migrations, `backend/schema.sql`, seeds, and the API routes that depend on them): open the Pull Request against `staging`, a short-lived integration branch. Take the next migration number from `staging`, not from `main`, so concurrent authors do not collide.
+- `staging` has **no hosted database**. Test it against your own local Postgres: `npm run migrate && npm test` in `backend/` with `DATABASE_URL` set. The hosted Supabase database belongs to `main` only.
+- `staging` merges into `main` once its database tests pass. Vercel deployments do not run migrations, so apply new migrations to production by hand after that merge (see [docs/VERCEL_DEPLOYMENT.md](./docs/VERCEL_DEPLOYMENT.md)).
 
 **Project Management:**
 - **[BACKLOG.md](./docs/BACKLOG.md)**: Proposed or deferred work.
