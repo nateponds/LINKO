@@ -61,7 +61,6 @@ erDiagram
         text      password_hash
         varchar   email          UK
         varchar   full_name
-        varchar   role
         varchar   global_role
         boolean   is_active
         timestamp created_at

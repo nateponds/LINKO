@@ -394,8 +394,8 @@ test("concurrent membership insert and promotion cannot both commit", { skip: !h
       const label = `${level}: ${firstName} then ${secondName}`;
       const email = `race-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
       const { rows: [user] } = await pool.query(
-        `INSERT INTO users (username, email, full_name, password_hash, role)
-         VALUES ($1, $1, 'Race User', 'x', 'staff') RETURNING user_id`,
+        `INSERT INTO users (username, email, full_name, password_hash)
+         VALUES ($1, $1, 'Race User', 'x') RETURNING user_id`,
         [email],
       );
       const a = await pool.connect();
