@@ -56,6 +56,7 @@ actors; the table above ties them to the marketplace roles.
 - **FR-4.1** The system shall let a wholesaler view, create, update, and deactivate products belonging to their active business.
 - **FR-4.2** The system shall derive and display each product's stock status from its quantity relative to a reorder threshold.
 - **FR-4.3** The system shall prevent a wholesaler from modifying another business's products.
+- **FR-4.4** The system shall let a wholesaler record product batches with expiry dates and identify batches that are expired or approaching expiry.
 
 ## 6. Order Management
 

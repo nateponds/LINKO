@@ -18,7 +18,7 @@ BEGIN;
 TRUNCATE notifications, payments, tracking_logs, parcel_route_stops, parcels,
          invoices, order_items, orders,
          auth_sessions,
-         products, warehouses,
+         inventory_batches, products, warehouses,
          couriers, branches,
          business_memberships, user_businesses,
          addresses, businesses, users
@@ -30,6 +30,7 @@ ALTER SEQUENCE businesses_business_id_seq RESTART WITH 1;
 ALTER SEQUENCE addresses_address_id_seq RESTART WITH 1;
 ALTER SEQUENCE warehouses_warehouse_id_seq RESTART WITH 1;
 ALTER SEQUENCE products_product_id_seq RESTART WITH 1;
+ALTER SEQUENCE inventory_batches_batch_id_seq RESTART WITH 1;
 ALTER SEQUENCE orders_order_id_seq RESTART WITH 1;
 ALTER SEQUENCE order_items_order_item_id_seq RESTART WITH 1;
 ALTER SEQUENCE invoices_invoice_id_seq RESTART WITH 1;
@@ -327,6 +328,13 @@ INSERT INTO products (product_id, business_id, product_name, sku, category_id, d
   (28, 18, 'Pandesal Rolls - tray of 150', 'MDG-BK001', 8, 'Tray of 150 freshly baked pandesal rolls', 504.00, 26, 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=400', TRUE);
 
 SELECT setval('products_product_id_seq', 28, true);
+
+-- Relative dates keep the expiry overview useful whenever demo data is loaded.
+-- These batches describe stock already counted in products.stock_quantity.
+INSERT INTO inventory_batches (product_id, batch_number, received_on, expires_on, notes) VALUES
+  (1, 'DEMO-EXPIRED', CURRENT_DATE - 14, CURRENT_DATE - 1, 'Review and remove expired stock.'),
+  (2, 'DEMO-SOON', CURRENT_DATE - 3, CURRENT_DATE + 7, 'Use this batch before later deliveries.'),
+  (2, 'DEMO-FRESH', CURRENT_DATE, CURRENT_DATE + 60, 'Later delivery of the same product.');
 
 -- Every hub must stay is_available = TRUE and fully pinned: location-schema
 -- tests assert that for all branches matching 'LINKO%Hub', and
