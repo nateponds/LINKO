@@ -9,9 +9,9 @@ import {
 } from "../auth/sessions.js";
 import { getPool } from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
+import { createBusiness, parseBusiness, validateBusinessType } from "../services/businesses.js";
 
 const router = Router();
-const REGISTRATION_BUSINESS_TYPES = new Set(["buyer", "wholesaler"]);
 
 function createHttpError(statusCode, message) {
   const error = new Error(message);
@@ -31,9 +31,7 @@ router.post("/register", async (req, res, next) => {
   const email = normalizeEmail(req.body?.email);
   const password = req.body?.password;
   const fullName = typeof req.body?.full_name === "string" ? req.body.full_name.trim() : "";
-  const businessName =
-    typeof req.body?.business_name === "string" ? req.body.business_name.trim() : "";
-  const businessType = typeof req.body?.business_type === "string" ? req.body.business_type.trim() : "";
+  const { businessName, businessType } = parseBusiness(req.body);
 
   if (!email || !password || !fullName || !businessName || !businessType) {
     return next(createHttpError(400, "Missing required fields"));
@@ -43,8 +41,10 @@ router.post("/register", async (req, res, next) => {
     return next(createHttpError(400, "Password must be at least 8 characters long"));
   }
 
-  if (!REGISTRATION_BUSINESS_TYPES.has(businessType)) {
-    return next(createHttpError(400, "business_type must be buyer or wholesaler"));
+  try {
+    validateBusinessType(businessType);
+  } catch (error) {
+    return next(error);
   }
 
   const pool = getPool();
@@ -66,42 +66,7 @@ router.post("/register", async (req, res, next) => {
       [deriveUsername(email), email, fullName, passwordHash],
     );
 
-    const businessResult = await client.query(
-      `INSERT INTO businesses (business_name, business_type)
-       VALUES ($1, $2)
-       RETURNING business_id, business_name, business_type`,
-      [businessName, businessType],
-    );
-
-    // The placeholder address becomes the canonical logistics pin. It has no
-    // coordinates, so the new business correctly hits the pin gates and the
-    // missing-location banner until it saves a real location in Settings.
-    const addressResult = await client.query(
-      `INSERT INTO addresses
-         (business_id, label, province, city_municipality, barangay, street_address, postal_code, is_default)
-       VALUES ($1, 'Primary', 'Not provided', 'Not provided', 'Not provided', 'Not provided', '0000', TRUE)
-       RETURNING address_id`,
-      [businessResult.rows[0].business_id],
-    );
-
-    await client.query(
-      "UPDATE businesses SET logistics_address_id = $1 WHERE business_id = $2",
-      [addressResult.rows[0].address_id, businessResult.rows[0].business_id],
-    );
-
-    await client.query(
-      "INSERT INTO user_businesses (user_id, business_id) VALUES ($1, $2)",
-      [userResult.rows[0].user_id, businessResult.rows[0].business_id],
-    );
-
-    // Sprint 9: a business is either a buyer or a wholesaler, never both.
-    // The one_marketplace_role_per_business partial unique index enforces
-    // this at the schema level; here we just insert the single role.
-    const membershipRole = businessType;
-    await client.query(
-      "INSERT INTO business_memberships (user_id, business_id, role) VALUES ($1, $2, $3)",
-      [userResult.rows[0].user_id, businessResult.rows[0].business_id, membershipRole],
-    );
+    const membership = await createBusiness(client, userResult.rows[0].user_id, businessName, businessType);
 
     const token = await createSession(userResult.rows[0].user_id, client);
     await client.query("COMMIT");
@@ -109,16 +74,7 @@ router.post("/register", async (req, res, next) => {
     res.setHeader("Set-Cookie", serializeSessionCookie(token));
     return res.status(201).json({
       user: userResult.rows[0],
-      memberships: [
-        {
-          business_id: businessResult.rows[0].business_id,
-          business_name: businessResult.rows[0].business_name,
-          business_type: businessResult.rows[0].business_type,
-          role: membershipRole,
-          // the placeholder address is always unpinned at registration
-          has_coordinates: false,
-        },
-      ],
+      memberships: [membership],
     });
   } catch (error) {
     await client.query("ROLLBACK");

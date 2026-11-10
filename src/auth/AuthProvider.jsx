@@ -57,7 +57,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const applySession = useCallback((session) => {
+  const applySession = useCallback((session, preferredBusinessId = readStoredActiveBusiness()) => {
     const nextMemberships = Array.isArray(session?.memberships)
       ? session.memberships
       : [];
@@ -66,7 +66,7 @@ export function AuthProvider({ children }) {
 
     const resolvedId = resolveActiveBusinessId(
       nextMemberships,
-      readStoredActiveBusiness(),
+      preferredBusinessId,
     );
     setActiveBusinessId(resolvedId);
     persistActiveBusiness(resolvedId);
@@ -114,7 +114,8 @@ export function AuthProvider({ children }) {
   // has_coordinates updates). Deliberately does NOT flip the global loading
   // flag: that would remount the whole routed subtree via ProtectedRoute and
   // wipe the in-page state of whoever triggered the refresh.
-  const refreshAuth = useCallback(async () => {
+  // Select a newly created business from the fresh memberships in the same update.
+  const refreshAuth = useCallback(async (preferredBusinessId) => {
     setError(null);
 
     try {
@@ -132,7 +133,7 @@ export function AuthProvider({ children }) {
       }
 
       const session = await readJson(response);
-      applySession(session);
+      applySession(session, preferredBusinessId);
       return session;
     } catch (caughtError) {
       applySession(null);
@@ -233,6 +234,7 @@ export function AuthProvider({ children }) {
       if (!response.ok) {
         const message = payload?.error?.message ?? `Registration failed with status ${response.status}`;
         const registerError = new Error(message);
+        registerError.status = response.status;
         setError(registerError);
         throw registerError;
       }

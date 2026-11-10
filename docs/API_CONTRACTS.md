@@ -960,3 +960,34 @@ Each membership object in the session payload (`GET /api/auth/me`, `POST /api/au
 ```
 
 `has_coordinates` is `true` iff the business's canonical logistics address exists **and** has both coordinates. Freshly registered businesses are `false` (the placeholder address is unpinned). The frontend `groupMemberships` helper must carry `business_type` and `has_coordinates` onto each grouped business entry; the AppLayout banner shows for an active buyer/wholesaler business with `has_coordinates: false`, and a Settings save calls `refreshAuth()` to clear it.
+
+## Add a business
+
+`POST /api/businesses` requires a signed-in non-admin user and does not require
+`X-Active-Business`. It creates a business for the session user without changing
+the session cookie or existing businesses. There is no limit on business count
+or on businesses of the same type.
+
+```json
+{ "business_name": "New Wholesale", "business_type": "wholesaler" }
+```
+
+Both fields are required strings, trimmed as in registration. `business_type`
+must be `buyer` or `wholesaler`. Creation of the business, placeholder logistics
+address, user-business link, and membership is atomic.
+
+201 response (the same shape as an entry in session `memberships`):
+
+```json
+{
+  "business_id": 42,
+  "business_name": "New Wholesale",
+  "business_type": "wholesaler",
+  "role": "wholesaler",
+  "has_coordinates": false
+}
+```
+
+Errors: `400` invalid/missing fields; `401` unauthenticated; `403` platform admin.
+Refetch `GET /api/auth/me` to obtain all memberships, then select the new business.
+Business-scoped requests require `X-Active-Business` once the user has multiple businesses.
