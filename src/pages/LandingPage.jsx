@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { ArrowRight, Handshake, MapPin, Menu, Package, ShieldCheck, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
-import { redirectPathForRoles } from "../auth/roleAccess";
+import { ROUTE_ACCESS, redirectPathForRoles } from "../auth/roleAccess";
 import HeroVideoPreview from "../features/landing/HeroVideoPreview";
 import { BANNERS } from "../lib/productBanners";
 import "../assets/css/shell.css";
@@ -66,7 +66,7 @@ function LandingBanner({ banner, destination, className = "", priority = false }
 }
 
 export default function LandingPage() {
-  const { user, activeRoles, isAdmin } = useAuth();
+  const { user, activeRoles, isAdmin, hasAnyRole } = useAuth();
   const signedIn = Boolean(user);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuToggleRef = useRef(null);
@@ -259,10 +259,12 @@ export default function LandingPage() {
                 </>
               )}
             </div>
-            <div className="footer-col">
-              <h4>Suppliers</h4>
-              <Link to={signedIn ? "/become-a-supplier" : "/register"}>Become a supplier</Link>
-            </div>
+            {(!signedIn || hasAnyRole(ROUTE_ACCESS["/become-a-supplier"])) && (
+              <div className="footer-col">
+                <h4>Suppliers</h4>
+                <Link to={signedIn ? "/become-a-supplier" : "/register"}>Become a supplier</Link>
+              </div>
+            )}
           </div>
           <div className="footer-bottom">
             <span>© {year} LINKO. All rights reserved.</span>
