@@ -9,7 +9,7 @@ export function createPool(connectionString = process.env.DATABASE_URL) {
 
   // Managed Postgres (Supabase) presents a cert chain Node's default trust
   // store rejects (SELF_SIGNED_CERT_IN_CHAIN). Enable TLS but skip chain
-  // verification whenever the URL asks for SSL. Local/staging Docker Postgres
+  // verification whenever the URL asks for SSL. Local development Postgres
   // has no sslmode in its URL, so it stays plain.
   // ponytail: rejectUnauthorized:false trusts the tunnel; swap for a pinned
   // Supabase CA (sslrootcert + verify-full) if the DB link needs MITM protection.
