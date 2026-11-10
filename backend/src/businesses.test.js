@@ -3,6 +3,7 @@ import { createServer } from "node:http";
 import test from "node:test";
 import createApp from "./app.js";
 import { createPool } from "./db.js";
+import { destroySession } from "./auth/sessions.js";
 
 const hasDb = Boolean(process.env.DATABASE_URL);
 
@@ -21,9 +22,10 @@ function post(path, body, cookie) {
   return request(path, { method: "POST", headers: { "Content-Type": "application/json", ...(cookie ? { Cookie: cookie } : {}) }, body: JSON.stringify(body) });
 }
 
-async function login(email) {
+async function login(email, t) {
   const result = await post("/api/auth/login", { email, password: "Password123!" });
   assert.equal(result.status, 200);
+  t.after(() => destroySession(decodeURIComponent(result.cookie.slice("linko_session=".length))));
   return result.cookie;
 }
 
@@ -80,14 +82,14 @@ test("buyer adds businesses without a cap and switches business context without 
   }
 });
 
-test("adding a business requires authentication and rejects platform admins", { skip: !hasDb }, async () => {
+test("adding a business requires authentication and rejects platform admins", { skip: !hasDb }, async (t) => {
   const body = { business_name: "Forbidden", business_type: "buyer" };
   assert.equal((await post("/api/businesses", body)).status, 401);
-  assert.equal((await post("/api/businesses", body, await login("admin@linko.test"))).status, 403);
+  assert.equal((await post("/api/businesses", body, await login("admin@linko.test", t))).status, 403);
 });
 
-test("add business validates required names and buyer/wholesaler types", { skip: !hasDb }, async () => {
-  const cookie = await login("buyer@linko.test");
+test("add business validates required names and buyer/wholesaler types", { skip: !hasDb }, async (t) => {
+  const cookie = await login("buyer@linko.test", t);
   for (const invalid of [undefined, null, "", "   ", 123, {}, []]) {
     assert.equal((await post("/api/businesses", { business_name: invalid, business_type: "buyer" }, cookie)).status, 400);
     assert.equal((await post("/api/businesses", { business_name: "Invalid", business_type: invalid }, cookie)).status, 400);
