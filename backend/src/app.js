@@ -3,6 +3,7 @@ import authRouter from "./routes/auth.js";
 import logisticsRouter from "./routes/logistics.js";
 import ordersRouter from "./routes/orders.js";
 import productsRouter from "./routes/products.js";
+import inventoryBatchesRouter from "./routes/inventoryBatches.js";
 import suppliersRouter from "./routes/suppliers.js";
 import dashboardRouter from "./routes/dashboard.js";
 import adminRouter from "./routes/admin.js";
@@ -33,6 +34,10 @@ export function createApp() {
   // own per-route auth internally (reads are any-authenticated, writes are
   // wholesaler/platform_admin).
   app.use("/api", productsRouter);
+
+  // Batch-level expiry records complement products.stock_quantity without
+  // replacing the existing aggregate stock workflow.
+  app.use("/api", inventoryBatchesRouter);
 
   // Marketplace orders and invoices (Milestone 3). Owns /api/orders and
   // /api/invoices; per-route auth keeps buyer/wholesaler/admin rules local.
