@@ -321,7 +321,7 @@ Order status lifecycle is server-enforced:
 
 `pending → accepted | cancelled`, `accepted → preparing`, `preparing → shipped`, `shipped → delivered | returned`.
 
-Invalid skips/backwards transitions return `400`. Buyers may cancel only their own pending orders. Wholesalers may accept/reject and advance only incoming orders for their business **up to `shipped`**. The terminal `delivered` and `returned` outcomes are tracking-driven: an authorized `Delivered` or `Returned` scan on the linked parcel performs the corresponding order transition (see §3.6). Wholesalers requesting either outcome get `403`. Platform admins can view all orders and invoices and may perform either valid transition as a manual override; a manual `returned` override notifies both businesses with generic failed-delivery wording.
+Invalid skips/backwards transitions return `400`. Buyers may cancel only their own pending orders. Wholesalers may accept/reject and advance only incoming orders for their business **up to `shipped`**. The terminal `delivered` and `returned` outcomes are tracking-driven: an authorized `Delivered` or `Returned` scan on the linked parcel performs the corresponding order transition (see §3.6). Wholesalers requesting either outcome get `403`. Platform admins can view all orders and invoices but never place orders or perform seller transitions (`accepted`, `preparing`, `shipped` → `403`). They may set only `delivered` or `returned` (logistics override for stuck parcels) and `cancelled` (governance), still subject to the lifecycle table; a manual `returned` override notifies both businesses with generic failed-delivery wording.
 
 **Order JSON shape:**
 
@@ -392,11 +392,11 @@ Returns one visible order (same shape as the list rows above, including `parcel_
 
 ### 2c.3 `POST /api/orders`
 
-Role: `buyer` (or platform admin with explicit `buyer_business_id`).
+Roles: `buyer` or `wholesaler` (the active business is the buyer). Platform admins get `403`.
 
 Owning `buyer_business_id` comes from the caller's buyer membership: 0 memberships → `403`; more than 1 → `400` ("multiple buyer businesses not supported yet"). Order items must reference active products, all from one wholesaler business. Product prices are snapshotted into `order_items.unit_price_snapshot` when the order is created. Placing the order decrements each product's `stock_quantity` in the same transaction. If any line lacks enough stock, the request returns `400` and neither the order nor stock changes.
 
-**Location pin gate (Sprint 13):** placing an order requires the buyer business to be pinned - its canonical logistics address (`businesses.logistics_address_id`, §5) must have both coordinates. Unpinned buyer → **`409`** with message `Pin your business location in Settings before placing orders`. The frontend treats a `409` from this endpoint as the pin gate and links to Settings. Platform admins acting with an explicit `buyer_business_id` are gated on that business the same way.
+**Location pin gate (Sprint 13):** placing an order requires the buyer business to be pinned - its canonical logistics address (`businesses.logistics_address_id`, §5) must have both coordinates. Unpinned buyer → **`409`** with message `Pin your business location in Settings before placing orders`. The frontend treats a `409` from this endpoint as the pin gate and links to Settings.
 
 **Body:**
 
@@ -413,7 +413,7 @@ Returns `201` + the created order.
 
 ### 2c.4 `PATCH /api/orders/:id/status`
 
-Roles: `buyer`, `wholesaler`, or `platform_admin` (admin acts as a manual override for stuck/legacy orders).
+Roles: `buyer`, `wholesaler`, or `platform_admin` (admin limited to `delivered`, `returned`, `cancelled`; see §2c).
 
 **Body:**
 

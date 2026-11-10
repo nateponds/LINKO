@@ -1132,7 +1132,7 @@ test("placing an order rejects insufficient stock without creating the order", {
   }
 });
 
-test("platform admin can view all orders and override order status", { skip: !hasDb }, async () => {
+test("platform admin can view all orders but only override delivery outcomes", { skip: !hasDb }, async () => {
   const buyerCookie = await loginAs("buyer@linko.test");
   const wholesalerCookie = await loginAs("wholesaler@linko.test");
   const adminCookie = await loginAs("admin@linko.test");
@@ -1154,21 +1154,30 @@ test("platform admin can view all orders and override order status", { skip: !ha
     assert.equal(adminList.status, 200);
     assert.ok(adminList.body.items.some((order) => order.order_id === orderId));
 
-    // Admin override (docs/API_CONTRACTS.md §2c.4): valid transitions
-    // succeed with full side effects...
+    // Admin is never the seller (docs/API_CONTRACTS.md §2c): seller
+    // transitions are refused outright.
     const adminAccept = await request(`/api/orders/${orderId}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Cookie: adminCookie },
       body: JSON.stringify({ status: "accepted" }),
     });
-    assert.equal(adminAccept.status, 200);
+    assert.equal(adminAccept.status, 403);
+
+    for (const status of ["accepted", "preparing"]) {
+      const step = await request(`/api/orders/${orderId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Cookie: wholesalerCookie },
+        body: JSON.stringify({ status }),
+      });
+      assert.equal(step.status, 200, `wholesaler should reach ${status}`);
+    }
     assert.equal(await getProductStock(pool, productId), 2);
 
     const invoices = await request("/api/invoices", { headers: { Cookie: adminCookie } });
     assert.equal(invoices.status, 200);
     assert.ok(invoices.body.items.some((row) => row.order_id === orderId));
 
-    // ...but invalid skips are still rejected.
+    // Admin outcomes still obey the lifecycle table: no skipping shipment.
     const adminSkip = await request(`/api/orders/${orderId}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Cookie: adminCookie },
@@ -1176,19 +1185,12 @@ test("platform admin can view all orders and override order status", { skip: !ha
     });
     assert.equal(adminSkip.status, 400);
 
-    const adminPreparing = await request(`/api/orders/${orderId}/status`, {
+    const shipped = await request(`/api/orders/${orderId}/status`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", Cookie: adminCookie },
-      body: JSON.stringify({ status: "preparing" }),
-    });
-    assert.equal(adminPreparing.status, 200);
-
-    const adminShipped = await request(`/api/orders/${orderId}/status`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", Cookie: adminCookie },
+      headers: { "Content-Type": "application/json", Cookie: wholesalerCookie },
       body: JSON.stringify({ status: "shipped", weight_kg: 4.2, total_distance_km: 10 }),
     });
-    assert.equal(adminShipped.status, 200);
+    assert.equal(shipped.status, 200);
 
     const wholesalerReturns = await request(`/api/orders/${orderId}/status`, {
       method: "PATCH",
@@ -1227,6 +1229,44 @@ test("platform admin can view all orders and override order status", { skip: !ha
       await pool.query("DELETE FROM notifications WHERE message LIKE $1", [
         `%order #${orderId}%`,
       ]);
+      await pool.query("DELETE FROM parcels WHERE order_id = $1", [orderId]);
+      await pool.query("DELETE FROM order_items WHERE order_id = $1", [orderId]);
+      await pool.query("DELETE FROM orders WHERE order_id = $1", [orderId]);
+    }
+    if (productId) {
+      await pool.query("DELETE FROM products WHERE product_id = $1", [productId]);
+    }
+    await pool.end();
+  }
+});
+
+test("platform admin may cancel a pending order (governance)", { skip: !hasDb }, async () => {
+  const buyerCookie = await loginAs("buyer@linko.test");
+  const adminCookie = await loginAs("admin@linko.test");
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+  let orderId;
+  let productId;
+
+  try {
+    productId = await createTestProduct(pool, { stock_quantity: 4, unit_price: 30 });
+    const created = await postJson("/api/orders", buyerCookie, {
+      tier_id: 1, items: [{ product_id: productId, quantity: 2 }],
+    });
+    assert.equal(created.status, 201);
+    orderId = created.body.order_id;
+
+    const adminCancels = await request(`/api/orders/${orderId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: adminCookie },
+      body: JSON.stringify({ status: "cancelled" }),
+    });
+    assert.equal(adminCancels.status, 200);
+    assert.equal(adminCancels.body.status, "cancelled");
+    assert.equal(await getProductStock(pool, productId), 4);
+  } finally {
+    if (orderId) {
+      await pool.query("DELETE FROM notifications WHERE message LIKE $1", [`%order #${orderId}%`]);
       await pool.query("DELETE FROM parcels WHERE order_id = $1", [orderId]);
       await pool.query("DELETE FROM order_items WHERE order_id = $1", [orderId]);
       await pool.query("DELETE FROM orders WHERE order_id = $1", [orderId]);

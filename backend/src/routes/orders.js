@@ -49,28 +49,14 @@ function parsePositiveId(rawId, label) {
 
 // Resolve the business the caller is acting as (buyer/wholesaler): the ACTIVE
 // business (X-Active-Business, or the caller's only business) when it holds one
-// of `roles`. Roles on other businesses grant nothing. A platform_admin with no
-// such active membership falls back to an explicit body business_id.
-function resolveSingleMembership(req, roles, adminBodyBusinessId, errorRoleLabel) {
+// of `roles`. Roles on other businesses grant nothing. platform_admin holds no
+// memberships (migration 027), so it never resolves one and is refused.
+function resolveSingleMembership(req, roles, errorRoleLabel) {
   const active = activeMemberships(req).find((m) => roles.includes(m.role));
   if (active) {
     return active.business_id;
   }
-  if (isPlatformAdmin(req.auth.user) && adminBodyBusinessId !== undefined && adminBodyBusinessId !== null) {
-    return Number(adminBodyBusinessId);
-  }
   throw createHttpError(403, `You must belong to a ${errorRoleLabel} business`);
-}
-
-async function validateBusinessRole(businessId, businessTypes) {
-  const { rows } = await query(
-    `SELECT business_id FROM businesses
-      WHERE business_id = $1 AND business_type = ANY($2::varchar[])`,
-    [businessId, businessTypes],
-  );
-  if (!rows.length) {
-    throw createHttpError(400, "business_id does not reference a valid business for this action");
-  }
 }
 
 const ORDER_BASE_SELECT = `
@@ -282,9 +268,10 @@ function assertTransitionAllowed(req, order, side, nextStatus) {
 
   // Delivery outcomes are confirmed by parcel tracking (see
   // docs/API_CONTRACTS.md §3.6), never by the wholesaler.
-  // platform_admin keeps a manual override for stuck or legacy orders.
+  // platform_admin is never a seller: it may only force the delivery outcomes
+  // (logistics override for stuck parcels) or cancel (governance).
   const canUpdate =
-    isPlatformAdmin(req.auth.user) ||
+    (isPlatformAdmin(req.auth.user) && ["delivered", "returned", "cancelled"].includes(nextStatus)) ||
     (nextStatus === "cancelled" && order.status === "pending" && side === "buyer") ||
     (side === "wholesaler" &&
       nextStatus !== "delivered" &&
@@ -402,12 +389,12 @@ router.get(
 router.post(
   "/orders",
   requireAuth,
-  requireAnyRole([...MARKETPLACE_ROLES, "platform_admin"]),
+  requireAnyRole(MARKETPLACE_ROLES),
   async (req, res, next) => {
     const pool = getPool();
     const client = await pool.connect();
     try {
-      const { items, buyer_business_id: bodyBuyerBusinessId, tier_id: reqTierId } = req.body ?? {};
+      const { items, tier_id: reqTierId } = req.body ?? {};
       if (!Array.isArray(items) || items.length === 0) {
         throw createHttpError(400, "items must contain at least one product");
       }
@@ -428,15 +415,7 @@ router.post(
         return { productId, quantity };
       });
 
-      const buyerBusinessId = resolveSingleMembership(
-        req,
-        MARKETPLACE_ROLES,
-        bodyBuyerBusinessId,
-        "buyer or wholesaler",
-      );
-      if (isPlatformAdmin(req.auth.user)) {
-        await validateBusinessRole(buyerBusinessId, ["buyer", "wholesaler"]);
-      }
+      const buyerBusinessId = resolveSingleMembership(req, MARKETPLACE_ROLES, "buyer or wholesaler");
 
       // Sprint 13 pin gate: the buyer business must have a pinned canonical
       // logistics address before placing orders, so ship time never blocks on
