@@ -2,7 +2,7 @@ import { Router } from "express";
 import { query, getPool, nextParcelId } from "../db.js";
 import { requireAnyRole, requireAuth } from "../middleware/auth.js";
 import {
-  getActiveMembership,
+  activeMemberships,
   isPlatformAdmin,
   resolveActiveBusinessId,
 } from "../middleware/ownership.js";
@@ -703,19 +703,16 @@ router.post(
   }
 
   // Sender must be derived from the caller's own business, never trusted from
-  // the body. A wholesaler can only send parcels as one of their businesses:
-  // resolve the active wholesaler membership and reject any body sender_id that
-  // does not match it. Logistics coordinators and platform admins operate the
-  // whole network, so they may book on behalf of any sender business.
+  // the body. When the ACTIVE business is a wholesaler, it is the only sender
+  // allowed: reject any body sender_id that does not match it. Logistics
+  // coordinators (active) and platform admins operate the whole network, so
+  // they may book on behalf of any sender business.
   let effectiveSenderId = sender_id;
-  const isWholesaler = req.auth.memberships.some((m) => m.role === "wholesaler");
-  if (!isPlatformAdmin(req.auth.user) && isWholesaler) {
-    let ownBusinessId;
-    try {
-      ownBusinessId = getActiveMembership(req, ["wholesaler"]).business_id;
-    } catch (error) {
-      return next(error);
-    }
+  const activeWholesaler = isPlatformAdmin(req.auth.user)
+    ? undefined
+    : activeMemberships(req).find((m) => m.role === "wholesaler");
+  if (activeWholesaler) {
+    const ownBusinessId = activeWholesaler.business_id;
     if (Number(sender_id) !== ownBusinessId) {
       return res.status(403).json({
         error: { message: "sender_id must be your own business" },
@@ -1005,7 +1002,7 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
   let effectiveBranchId = branch_id || null;
   const isPrivileged =
     isPlatformAdmin(req.auth.user) ||
-    req.auth.memberships.some((m) => m.role === "logistics_coordinator");
+    activeMemberships(req).some((m) => m.role === "logistics_coordinator");
   if (!isPrivileged) {
     const { rows } = await query(
       "SELECT courier_id, assigned_branch_id FROM couriers WHERE user_id = $1 AND is_active",

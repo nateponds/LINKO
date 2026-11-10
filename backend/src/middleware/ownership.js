@@ -114,25 +114,6 @@ export function activeMemberships(req) {
   return req.auth.memberships.filter((m) => m.business_id === businessId);
 }
 
-// True when the caller is a platform admin or a member of `businessId`.
-// Throws 403 otherwise.
-export function assertBusinessAccess(req, businessId) {
-  if (isPlatformAdmin(req.auth.user)) {
-    return true;
-  }
-  const owns = req.auth.memberships.some((m) => m.business_id === businessId);
-  if (!owns) {
-    throw createHttpError(403, "You do not have access to this business");
-  }
-  return true;
-}
-
-// The business ids the caller is a member of (any role), for `= ANY($ids)`
-// scoping in the dashboard.js house style.
-export function memberBusinessIds(req) {
-  return req.auth.memberships.map((m) => m.business_id);
-}
-
 // ---------------------------------------------------------------------------
 // Tiny input-validation primitives -- no validation library, per house style.
 // All throw a 400 createHttpError so routes can rely on the shared error shape.
