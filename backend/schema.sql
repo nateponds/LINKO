@@ -231,7 +231,7 @@ CREATE TABLE supplier_profiles (
 );
 
 -- ==========================================================================
--- SECTION 3 - Logistics core (CIS 2104 graded tables)
+-- SECTION 3 - Logistics core
 -- ==========================================================================
 
 -- Shipping fee formula inputs: base_fee + weight*base_rate_per_kg + km*rate_per_km.
