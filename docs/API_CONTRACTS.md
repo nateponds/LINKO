@@ -106,9 +106,9 @@ GET /api/suppliers?sort=random
 
 ### Orders and invoices
 
-Both endpoints require `buyer`, `wholesaler`, or `platform_admin`. An admin
-sees every row; a non-admin list is restricted to the caller's active buyer or
-wholesaler business before filters are applied. Order and invoice details keep
+Both endpoints require `buyer` or `wholesaler` (`403` for every other role,
+platform admins included). The list is restricted to the caller's active buyer
+or wholesaler business before filters are applied. Order and invoice details keep
 full `items` arrays; list rows omit `items` and provide `item_count`.
 
 | Endpoint | Filters and search fields | Stable ordering |
@@ -218,10 +218,10 @@ per batch rather than on `products`, because separate deliveries of one SKU can
 expire on different dates. These records do not duplicate quantity:
 `products.stock_quantity` remains the authoritative aggregate stock value.
 
-All endpoints require a wholesaler membership or `platform_admin`. Wholesalers
-can access only batches belonging to products owned by their active business;
-multi-business users select it with `X-Active-Business`. Administrators can use
-the optional `business_id` list filter.
+All endpoints require a wholesaler membership (`403` for every other role,
+platform admins included). Wholesalers can access only batches belonging to
+products owned by their active business; multi-business users select it with
+`X-Active-Business`.
 
 **Batch JSON shape:**
 
@@ -251,7 +251,7 @@ marked depleted, `expired` before today, `expiring_soon` from today through the
 warning window, and `fresh` after it. The warning window defaults to 30 days.
 
 - `GET /api/inventory-batches` — paginated list. Optional filters: `q`,
-  `product_id`, `business_id` (admin), `status`, and `days` (0–3650).
+  `product_id`, `business_id` (must be the active business), `status`, and `days` (0–3650).
 - `POST /api/inventory-batches` — requires `product_id`, `batch_number`, and
   `expires_on`; optionally accepts `manufactured_on`, `received_on`, and `notes`.
 - `PATCH /api/inventory-batches/:id` — updates batch metadata or accepts
@@ -284,7 +284,7 @@ Note: the route name remains `suppliers` for implementation continuity, but in p
 This is a paginated list. The controlling pagination contract above replaces
 the legacy array example in this historical section.
 
-List businesses acting as wholesalers, each with a count of their active products. Any authenticated user.
+List businesses acting as wholesalers, each with a count of their active products. Roles: `buyer`, `wholesaler` (`403` otherwise; applies to every `/api/suppliers` route).
 
 **Query Parameters (Optional):**
 
@@ -336,7 +336,7 @@ All endpoints require authentication (`401` unauthenticated). `stock_status` is 
 
 ### 2b.1 `GET /api/categories`
 
-Any authenticated user. Ordered by name.
+Roles: `buyer`, `wholesaler` (`403` otherwise; same for `/api/categories/options`). Ordered by name.
 
 ```json
 [{ "category_id": 1, "category_name": "Bakery" }]
@@ -347,13 +347,13 @@ Any authenticated user. Ordered by name.
 This is a paginated list; use the controlling pagination contract above for
 its complete filters, response envelope, and ordering.
 
-Any authenticated user. Returns only `is_active = TRUE` products, ordered by `product_name`.
+Roles: `buyer`, `wholesaler` (`403` otherwise). Returns only `is_active = TRUE` products, ordered by `product_name`.
 
 **Query Parameters (all optional, combinable):** `business_id` (int), `category_id` (int), `q` (ILIKE on `product_name`).
 
 ### 2b.3 `GET /api/products/:id`
 
-Any authenticated user. `404` if missing or inactive.
+Roles: `buyer`, `wholesaler` (`403` otherwise). `404` if missing or inactive.
 
 ### 2b.4 `POST /api/products`
 
@@ -386,13 +386,13 @@ Product GET and PATCH expose currently removed rows only to their owning wholesa
 
 ## 2c. Orders & Invoices Domain (`/api/orders`, `/api/invoices`) - Milestone 3
 
-All endpoints require authentication (`401` unauthenticated). Roles: `buyer`, `wholesaler`, or `platform_admin`; logistics/courier-only users receive `403`.
+All endpoints require authentication (`401` unauthenticated). Roles: `buyer` or `wholesaler`; every read (`GET` orders and invoices) returns `403` to platform admins and logistics/courier-only users, because order contents are confidential to the two parties. `PATCH /api/orders/:id/status` additionally admits `platform_admin` for the override below.
 
 Order status lifecycle is server-enforced:
 
 `pending → accepted | cancelled`, `accepted → preparing`, `preparing → shipped`, `shipped → delivered | returned`.
 
-Invalid skips/backwards transitions return `400`. Buyers may cancel only their own pending orders. Wholesalers may accept/reject and advance only incoming orders for their business **up to `shipped`**. The terminal `delivered` and `returned` outcomes are tracking-driven: an authorized `Delivered` or `Returned` scan on the linked parcel performs the corresponding order transition (see §3.6). Wholesalers requesting either outcome get `403`. Platform admins can view all orders and invoices but never place orders or perform seller transitions (`accepted`, `preparing`, `shipped` → `403`). They may set only `delivered` or `returned` (logistics override for stuck parcels) and `cancelled` (governance), still subject to the lifecycle table; a manual `returned` override notifies both businesses with generic failed-delivery wording.
+Invalid skips/backwards transitions return `400`. Buyers may cancel only their own pending orders. Wholesalers may accept/reject and advance only incoming orders for their business **up to `shipped`**. The terminal `delivered` and `returned` outcomes are tracking-driven: an authorized `Delivered` or `Returned` scan on the linked parcel performs the corresponding order transition (see §3.6). Wholesalers requesting either outcome get `403`. Platform admins cannot read orders or invoices and never place orders or perform seller transitions (`accepted`, `preparing`, `shipped` → `403`). They may set only `delivered` or `returned` (logistics override for stuck parcels) and `cancelled` (governance), still subject to the lifecycle table; a manual `returned` override notifies both businesses with generic failed-delivery wording. An admin override responds with `{ "order_id", "status" }` only, never the order's items.
 
 **Order JSON shape:**
 
@@ -433,7 +433,6 @@ Returns visible orders:
 
 - buyers: orders for their buyer business
 - wholesalers: incoming orders for their wholesaler business
-- platform admins: all orders
 
 ```json
 [
@@ -518,7 +517,6 @@ Returns visible invoices:
 
 - buyers: invoices for their buyer business
 - wholesalers: invoices for their fulfilled orders
-- platform admins: all invoices
 
 ```json
 [
@@ -633,6 +631,8 @@ Parcel detail with full tracking timeline (oldest first). `404` if unknown. `bra
   ]
 }
 ```
+
+**`declared_value` confidentiality:** the field is present only when the caller's active business is the parcel's sender or receiver. Coordinators, couriers, and platform admins receive the same object without it; weight, dimensions, addresses, contacts, tracking, route, and payment are unchanged.
 
 **`planned_route` (Sprint 13):** the immutable route snapshot from `parcel_route_stops`, ordered by `stop_order` (1 = origin, 2 = branch, 3 = destination). `stop_type` ∈ `origin | branch | destination`; `branch_id` is non-null only on the branch stop. `latitude`/`longitude` are JSON numbers or `null` (a NULL-coordinate stop is kept in the array but rendered without a map marker). The array is **`[]`** when no snapshot exists (parcel created branchless and never assigned) - the UI renders an explanatory empty state. Planned stops are display-only reference data and are never mixed into `tracking_history`; actual tracking (hub transfers, reassignment, return leg) diverges freely and never rewrites the snapshot.
 
@@ -959,7 +959,7 @@ Each membership object in the session payload (`GET /api/auth/me`, `POST /api/au
 }
 ```
 
-`has_coordinates` is `true` iff the business's canonical logistics address exists **and** has both coordinates. Freshly registered businesses are `false` (the placeholder address is unpinned). The frontend `groupMemberships` helper must carry `business_type` and `has_coordinates` onto each grouped business entry; the AppLayout banner shows for an active buyer/wholesaler business with `has_coordinates: false`, and a Settings save calls `refreshAuth()` to clear it.
+`has_coordinates` is `true` iff the business's canonical logistics address exists **and** has both coordinates. Freshly registered businesses are `false` (they have no address and a NULL `logistics_address_id` until a location is saved). The frontend `groupMemberships` helper must carry `business_type` and `has_coordinates` onto each grouped business entry; the AppLayout banner shows for an active buyer/wholesaler business with `has_coordinates: false`, and a Settings save calls `refreshAuth()` to clear it.
 
 ## Add a business
 
@@ -973,8 +973,8 @@ or on businesses of the same type.
 ```
 
 Both fields are required strings, trimmed as in registration. `business_type`
-must be `buyer` or `wholesaler`. Creation of the business, placeholder logistics
-address, user-business link, and membership is atomic.
+must be `buyer` or `wholesaler`. Creation of the business, user-business link,
+and membership is atomic. No address is created; the address book starts empty.
 
 201 response (the same shape as an entry in session `memberships`):
 

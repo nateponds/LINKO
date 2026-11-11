@@ -637,6 +637,14 @@ router.get("/parcels/:id", async (req, res) => {
     }
   }
 
+  // Confidentiality: the declared value hints at the parcel's contents, so only
+  // the sender or receiver business sees it. Coordinators, couriers, and admins
+  // keep everything delivery needs (weight, addresses, route, payment).
+  const partyIds = [...(scope.businessIds ?? []), ...(scope.receiverOnlyIds ?? [])];
+  if (!partyIds.includes(parcel.sender_id) && !partyIds.includes(parcel.receiver_id)) {
+    delete parcel.declared_value;
+  }
+
   // Strip the internal-only fields used for the ownership check.
   delete parcel.sender_id;
   delete parcel.receiver_id;

@@ -1,17 +1,14 @@
 import { Router } from "express";
 import { query } from "../db.js";
 import { requireAnyRole, requireAuth } from "../middleware/auth.js";
-import {
-  createHttpError,
-  getActiveMembership,
-  isPlatformAdmin,
-} from "../middleware/ownership.js";
+import { createHttpError, getActiveMembership } from "../middleware/ownership.js";
 import { buildPaginatedResponse, parsePaginationQuery } from "../services/pagination.js";
 
 const router = Router();
 const DEFAULT_EXPIRY_WINDOW_DAYS = 30;
 const MAX_EXPIRY_WINDOW_DAYS = 3650;
-const MANAGER_ROLES = ["wholesaler", "platform_admin"];
+// Batches describe a wholesaler's own stock; no other role reads or writes them.
+const MANAGER_ROLES = ["wholesaler"];
 // ponytail: business calendar is fixed to Philippine time (no DST). The DB
 // session runs in UTC on Supabase, so CURRENT_DATE would lag a day from
 // 00:00-08:00 PHT. Move to a per-business timezone if LINKO leaves PH.
@@ -115,8 +112,6 @@ function parseNotes(value) {
 }
 
 function resolveBusinessScope(req, requestedBusinessId) {
-  if (isPlatformAdmin(req.auth.user)) return requestedBusinessId ?? null;
-
   const businessId = getActiveMembership(req, ["wholesaler"]).business_id;
   if (requestedBusinessId !== undefined && requestedBusinessId !== businessId) {
     throw createHttpError(403, "You do not have access to the requested business");
@@ -135,11 +130,9 @@ async function assertProductAccess(req, productId, { requireActive = false } = {
     throw createHttpError(404, `Product ${productId} not found`);
   }
 
-  if (!isPlatformAdmin(req.auth.user)) {
-    const businessId = getActiveMembership(req, ["wholesaler"]).business_id;
-    if (rows[0].business_id !== businessId) {
-      throw createHttpError(403, "You do not own this product");
-    }
+  const businessId = getActiveMembership(req, ["wholesaler"]).business_id;
+  if (rows[0].business_id !== businessId) {
+    throw createHttpError(403, "You do not own this product");
   }
   return rows[0];
 }
@@ -157,11 +150,9 @@ async function loadOwnedBatch(req, rawBatchId) {
     throw createHttpError(404, `Inventory batch ${rawBatchId} not found`);
   }
 
-  if (!isPlatformAdmin(req.auth.user)) {
-    const businessId = getActiveMembership(req, ["wholesaler"]).business_id;
-    if (rows[0].business_id !== businessId) {
-      throw createHttpError(403, "You do not own this inventory batch");
-    }
+  const businessId = getActiveMembership(req, ["wholesaler"]).business_id;
+  if (rows[0].business_id !== businessId) {
+    throw createHttpError(403, "You do not own this inventory batch");
   }
   return rows[0];
 }
@@ -201,8 +192,8 @@ async function findBatch(batchId, warningDays = DEFAULT_EXPIRY_WINDOW_DAYS) {
   return rows[0] ?? null;
 }
 
-// List expiry records visible to the active wholesaler business. Platform
-// admins may list all businesses or narrow the result with business_id.
+// List expiry records of the active wholesaler business. business_id is
+// optional and must name that same business.
 router.get(
   "/inventory-batches",
   requireAuth,
@@ -222,10 +213,8 @@ router.get(
         ? undefined
         : parsePositiveInt(rawBusinessId, "business_id");
       const businessId = resolveBusinessScope(req, requestedBusinessId);
-      if (businessId !== null) {
-        params.push(businessId);
-        conditions.push(`p.business_id = $${params.length}`);
-      }
+      params.push(businessId);
+      conditions.push(`p.business_id = $${params.length}`);
 
       const rawProductId = readSingletonQueryString(req.query, "product_id");
       if (rawProductId !== undefined) {

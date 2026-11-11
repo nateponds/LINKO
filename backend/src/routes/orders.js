@@ -167,11 +167,9 @@ async function fetchOneOrder(orderId, client = { query }) {
 // Orders (and their invoices) the caller may read: every order the ACTIVE
 // business is on, either side. Side comes from the order, not the caller's role
 // (a wholesaler business also buys). The route gate already proved the active
-// membership is buyer or wholesaler. platform_admin reads everything.
+// membership is buyer or wholesaler. Nobody else reads orders or invoices:
+// their line items are confidential to the two parties.
 function listScope(req) {
-  if (isPlatformAdmin(req.auth.user)) {
-    return { where: "", params: [] };
-  }
   return {
     where: "WHERE (o.buyer_business_id = $1 OR o.wholesaler_business_id = $1)",
     params: [resolveActiveBusinessId(req)],
@@ -354,7 +352,7 @@ async function acceptOrder(client, orderId, actorId) {
 router.get(
   "/orders",
   requireAuth,
-  requireAnyRole([...MARKETPLACE_ROLES, "platform_admin"]),
+  requireAnyRole(MARKETPLACE_ROLES),
   async (req, res, next) => {
     try {
       const visibility = listScope(req);
@@ -371,12 +369,12 @@ router.get(
 router.get(
   "/orders/:id",
   requireAuth,
-  requireAnyRole([...MARKETPLACE_ROLES, "platform_admin"]),
+  requireAnyRole(MARKETPLACE_ROLES),
   async (req, res, next) => {
     try {
       const orderId = parsePositiveId(req.params.id, "Order");
       const order = await fetchOneOrder(orderId);
-      if (!order || !(isPlatformAdmin(req.auth.user) || orderSide(req, order))) {
+      if (!order || !orderSide(req, order)) {
         throw createHttpError(404, `Order ${req.params.id} not found`);
       }
       res.json(order);
@@ -680,8 +678,12 @@ router.patch(
       }
 
       await client.query("COMMIT");
-      const updated = await fetchOneOrder(orderId);
-      res.json(updated);
+      // The admin override never reveals the order's contents.
+      if (isPlatformAdmin(req.auth.user)) {
+        res.json({ order_id: orderId, status });
+        return;
+      }
+      res.json(await fetchOneOrder(orderId));
     } catch (error) {
       await client.query("ROLLBACK").catch(() => {});
       next(asClientError(error));
@@ -818,7 +820,7 @@ async function fetchInvoicePage(whereSql, params, pagination) {
 router.get(
   "/invoices",
   requireAuth,
-  requireAnyRole([...MARKETPLACE_ROLES, "platform_admin"]),
+  requireAnyRole(MARKETPLACE_ROLES),
   async (req, res, next) => {
     try {
       const visibility = listScope(req);
@@ -835,7 +837,7 @@ router.get(
 router.get(
   "/invoices/:id",
   requireAuth,
-  requireAnyRole([...MARKETPLACE_ROLES, "platform_admin"]),
+  requireAnyRole(MARKETPLACE_ROLES),
   async (req, res, next) => {
     try {
       const invoiceId = parsePositiveId(req.params.id, "Invoice");

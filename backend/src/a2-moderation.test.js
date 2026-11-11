@@ -58,7 +58,7 @@ test("takedown, owner visibility, editing, relisting and final deletion", { skip
     const list = `/api/products?q=${stamp}`;
     assert.equal((await request(list, owner)).body.items.length, 1);
     assert.equal((await request(list, other)).body.items.length, 0);
-    assert.equal((await request(list, admin)).body.items.length, 0);
+    assert.equal((await request(list, admin)).status, 403);
     assert.equal((await request(list, buyer)).body.items.length, 0);
     assert.equal((await request(list)).status, 401);
     assert.equal((await request(`${list}&business_id=${removed.business_id}`, owner)).body.items.length, 1);
