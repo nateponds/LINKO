@@ -72,8 +72,6 @@ export function parseParcelListQuery(query) {
   const pagination = parsePaginationQuery(query);
   const status = readOptionalQueryString(query, "status");
   const assignment = readOptionalQueryString(query, "assignment");
-  const courierIdValue = readOptionalQueryString(query, "courier_id");
-  const agingValue = readOptionalQueryString(query, "aging");
 
   if (status !== undefined && !VALID_TRACKING_STATUSES.includes(status)) {
     throw clientError("status must be a valid tracking status");
@@ -81,25 +79,7 @@ export function parseParcelListQuery(query) {
   if (assignment !== undefined && !PARCEL_ASSIGNMENTS.has(assignment)) {
     throw clientError("assignment must be one of available, active, or completed");
   }
-  let courierId;
-  if (courierIdValue !== undefined) {
-    courierId = Number(courierIdValue);
-    if (!/^[1-9]\d*$/.test(courierIdValue) || !Number.isSafeInteger(courierId)) {
-      throw clientError("courier_id must be a positive integer");
-    }
-  }
-  if (agingValue !== undefined && agingValue !== "true" && agingValue !== "false") {
-    throw clientError("aging must be true or false");
-  }
-  const aging = agingValue === "true";
-  if (aging && status !== undefined && status !== "Order Created") {
-    throw clientError("aging=true can only be used with status=Order Created");
-  }
-
-  const filters = { ...pagination, status, assignment };
-  if (courierId !== undefined) filters.courierId = courierId;
-  if (agingValue !== undefined) filters.aging = aging;
-  return filters;
+  return { ...pagination, status, assignment };
 }
 
 function normalizeBranchText(body, field, { required = false } = {}) {
@@ -412,14 +392,6 @@ function parcelListBaseFilter(scope, filters) {
   if (filters.status) {
     params.push(filters.status);
     clauses.push(`latest.status_update = $${params.length}`);
-  }
-  if (filters.courierId !== undefined) {
-    params.push(filters.courierId);
-    clauses.push(`latest.courier_id = $${params.length}`);
-  }
-  if (filters.aging) {
-    clauses.push(`latest.status_update = 'Order Created'
-      AND latest.scanned_at < CURRENT_TIMESTAMP - make_interval(days => 2)`);
   }
   return { params, clause: clauses.join(" AND ") };
 }
