@@ -148,9 +148,9 @@ and zero facets. Scope is applied before filters.
 
 | Endpoint | Filters and search fields | Stable ordering |
 | --- | --- | --- |
-| `GET /api/parcels` | `status` is `Order Created`, `Picked Up`, `Arrived at Branch`, `Departed Branch`, `Out for Delivery`, `Delivery Failed`, `Out for Return`, `Delivered`, `Returned`, or `Cancelled`; `assignment` is `available`, `active`, or `completed`; `q` matches parcel ID, sender business name, or receiver business name. | latest scan time DESC (nulls last), then `parcel_id ASC` |
+| `GET /api/parcels` | `status` is `Order Created`, `Picked Up`, `Arrived at Branch`, `Departed Branch`, `Out for Delivery`, `Delivery Failed`, `Out for Return`, `Delivered`, `Returned`, or `Cancelled`; `assignment` is `available`, `active`, or `completed`; `courier_id` is a positive courier ID matched against the latest tracking log; `aging=true` selects latest `Order Created` logs scanned more than two days ago (if `status` is supplied, it must be `Order Created`); `q` matches parcel ID, sender business name, or receiver business name. | latest scan time DESC (nulls last), then `parcel_id ASC` |
 | `GET /api/branches` | `q` matches branch name, province, city/municipality, or barangay. Active branches only. | `branch_id ASC` |
-| `GET /api/couriers` | `q` matches full name, phone number, vehicle type, or assigned branch name. Active couriers only. | `full_name ASC, courier_id ASC` |
+| `GET /api/couriers` | `q` matches full name, phone number, vehicle type, or assigned branch name. Active couriers only; rows include `active_parcel_count`. | `full_name ASC, courier_id ASC` |
 
 Parcel results add:
 
@@ -158,11 +158,14 @@ Parcel results add:
 "facets": { "assignment_counts": { "available": 4, "active": 7, "completed": 12 } }
 ```
 
-Counts are calculated after visibility plus `q` and `status`, but before the
-selected `assignment`. Selecting `assignment=available` therefore retains all
-three counts for the same scoped/search/status-filtered set. `available` has
-no latest courier and a non-terminal latest status; `active` has a latest
-courier and non-terminal status; `completed` has a terminal latest status.
+Assignment counts are calculated after visibility and the base filters
+(`q`, `status`, `courier_id`, and `aging`), but before the selected
+`assignment`. Selecting `assignment=available` therefore retains all three
+counts for the same scoped/filter-matched set. `available` has no latest courier
+and a non-terminal latest status; `active` has a latest courier and non-terminal
+status; `completed` has a terminal latest status. `aging=true` uses the latest
+tracking log's `scanned_at` timestamp and the same two-day threshold as the
+logistics decisions count.
 
 ```http
 GET /api/parcels?assignment=available&status=Order%20Created&limit=10
