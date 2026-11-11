@@ -640,12 +640,241 @@
     border-radius: 8px;
   }
 
+  .logistics-summary-area {
+    margin-bottom: 18px;
+  }
+
+  .logistics-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr));
+    gap: 14px;
+  }
+
+  .logistics-summary-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    min-width: 0;
+    padding: 18px 20px;
+    border: 1px solid #dce3ee;
+    border-radius: 12px;
+    background: white;
+    box-shadow: 0 2px 8px rgba(23, 33, 61, 0.06);
+  }
+
+  .logistics-summary-card.is-urgent {
+    border-color: #c2410c;
+    border-left: 5px solid #c2410c;
+    background: #fff7ed;
+  }
+
+  .logistics-summary-copy {
+    min-width: 0;
+  }
+
+  .logistics-summary-copy h2 {
+    margin: 0;
+    color: var(--color-primary-dark);
+    font-size: 1rem;
+  }
+
+  .logistics-summary-card.is-urgent h2,
+  .logistics-summary-card.is-urgent .logistics-summary-count {
+    color: #7c2d12;
+  }
+
+  .logistics-summary-copy p {
+    margin: 5px 0 0;
+    color: var(--color-muted);
+    font-size: 0.9rem;
+  }
+
+  .logistics-summary-count {
+    color: var(--color-text);
+    font-size: 1.25rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .logistics-summary-action {
+    flex: 0 0 auto;
+    padding: 10px 14px;
+    border-radius: 22px;
+    background: var(--color-primary);
+    color: white;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-align: center;
+    text-decoration: none;
+  }
+
+  .logistics-summary-action:hover {
+    filter: brightness(0.94);
+  }
+
+  .logistics-summary-error {
+    margin: 10px 0 0;
+    color: #7f1d1d;
+  }
+
+  .logistics-summary-error button {
+    margin-left: 4px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 700;
+    text-decoration: underline;
+  }
+
+  .courier-load-card {
+    display: block;
+    padding: 0;
+  }
+
+  .courier-load-disclosure {
+    min-width: 0;
+  }
+
+  .courier-load-summary {
+    display: flex;
+    min-height: 76px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 14px 18px;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .courier-load-summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .courier-load-summary:focus-visible {
+    outline: 3px solid #2563eb;
+    outline-offset: -3px;
+  }
+
+  .courier-load-summary > span {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .courier-load-summary strong {
+    color: var(--color-primary-dark);
+    font-size: 1rem;
+  }
+
+  .courier-load-summary small {
+    color: var(--color-muted);
+    font-size: 0.85rem;
+  }
+
+  .courier-load-summary::after {
+    width: 8px;
+    height: 8px;
+    flex: 0 0 auto;
+    border-right: 2px solid var(--color-muted);
+    border-bottom: 2px solid var(--color-muted);
+    content: "";
+    transform: translateY(-2px) rotate(45deg);
+  }
+
+  .courier-load-disclosure[open] > .courier-load-summary::after {
+    transform: translateY(2px) rotate(225deg);
+  }
+
+  .courier-load-content {
+    display: grid;
+    gap: 10px;
+    padding: 14px 18px 16px;
+    border-top: 1px solid #e5eaf1;
+  }
+
+  .courier-load-select-label {
+    color: var(--color-muted);
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .courier-load-selection {
+    display: grid;
+    gap: 10px;
+  }
+
+  .courier-load-selection select {
+    width: 100%;
+    min-height: 42px;
+    padding: 8px 10px;
+    border: 1px solid #dce3ee;
+    border-radius: 8px;
+    background: white;
+    color: var(--color-text);
+    font: inherit;
+  }
+
+  .courier-load-selection select:focus-visible {
+    outline: 3px solid #2563eb;
+    outline-offset: 2px;
+  }
+
+  .courier-load-selected {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--color-muted);
+    font-size: 0.88rem;
+  }
+
+  .courier-load-selected strong {
+    color: var(--color-text);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .courier-load-selected a {
+    flex: 0 0 auto;
+    color: var(--color-primary);
+    font-weight: 700;
+    text-decoration: underline;
+  }
+
+  .courier-load-state {
+    margin: 0;
+    color: var(--color-muted);
+    font-size: 0.88rem;
+  }
+
+  .courier-load-error {
+    color: #7f1d1d;
+  }
+
+  .courier-load-error button {
+    margin-left: 4px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 700;
+    text-decoration: underline;
+  }
+
   .parcel-list-toolbar {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 12px;
     margin-bottom: 14px;
+  }
+
+  .parcel-list-toolbar .clear-list-filters {
+    margin: 0 0 0 auto;
   }
 
   .search-bar {
@@ -662,14 +891,98 @@
     font-weight: 600;
   }
 
-  .parcel-status-filter select {
-    height: 44px;
-    padding-inline: 10px;
+  .parcel-status-picker {
+    position: relative;
+    color: var(--color-text);
+  }
+
+  .parcel-status-picker > summary {
+    display: flex;
+    min-height: 42px;
+    align-items: center;
+    padding: 4px 10px;
     border: 1px solid #dce3ee;
     border-radius: 8px;
     background: white;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .parcel-status-picker > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .parcel-status-picker > summary:focus-visible,
+  .parcel-status-option:focus-visible {
+    outline: 3px solid #2563eb;
+    outline-offset: 2px;
+  }
+
+  .parcel-status-picker > summary::after {
+    width: 7px;
+    height: 7px;
+    margin-left: 12px;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    content: "";
+    transform: translateY(-2px) rotate(45deg);
+  }
+
+  .parcel-status-picker[open] > summary::after {
+    transform: translateY(2px) rotate(225deg);
+  }
+
+  .parcel-status-options {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 6px);
+    right: 0;
+    display: grid;
+    width: max-content;
+    min-width: 100%;
+    max-height: min(60vh, 420px);
+    overflow-y: auto;
+    padding: 6px;
+    border: 1px solid #dce3ee;
+    border-radius: 10px;
+    background: white;
+    box-shadow: 0 8px 24px rgba(23, 33, 61, 0.18);
+  }
+
+  .parcel-status-option {
+    padding: 6px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .parcel-status-option:hover,
+  .parcel-status-option[aria-pressed="true"] {
+    background: #eff6ff;
+  }
+
+  .parcel-active-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .parcel-active-filter {
+    width: fit-content;
+    margin: 0;
+    padding: 6px 12px;
+    border: 1px solid #dce3ee;
+    border-radius: 999px;
+    background: white;
+    color: var(--color-muted);
+    font-size: 0.85rem;
+  }
+
+  .parcel-active-filter strong {
     color: var(--color-text);
-    font: inherit;
   }
 
   .table-card {
@@ -913,6 +1226,9 @@
   }
 
   @media (max-width: 600px) {
+    .logistics-summary-grid { grid-template-columns: minmax(0, 1fr); }
+    .logistics-summary-card { align-items: stretch; flex-direction: column; gap: 14px; padding: 16px; }
+    .logistics-summary-action { width: 100%; box-sizing: border-box; }
     .courier-parcel { padding: 16px; }
     .parcel-card-header { margin-bottom: 12px; }
     .parcel-card-header .status { white-space: normal; text-align: right; }
