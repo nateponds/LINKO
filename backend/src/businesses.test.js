@@ -44,18 +44,16 @@ test("buyer adds businesses without a cap and switches business context without 
     const added = await post("/api/businesses", { business_name: "  New Wholesaler  ", business_type: "wholesaler", user_id: 1 }, cookie);
     assert.equal(added.status, 201);
     assert.deepEqual(added.body, { business_id: added.body.business_id, business_name: "New Wholesaler", business_type: "wholesaler", role: "wholesaler", has_coordinates: false });
-    const { rows } = await pool.query(`SELECT b.business_type, bm.role, a.address_id, a.latitude, a.longitude, a.is_default
+    const { rows } = await pool.query(`SELECT b.business_type, bm.role, b.logistics_address_id,
+        (SELECT COUNT(*)::int FROM addresses a WHERE a.business_id = b.business_id) AS address_count
       FROM businesses b JOIN user_businesses ub USING (business_id)
       JOIN business_memberships bm ON bm.business_id = b.business_id AND bm.user_id = ub.user_id
-      JOIN addresses a ON a.address_id = b.logistics_address_id AND a.business_id = b.business_id
       WHERE b.business_id = $1 AND ub.user_id = $2`, [added.body.business_id, userId]);
     assert.equal(rows.length, 1);
     assert.equal(rows[0].business_type, "wholesaler");
     assert.equal(rows[0].role, "wholesaler");
-    assert.ok(rows[0].address_id);
-    assert.equal(rows[0].latitude, null);
-    assert.equal(rows[0].longitude, null);
-    assert.equal(rows[0].is_default, true);
+    assert.equal(rows[0].logistics_address_id, null, "no placeholder pin");
+    assert.equal(rows[0].address_count, 0, "address book starts empty");
     const me = await request("/api/auth/me", { headers: { Cookie: cookie } });
     assert.equal(me.status, 200);
     assert.deepEqual(me.body.memberships, [buyer, added.body]);

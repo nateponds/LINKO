@@ -7,7 +7,7 @@ import { validateCoordinatePair } from "../services/location.js";
 // Business location settings (Sprint 13 T10, docs/API_CONTRACTS.md §5).
 // The canonical logistics location of the ACTIVE business - a buyer's
 // delivery location / a wholesaler's pickup location. This is the one surface
-// that repairs the unpinned placeholder address registration creates.
+// that creates the pin for a business that registered without an address.
 // Platform admins get no global bypass: they edit a location only through an
 // actual buyer/wholesaler membership of their own.
 
