@@ -23,7 +23,7 @@ import { GoChevronDown } from "react-icons/go";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../auth/AuthProvider";
 import { useCart } from "../../features/cart/CartProvider";
-import { APP_NAV_ITEMS, formatRoleLabel, primaryRole, ROUTE_ACCESS } from "../../auth/roleAccess";
+import { APP_NAV_ITEMS, formatRoleLabel, primaryRole, redirectPathForRoles, ROUTE_ACCESS } from "../../auth/roleAccess";
 import MarketplaceSearch from "../../features/search/MarketplaceSearch.jsx";
 import { marketplaceSearchPath } from "../../features/search/marketplaceSearch";
 import ConfirmDialog from "../ui/ConfirmDialog";
@@ -228,7 +228,7 @@ function Topbar({ showSearch = false, showCategories = false }) {
         </span>
       </div>
       <header className="header-nav">
-        <Link to="/" className="logo">
+        <Link to={redirectPathForRoles(activeRoles, isAdmin)} className="logo">
           <span>LINK<span className="logo-accent">O</span></span>
           {badgeRole && <span className={`role-badge role-badge-${badgeRole}`}>{badgeLabel}</span>}
         </Link>

@@ -10,11 +10,17 @@ export default function DecisionStrip({ label, items, loading = false, error = n
     <section className="decision-strip" aria-label={label} aria-busy={loading}>
       {items.map((item) => {
         const value = Number(item.value ?? 0);
-        return (
-          <Link key={item.key} to={item.to} className="decision-strip-item">
+        const content = (
+          <>
             <span className="decision-strip-value">{loading ? "…" : value}</span>
             <span className="decision-strip-label">{item.label}</span>
-          </Link>
+          </>
+        );
+        // No `to`: a plain count for a page this viewer cannot open.
+        return item.to ? (
+          <Link key={item.key} to={item.to} className="decision-strip-item">{content}</Link>
+        ) : (
+          <div key={item.key} className="decision-strip-item">{content}</div>
         );
       })}
     </section>

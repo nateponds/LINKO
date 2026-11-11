@@ -24,22 +24,27 @@ function Footer() {
         <div className="footer-brand">
           <div className="footer-wordmark">LINK<span>O</span></div>
         </div>
-        <div className="footer-col">
-          <h4>Marketplace</h4>
-          {marketplaceLinks.map((item) => (
-            <Link key={item.link} to={item.link}>
-              {item.name}
-            </Link>
-          ))}
-        </div>
-        <div className="footer-col">
-          <h4>Operations</h4>
-          {operationsLinks.map((item) => (
-            <Link key={item.link} to={item.link}>
-              {item.name}
-            </Link>
-          ))}
-        </div>
+        {/* A column with no links for this role is left out, heading included. */}
+        {marketplaceLinks.length > 0 && (
+          <div className="footer-col">
+            <h4>Marketplace</h4>
+            {marketplaceLinks.map((item) => (
+              <Link key={item.link} to={item.link}>
+                {item.name}
+              </Link>
+            ))}
+          </div>
+        )}
+        {operationsLinks.length > 0 && (
+          <div className="footer-col">
+            <h4>Operations</h4>
+            {operationsLinks.map((item) => (
+              <Link key={item.link} to={item.link}>
+                {item.name}
+              </Link>
+            ))}
+          </div>
+        )}
         <div className="footer-col">
           <h4>Account</h4>
           {hasAnyRole(ROUTE_ACCESS["/dashboard"]) && <Link to="/dashboard">Workspace</Link>}

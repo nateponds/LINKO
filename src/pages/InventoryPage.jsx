@@ -33,7 +33,7 @@ function statusFor(status) {
 }
 
 export default function InventoryPage() {
-  const { isAdmin, activeBusinessId, activeRoles } = useAuth();
+  const { activeBusinessId, activeRoles } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const { page, limit, q } = readListUrlState(searchParams);
 
@@ -75,7 +75,7 @@ export default function InventoryPage() {
 
   const loadProducts = useCallback(async () => {
     const path = apiPath("/api/products", {
-      business_id: isAdmin || !ownBusinessId ? undefined : ownBusinessId,
+      business_id: ownBusinessId ?? undefined,
       q, page, limit,
       category_id: activeFilters.category,
       min_price: activeFilters.priceMin,
@@ -96,7 +96,7 @@ export default function InventoryPage() {
     } catch (err) {
       setError(err.message);
     } finally { setFetching(false); }
-  }, [activeFilters, isAdmin, limit, ownBusinessId, page, products.length, q, searchParams, setSearchParams]);
+  }, [activeFilters, limit, ownBusinessId, page, products.length, q, searchParams, setSearchParams]);
 
   const loadLowStock = useCallback(async () => {
     if (!ownBusinessId) {

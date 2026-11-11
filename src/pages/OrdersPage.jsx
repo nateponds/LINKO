@@ -88,7 +88,7 @@ function useOrderPage(path) {
 }
 
 export default function OrdersPage() {
-  const { activeBusinessId, isAdmin } = useAuth();
+  const { activeBusinessId } = useAuth();
   const location = useLocation();
   const list = useListUrlState();
   const statusFilter = new URLSearchParams(location.search).get("status") || "All";
@@ -210,16 +210,13 @@ export default function OrdersPage() {
     const status = normalizeStatus(order.status);
     const actions = [];
 
-    // Buyer parcel tracking is available to whoever can see the order (buyer,
-    // wholesaler, admin) once a parcel exists - a read-only modal, no logistics
+    // Buyer parcel tracking is available to whoever can see the order (buyer
+    // or wholesaler) once a parcel exists - a read-only modal, no logistics
     // workspace access. Operators still have the full parcel detail page.
     if (order.parcel_id && TRACKABLE_STATUSES.has(status)) {
       actions.push({ label: "Track parcel", onClick: () => openTracking(order) });
     }
 
-    if (isAdmin) {
-      return actions;
-    }
     // Your side of an order is decided by the order, not by your role: the
     // active business is the buyer side if it placed the order (a wholesaler
     // buying stock included) and the seller side if it is the wholesaler.
