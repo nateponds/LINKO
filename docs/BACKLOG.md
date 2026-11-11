@@ -1,5 +1,22 @@
 # Backlog
 
+## Local staging review: addresses, role access, and confidentiality
+
+Status: In progress
+Suggested by: @nateponds
+Date added: 2026-11-10
+Area: Frontend / Backend / Security
+Priority: High
+
+Description:
+- A new business with no actual addresses shows a placeholder Primary address filled with "Not provided". Show an empty address state until an address is supplied.
+- Hide marketplace and e-commerce pages and navigation from admins, logistics coordinators, couriers, and other roles without marketplace duties. Buyers and wholesalers retain access appropriate to their roles; avoid links that immediately redirect a user away.
+- Protect invoice, inventory, order, and parcel contents in both API responses and UI. Admins, logistics coordinators, and couriers must not see package contents; only the sender and receiver may see full contents, scoped to their own transactions. Preserve operational information needed for delivery.
+- Review the fourth screenshot of the admin Logistics Management page; the specific criticism was not supplied and needs clarification before assuming a change.
+
+Expected outcome:
+An empty address book stays empty, navigation reflects role access, and server-side authorization prevents users from accessing confidential transaction details outside their permitted scope. Verify with role and ownership tests, including direct API requests.
+
 ## Authenticated "Add a Business" Flow
 
 Status: Implemented
