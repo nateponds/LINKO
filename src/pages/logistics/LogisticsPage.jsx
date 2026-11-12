@@ -197,7 +197,7 @@ export default function LogisticsPage() {
                           <dl>
                             <div><dt>Service</dt><dd>{parcel.tier_name ?? "-"}</dd></div>
                             <div><dt>Weight</dt><dd>{parcel.weight_kg == null ? "-" : `${parcel.weight_kg} kg`}</dd></div>
-                            <div><dt>Fee</dt><dd>{peso(parcel.shipping_fee)}</dd></div>
+                            {parcel.shipping_fee !== undefined && <div><dt>Fee</dt><dd>{peso(parcel.shipping_fee)}</dd></div>}
                           </dl>
                         </ExpandableTableRow>
                       );

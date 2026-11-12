@@ -263,8 +263,8 @@ test("booking a parcel creates payment and first log", { skip: !hasDb }, async (
   });
   assert.equal(detail.status, 200);
   assert.ok(
-    Math.abs(detail.body.payment.amount - (1000 + created.body.shipping_fee)) < 0.01,
-    "payment amount is goods + shipping",
+    Math.abs(detail.body.payment.amount_to_collect - (1000 + created.body.shipping_fee)) < 0.01,
+    "COD amount to collect is goods + shipping",
   );
   assert.equal(detail.body.tracking_history.length, 1);
   assert.equal(detail.body.latest_branch_id, 1);

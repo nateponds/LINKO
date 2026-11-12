@@ -632,7 +632,7 @@ Parcel detail with full tracking timeline (oldest first). `404` if unknown. `bra
 }
 ```
 
-**`declared_value` confidentiality:** the field is present only when the caller's active business is the parcel's sender or receiver. Coordinators, couriers, and platform admins receive the same object without it; weight, dimensions, addresses, contacts, tracking, route, and payment are unchanged.
+**`declared_value` confidentiality:** the field is present only when the caller's active business is the parcel's sender or receiver. Coordinators, couriers, and platform admins receive the same object without it and without `shipping_fee`, and their `payment` is reduced to `{ "payment_status", "amount_to_collect" }` (the COD amount, `0` for prepaid/online) so goods value cannot be derived. `GET /api/parcels` likewise omits `shipping_fee` for non-party rows. Weight, dimensions, addresses, contacts, tracking, and route are unchanged.
 
 **`planned_route` (Sprint 13):** the immutable route snapshot from `parcel_route_stops`, ordered by `stop_order` (1 = origin, 2 = branch, 3 = destination). `stop_type` ∈ `origin | branch | destination`; `branch_id` is non-null only on the branch stop. `latitude`/`longitude` are JSON numbers or `null` (a NULL-coordinate stop is kept in the array but rendered without a map marker). The array is **`[]`** when no snapshot exists (parcel created branchless and never assigned) - the UI renders an explanatory empty state. Planned stops are display-only reference data and are never mixed into `tracking_history`; actual tracking (hub transfers, reassignment, return leg) diverges freely and never rewrites the snapshot.
 

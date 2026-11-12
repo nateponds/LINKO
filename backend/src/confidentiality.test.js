@@ -166,7 +166,9 @@ test("order, invoice, and parcel contents are visible only to the sender and rec
       assert.equal(parcel.body.weight_kg, 2);
       assert.ok(parcel.body.destination_address.street_address);
       assert.ok(parcel.body.receiver.business_name);
-      assert.ok("payment" in parcel.body && "shipping_fee" in parcel.body);
+      // Only the cash to collect: no fee, no total, no method.
+      assert.ok(!("shipping_fee" in parcel.body), `${role} must not see the shipping fee`);
+      assert.deepEqual(Object.keys(parcel.body.payment).sort(), ["amount_to_collect", "payment_status"]);
       assert.ok(Array.isArray(parcel.body.tracking_history));
     }
     for (const role of UNRELATED) {
