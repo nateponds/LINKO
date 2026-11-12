@@ -1,11 +1,8 @@
 import { useEffect, useState } from "react";
 import {
   Bell,
-  Boxes,
   ChevronLeft,
   ChevronRight,
-  ClipboardList,
-  LayoutDashboard,
   LogOut,
   Mail,
   MailOpen,
@@ -428,7 +425,6 @@ function Topbar({ showSearch = false, showCategories = false }) {
                 {APP_NAV_ITEMS.filter((item) => hasAnyRole(item.roles)).map((item) => (
                   <Link key={item.name} to={item.link} onClick={() => setOpenPanel(null)}>{item.name}</Link>
                 ))}
-                <button type="button" className="danger" onClick={requestLogoutConfirmation}>Logout</button>
               </nav>
             </div>
           </div>
@@ -455,21 +451,6 @@ function Topbar({ showSearch = false, showCategories = false }) {
                   </div>
                 </div>
                 <nav className="dropdown-menu">
-                  {hasAnyRole(ROLE_ACCESS.dashboard) && (
-                    <Link to="/dashboard" onClick={() => setOpenPanel(null)}>
-                      <LayoutDashboard size={15} /> Dashboard
-                    </Link>
-                  )}
-                  {hasAnyRole(ROLE_ACCESS.inventory) && (
-                    <Link to="/inventory" onClick={() => setOpenPanel(null)}>
-                      <Boxes size={15} /> Inventory
-                    </Link>
-                  )}
-                  {hasAnyRole(ROLE_ACCESS.orders) && (
-                    <Link to="/orders" onClick={() => setOpenPanel(null)}>
-                      <ClipboardList size={15} /> Orders
-                    </Link>
-                  )}
                   {hasAnyRole(ROLE_ACCESS.settings) && (
                     <Link to="/settings" onClick={() => setOpenPanel(null)}>
                       <Settings size={15} /> Settings

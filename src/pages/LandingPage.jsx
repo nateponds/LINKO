@@ -121,7 +121,6 @@ export default function LandingPage() {
           >
             <a href="#how" onClick={closeMenu}>How it works</a>
             <a href="#tour" onClick={closeMenu}>Product tour</a>
-            <a href="#workflow" onClick={closeMenu}>Workflow</a>
           </nav>
 
           <div className="header-actions">
@@ -203,33 +202,6 @@ export default function LandingPage() {
             <HeroVideoPreview />
           </section>
 
-          <section className="landing-section landing-section--workflow" id="workflow" tabIndex={-1}>
-            <h2>From search to delivery</h2>
-            <p>See how LINKO supports buyers from supplier discovery through shipment updates.</p>
-            <ol className="landing-workflow-steps">
-              <li>
-                <span className="landing-workflow-step-number" aria-hidden="true">1</span>
-                <div>
-                  <h3>Find wholesalers</h3>
-                  <p>Search by business name or location.</p>
-                </div>
-              </li>
-              <li>
-                <span className="landing-workflow-step-number" aria-hidden="true">2</span>
-                <div>
-                  <h3>Review listed products</h3>
-                  <p>Check product listings and unit prices published by wholesalers.</p>
-                </div>
-              </li>
-              <li>
-                <span className="landing-workflow-step-number" aria-hidden="true">3</span>
-                <div>
-                  <h3>Order and follow delivery</h3>
-                  <p>Place orders and follow parcel updates after shipment.</p>
-                </div>
-              </li>
-            </ol>
-          </section>
         </main>
 
         <footer className="app-footer">
@@ -245,7 +217,6 @@ export default function LandingPage() {
               <h4>Product</h4>
               <a href="#how">How it works</a>
               <a href="#tour">Product tour</a>
-              <a href="#workflow">Workflow</a>
             </div>
             <div className="footer-col">
               <h4>Account</h4>

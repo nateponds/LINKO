@@ -1329,7 +1329,8 @@
 
   @media (max-width: 700px) {
     .app-layout {
-      padding-bottom: calc(64px + env(safe-area-inset-bottom));
+      --mobile-nav-height: calc(64px + env(safe-area-inset-bottom));
+      padding-bottom: var(--mobile-nav-height);
     }
 
     .logistics-grid {
@@ -1339,6 +1340,7 @@
     .mobile-nav {
       display: flex;
       position: fixed;
+      min-height: var(--mobile-nav-height);
       bottom: 0;
       left: 0;
       right: 0;

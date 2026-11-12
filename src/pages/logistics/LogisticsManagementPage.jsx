@@ -455,8 +455,6 @@ export default function LogisticsManagementPage() {
 
   const branchesPagination = branchesResource.pagination ?? { page: branchesList.page, limit: branchesList.limit, total_items: 0, total_pages: 0 };
   const couriersPagination = couriersResource.pagination ?? { page: couriersList.page, limit: couriersList.limit, total_items: 0, total_pages: 0 };
-  const editingBranch = visibleBranches.find((branch) => branch.branch_id === editingBranchId);
-  const editingCourier = visibleCouriers.find((courier) => courier.courier_id === editingCourierId);
 
   return (
     <AppLayout>
@@ -489,7 +487,6 @@ export default function LogisticsManagementPage() {
             {branchesResource.error && visibleBranches.length > 0 ? (
               <LogisticsNotice message={`Could not refresh branches: ${branchesResource.error.message}`} onRetry={branchesResource.reload} />
             ) : null}
-            {editingBranch ? <p className="management-active-note">Editing {editingBranch.branch_name}. Save or cancel to leave this record.</p> : null}
             <div className="management-list-wrap" aria-busy={branchesResource.loading}>
               <ListState resource={branchesResource} items={visibleBranches} query={branchesList.q} label="branches" onClear={branchesSearch.clear} onRetry={branchesResource.reload}>
                 <ul className="logistics-list">
@@ -499,7 +496,7 @@ export default function LogisticsManagementPage() {
                       <li key={branch.branch_id} className={`logistics-list-row management-row${editing ? " is-editing" : ""}`} aria-current={editing ? "true" : undefined}>
                         {editing ? (
                           <form className="logistics-edit-form" onSubmit={handleEditBranchSubmit} noValidate>
-                            <p className="management-editing-label">Editing this branch</p>
+                            <p className="management-editing-label">Editing {branch.branch_name}</p>
                             <BranchFields form={branchForm} invalid={branchErrorScope === "edit"} onChange={(patch) => setBranchForm({ ...branchForm, ...patch })} />
                             <MapPicker latitude={branchForm.latitude} longitude={branchForm.longitude} onChange={({ latitude, longitude }) => setBranchForm((current) => ({ ...current, latitude: String(latitude), longitude: String(longitude) }))} />
                             <div className="management-coordinate-grid">
@@ -548,7 +545,6 @@ export default function LogisticsManagementPage() {
             {couriersResource.error && visibleCouriers.length > 0 ? (
               <LogisticsNotice message={`Could not refresh couriers: ${couriersResource.error.message}`} onRetry={couriersResource.reload} />
             ) : null}
-            {editingCourier ? <p className="management-active-note">Editing {editingCourier.full_name}. Save or cancel to leave this record.</p> : null}
             <div className="management-list-wrap" aria-busy={couriersResource.loading}>
               <ListState resource={couriersResource} items={visibleCouriers} query={couriersList.q} label="couriers" onClear={couriersSearch.clear} onRetry={couriersResource.reload}>
                 <ul className="logistics-list">
@@ -558,7 +554,7 @@ export default function LogisticsManagementPage() {
                       <li key={courier.courier_id} className={`logistics-list-row management-row${editing ? " is-editing" : ""}`} aria-current={editing ? "true" : undefined}>
                         {editing ? (
                           <form className="logistics-edit-form" onSubmit={handleEditCourierSubmit} noValidate>
-                            <p className="management-editing-label">Editing this courier</p>
+                            <p className="management-editing-label">Editing {courier.full_name}</p>
                             <input aria-label="Phone number" aria-invalid={courierErrorScope === "edit"} placeholder="Phone number" required value={courierForm.phone_number} onChange={(event) => setCourierForm({ ...courierForm, phone_number: event.target.value })} />
                             <input aria-label="Vehicle type" aria-invalid={courierErrorScope === "edit"} placeholder="Vehicle type" required value={courierForm.vehicle_type} onChange={(event) => setCourierForm({ ...courierForm, vehicle_type: event.target.value })} />
                             <select aria-label="Assigned branch" value={courierForm.assigned_branch_id} onChange={(event) => setCourierForm({ ...courierForm, assigned_branch_id: event.target.value })}>
