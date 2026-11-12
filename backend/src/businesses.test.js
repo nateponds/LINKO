@@ -86,6 +86,13 @@ test("adding a business requires authentication and rejects platform admins", { 
   assert.equal((await post("/api/businesses", body, await login("admin@linko.test", t))).status, 403);
 });
 
+test("adding a business rejects couriers and logistics coordinators", { skip: !hasDb }, async (t) => {
+  const body = { business_name: "Forbidden", business_type: "buyer" };
+  for (const email of ["courier@linko.test", "logistics@linko.test"]) {
+    assert.equal((await post("/api/businesses", body, await login(email, t))).status, 403, email);
+  }
+});
+
 test("add business validates required names and buyer/wholesaler types", { skip: !hasDb }, async (t) => {
   const cookie = await login("buyer@linko.test", t);
   for (const invalid of [undefined, null, "", "   ", 123, {}, []]) {

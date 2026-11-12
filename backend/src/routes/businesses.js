@@ -9,6 +9,11 @@ router.post("/", async (req, res) => {
   if (isPlatformAdmin(req.auth.user)) {
     throw createHttpError(403, "Platform admins cannot add businesses");
   }
+  // Couriers and coordinators are operational staff: like admins they never
+  // join the marketplace, whichever business is active. Checked account-wide.
+  if (req.auth.memberships.some((m) => m.role === "courier" || m.role === "logistics_coordinator")) {
+    throw createHttpError(403, "Logistics staff cannot add businesses");
+  }
   const { businessName, businessType } = parseBusiness(req.body);
   if (!businessName || !businessType) {
     throw createHttpError(400, "Missing required fields");
