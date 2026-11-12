@@ -10,7 +10,7 @@ import dashboardRouter from "./routes/dashboard.js";
 import adminRouter from "./routes/admin.js";
 import settingsRouter from "./routes/settings.js";
 import { errorHandler } from "./middleware/errorHandler.js";
-import { requireAuth, requireGlobalRole } from "./middleware/auth.js";
+import { MARKETPLACE_ROLES, requireAnyRole, requireAuth, requireGlobalRole } from "./middleware/auth.js";
 
 export function createApp() {
   const app = express();
@@ -27,14 +27,13 @@ export function createApp() {
   // These routers own their domain paths.
   app.use("/api/auth", authRouter);
   app.use("/api/businesses", requireAuth, businessesRouter);
-  // Suppliers is a read-only marketplace listing for any authenticated user
-  // (buyers browse wholesalers), so it only needs requireAuth -- no role gate.
-  app.use("/api/suppliers", requireAuth, suppliersRouter);
+  // Suppliers is a read-only marketplace listing for buyers and wholesalers.
+  app.use("/api/suppliers", requireAuth, requireAnyRole(MARKETPLACE_ROLES), suppliersRouter);
 
   // Marketplace products + category taxonomy (Milestone 2). Owns /api/products
   // and /api/categories, so it mounts at /api and declares full paths and its
-  // own per-route auth internally (reads are any-authenticated, writes are
-  // wholesaler/platform_admin).
+  // own per-route auth internally (reads are buyer/wholesaler, writes are
+  // wholesaler only).
   app.use("/api", productsRouter);
 
   // Batch-level expiry records complement products.stock_quantity without

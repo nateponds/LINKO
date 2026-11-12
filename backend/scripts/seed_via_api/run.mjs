@@ -395,13 +395,6 @@ async function main() {
       throw new Error("No session cookie returned for coordinator.");
     }
 
-    // Fetch categories
-    const catRes = await fetch(`${baseUrl}/api/categories`, { headers: { Cookie: coordinatorCookie } });
-    activeCategories = await catRes.json();
-    if (!activeCategories.length) {
-      throw new Error("No categories found in target DB. Seed Reference categories first.");
-    }
-
     // Fetch service tiers
     const tierRes = await fetch(`${baseUrl}/api/service-tiers`, { headers: { Cookie: coordinatorCookie } });
     activeTiers = await tierRes.json();
@@ -517,6 +510,15 @@ async function main() {
     // Step 3: Create Products
     const productsList = persona.products || [];
     const createdProducts = [];
+    // Catalog reads are buyer/wholesaler only, so categories load with a
+    // wholesaler session (not the coordinator's) the first time they are needed.
+    if (!activeCategories.length) {
+      const catRes = await fetch(`${baseUrl}/api/categories`, { headers: { Cookie: cookie } });
+      activeCategories = await catRes.json();
+      if (!Array.isArray(activeCategories) || !activeCategories.length) {
+        throw new Error("No categories found in target DB. Seed Reference categories first.");
+      }
+    }
     for (const p of productsList) {
       const categoryId = resolveCategoryId(p.category_hint);
       const unitPrice = getJitteredPrice();

@@ -542,7 +542,8 @@ INSERT INTO schema_migrations (filename) VALUES
     ('026_inventory_batches.sql'),
     ('028_users_role_nullable.sql'),
     ('029_actor_and_takedown_columns.sql'),
-    ('030_drop_users_role.sql')
+    ('030_drop_users_role.sql'),
+    ('031_remove_placeholder_addresses.sql')
 ON CONFLICT (filename) DO NOTHING;
 
 COMMIT;

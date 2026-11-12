@@ -204,7 +204,7 @@ test("expiry boundaries, date validation, and stock independence", { skip: !hasD
   }
 });
 
-test("expiry records enforce business ownership and allow administrator access", { skip: !hasDb }, async () => {
+test("expiry records enforce business ownership and refuse administrators", { skip: !hasDb }, async () => {
   const cookie = await loginAs("wholesaler@linko.test");
   const admin = await loginAs("admin@linko.test");
   const pool = createPool();
@@ -217,9 +217,15 @@ test("expiry records enforce business ownership and allow administrator access",
     productId = product.rows[0].product_id;
     const body = { product_id: productId, batch_number: "FOREIGN", expires_on: "2999-01-01" };
     assert.equal((await sendJson("/api/inventory-batches", cookie, "POST", body)).status, 403);
-    const created = await sendJson("/api/inventory-batches", admin, "POST", body);
-    assert.equal(created.status, 201);
+    assert.equal((await sendJson("/api/inventory-batches", admin, "POST", body)).status, 403);
+    // The foreign business has no session here, so its batch is seeded directly.
+    const created = { body: (await pool.query(
+      "INSERT INTO inventory_batches (product_id, batch_number, expires_on) VALUES ($1, 'FOREIGN', '2999-01-01') RETURNING batch_id",
+      [productId],
+    )).rows[0] };
     const path = `/api/inventory-batches/${created.body.batch_id}`;
+    assert.equal((await sendJson(path, admin, "PATCH", { depleted: true })).status, 403);
+    assert.equal((await request(path, { method: "DELETE", headers: { Cookie: admin } })).status, 403);
     assert.equal((await sendJson(path, cookie, "PATCH", { depleted: true })).status, 403);
     assert.equal((await request(path, { method: "DELETE", headers: { Cookie: cookie } })).status, 403);
     assert.equal((await request(`/api/inventory-batches?business_id=${businessId}`, { headers: { Cookie: cookie } })).status, 403);
@@ -227,8 +233,7 @@ test("expiry records enforce business ownership and allow administrator access",
     assert.equal(scoped.status, 200);
     assert.deepEqual(scoped.body.items, []);
     const adminList = await request(`/api/inventory-batches?business_id=${businessId}`, { headers: { Cookie: admin } });
-    assert.equal(adminList.status, 200);
-    assert.equal(adminList.body.pagination.total_items, 1);
+    assert.equal(adminList.status, 403);
     await pool.query("DELETE FROM products WHERE product_id = $1", [productId]);
     productId = null;
     const orphan = await pool.query("SELECT batch_id FROM inventory_batches WHERE batch_id = $1", [created.body.batch_id]);

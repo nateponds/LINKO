@@ -482,6 +482,13 @@ router.get("/parcels", async (req, res) => {
      LIMIT $${limitParam} OFFSET $${offsetParam}`, params);
 
   const counts = countRows[0];
+  // Same rule as the detail view: only the sender/receiver see the fee.
+  const listPartyIds = [...(scope.businessIds ?? []), ...(scope.receiverOnlyIds ?? [])];
+  for (const row of rows) {
+    if (!listPartyIds.includes(row.sender.business_id) && !listPartyIds.includes(row.receiver.business_id)) {
+      delete row.shipping_fee;
+    }
+  }
   res.json({
     ...buildPaginatedResponse(rows, filters, counts.total_items),
     facets: {
@@ -635,6 +642,22 @@ router.get("/parcels/:id", async (req, res) => {
       parcel.latest_branch_id = null;
       parcel.tracking_history = parcel.tracking_history.slice(0, cutoffIndex + 1);
     }
+  }
+
+  // Confidentiality: the declared value hints at the parcel's contents, so only
+  // the sender or receiver business sees it. Coordinators, couriers, and admins
+  // keep everything delivery needs (weight, addresses, route, payment).
+  const partyIds = [...(scope.businessIds ?? []), ...(scope.receiverOnlyIds ?? [])];
+  if (!partyIds.includes(parcel.sender_id) && !partyIds.includes(parcel.receiver_id)) {
+    delete parcel.declared_value;
+    // Operators only need the cash to collect, not how it breaks down
+    // (goods + shipping would give the declared value back).
+    delete parcel.shipping_fee;
+    const pay = parcel.payment;
+    parcel.payment = {
+      payment_status: pay?.payment_status ?? null,
+      amount_to_collect: pay?.method === "COD" ? pay.amount : 0,
+    };
   }
 
   // Strip the internal-only fields used for the ownership check.

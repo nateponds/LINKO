@@ -45,6 +45,26 @@ test("admin passes only where the list names platform_admin", () => {
   assert.equal(hasAccess(admin, [], ROUTE_ACCESS["/courier"]), false);
 });
 
+test("marketplace and inventory routes are closed to admins and operational roles", () => {
+  const marketplace = ["/", "/suppliers", "/suppliers/:supplierId", "/orders", "/invoices"];
+  for (const path of [...marketplace, "/inventory"]) {
+    assert.equal(hasAccess({ global_role: "platform_admin" }, [], ROUTE_ACCESS[path]), false, `admin ${path}`);
+    for (const role of ["courier", "logistics_coordinator"]) {
+      assert.equal(hasAccess({ user_id: 1 }, [role], ROUTE_ACCESS[path]), false, `${role} ${path}`);
+    }
+  }
+  for (const path of marketplace) {
+    for (const role of ["buyer", "wholesaler"]) {
+      assert.equal(hasAccess({ user_id: 1 }, [role], ROUTE_ACCESS[path]), true, `${role} ${path}`);
+    }
+  }
+  assert.equal(hasAccess({ user_id: 1 }, ["wholesaler"], ROUTE_ACCESS["/inventory"]), true);
+  assert.equal(hasAccess({ user_id: 1 }, ["buyer"], ROUTE_ACCESS["/inventory"]), false);
+  // No nav item may point one of these roles at a page that bounces it.
+  const adminNav = APP_NAV_ITEMS.filter((item) => hasAccess({ global_role: "platform_admin" }, [], item.roles));
+  assert.deepEqual(adminNav.map((item) => item.link), ["/logistics", "/admin"]);
+});
+
 test("only the active business's roles count", () => {
   const user = { user_id: 1 };
   assert.equal(hasAccess(user, ["buyer"], ROUTE_ACCESS["/dashboard"]), false);

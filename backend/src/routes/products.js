@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { query } from "../db.js";
-import { requireAnyRole, requireAuth } from "../middleware/auth.js";
+import { MARKETPLACE_ROLES, requireAnyRole, requireAuth } from "../middleware/auth.js";
 import { activeMemberships } from "../middleware/ownership.js";
 import { buildPaginatedResponse, parsePaginationQuery } from "../services/pagination.js";
 
@@ -127,9 +127,10 @@ function resolveWholesalerBusiness(req) {
 }
 
 // ---------------------------------------------------------------------------
-// Categories -- any authenticated user.
+// Catalog reads (categories, products) -- buyers and wholesalers only. Admins
+// moderate through /api/admin; logistics roles have no marketplace duties.
 // ---------------------------------------------------------------------------
-router.get("/categories", requireAuth, async (_req, res) => {
+router.get("/categories", requireAuth, requireAnyRole(MARKETPLACE_ROLES), async (_req, res) => {
   const { rows } = await query(
     `SELECT c.category_id,
             c.category_name,
@@ -143,7 +144,7 @@ router.get("/categories", requireAuth, async (_req, res) => {
 
 // Lightweight category choices for forms. Unlike /categories, this omits
 // product counts and deliberately remains a bounded array.
-router.get("/categories/options", requireAuth, async (_req, res, next) => {
+router.get("/categories/options", requireAuth, requireAnyRole(MARKETPLACE_ROLES), async (_req, res, next) => {
   try {
     const { rows } = await query(
       `SELECT category_id, category_name
@@ -159,7 +160,7 @@ router.get("/categories/options", requireAuth, async (_req, res, next) => {
 // ---------------------------------------------------------------------------
 // Product reads include removed rows only for their active-business owner.
 // ---------------------------------------------------------------------------
-router.get("/products", requireAuth, async (req, res, next) => {
+router.get("/products", requireAuth, requireAnyRole(MARKETPLACE_ROLES), async (req, res, next) => {
   try {
     const { page, limit, offset, q } = parsePaginationQuery(req.query);
     const ownerId = ownerBusinessId(req);
@@ -243,7 +244,7 @@ router.get("/products", requireAuth, async (req, res, next) => {
   }
 });
 
-router.get("/products/:id", requireAuth, async (req, res, next) => {
+router.get("/products/:id", requireAuth, requireAnyRole(MARKETPLACE_ROLES), async (req, res, next) => {
   try {
     const productId = parseProductId(req.params.id);
     const product = await findProduct(productId, ownerBusinessId(req));

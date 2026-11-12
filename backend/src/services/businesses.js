@@ -23,22 +23,9 @@ export async function createBusiness(client, userId, businessName, businessType)
     [businessName, businessType],
   );
 
-  // The placeholder address becomes the canonical logistics pin. It has no
-  // coordinates, so the new business correctly hits the pin gates and the
-  // missing-location banner until it saves a real location in Settings.
-  const addressResult = await client.query(
-    `INSERT INTO addresses
-     (business_id, label, province, city_municipality, barangay, street_address, postal_code, is_default)
-     VALUES ($1, 'Primary', 'Not provided', 'Not provided', 'Not provided', 'Not provided', '0000', TRUE)
-     RETURNING address_id`,
-    [businessResult.rows[0].business_id],
-  );
-
-  await client.query(
-    "UPDATE businesses SET logistics_address_id = $1 WHERE business_id = $2",
-    [addressResult.rows[0].address_id, businessResult.rows[0].business_id],
-  );
-
+  // No address is created here: the business has an empty address book and a
+  // NULL logistics pin until it saves a real location in Settings, so it hits
+  // the pin gates and the missing-location banner.
   await client.query(
     "INSERT INTO user_businesses (user_id, business_id) VALUES ($1, $2)",
     [userId, businessResult.rows[0].business_id],

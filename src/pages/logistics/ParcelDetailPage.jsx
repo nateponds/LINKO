@@ -273,12 +273,27 @@ export default function ParcelDetailPage() {
               <div className="parcel-card">
                 <span className="card-heading">Payment</span>
                 <div className="fact-grid">
-                  <span className="field-label">Declared Value</span>
-                  <span className="field-value">{peso(parcel.declared_value)}</span>
-                  <span className="field-label">Shipping Fee</span>
-                  <span className="field-value">{peso(parcel.shipping_fee)}</span>
-                  <span className="field-label">Total ({parcel.payment?.method ?? "-"})</span>
-                  <span className="field-value"><strong>{peso(parcel.payment?.amount)}</strong></span>
+                  {/* Sent only to the sender and receiver; hidden from operators. */}
+                  {parcel.declared_value !== undefined && (
+                    <>
+                      <span className="field-label">Declared Value</span>
+                      <span className="field-value">{peso(parcel.declared_value)}</span>
+                    </>
+                  )}
+                  {parcel.payment?.amount_to_collect !== undefined ? (
+                    <>
+                      {/* Operator view: only the cash to collect. */}
+                      <span className="field-label">Amount to Collect</span>
+                      <span className="field-value"><strong>{peso(parcel.payment.amount_to_collect)}</strong></span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="field-label">Shipping Fee</span>
+                      <span className="field-value">{peso(parcel.shipping_fee)}</span>
+                      <span className="field-label">Total ({parcel.payment?.method ?? "-"})</span>
+                      <span className="field-value"><strong>{peso(parcel.payment?.amount)}</strong></span>
+                    </>
+                  )}
                   <span className="field-label">Payment Status</span>
                   <span className="field-value">{parcel.payment?.payment_status ?? "-"}</span>
                 </div>

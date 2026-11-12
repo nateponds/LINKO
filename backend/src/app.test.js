@@ -263,8 +263,8 @@ test("booking a parcel creates payment and first log", { skip: !hasDb }, async (
   });
   assert.equal(detail.status, 200);
   assert.ok(
-    Math.abs(detail.body.payment.amount - (1000 + created.body.shipping_fee)) < 0.01,
-    "payment amount is goods + shipping",
+    Math.abs(detail.body.payment.amount_to_collect - (1000 + created.body.shipping_fee)) < 0.01,
+    "COD amount to collect is goods + shipping",
   );
   assert.equal(detail.body.tracking_history.length, 1);
   assert.equal(detail.body.latest_branch_id, 1);
@@ -1123,7 +1123,7 @@ test("placing an order rejects insufficient stock without creating the order", {
   }
 });
 
-test("platform admin can view all orders but only override delivery outcomes", { skip: !hasDb }, async () => {
+test("platform admin cannot read orders or invoices and only overrides delivery outcomes", { skip: !hasDb }, async () => {
   const buyerCookie = await loginAs("buyer@linko.test");
   const wholesalerCookie = await loginAs("wholesaler@linko.test");
   const adminCookie = await loginAs("admin@linko.test");
@@ -1142,8 +1142,7 @@ test("platform admin can view all orders but only override delivery outcomes", {
     assert.equal(await getProductStock(pool, productId), 2);
 
     const adminList = await request("/api/orders", { headers: { Cookie: adminCookie } });
-    assert.equal(adminList.status, 200);
-    assert.ok(adminList.body.items.some((order) => order.order_id === orderId));
+    assert.equal(adminList.status, 403, "order contents are confidential to the two parties");
 
     // Admin is never the seller (docs/API_CONTRACTS.md §2c): seller
     // transitions are refused outright.
@@ -1165,8 +1164,7 @@ test("platform admin can view all orders but only override delivery outcomes", {
     assert.equal(await getProductStock(pool, productId), 2);
 
     const invoices = await request("/api/invoices", { headers: { Cookie: adminCookie } });
-    assert.equal(invoices.status, 200);
-    assert.ok(invoices.body.items.some((row) => row.order_id === orderId));
+    assert.equal(invoices.status, 403);
 
     // Admin outcomes still obey the lifecycle table: no skipping shipment.
     const adminSkip = await request(`/api/orders/${orderId}/status`, {
@@ -1196,7 +1194,8 @@ test("platform admin can view all orders but only override delivery outcomes", {
       body: JSON.stringify({ status: "returned" }),
     });
     assert.equal(adminReturns.status, 200);
-    assert.equal(adminReturns.body.status, "returned");
+    // The override answers with the outcome only, never the order's items.
+    assert.deepEqual(adminReturns.body, { order_id: orderId, status: "returned" });
     assert.equal(await getProductStock(pool, productId), 2);
 
     const returnNotifications = await pool.query(

@@ -4,7 +4,10 @@
 //   - platform_admin is global and passes a check ONLY when the list names it.
 //     There is no implicit admin bypass; admin reach is decided per route here.
 //   - An empty list means "any signed-in user".
-const MARKETPLACE = ["buyer", "wholesaler", "platform_admin"];
+// Marketplace pages (catalog, orders, invoices) belong to the two trading
+// roles only: admins, coordinators, and couriers have no marketplace duties
+// and must not see transaction contents.
+const MARKETPLACE = ["buyer", "wholesaler"];
 const PARCEL_READERS = ["wholesaler", "logistics_coordinator", "courier", "platform_admin"];
 
 // The one route table. App.jsx guards each path with its own entry and every
@@ -18,7 +21,7 @@ export const ROUTE_ACCESS = {
   "/orders": MARKETPLACE,
   "/invoices": MARKETPLACE,
   "/dashboard": ["wholesaler"], // a wholesaler's own sales workspace
-  "/inventory": ["wholesaler", "platform_admin"],
+  "/inventory": ["wholesaler"], // a wholesaler's own catalog and stock
   "/logistics": PARCEL_READERS,
   "/logistics/:parcelId": PARCEL_READERS,
   "/logistics/management": ["logistics_coordinator", "platform_admin"],

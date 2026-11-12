@@ -74,8 +74,10 @@ async function createProductFor(pool, businessId) {
   return rows[0].product_id;
 }
 
-// Fresh businesses register with an unpinned placeholder address.
-async function registerBusiness(businessType) {
+// Fresh businesses register with no address and a NULL logistics pointer.
+// `unpinnedAddress` adds a saved address without coordinates and points the
+// business at it, for the gates that distinguish "no pin" from "no address".
+async function registerBusiness(businessType, { unpinnedAddress = false } = {}) {
   const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
   const email = `t06-${stamp}@linko.test`;
   const response = await postJson("/api/auth/register", null, {
@@ -87,12 +89,19 @@ async function registerBusiness(businessType) {
   });
   assert.equal(response.status, 201);
   const businessId = response.body.memberships[0].business_id;
+  if (!unpinnedAddress) return { businessId, addressId: null, email };
   const addressId = await withPool(async (pool) => {
     const { rows } = await pool.query(
-      "SELECT logistics_address_id FROM businesses WHERE business_id = $1",
+      `INSERT INTO addresses (business_id, label, province, city_municipality, barangay, street_address, postal_code, is_default)
+       VALUES ($1, 'Unpinned', 'Cebu', 'Cebu City', 'Lahug', '1 Test St', '6000', TRUE)
+       RETURNING address_id`,
       [businessId],
     );
-    return rows[0].logistics_address_id;
+    await pool.query(
+      "UPDATE businesses SET logistics_address_id = $1 WHERE business_id = $2",
+      [rows[0].address_id, businessId],
+    );
+    return rows[0].address_id;
   });
   return { businessId, addressId, email };
 }
@@ -233,7 +242,7 @@ test("unpinned buyer cannot place an order (409, contracted message)", { skip: !
 });
 
 test("unpinned wholesaler cannot ship: 409, order stays preparing, nothing persisted", { skip: !hasDb }, async () => {
-  const wholesaler = await registerBusiness("wholesaler");
+  const wholesaler = await registerBusiness("wholesaler", { unpinnedAddress: true });
   const wholesalerCookie = await loginAs(wholesaler.email);
   const buyerCookie = await loginAs("buyer@linko.test");
   await withPool(async (pool) => {
