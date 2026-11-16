@@ -1,0 +1,33 @@
+name: Migrate production database
+
+on:
+  push:
+    branches: [main]
+    paths: ["backend/migrations/**"]
+  workflow_dispatch:
+
+# ponytail: one migration run at a time; never cancel one mid-flight.
+concurrency:
+  group: production-migrations
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    environment: production # add required reviewers in repo settings to gate this
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run migrate
+        env:
+          # Supabase direct (or session-pooler :5432) URL with ?sslmode=require.
+          # Not the transaction pooler (:6543) — DDL needs a session.
+          DATABASE_URL: ${{ secrets.SUPABASE_MIGRATE_DATABASE_URL }}
