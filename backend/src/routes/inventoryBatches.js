@@ -12,6 +12,8 @@ const router = Router();
 const DEFAULT_EXPIRY_WINDOW_DAYS = 30;
 const MAX_EXPIRY_WINDOW_DAYS = 3650;
 const MANAGER_ROLES = ["wholesaler", "platform_admin"];
+// Business "today" is Manila time; the DB session runs in UTC on Supabase.
+const TODAY_SQL = "(now() AT TIME ZONE 'Asia/Manila')::date";
 
 function asClientError(error) {
   if (error.code === "23505") {
@@ -177,11 +179,11 @@ function batchSelect(daysPlaceholder = "$1") {
                  ib.notes,
                  ib.created_at,
                  ib.updated_at,
-                 (ib.expires_on - CURRENT_DATE)::int AS days_until_expiry,
+                 (ib.expires_on - ${TODAY_SQL})::int AS days_until_expiry,
                  CASE
                    WHEN ib.depleted_at IS NOT NULL THEN 'depleted'
-                   WHEN ib.expires_on < CURRENT_DATE THEN 'expired'
-                   WHEN ib.expires_on <= CURRENT_DATE + ${daysPlaceholder}::integer THEN 'expiring_soon'
+                   WHEN ib.expires_on < ${TODAY_SQL} THEN 'expired'
+                   WHEN ib.expires_on <= ${TODAY_SQL} + ${daysPlaceholder}::integer THEN 'expiring_soon'
                    ELSE 'fresh'
                  END AS expiry_status
             FROM inventory_batches ib
@@ -232,11 +234,11 @@ router.get(
       const status = readSingletonQueryString(req.query, "status");
       const statusConditions = {
         depleted: "ib.depleted_at IS NOT NULL",
-        expired: "ib.depleted_at IS NULL AND ib.expires_on < CURRENT_DATE",
+        expired: `ib.depleted_at IS NULL AND ib.expires_on < ${TODAY_SQL}`,
         expiring_soon: `ib.depleted_at IS NULL
-          AND ib.expires_on BETWEEN CURRENT_DATE AND CURRENT_DATE + $1::integer`,
+          AND ib.expires_on BETWEEN ${TODAY_SQL} AND ${TODAY_SQL} + $1::integer`,
         fresh: `ib.depleted_at IS NULL
-          AND ib.expires_on > CURRENT_DATE + $1::integer`,
+          AND ib.expires_on > ${TODAY_SQL} + $1::integer`,
       };
       if (status !== undefined) {
         if (!Object.hasOwn(statusConditions, status)) {
@@ -301,7 +303,7 @@ router.post(
       const { rows } = await query(
         `INSERT INTO inventory_batches
            (product_id, batch_number, manufactured_on, received_on, expires_on, notes)
-         VALUES ($1, $2, $3, COALESCE($4::date, CURRENT_DATE), $5, $6)
+         VALUES ($1, $2, $3, COALESCE($4::date, ${TODAY_SQL}), $5, $6)
          RETURNING batch_id`,
         [productId, batchNumber, manufacturedOn ?? null, receivedOn ?? null, expiresOn, notes ?? null],
       );
