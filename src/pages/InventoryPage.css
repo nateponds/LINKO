@@ -623,3 +623,26 @@
     display: none;
   }
 }
+
+.product-fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.modal-box form .initial-expiry-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-box form .initial-expiry-toggle input {
+  width: auto;
+}
+
+.initial-expiry .product-fields {
+  margin-top: 12px;
+}

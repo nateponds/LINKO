@@ -1,0 +1,266 @@
+[
+  {
+    "id": "00",
+    "title": "Public landing page",
+    "refs": "p. 2",
+    "role": "Visitor",
+    "caption": "LINKO introduces the buyer-wholesaler marketplace before registration or sign-in.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\00.png"
+  },
+  {
+    "id": "02",
+    "title": "Business registration",
+    "refs": "pp. 7–8",
+    "role": "New buyer or wholesaler",
+    "caption": "Registration collects account and business details and offers a single marketplace role.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\02.png"
+  },
+  {
+    "id": "01",
+    "title": "Sign in",
+    "refs": "pp. 6–8",
+    "role": "All users",
+    "caption": "The login screen provides the entry point to the role-based application.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\01.png"
+  },
+  {
+    "id": "32",
+    "title": "Business switcher and role navigation",
+    "refs": "pp. 6–8",
+    "role": "User with multiple memberships",
+    "caption": "The top bar provides an active-business selector for separate buyer and wholesaler memberships. Each business retains its single marketplace role.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\32.png"
+  },
+  {
+    "id": "13",
+    "title": "Wholesaler sales dashboard",
+    "refs": "pp. 7–8",
+    "role": "Wholesaler",
+    "caption": "The 30-day dashboard summarizes sales, order activity, top products and recent orders.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\13.png"
+  },
+  {
+    "id": "14",
+    "title": "My Products",
+    "refs": "pp. 5, 8–9",
+    "role": "Wholesaler",
+    "caption": "The wholesaler manages its own listings, prices and stock, with product and batch actions.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\14.png"
+  },
+  {
+    "id": "15",
+    "title": "Edit a product listing",
+    "refs": "pp. 5, 8–9",
+    "role": "Wholesaler",
+    "caption": "The product editor exposes listing fields and stock details. This form is captured without changing the listing.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\15.png"
+  },
+  {
+    "id": "16",
+    "title": "Inventory batch expiry management",
+    "refs": "pp. 4, 9",
+    "role": "Wholesaler",
+    "caption": "Current UI update: batch expiry is now available in My Products, extending the submission's API-only description. A sample batch was recorded locally for this capture.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\16.png"
+  },
+  {
+    "id": "03",
+    "title": "Buyer marketplace",
+    "refs": "pp. 2, 7–8",
+    "role": "Buyer",
+    "caption": "Category navigation and featured listings introduce products and wholesalers.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\03.png"
+  },
+  {
+    "id": "04",
+    "title": "Wholesaler storefront",
+    "refs": "pp. 4, 8",
+    "role": "Buyer",
+    "caption": "The supplier storefront introduces Cebu Fresh Wholesale and its catalogue tabs.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\04.png"
+  },
+  {
+    "id": "05",
+    "title": "Browse a wholesaler's catalogue",
+    "refs": "p. 8",
+    "role": "Buyer",
+    "caption": "Products display prices, available stock and quantity controls before adding items to the cart.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\05.png"
+  },
+  {
+    "id": "10",
+    "title": "Account profile",
+    "refs": "pp. 8–9",
+    "role": "Buyer",
+    "caption": "The profile screen presents the signed-in user's account information and account settings navigation.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\10.png"
+  },
+  {
+    "id": "11",
+    "title": "Saved delivery addresses",
+    "refs": "p. 8",
+    "role": "Buyer",
+    "caption": "The address book identifies the default delivery address and whether it has a map pin. Buyers can add, edit or delete addresses.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\11.png"
+  },
+  {
+    "id": "12",
+    "title": "Delivery address editor",
+    "refs": "pp. 8–9",
+    "role": "Buyer",
+    "caption": "The address editor combines postal fields with a map pin for the delivery location.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\12.png"
+  },
+  {
+    "id": "06",
+    "title": "Cart and checkout",
+    "refs": "pp. 8–9",
+    "role": "Buyer",
+    "caption": "A local demonstration cart contains Bangus Boneless from Cebu Fresh Wholesale. Checkout collects delivery and service-tier choices; this view does not submit an order.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\06.png"
+  },
+  {
+    "id": "07",
+    "title": "Buyer order history",
+    "refs": "pp. 8–9",
+    "role": "Buyer",
+    "caption": "Existing demonstration orders show processing and shipment states.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\07.png"
+  },
+  {
+    "id": "17",
+    "title": "Wholesaler order processing",
+    "refs": "pp. 8–9",
+    "role": "Wholesaler",
+    "caption": "Incoming orders provide status-specific actions for accepting, preparing and shipping purchases.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\17.png"
+  },
+  {
+    "id": "08",
+    "title": "Order detail",
+    "refs": "pp. 8–9",
+    "role": "Buyer",
+    "caption": "Expanding completed Order #29 shows its customer, item count and invoice reference INV-29-001. The same transaction appears in the invoice and shipment figures.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\08.png"
+  },
+  {
+    "id": "09",
+    "title": "Invoice tracking",
+    "refs": "pp. 8–9",
+    "role": "Buyer",
+    "caption": "The invoice list links INV-29-001 to Order #29, with buyer, seller, issue date, total and delivery status.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\09.png"
+  },
+  {
+    "id": "18",
+    "title": "Logistics coordinator workspace",
+    "refs": "pp. 7–9",
+    "role": "Logistics coordinator",
+    "caption": "The parcel workspace lists shipment routes, current tracking states and courier assignment, with search, status filters and pagination.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\18.png"
+  },
+  {
+    "id": "19",
+    "title": "Parcel detail and courier assignment",
+    "refs": "pp. 8–10",
+    "role": "Logistics coordinator",
+    "caption": "The parcel page shows shipment details, the current assignment and a planned route following roads.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\19.png"
+  },
+  {
+    "id": "20",
+    "title": "Assignment and legal next statuses",
+    "refs": "pp. 8–11",
+    "role": "Logistics coordinator",
+    "caption": "Assignment fields list the next legal statuses, branch and courier. Tracking events preserve the parcel's movement history; no event is submitted here.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\20.png"
+  },
+  {
+    "id": "25",
+    "title": "Courier work queue",
+    "refs": "pp. 7–8, 10",
+    "role": "Courier",
+    "caption": "The courier workspace surfaces assigned work and status-specific action cues.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\25.png"
+  },
+  {
+    "id": "26",
+    "title": "Courier tracking action",
+    "refs": "pp. 8–11",
+    "role": "Courier",
+    "caption": "The courier sees the planned road route and the next permitted status, pickup. The form is shown without recording a new scan.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\26.png"
+  },
+  {
+    "id": "21",
+    "title": "Completed order shipment",
+    "refs": "pp. 8–11",
+    "role": "Logistics coordinator",
+    "caption": "Parcel LKO-00000027 is linked to completed Order #29 and invoice INV-29-001 shown earlier. Its planned route is shown on the map.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\21.png"
+  },
+  {
+    "id": "24",
+    "title": "Delivery tracking timeline",
+    "refs": "pp. 8–11",
+    "role": "Platform administrator",
+    "caption": "The completed shipment for Order #29 records pickup, hub arrivals/departure, out-for-delivery and delivery with timestamps, handlers and remarks.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\24.png"
+  },
+  {
+    "id": "30",
+    "title": "Failure and return tracking history",
+    "refs": "pp. 10–11",
+    "role": "Platform administrator",
+    "caption": "An existing returned parcel shows failed delivery reasons and return scans. Receiver-unavailable attempts precede a delivery-refused event and the return journey.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\30.png"
+  },
+  {
+    "id": "22",
+    "title": "Branch and courier management",
+    "refs": "pp. 8–9",
+    "role": "Logistics coordinator",
+    "caption": "Logistics management maintains branch and courier records.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\22.png"
+  },
+  {
+    "id": "23",
+    "title": "Branch and courier records",
+    "refs": "pp. 8–9, 11",
+    "role": "Logistics coordinator",
+    "caption": "The coordinator reviews branch availability and courier contact, vehicle and branch details.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\23.png"
+  },
+  {
+    "id": "27",
+    "title": "Platform administrator console",
+    "refs": "pp. 7–10",
+    "role": "Platform administrator",
+    "caption": "The administrator console provides platform-wide user management.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\27.png"
+  },
+  {
+    "id": "28",
+    "title": "Admin user creation and management",
+    "refs": "pp. 8–10",
+    "role": "Platform administrator",
+    "caption": "The admin creates operational accounts and manages account activity. A courier search makes role accounts easy to review; no new account is created.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\28.png"
+  },
+  {
+    "id": "29",
+    "title": "Admin business management",
+    "refs": "pp. 8–10",
+    "role": "Platform administrator",
+    "caption": "The business list can be searched by name, type or member. Each record displays its marketplace type and verification status.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\29.png"
+  },
+  {
+    "id": "31",
+    "title": "Delivery service-tier reference",
+    "refs": "pp. 8–9, 11",
+    "role": "Platform administrator",
+    "caption": "The management screen displays the base fee, per-kg rate, per-km rate and estimated days for each service tier. Rate editing is not demonstrated.",
+    "path": "C:\\Users\\Nathaniel\\Desktop\\DevOps and SysAdmin DIY\\LINKO\\output\\pdf\\screenshots\\31.png"
+  }
+]
