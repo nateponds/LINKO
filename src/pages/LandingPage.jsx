@@ -7,7 +7,6 @@ import HeroVideoPreview from "../features/landing/HeroVideoPreview";
 import { BANNERS } from "../lib/productBanners";
 import "../assets/css/shell.css";
 import "./SupplierDiscoveryPage.css";
-import "./BecomeSupplierPage.css";
 import "../assets/css/landing.css";
 
 const MILK_BANNER = BANNERS[0];
@@ -18,6 +17,7 @@ const DESTINATION_LABELS = {
   "/courier": "Courier dashboard",
   "/admin": "Admin dashboard",
   "/dashboard": "Open dashboard",
+  "/settings/profile": "Open your profile",
 };
 
 const PERKS = [
@@ -65,13 +65,13 @@ function LandingBanner({ banner, destination, className = "", priority = false }
 }
 
 export default function LandingPage() {
-  const { user, activeRoles } = useAuth();
+  const { user, activeRoles, isAdmin } = useAuth();
   const signedIn = Boolean(user);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuToggleRef = useRef(null);
   const year = new Date().getFullYear();
   const destinationPath = signedIn
-    ? redirectPathForRoles(activeRoles, user.global_role === "platform_admin")
+    ? redirectPathForRoles(activeRoles, isAdmin)
     : null;
   const destination = destinationPath
     ? { path: destinationPath, label: DESTINATION_LABELS[destinationPath] }
@@ -173,7 +173,7 @@ export default function LandingPage() {
             </div>
           </section>
 
-          <section className="become-supplier-page landing-how" id="how" tabIndex={-1}>
+          <section className="landing-how" id="how" tabIndex={-1}>
             <h2>How it works</h2>
             <p className="landing-lead">
               Search supplier listings, review listed product prices, and manage orders in one marketplace.
@@ -258,10 +258,12 @@ export default function LandingPage() {
                 </>
               )}
             </div>
-            <div className="footer-col">
-              <h4>Suppliers</h4>
-              <Link to={signedIn ? "/become-a-supplier" : "/register"}>Become a supplier</Link>
-            </div>
+            {!signedIn && (
+              <div className="footer-col">
+                <h4>Suppliers</h4>
+                <Link to="/register">Become a supplier</Link>
+              </div>
+            )}
           </div>
           <div className="footer-bottom">
             <span>© {year} LINKO. All rights reserved.</span>

@@ -19,7 +19,7 @@
   border: 1px solid var(--color-surface);
 }
 
-.decision-strip-item:hover {
+a.decision-strip-item:hover {
   outline: 1px solid var(--color-primary);
 }
 

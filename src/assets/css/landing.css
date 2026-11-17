@@ -1,5 +1,48 @@
+
+.landing-how {
+  padding: var(--layout-page-start) var(--layout-gutter) var(--layout-page-end);
+  max-width: 1080px;
+  margin: 0 auto;
+
+  .perk-card {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    background: white;
+    border-radius: 12px;
+    padding: 18px 20px;
+    box-shadow: 0 2px 8px rgba(23, 33, 61, 0.08);
+  }
+
+  .perk-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--color-card);
+    color: var(--color-accent-dark);
+    flex-shrink: 0;
+  }
+
+  .perk-card h3 {
+    margin: 0 0 4px;
+    font-size: 0.98rem;
+    color: var(--color-primary-dark);
+  }
+
+  .perk-card p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--color-muted);
+    line-height: 1.45;
+  }
+
+}
+
 /* Public landing. Composes the app shell, marketplace banners, and
-   become-a-supplier perk cards. Tokens live in assets/css/index.css. */
+   landing perk cards. Tokens live in assets/css/index.css. */
 
 .landing-page {
   position: relative;

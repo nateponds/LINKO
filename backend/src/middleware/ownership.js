@@ -105,23 +105,13 @@ export function resolveActiveBusinessId(req) {
   return null;
 }
 
-// True when the caller is a platform admin or a member of `businessId`.
-// Throws 403 otherwise.
-export function assertBusinessAccess(req, businessId) {
-  if (isPlatformAdmin(req.auth.user)) {
-    return true;
-  }
-  const owns = req.auth.memberships.some((m) => m.business_id === businessId);
-  if (!owns) {
-    throw createHttpError(403, "You do not have access to this business");
-  }
-  return true;
-}
-
-// The business ids the caller is a member of (any role), for `= ANY($ids)`
-// scoping in the dashboard.js house style.
-export function memberBusinessIds(req) {
-  return req.auth.memberships.map((m) => m.business_id);
+// The caller's membership rows for the business they are acting as. This is
+// the only role set any authorization decision may read (roles on other
+// businesses grant nothing). Throws 400 for a multi-business caller with no
+// X-Active-Business; empty for a caller with no memberships.
+export function activeMemberships(req) {
+  const businessId = resolveActiveBusinessId(req);
+  return req.auth.memberships.filter((m) => m.business_id === businessId);
 }
 
 // ---------------------------------------------------------------------------

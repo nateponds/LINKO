@@ -3,7 +3,7 @@ import { Search, Settings } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import AppLayout from "../../layouts/AppLayout";
 import { useAuth } from "../../auth/AuthProvider";
-import { ROLE_ACCESS } from "../../auth/roleAccess";
+import { ACTION_ACCESS } from "../../auth/roleAccess";
 import PaginationControls from "../../components/ui/PaginationControls";
 import { useListUrlState } from "../../hooks/useListUrlState";
 import { usePaginatedResource } from "../../hooks/usePaginatedResource";
@@ -106,7 +106,7 @@ export default function LogisticsPage() {
   if (agingFilter) query.set("aging", "true");
   if (courierIdFilter) query.set("courier_id", courierIdFilter);
   const resource = useParcelPage(`/api/parcels?${query.toString()}`);
-  const canAssign = hasAnyRole(ROLE_ACCESS.logisticsManagement);
+  const canAssign = hasAnyRole(ACTION_ACCESS.assignParcel);
   const [decisionState, setDecisionState] = useState({ unassignedCount: null, agingCount: null, error: null, loading: true });
   const [decisionReload, setDecisionReload] = useState(0);
   const [courierPage, setCourierPage] = useState(() => initialCachedCourier?.page ?? 1);
@@ -508,7 +508,7 @@ export default function LogisticsPage() {
                           <dl>
                             <div><dt>Service</dt><dd>{parcel.tier_name ?? "-"}</dd></div>
                             <div><dt>Weight</dt><dd>{parcel.weight_kg == null ? "-" : `${parcel.weight_kg} kg`}</dd></div>
-                            <div><dt>Fee</dt><dd>{peso(parcel.shipping_fee)}</dd></div>
+                            {parcel.shipping_fee !== undefined && <div><dt>Fee</dt><dd>{peso(parcel.shipping_fee)}</dd></div>}
                           </dl>
                         </ExpandableTableRow>
                       );

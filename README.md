@@ -98,8 +98,18 @@ This repository contains the web application, backend scaffold, and planning doc
 - **Frontend**: React 19, Vite 8, plain JSX
 - **Backend**: Node.js, Express 5, PostgreSQL, and a custom migration runner
 - **Checkpoint API Focus**: `/api/parcels`, `/api/service-tiers`, `/api/branches`, `/api/couriers`, and `/api/parcels/:id/tracking`
-- **Marketplace Expansion Areas**: `/api/inventory`, `/api/suppliers`, `/api/products`, `/api/orders`, and `/api/invoices`
-- **Database Foundation**: Users, auth, businesses/customers, addresses, service tiers, branches, couriers, parcels, tracking logs, payments, warehouses, products, inventory items, orders, invoices, and supplier profiles
+- **Marketplace APIs**: `/api/inventory-batches`, `/api/suppliers`, `/api/products`, `/api/orders`, and `/api/invoices`
+- **Database Foundation**: Users, auth, businesses/customers, addresses, service tiers, branches, couriers, parcels, tracking logs, payments, warehouses, products, inventory batches, orders, invoices, and supplier profiles
+
+Inventory expiry tracking is available on **My Products**. Use **Expiry batches**
+on a product to record or edit lot dates and mark depleted batches. The expiry
+overview filters expired, expiring soon, fresh, and depleted batches with a
+configurable warning window. Apply migration `026_inventory_batches.sql` using
+`npm run migrate` in `backend/` before starting this version.
+
+Batch records track expiry metadata; stock quantities continue through
+`products.stock_quantity`. Depleting a batch does not change that quantity.
+Expiry checks are advisory: order allocation and stock disposal remain manual.
 
 > [!NOTE]
 > **Status:** The courier/parcel tracking core is implemented and test-covered. Marketplace discovery, inventory, orders, and supplier workflows are layered around it and continue to expand.

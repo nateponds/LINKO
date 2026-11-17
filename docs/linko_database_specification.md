@@ -12,7 +12,6 @@ System users including MSME owners, staff, couriers, and administrators.
 - `username` (VARCHAR 50, UNIQUE)
 - `password_hash` (TEXT)
 - `email` (VARCHAR 100, UNIQUE)
-- `role` (VARCHAR 20, check: owner, staff, wholesaler, admin)
 - `full_name` (VARCHAR 100)
 - `global_role` (VARCHAR 20)
 - `created_at` (TIMESTAMP)
@@ -75,6 +74,27 @@ Marketplace catalog and inventory items.
 - `stock_quantity` (INTEGER)
 - `is_active` (BOOLEAN, default TRUE - used for soft deletes)
 - `created_at` (TIMESTAMP)
+- `removed_by` (INT FK -> users, nullable, ON DELETE SET NULL)
+- `removal_reason` (TEXT, nullable)
+- `removed_at` (TIMESTAMP, nullable; currently taken down when non-null)
+
+### `inventory_batches`
+Batch-level expiry metadata for products. A product may have many batches with
+different expiry dates. Batch records intentionally do not carry another stock
+total; `products.stock_quantity` remains authoritative.
+- `batch_id` (SERIAL PRIMARY KEY)
+- `product_id` (INT FK -> products, ON DELETE CASCADE)
+- `batch_number` (VARCHAR 100, unique per product)
+- `manufactured_on` (DATE, nullable; must not be after `expires_on`)
+- `received_on` (DATE, default CURRENT_DATE)
+- `expires_on` (DATE)
+- `depleted_at` (TIMESTAMP, nullable; non-null means the batch is no longer on hand)
+- `notes` (TEXT, nullable)
+- `created_at` (TIMESTAMP)
+- `updated_at` (TIMESTAMP)
+
+Active expiry scans use a partial index on `expires_on` where `depleted_at` is
+null. Product-specific batch reads use `(product_id, expires_on, batch_id)`.
 
 ### `warehouses`
 Physical storage locations for inventory.
@@ -90,7 +110,6 @@ Extends business profiles for wholesalers.
 - `lead_time_days` (INT)
 - `delivery_terms` (TEXT)
 - `trust_rating` (DECIMAL 3,2, default 5.00)
-- `verification_status` (VARCHAR 20, check: pending, verified, rejected)
 
 ---
 
@@ -106,6 +125,7 @@ Marketplace orders between buyers and wholesalers.
 - `created_by` (INT FK -> users)
 - `created_at` (TIMESTAMP)
 - `updated_at` (TIMESTAMP)
+- `status_updated_by` (INT FK -> users, nullable, ON DELETE SET NULL)
 
 ### `order_items`
 Snapshot of products and prices at the time of order.
@@ -181,6 +201,7 @@ Append-only scan history for parcels.
 - `status_update` (VARCHAR 50)
 - `remarks` (TEXT)
 - `scanned_at` (TIMESTAMP)
+- `recorded_by` (INT FK -> users, nullable, ON DELETE SET NULL)
 
 ### `payments`
 Settlement for a parcel (goods + shipping). `amount` is set by trigger from `parcel`.

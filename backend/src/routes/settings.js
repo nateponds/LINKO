@@ -1,19 +1,18 @@
 import { Router } from "express";
 import { getPool, query } from "../db.js";
-import { requireAuth } from "../middleware/auth.js";
+import { MARKETPLACE_ROLES, requireAuth } from "../middleware/auth.js";
 import { createHttpError, getActiveMembership, requirePositiveInt } from "../middleware/ownership.js";
 import { validateCoordinatePair } from "../services/location.js";
 
 // Business location settings (Sprint 13 T10, docs/API_CONTRACTS.md §5).
 // The canonical logistics location of the ACTIVE business - a buyer's
 // delivery location / a wholesaler's pickup location. This is the one surface
-// that repairs the unpinned placeholder address registration creates.
+// that creates the pin for a business that registered without an address.
 // Platform admins get no global bypass: they edit a location only through an
 // actual buyer/wholesaler membership of their own.
 
 const router = Router();
 
-const MARKETPLACE_ROLES = ["buyer", "wholesaler"];
 const TEXT_FIELDS = ["province", "city_municipality", "barangay", "street_address", "postal_code"];
 const TEXT_LIMITS = {
   province: 50,
@@ -27,11 +26,10 @@ const ADDRESS_RETURNING = `address_id, label, province, city_municipality, baran
             street_address, postal_code,
             latitude::float8 AS latitude, longitude::float8 AS longitude, is_default`;
 
+// `membership` is the active buyer/wholesaler membership (getActiveMembership
+// with MARKETPLACE_ROLES), so the role alone decides the book's kind.
 function addressBookKind(membership) {
-  if (membership.business_type === "both") return "mixed";
-  if (membership.role === "wholesaler" || membership.business_type === "wholesaler") return "pickup";
-  if (membership.role === "buyer" || membership.business_type === "buyer") return "delivery";
-  return "mixed";
+  return membership.role === "wholesaler" ? "pickup" : "delivery";
 }
 
 function shapeAddress(row) {

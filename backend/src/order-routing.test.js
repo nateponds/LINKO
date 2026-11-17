@@ -74,8 +74,10 @@ async function createProductFor(pool, businessId) {
   return rows[0].product_id;
 }
 
-// Fresh businesses register with an unpinned placeholder address.
-async function registerBusiness(businessType) {
+// Fresh businesses register with no address and a NULL logistics pointer.
+// `unpinnedAddress` adds a saved address without coordinates and points the
+// business at it, for the gates that distinguish "no pin" from "no address".
+async function registerBusiness(businessType, { unpinnedAddress = false } = {}) {
   const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
   const email = `t06-${stamp}@linko.test`;
   const response = await postJson("/api/auth/register", null, {
@@ -87,12 +89,19 @@ async function registerBusiness(businessType) {
   });
   assert.equal(response.status, 201);
   const businessId = response.body.memberships[0].business_id;
+  if (!unpinnedAddress) return { businessId, addressId: null, email };
   const addressId = await withPool(async (pool) => {
     const { rows } = await pool.query(
-      "SELECT logistics_address_id FROM businesses WHERE business_id = $1",
+      `INSERT INTO addresses (business_id, label, province, city_municipality, barangay, street_address, postal_code, is_default)
+       VALUES ($1, 'Unpinned', 'Cebu', 'Cebu City', 'Lahug', '1 Test St', '6000', TRUE)
+       RETURNING address_id`,
       [businessId],
     );
-    return rows[0].logistics_address_id;
+    await pool.query(
+      "UPDATE businesses SET logistics_address_id = $1 WHERE business_id = $2",
+      [rows[0].address_id, businessId],
+    );
+    return rows[0].address_id;
   });
   return { businessId, addressId, email };
 }
@@ -128,9 +137,11 @@ test("shipping routes from canonical addresses with server distance and snapshot
       assert.equal(created.status, 201);
       orderId = created.body.order_id;
 
+      assert.equal((await pool.query("SELECT status_updated_by FROM orders WHERE order_id = $1", [orderId])).rows[0].status_updated_by, 1);
       for (const status of ["accepted", "preparing"]) {
         const step = await patchStatus(orderId, wholesalerCookie, { status });
         assert.equal(step.status, 200);
+        assert.equal((await pool.query("SELECT status_updated_by FROM orders WHERE order_id = $1", [orderId])).rows[0].status_updated_by, 2);
       }
       // client-supplied distance must be ignored
       const shipped = await patchStatus(orderId, wholesalerCookie, {
@@ -139,6 +150,7 @@ test("shipping routes from canonical addresses with server distance and snapshot
         total_distance_km: 9999,
       });
       assert.equal(shipped.status, 200);
+      assert.equal((await pool.query("SELECT status_updated_by FROM orders WHERE order_id = $1", [orderId])).rows[0].status_updated_by, 2);
 
       const parcel = await pool.query(
         `SELECT parcel_id, origin_address_id, destination_address_id,
@@ -159,10 +171,11 @@ test("shipping routes from canonical addresses with server distance and snapshot
       assert.ok(Math.abs(row.fee - (50 + 40 + row.distance_km * 2)) < 0.05, `fee from server distance, got ${row.fee}`);
 
       const log = await pool.query(
-        "SELECT branch_id FROM tracking_logs WHERE parcel_id = $1 ORDER BY log_id",
+        "SELECT branch_id, recorded_by FROM tracking_logs WHERE parcel_id = $1 ORDER BY log_id",
         [row.parcel_id],
       );
       assert.equal(log.rows.length, 1);
+      assert.equal(log.rows[0].recorded_by, 2);
       assert.equal(log.rows[0].branch_id, 1, "warehouse addr 3 is nearest the Cebu hub");
 
       const stops = await pool.query(
@@ -210,13 +223,12 @@ test("unpinned buyer cannot place an order (409, contracted message)", { skip: !
         "Pin your business location in Settings before placing orders",
       );
 
-      // Admin acting with an explicit buyer_business_id is gated on that
-      // business the same way.
-      const adminGated = await postJson("/api/orders", adminCookie, {
+      // platform_admin never places orders, even naming a buyer business.
+      const adminRefused = await postJson("/api/orders", adminCookie, {
         ...body,
         buyer_business_id: buyer.businessId,
       });
-      assert.equal(adminGated.status, 409);
+      assert.equal(adminRefused.status, 403);
 
       const { rows } = await pool.query(
         "SELECT COUNT(*)::int AS n FROM orders WHERE buyer_business_id = $1",
@@ -230,7 +242,7 @@ test("unpinned buyer cannot place an order (409, contracted message)", { skip: !
 });
 
 test("unpinned wholesaler cannot ship: 409, order stays preparing, nothing persisted", { skip: !hasDb }, async () => {
-  const wholesaler = await registerBusiness("wholesaler");
+  const wholesaler = await registerBusiness("wholesaler", { unpinnedAddress: true });
   const wholesalerCookie = await loginAs(wholesaler.email);
   const buyerCookie = await loginAs("buyer@linko.test");
   await withPool(async (pool) => {

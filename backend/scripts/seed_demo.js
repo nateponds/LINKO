@@ -41,6 +41,7 @@ try {
       (SELECT COUNT(*) FROM businesses)::int           AS businesses,
       (SELECT COUNT(*) FROM business_memberships)::int AS memberships,
       (SELECT COUNT(*) FROM products)::int             AS products,
+      (SELECT COUNT(*) FROM inventory_batches)::int    AS inventory_batches,
       (SELECT COUNT(*) FROM orders)::int               AS orders,
       (SELECT COUNT(*) FROM invoices)::int             AS invoices,
       (SELECT COUNT(*) FROM parcels)::int              AS parcels,

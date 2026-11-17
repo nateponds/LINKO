@@ -43,7 +43,7 @@ test("signed-in landing actions use the role-aware destination helper", async ()
     "utf8",
   );
 
-  assert.match(page, /redirectPathForRoles\(activeRoles, user\.global_role === "platform_admin"\)/);
+  assert.match(page, /redirectPathForRoles\(activeRoles, isAdmin\)/);
   assert.match(page, /"\/": "Enter marketplace"/);
   assert.match(page, /"\/logistics": "Open logistics"/);
   assert.match(page, /"\/courier": "Courier dashboard"/);
@@ -73,4 +73,10 @@ test("landing styles use LINKO brand tokens", async () => {
   assert.match(css, /var\(--color-primary\)/);
   assert.match(css, /var\(--color-accent\)/);
   assert.doesNotMatch(css, /Barlow|Source Sans|#16343a|#e4b33a/i);
+});
+
+test("supplier CTA is registration-only and hidden for signed-in users", async () => {
+  const page = await readFile(new URL("../../pages/LandingPage.jsx", import.meta.url), "utf8");
+  assert.match(page, /\{!signedIn && \([\s\S]*?<Link to="\/register">Become a supplier<\/Link>/);
+  assert.doesNotMatch(page, /become-a-supplier/);
 });
