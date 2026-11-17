@@ -16,7 +16,7 @@ import {
 import { useAuth } from "../../auth/AuthProvider";
 import { apiGet, apiSend } from "../../lib/api";
 import { LogisticsNotice } from "./LogisticsStates";
-import { formatNextStatuses, nextStatusesForRole } from "./workflowHints";
+import { nextStatusesForRole } from "./workflowHints";
 import { ParcelDetailSkeleton } from "../../components/ui/pageSkeletons";
 import "./logistics.css";
 
@@ -314,7 +314,6 @@ export default function ParcelDetailPage() {
                     <span>{courierLabel}</span>
                   </div>
                 )}
-                <p className="parcel-next-hint">Next legal status: {formatNextStatuses(statusOptions)}</p>
               </div>
 
               <ParcelRouteMap
@@ -325,16 +324,11 @@ export default function ParcelDetailPage() {
               {hasAnyRole(["logistics_coordinator", "platform_admin", "courier"]) && (
                 <div className="update-status-form">
                   <h3>{canUpdateAssignment ? "Assign and log the next status" : "Log the next status"}</h3>
-                  <p className="form-note">
-                    {canUpdateAssignment
-                      ? "Only the next legal statuses are listed. Branch and courier are saved with that event."
-                      : "Only the next legal status can be logged from here."}
-                  </p>
                   {canLogTrackingUpdate ? (
                     <>
                       <div className="update-status-grid">
                         <label>
-                          <span>Next legal status</span>
+                          <span>Available updates</span>
                           <select
                             value={selectedStatus}
                             onChange={e => { setFormStatus(e.target.value); setUpdateError(null); }}

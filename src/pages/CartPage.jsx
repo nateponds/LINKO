@@ -247,6 +247,7 @@ export default function CartPage() {
                             </button>
                             <input
                               type="number"
+                              aria-label={`Quantity for ${line.product.product_name}`}
                               min="1"
                               max={maxQuantity}
                               value={line.quantity}

@@ -18,7 +18,7 @@ export const ROLE_ACCESS = {
 
 export const APP_NAV_ITEMS = [
   { name: "Home", link: "/", end: true, roles: ROLE_ACCESS.marketplace },
-  { name: "Dashboard", link: "/dashboard", roles: ROLE_ACCESS.dashboard },
+  { name: "Business", link: "/dashboard", roles: ROLE_ACCESS.dashboard },
   { name: "My Products", link: "/inventory", roles: ROLE_ACCESS.inventory },
   { name: "Orders", link: "/orders", roles: ROLE_ACCESS.orders },
   { name: "Invoices", link: "/invoices", roles: ROLE_ACCESS.invoices },

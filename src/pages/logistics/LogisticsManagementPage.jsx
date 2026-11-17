@@ -539,7 +539,7 @@ export default function LogisticsManagementPage() {
 
           <section className="management-section">
             <h2>Couriers</h2>
-            <p className="management-note">Couriers are created from the Admin dashboard. Phone number and vehicle type are required before a courier can be saved.</p>
+            <p className="management-note">Create courier accounts in Admin.</p>
             <SearchField value={couriersSearch.value} onChange={couriersSearch.setValue} onSubmit={couriersSearch.submit} onClear={couriersSearch.clear} label="Search couriers" placeholder="Name, phone, vehicle, or branch" />
             {courierErrorScope === "list" && courierError ? <p className="logistics-form-error" role="alert">{courierError}</p> : null}
             {couriersResource.error && visibleCouriers.length > 0 ? (
