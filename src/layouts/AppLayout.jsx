@@ -1,6 +1,6 @@
 import "../assets/css/shell.css";
-import { Link } from "react-router-dom";
-import { TriangleAlert } from "lucide-react";
+import { Link, NavLink, useLocation } from "react-router-dom";
+import { TriangleAlert, LayoutDashboard, Boxes, ClipboardList, Receipt, Truck, Store, Settings } from "lucide-react";
 import Topbar from "../components/navigation/Topbar";
 import SubNav from "../components/navigation/SubNav";
 import Footer from "../components/navigation/Footer";
@@ -54,10 +54,44 @@ function AppLayout({
   showSearch = false,
   showCategories = false,
 }) {
+  const { activeRoles, activeBusiness } = useAuth();
+  const { pathname } = useLocation();
+  const sellerWorkspace = activeRoles.includes("wholesaler") && [
+    "/dashboard", "/inventory", "/orders", "/invoices", "/logistics",
+  ].some((path) => pathname === path || pathname.startsWith(path + "/"));
+  const sellerLinks = [
+    ["/dashboard", "Overview", LayoutDashboard],
+    ["/inventory", "Products", Boxes],
+    ["/orders", "Orders", ClipboardList],
+    ["/invoices", "Invoices", Receipt],
+    ["/logistics", "Logistics", Truck],
+    ["/settings", "Settings", Settings],
+  ];
   return (
-    <div className="app-shell">
+    <div className={`app-shell${sellerWorkspace ? " seller-workspace" : ""}`}>
+      {sellerWorkspace && (
+        <aside className="seller-sidebar">
+          <Link className="seller-wordmark" to="/dashboard">LINK<span>O</span></Link>
+          <div className="seller-business"><span className="seller-business-icon"><Store size={19} /></span><strong>{activeBusiness?.business_name}</strong></div>
+          <nav aria-label="Seller workspace">
+            {sellerLinks.map(([path, label, Icon]) => (
+              <NavLink key={path} to={path} className={({ isActive }) => isActive ? "active" : ""}>
+                <Icon size={18} /><span>{label}</span>
+              </NavLink>
+            ))}
+          </nav>
+
+        </aside>
+      )}
       <div className="app-layout">
-        <Topbar showSearch={showSearch} showCategories={showCategories} />
+        {sellerWorkspace ? (
+          <div className="seller-content-tools">
+            <Link className="seller-marketplace-link" to="/"><Store size={16} />Marketplace</Link>
+            <Topbar workspaceNavigation />
+          </div>
+        ) : (
+          <Topbar showSearch={showSearch} showCategories={showCategories} />
+        )}
         <MissingLocationBanner />
         {showSubNav && <SubNav />}
         <main className="app-layout__content">{children}</main>

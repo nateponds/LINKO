@@ -35,7 +35,8 @@ function SupplierGrid() {
   const [pagination, setPagination] = useState({ page, limit, total_items: 0, total_pages: 0 });
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const [hasLoaded, setHasLoaded] = useState(false);
 
   useEffect(() => {
@@ -51,7 +52,7 @@ function SupplierGrid() {
     async function load() {
       if (hasLoaded) setFetching(true);
       else setLoading(true);
-      setError(null);
+      setError(false);
       try {
         let categoryId;
         if (category) {
@@ -70,8 +71,8 @@ function SupplierGrid() {
         setSuppliers(next.items);
         setPagination(next.pagination);
         setHasLoaded(true);
-      } catch (err) {
-        if (!cancelled) setError(err.message);
+      } catch {
+        if (!cancelled) setError(true);
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -81,7 +82,7 @@ function SupplierGrid() {
     }
     load();
     return () => { cancelled = true; };
-  }, [category, hasLoaded, limit, page, q, searchParams, setSearchParams]);
+  }, [category, hasLoaded, limit, page, q, retryCount, searchParams, setSearchParams]);
 
   function changeList(changes, replace = false) {
     setSearchParams(updateListUrlState(searchParams, changes), { replace });
@@ -94,7 +95,6 @@ function SupplierGrid() {
   }
 
   const hasFilters = Boolean(category || q);
-  if (error && !hasLoaded) return <p className="grid-empty">Could not load suppliers: {error}. Is the backend running?</p>;
 
   return (
     <section className="supplier-results" aria-busy={fetching}>
@@ -112,11 +112,18 @@ function SupplierGrid() {
         )}
       </div>
 
-      {error && <p className="grid-empty" role="alert">Could not refresh suppliers: {error}</p>}
+      {error && (
+        <div className="grid-empty">
+          <p role="alert">{hasLoaded ? "Could not refresh suppliers." : "Could not load suppliers."}</p>
+          <button type="button" className="link-button" onClick={() => setRetryCount((count) => count + 1)}>
+            Try again
+          </button>
+        </div>
+      )}
       {loading && !hasLoaded ? (
         <SupplierCardGridSkeleton gridClassName="content-grid" />
       ) : suppliers.length === 0 ? (
-        <div className="grid-empty">
+        error ? null : <div className="grid-empty">
           <p>{hasFilters ? "No suppliers match these filters." : "No suppliers are available yet."}</p>
           {hasFilters && <button type="button" className="link-button" onClick={clearFilters}>Clear filters</button>}
         </div>

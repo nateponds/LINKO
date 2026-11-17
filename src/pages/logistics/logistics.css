@@ -1145,6 +1145,8 @@
   .parcel-card-icon { margin-top: 4px; color: var(--color-primary); }
   .courier-destination-label { display: block; color: #53627a; font-size: 0.82rem; }
   .parcel-card-receiver h2 { margin: 3px 0 0; font-size: 1.2rem; line-height: 1.35; overflow-wrap: anywhere; }
+  .courier-destination-address { color: var(--color-muted); font-size: 0.875rem; line-height: 1.4; overflow-wrap: anywhere; }
+  .courier-destination-address:not(:empty) { margin-top: 4px; }
   .parcel-card-meta { grid-column: 1; margin: 10px 0 0 30px; gap: 10px; flex-wrap: wrap; color: #53627a; }
   .parcel-card-meta span + span { padding-left: 10px; border-left: 1px solid #c6d0df; }
 

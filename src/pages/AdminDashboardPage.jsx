@@ -102,11 +102,6 @@ export default function AdminDashboardPage() {
   const [formError, setFormError] = useState(null);
   const [creating, setCreating] = useState(false);
   const [lookupId, setLookupId] = useState("");
-  const [cancelId, setCancelId] = useState("");
-  const [cancelReason, setCancelReason] = useState("");
-  const [cancelBusy, setCancelBusy] = useState(false);
-  const [cancelError, setCancelError] = useState(null);
-  const [cancelSuccess, setCancelSuccess] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [operations, setOperations] = useState(null);
   const [operationsError, setOperationsError] = useState(null);
@@ -147,28 +142,7 @@ export default function AdminDashboardPage() {
 
   function submitLookup(event) {
     event.preventDefault();
-    if (lookupId.trim()) navigate(`/logistics/${lookupId.trim()}`);
-  }
-
-  function submitCancel(event) {
-    event.preventDefault();
-    setCancelError(null); setCancelSuccess(null);
-    const id = cancelId.trim(); const reason = cancelReason.trim();
-    if (!id || !reason) { setCancelError("Parcel ID and reason are required."); return; }
-    setConfirm({
-      title: "Cancel parcel?",
-      message: `Cancel parcel ${id} with reason "${reason}"? This logs a Cancelled tracking event and cannot be undone.`,
-      confirmLabel: "Cancel parcel",
-      onConfirm: () => { void runCancel(id, reason); },
-    });
-  }
-
-  async function runCancel(id, reason) {
-    setCancelBusy(true);
-    try {
-      await apiSend(`/api/parcels/${id}/tracking`, { method: "POST", body: { status_update: "Cancelled", remarks: reason } });
-      setCancelSuccess(`Parcel ${id} cancelled.`); setCancelId(""); setCancelReason("");
-    } catch (error) { setCancelError(error.message); } finally { setCancelBusy(false); }
+    if (lookupId.trim()) navigate(`/logistics/${encodeURIComponent(lookupId.trim())}`);
   }
 
   function requestToggleUserActive(entry) {
@@ -254,9 +228,8 @@ export default function AdminDashboardPage() {
         <section className="admin-section">
           <div className="admin-section-head"><h2>Customer Service Tools</h2></div>
           <div className="cs-tools-grid">
-            <div className="admin-create-form"><h3 className="cs-tool-title">Parcel lookup</h3><form onSubmit={submitLookup}><div className="admin-form-grid"><label><span>Parcel ID</span><input type="text" value={lookupId} onChange={(event) => setLookupId(event.target.value)} placeholder="LKO-00000001" /></label></div><div className="admin-form-actions"><button type="submit" className="admin-primary-btn">Open parcel</button></div></form></div>
-            <div className="admin-create-form"><h3 className="cs-tool-title">Quick Cancel</h3><form onSubmit={submitCancel}><div className="admin-form-grid"><label><span>Parcel ID</span><input type="text" value={cancelId} onChange={(event) => setCancelId(event.target.value)} placeholder="LKO-00000001" /></label><label><span>Reason</span><input type="text" value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} placeholder="Customer request" /></label></div><div className="admin-form-actions">{cancelError ? <span className="admin-form-error">{cancelError}</span> : null}{cancelSuccess ? <span className="admin-form-success">{cancelSuccess}</span> : null}<button type="submit" className="admin-primary-btn" disabled={cancelBusy}>{cancelBusy ? "Cancelling…" : "Cancel parcel"}</button></div></form></div>
-            <div className="admin-create-form"><h3 className="cs-tool-title">Reassign courier</h3><p className="cs-tool-text">Courier reassignment is logged with a delivery event - open the parcel and use Log Delivery Event.</p><div className="cs-tool-links"><Link to="/logistics">Parcel list</Link><Link to="/logistics/management">Logistics management</Link></div></div>
+            <div className="admin-create-form"><h3 className="cs-tool-title">Find a parcel</h3><form onSubmit={submitLookup}><div className="admin-form-grid"><label><span>Parcel ID</span><input type="text" value={lookupId} onChange={(event) => setLookupId(event.target.value)} placeholder="LKO-00000001" required /></label></div><div className="admin-form-actions"><button type="submit" className="admin-primary-btn">Open parcel</button></div></form></div>
+            <div className="admin-create-form"><h3 className="cs-tool-title">Reassign courier</h3><p className="cs-tool-text">Open a parcel to update its courier assignment.</p><div className="cs-tool-links"><Link to="/logistics">Parcel list</Link><Link to="/logistics/management">Logistics management</Link></div></div>
           </div>
         </section>
         <section className="admin-section">

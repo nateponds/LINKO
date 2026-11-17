@@ -42,7 +42,7 @@ export const ACTION_ACCESS = {
 
 export const APP_NAV_ITEMS = [
   { name: "Home", link: "/", end: true },
-  { name: "Dashboard", link: "/dashboard" },
+  { name: "Business", link: "/dashboard" },
   { name: "My Products", link: "/inventory" },
   { name: "Orders", link: "/orders" },
   { name: "Invoices", link: "/invoices" },
