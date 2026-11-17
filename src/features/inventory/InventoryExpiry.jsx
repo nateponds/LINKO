@@ -16,6 +16,7 @@ export default function InventoryExpiry({ product, onClose, businessId, revision
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [saveError, setSaveError] = useState("");
   const [saving, setSaving] = useState(false);
   const [version, setVersion] = useState(0);
   const [editing, setEditing] = useState(null);
@@ -59,7 +60,7 @@ export default function InventoryExpiry({ product, onClose, businessId, revision
 
   async function mutate(path, method, body) {
     setSaving(true);
-    setError("");
+    setSaveError("");
     try {
       await apiSend(path, { method, body });
       setEditing(null);
@@ -67,7 +68,7 @@ export default function InventoryExpiry({ product, onClose, businessId, revision
       reload();
       onChanged?.();
     } catch (err) {
-      setError(err.message);
+      setSaveError(err.message);
     } finally {
       setSaving(false);
     }
@@ -86,6 +87,7 @@ export default function InventoryExpiry({ product, onClose, businessId, revision
   }
 
   function edit(batch) {
+    setSaveError("");
     setEditing(batch.batch_id);
     setForm(Object.fromEntries(Object.keys(EMPTY).map((key) => [key, batch[key] ?? ""])));
   }
@@ -111,6 +113,7 @@ export default function InventoryExpiry({ product, onClose, businessId, revision
         </label>
       </div>
       {error && <p role="alert">{error} <button type="button" className="link-button" onClick={reload}>Retry loading</button></p>}
+      {saveError && <p role="alert">{saveError}</p>}
       <div aria-busy={loading}>
         {loading ? <p role="status">Loading batches…</p> : !error && result?.items.length === 0 ? <p>No batches match this view. Use “Expiry batches” on a product to record a batch.</p> : null}
         {!loading && !error && result?.items.length > 0 && <ul className="expiry-list">
@@ -137,7 +140,7 @@ export default function InventoryExpiry({ product, onClose, businessId, revision
           <label>Expires on<input type="date" required value={form.expires_on} min={form.manufactured_on || undefined} onChange={(event) => setForm({ ...form, expires_on: event.target.value })} /></label>
           <label>Notes (optional)<textarea maxLength={1000} value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></label>
           <div className="expiry-actions"><button className="btn-primary" type="submit">{saving ? "Saving…" : editing ? "Save changes" : "Add batch"}</button>
-            {editing && <button className="btn-secondary" type="button" onClick={() => { setEditing(null); setForm(EMPTY); }}>Cancel edit</button>}</div>
+            {editing && <button className="btn-secondary" type="button" onClick={() => { setSaveError(""); setEditing(null); setForm(EMPTY); }}>Cancel edit</button>}</div>
         </fieldset>
       </form>}
     </section>
