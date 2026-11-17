@@ -159,10 +159,9 @@ test("expiry boundaries, date validation, and stock independence", { skip: !hasD
     });
     assert.equal(product.status, 201);
     productId = product.body.product_id;
-    const { rows: dates } = await pool.query(`SELECT
-      CURRENT_DATE::text AS today,
-      (CURRENT_DATE + 30)::text AS boundary,
-      (CURRENT_DATE + 31)::text AS later`);
+    // Match the route's Manila "today", not the DB session's CURRENT_DATE.
+    const { rows: dates } = await pool.query(`WITH t AS (SELECT (now() AT TIME ZONE 'Asia/Manila')::date AS d)
+      SELECT d::text AS today, (d + 30)::text AS boundary, (d + 31)::text AS later FROM t`);
     for (const [key, expected] of [["today", "expiring_soon"], ["boundary", "expiring_soon"], ["later", "fresh"]]) {
       const batch = await sendJson("/api/inventory-batches", cookie, "POST", {
         product_id: productId, batch_number: key, expires_on: dates[0][key],
