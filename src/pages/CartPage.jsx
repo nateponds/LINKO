@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Minus, Plus, ShoppingCart, Trash2 } from "lucide-react";
 import AppLayout from "../layouts/AppLayout";
@@ -34,19 +34,12 @@ export default function CartPage() {
   const [pinError, setPinError] = useState(null);
   const [successes, setSuccesses] = useState([]);
   const [failures, setFailures] = useState([]);
-  const checkoutFeedbackRef = useRef(null);
   const [confirm, setConfirm] = useState(null);
   const [addressBook, setAddressBook] = useState(null);
   const addressBookReady = canPickAddress && addressBook?.businessId === activeBusinessId;
   const savedAddresses = addressBookReady ? addressBook.addresses : [];
   const selectedAddressId = addressBookReady ? addressBook.selectedId : null;
   const addressesLoading = canPickAddress && !addressBookReady;
-
-  useEffect(() => {
-    if (checkoutError || pinError || failures.length || successes.length) {
-      checkoutFeedbackRef.current?.scrollIntoView({ block: "center" });
-    }
-  }, [checkoutError, pinError, failures, successes]);
 
   useEffect(() => {
     let cancelled = false;
@@ -216,8 +209,11 @@ export default function CartPage() {
           <ShoppingCart size={22} />
         </header>
 
+        <p className="cart-cod">Every order is cash on delivery.</p>
+
         {groups.length === 0 ? (
           <p className="cart-empty">
+            Add products from a supplier shop or the marketplace.{" "}
             <Link to="/">Browse wholesalers</Link>
           </p>
         ) : (
@@ -247,7 +243,6 @@ export default function CartPage() {
                             </button>
                             <input
                               type="number"
-                              aria-label={`Quantity for ${line.product.product_name}`}
                               min="1"
                               max={maxQuantity}
                               value={line.quantity}
@@ -344,63 +339,56 @@ export default function CartPage() {
                 <span>Delivery ({groups.length} order{groups.length === 1 ? "" : "s"})</span>
                 <strong>{peso(deliveryFee)}</strong>
               </div>
-              <p className="cart-cod-note">One order is placed per supplier.</p>
+              <div className="cart-total-row cart-grand-total">
+                <span>Total</span>
+                <strong>{peso(total)}</strong>
+              </div>
+              <p className="cart-cod-note">Payment method: cash on delivery. One order is placed per supplier.</p>
             </>
           )}
 
-          <div className="cart-checkout-feedback" ref={checkoutFeedbackRef}>
-            {tiersError && <p className="cart-error">Could not load delivery tiers: {tiersError}</p>}
-            {checkoutError && <p className="cart-error" role="alert">{checkoutError}</p>}
-            {pinError && (
-              <p className="cart-error">
-                {pinError}{" "}
-                <Link to="/settings/business-location">Go to Settings</Link>
-              </p>
-            )}
+          {tiersError && <p className="cart-error">Could not load delivery tiers: {tiersError}</p>}
+          {checkoutError && <p className="cart-error">{checkoutError}</p>}
+          {pinError && (
+            <p className="cart-error">
+              {pinError}{" "}
+              <Link to="/settings/business-location">Go to Settings</Link>
+            </p>
+          )}
 
-            {failures.filter((failure) => !isLocationPinError(failure)).length > 0 && (
-              <div className="cart-error" role="alert">
-                {failures.filter((failure) => !isLocationPinError(failure)).map((failure) => (
-                  <p key={failure.businessName}>
-                    {failure.businessName}: {failure.message}
-                  </p>
-                ))}
-              </div>
-            )}
-
-            {successes.length > 0 && (
-              <div className="checkout-confirmation">
-                <div className="confirmation-title">Cash on delivery orders placed</div>
-                {successes.map((order) => (
-                  <div key={order.orderId ?? order.businessName}>
-                    {order.businessName}: order #{order.orderId}
-                    {order.status ? ` · ${order.status}` : ""}
-                    {order.total != null ? ` · ${peso(order.total)}` : ""}
-                  </div>
-                ))}
-                <Link to="/orders">View orders</Link>
-              </div>
-            )}
-          </div>
-
-        </section>
-
-        {groups.length > 0 && (
-          <div className="cart-checkout-bar">
-            <div className="cart-checkout-total">
-              <span>Total</span>
-              <strong>{peso(total)}</strong>
+          {failures.filter((failure) => !isLocationPinError(failure)).length > 0 && (
+            <div className="cart-error" role="alert">
+              {failures.filter((failure) => !isLocationPinError(failure)).map((failure) => (
+                <p key={failure.businessName}>
+                  {failure.businessName}: {failure.message}
+                </p>
+              ))}
             </div>
-            <button
-              type="button"
-              className="checkout-btn"
-              disabled={checkingOut || addressesLoading}
-              onClick={checkoutCart}
-            >
-              {checkingOut ? "Placing orders…" : "Checkout cash on delivery"}
-            </button>
-          </div>
-        )}
+          )}
+
+          {successes.length > 0 && (
+            <div className="checkout-confirmation">
+              <div className="confirmation-title">Cash on delivery orders placed</div>
+              {successes.map((order) => (
+                <div key={order.orderId ?? order.businessName}>
+                  {order.businessName}: order #{order.orderId}
+                  {order.status ? ` · ${order.status}` : ""}
+                  {order.total != null ? ` · ${peso(order.total)}` : ""}
+                </div>
+              ))}
+              <Link to="/orders">View orders</Link>
+            </div>
+          )}
+
+          <button
+            type="button"
+            className="checkout-btn"
+            disabled={groups.length === 0 || checkingOut || addressesLoading}
+            onClick={checkoutCart}
+          >
+            {checkingOut ? "Placing orders..." : "Checkout cash on delivery"}
+          </button>
+        </section>
 
         <ConfirmDialog
           open={!!confirm}

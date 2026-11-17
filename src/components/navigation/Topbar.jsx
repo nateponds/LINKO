@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import {
   Bell,
+  Boxes,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
+  LayoutDashboard,
   LogOut,
   Mail,
   MailOpen,
@@ -33,7 +36,7 @@ function getIconForType(type) {
   return Package;
 }
 
-function Topbar({ showSearch = false, showCategories = false, workspaceNavigation = false }) {
+function Topbar({ showSearch = false, showCategories = false }) {
   const [openPanel, setOpenPanel] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [notificationPage, setNotificationPage] = useState(1);
@@ -359,14 +362,20 @@ function Topbar({ showSearch = false, showCategories = false, workspaceNavigatio
                         .map((n) => {
                           const Icon = getIconForType(n.type);
                           return (
-                            <li key={n.notification_id} className="notif-row">
-                              <button type="button" className="notif-read-button" onClick={() => markAsRead(n.notification_id)}>
-                                <span className="notif-icon"><Icon size={16} aria-hidden="true" /></span>
-                                <span className="notif-copy">
-                                  <span className="notif-text">{n.message}</span>
-                                  <span className="notif-time">{new Date(n.created_at).toLocaleDateString()}</span>
+                            <li
+                              key={n.notification_id}
+                              onClick={() => markAsRead(n.notification_id)}
+                              className="notif-row"
+                            >
+                              <span className="notif-icon">
+                                <Icon size={16} />
+                              </span>
+                              <div>
+                                <span className="notif-text">{n.message}</span>
+                                <span className="notif-time">
+                                  {new Date(n.created_at).toLocaleDateString()}
                                 </span>
-                              </button>
+                              </div>
                             </li>
                           );
                         })}
@@ -411,7 +420,7 @@ function Topbar({ showSearch = false, showCategories = false, workspaceNavigatio
             </div>
           </div>
 
-          <div className={`dropdown-anchor${workspaceNavigation ? " seller-mobile-menu" : ""}`}>
+          <div className="dropdown-anchor">
             <button type="button" className="icon-action" title="Menu" aria-label="Open menu"
               aria-expanded={openPanel === "menu"} onClick={(event) => togglePanel(event, "menu")}>
               <Menu size={16} />
@@ -420,13 +429,10 @@ function Topbar({ showSearch = false, showCategories = false, workspaceNavigatio
               onClick={(event) => event.stopPropagation()}>
               <div className="dropdown-head">Menu</div>
               <nav className="dropdown-menu" aria-label="Main menu">
-                {APP_NAV_ITEMS.filter((item) => {
-                  if (!hasAnyRole(item.roles)) return false;
-                  const groupedBusinessPage = ["/inventory", "/orders", "/invoices", "/logistics"].includes(item.link);
-                  return workspaceNavigation || !activeRoles.includes("wholesaler") || !groupedBusinessPage;
-                }).map((item) => (
+                {APP_NAV_ITEMS.filter((item) => hasAnyRole(item.roles)).map((item) => (
                   <Link key={item.name} to={item.link} onClick={() => setOpenPanel(null)}>{item.name}</Link>
                 ))}
+                <button type="button" className="danger" onClick={requestLogoutConfirmation}>Logout</button>
               </nav>
             </div>
           </div>
@@ -456,8 +462,23 @@ function Topbar({ showSearch = false, showCategories = false, workspaceNavigatio
                   {hasAnyRole(ROUTE_ACCESS["/businesses/new"]) && (
                     <Link to="/businesses/new" onClick={() => setOpenPanel(null)}>Add a business</Link>
                   )}
+                  {hasAnyRole(ROUTE_ACCESS["/dashboard"]) && (
+                    <Link to="/dashboard" onClick={() => setOpenPanel(null)}>
+                      <LayoutDashboard size={15} /> Dashboard
+                    </Link>
+                  )}
+                  {hasAnyRole(ROUTE_ACCESS["/inventory"]) && (
+                    <Link to="/inventory" onClick={() => setOpenPanel(null)}>
+                      <Boxes size={15} /> Inventory
+                    </Link>
+                  )}
+                  {hasAnyRole(ROUTE_ACCESS["/orders"]) && (
+                    <Link to="/orders" onClick={() => setOpenPanel(null)}>
+                      <ClipboardList size={15} /> Orders
+                    </Link>
+                  )}
                   {hasAnyRole(ROUTE_ACCESS["/settings"]) && (
-                    <Link className={workspaceNavigation ? "seller-profile-settings" : undefined} to="/settings" onClick={() => setOpenPanel(null)}>
+                    <Link to="/settings" onClick={() => setOpenPanel(null)}>
                       <Settings size={15} /> Settings
                     </Link>
                   )}
