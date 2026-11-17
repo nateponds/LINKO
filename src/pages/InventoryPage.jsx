@@ -12,6 +12,7 @@ import { readListUrlState, updateListUrlState } from "../lib/pagination";
 import { apiPath, normalizePage, shouldClampPage } from "../features/suppliers/marketplacePagination";
 import { TableSkeleton } from "../components/ui/pageSkeletons";
 import ExpandableTableRow from "../components/ui/ExpandableTableRow";
+import InventoryExpiry from "../features/inventory/InventoryExpiry";
 import "./InventoryPage.css";
 
 const EMPTY_FORM = {
@@ -34,11 +35,10 @@ function statusFor(status) {
 }
 
 export default function InventoryPage() {
-  const { user, activeBusinessId, activeRoles } = useAuth();
+  const { activeBusinessId, activeRoles } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const { page, limit, q } = readListUrlState(searchParams);
 
-  const isAdmin = user?.global_role === "platform_admin";
   const ownBusinessId = activeRoles.includes("wholesaler")
     ? activeBusinessId
     : null;
@@ -72,12 +72,14 @@ export default function InventoryPage() {
   const [lowStockTotal, setLowStockTotal] = useState(0);
   const [showAllLowStock, setShowAllLowStock] = useState(false);
   const [confirm, setConfirm] = useState(null);
+  const [expiryProduct, setExpiryProduct] = useState(null);
+  const [expiryRevision, setExpiryRevision] = useState(0);
 
   const filterWrapRef = useRef(null);
 
   const loadProducts = useCallback(async () => {
     const path = apiPath("/api/products", {
-      business_id: isAdmin || !ownBusinessId ? undefined : ownBusinessId,
+      business_id: ownBusinessId ?? undefined,
       q, page, limit,
       category_id: activeFilters.category,
       min_price: activeFilters.priceMin,
@@ -98,7 +100,7 @@ export default function InventoryPage() {
     } catch (err) {
       setError(err.message);
     } finally { setFetching(false); }
-  }, [activeFilters, isAdmin, limit, ownBusinessId, page, products.length, q, searchParams, setSearchParams]);
+  }, [activeFilters, limit, ownBusinessId, page, products.length, q, searchParams, setSearchParams]);
 
   const loadLowStock = useCallback(async () => {
     if (!ownBusinessId) {
@@ -276,6 +278,15 @@ export default function InventoryPage() {
       await Promise.all([loadProducts(), loadLowStock()]);
     } catch (err) {
       setError(err.message);
+    }
+  }
+
+  async function handleRelist(item) {
+    try {
+      await apiSend(`/api/products/${item.product_id}/relist`);
+      await Promise.all([loadProducts(), loadLowStock()]);
+    } catch (err) {
+      setError(err.status === 409 ? "Cannot relist: another active product may use this SKU. Edit the SKU and try again." : err.message);
     }
   }
 
@@ -574,9 +585,9 @@ export default function InventoryPage() {
                   </thead>
                   <tbody>
                     {visibleProducts.map((item) => {
-                      const status = statusFor(item.stock_status);
-                      const canManage =
-                        isAdmin || item.business_id === ownBusinessId;
+                      const status = item.removed_at ? { cls: "warning", label: "Taken down" } : statusFor(item.stock_status);
+                      // Only the owning wholesaler manages products.
+                      const canManage = item.business_id === ownBusinessId;
                       return (
                         <ExpandableTableRow
                           key={item.product_id}
@@ -607,10 +618,15 @@ export default function InventoryPage() {
                           ]}
                         >
                           {canManage && (
-                            <div className="row-panel-actions">
-                              <button type="button" className="link-button" onClick={() => openEditModal(item)}>Edit product</button>
-                              <button type="button" className="link-button inventory-delete" onClick={() => requestDelete(item)}>Delete product</button>
-                            </div>
+                            <>
+                              {item.removed_at && <p role="status">Taken down: {item.removal_reason}</p>}
+                              <div className="row-panel-actions">
+                                <button type="button" className="link-button" onClick={() => openEditModal(item)}>Edit product</button>
+                                <button type="button" className="link-button" onClick={() => setExpiryProduct({ ...item, contextBusinessId: activeBusinessId })}>Expiry batches</button>
+                                {item.removed_at && <button type="button" className="link-button" onClick={() => handleRelist(item)}>Relist product</button>}
+                                <button type="button" className="link-button inventory-delete" onClick={() => requestDelete(item)}>Delete product</button>
+                              </div>
+                            </>
                           )}
                         </ExpandableTableRow>
                       );
@@ -622,6 +638,9 @@ export default function InventoryPage() {
           </div>
           <PaginationControls pagination={pagination} disabled={fetching} onPageChange={(nextPage) => setSearchParams(updateListUrlState(searchParams, { page: nextPage }))} onLimitChange={(nextLimit) => setSearchParams(updateListUrlState(searchParams, { limit: nextLimit }))} ariaLabel="Inventory pagination" />
         </section>
+
+        {ownBusinessId && <InventoryExpiry key={`expiry-${activeBusinessId}`} businessId={ownBusinessId} revision={expiryRevision} />}
+        {expiryProduct && expiryProduct.contextBusinessId === activeBusinessId && <InventoryExpiry key={`${activeBusinessId}-${expiryProduct.product_id}`} product={expiryProduct} businessId={ownBusinessId} onClose={() => setExpiryProduct(null)} onChanged={() => setExpiryRevision((value) => value + 1)} />}
 
         {/* ===== Add/Edit item modal ===== */}
         <div className={`modal-overlay${modalOpen ? " open" : ""}`} inert={!modalOpen}>

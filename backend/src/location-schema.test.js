@@ -96,7 +96,7 @@ test("parcel_route_stops PK rejects a duplicate (parcel_id, stop_order)", { skip
   });
 });
 
-test("registration points logistics_address_id at the placeholder address", { skip: !hasDb }, async () => {
+test("registration creates no address and leaves logistics_address_id NULL", { skip: !hasDb }, async () => {
   const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
   const response = await request("/api/auth/register", {
     method: "POST",
@@ -115,19 +115,16 @@ test("registration points logistics_address_id at the placeholder address", { sk
   const pool = createPool();
   try {
     const { rows } = await pool.query(
-      `SELECT b.logistics_address_id, a.business_id AS address_owner,
-              a.province, a.latitude, a.longitude
+      `SELECT b.logistics_address_id,
+              (SELECT COUNT(*)::int FROM addresses a WHERE a.business_id = b.business_id) AS address_count
          FROM businesses b
-         JOIN addresses a ON a.address_id = b.logistics_address_id
         WHERE b.business_id = $1`,
       [businessId],
     );
-    assert.ok(rows[0], "expected logistics_address_id to be set at registration");
-    assert.equal(rows[0].address_owner, businessId);
-    assert.equal(rows[0].province, "Not provided");
-    // placeholder is unpinned: the new business must hit the pin gates
-    assert.equal(rows[0].latitude, null);
-    assert.equal(rows[0].longitude, null);
+    // No placeholder row: the new business must hit the pin gates until it
+    // saves a real location.
+    assert.equal(rows[0].logistics_address_id, null);
+    assert.equal(rows[0].address_count, 0);
   } finally {
     await pool.end();
   }

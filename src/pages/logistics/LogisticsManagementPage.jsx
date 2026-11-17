@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { Check, Pencil, Plus, Trash2, X } from "lucide-react";
 import AppLayout from "../../layouts/AppLayout";
-import DecisionStrip from "../../components/DecisionStrip";
 import MapPicker from "../../components/ui/MapPicker";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import PaginationControls from "../../components/ui/PaginationControls";
 import SearchField from "../../components/ui/SearchField";
 import { useAuth } from "../../auth/AuthProvider";
+import { ACTION_ACCESS } from "../../auth/roleAccess";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { useListUrlState } from "../../hooks/useListUrlState";
 import { usePaginatedResource } from "../../hooks/usePaginatedResource";
@@ -116,7 +116,7 @@ function BranchFields({ form, onChange, invalid }) {
 }
 
 export default function LogisticsManagementPage() {
-  const { user } = useAuth();
+  const { hasAnyRole } = useAuth();
   const branchesList = useListUrlState({ prefix: "branches" });
   const couriersList = useListUrlState({ prefix: "couriers" });
   const branchesSearch = useDebouncedListSearch(branchesList);
@@ -147,8 +147,6 @@ export default function LogisticsManagementPage() {
   const [editForm, setEditForm] = useState(EMPTY_TIER);
   const [submittingTier, setSubmittingTier] = useState(false);
   const [confirm, setConfirm] = useState(null);
-  const [decisions, setDecisions] = useState(null);
-  const [decisionsError, setDecisionsError] = useState(null);
 
   useClampListPage(branchesList, branchesResource.pagination);
   useClampListPage(couriersList, couriersResource.pagination);
@@ -185,20 +183,6 @@ export default function LogisticsManagementPage() {
       setTiersLoading(false);
     }
   }
-
-  useEffect(() => {
-    let active = true;
-    apiGet("/api/logistics/decisions")
-      .then((data) => {
-        if (!active) return;
-        setDecisions(data);
-        setDecisionsError(null);
-      })
-      .catch((error) => {
-        if (active) setDecisionsError(error.message);
-      });
-    return () => { active = false; };
-  }, []);
 
   useEffect(() => {
     let active = true;
@@ -460,16 +444,6 @@ export default function LogisticsManagementPage() {
     <AppLayout>
       <div className="logistics-page management-page">
         <div className="page-head"><h1>Logistics Management</h1></div>
-        <DecisionStrip
-          label="Logistics decisions"
-          loading={!decisions && !decisionsError}
-          error={decisionsError}
-          items={[
-            { key: "unassigned", to: "/logistics", value: decisions?.unassignedParcels, label: "Unassigned parcels", hint: "Assign a courier before these sit idle", empty: "No unassigned parcels" },
-            { key: "aging", to: "/logistics?status=Order%20Created", value: decisions?.agingPendingParcels, label: "Aging pending parcels", hint: "Still Order Created after more than 2 days", empty: "No aging parcels" },
-            { key: "load", to: "/logistics", value: decisions?.courierActiveLoad, label: "Courier active load", hint: "Parcels still in a courier's hands", empty: "No parcels are on a courier" },
-          ]}
-        />
         {optionsError ? (
           <LogisticsNotice message={`Could not load branch options: ${optionsError}`} onRetry={reloadBranchOptions} />
         ) : null}
@@ -625,7 +599,7 @@ export default function LogisticsManagementPage() {
                             <span>Estimated: {tier.estimated_days} days</span>
                           </div>
                         </div>
-                        {user?.global_role === "platform_admin" ? (
+                        {hasAnyRole(ACTION_ACCESS.editServiceTier) ? (
                           <button type="button" className="logistics-edit-btn" onClick={() => startEditingTier(tier)} aria-label={`Edit ${tier.tier_name}`}><Pencil size={16} /></button>
                         ) : null}
                       </>

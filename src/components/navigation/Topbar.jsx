@@ -20,7 +20,7 @@ import { GoChevronDown } from "react-icons/go";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../auth/AuthProvider";
 import { useCart } from "../../features/cart/CartProvider";
-import { APP_NAV_ITEMS, formatRoleLabel, primaryRole, ROLE_ACCESS } from "../../auth/roleAccess";
+import { APP_NAV_ITEMS, formatRoleLabel, primaryRole, redirectPathForRoles, ROUTE_ACCESS } from "../../auth/roleAccess";
 import MarketplaceSearch from "../../features/search/MarketplaceSearch.jsx";
 import { marketplaceSearchPath } from "../../features/search/marketplaceSearch";
 import ConfirmDialog from "../ui/ConfirmDialog";
@@ -53,13 +53,14 @@ function Topbar({ showSearch = false, showCategories = false, workspaceNavigatio
     setActiveBusiness,
     logout,
     hasAnyRole,
+    isAdmin,
   } = useAuth();
   const { count: cartCount, cart } = useCart();
   const cartItems = cartLineItems(cart);
   const displayName = user?.full_name || user?.email || "LINKO User";
   const displayBusiness = activeBusiness?.business_name || "No business assigned";
   const displayRole =
-    user?.global_role === "platform_admin"
+    isAdmin
       ? formatRoleLabel("platform_admin")
       : activeRoles.map(formatRoleLabel).join(", ") || "Member";
   const badgeRole = primaryRole(user, activeRoles);
@@ -218,10 +219,13 @@ function Topbar({ showSearch = false, showCategories = false, workspaceNavigatio
           ) : (
             ""
           )}
+          {hasAnyRole(ROUTE_ACCESS["/businesses/new"]) && (
+            <> {" - "}<Link to="/businesses/new">Add a business</Link></>
+          )}
         </span>
       </div>
       <header className="header-nav">
-        <Link to="/" className="logo">
+        <Link to={redirectPathForRoles(activeRoles, isAdmin)} className="logo">
           <span>LINK<span className="logo-accent">O</span></span>
           {badgeRole && <span className={`role-badge role-badge-${badgeRole}`}>{badgeLabel}</span>}
         </Link>
@@ -274,7 +278,7 @@ function Topbar({ showSearch = false, showCategories = false, workspaceNavigatio
           />
         )}
         <div className="header-actions">
-          {hasAnyRole(ROLE_ACCESS.marketplace) && (
+          {hasAnyRole(ROUTE_ACCESS["/cart"]) && (
             <div className="dropdown-anchor">
               <button type="button" className="icon-action" title="Cart"
                 aria-label={`Cart, ${cartCount} item${cartCount === 1 ? "" : "s"}`}
@@ -449,7 +453,10 @@ function Topbar({ showSearch = false, showCategories = false, workspaceNavigatio
                   </div>
                 </div>
                 <nav className="dropdown-menu">
-                  {hasAnyRole(ROLE_ACCESS.settings) && (
+                  {hasAnyRole(ROUTE_ACCESS["/businesses/new"]) && (
+                    <Link to="/businesses/new" onClick={() => setOpenPanel(null)}>Add a business</Link>
+                  )}
+                  {hasAnyRole(ROUTE_ACCESS["/settings"]) && (
                     <Link className={workspaceNavigation ? "seller-profile-settings" : undefined} to="/settings" onClick={() => setOpenPanel(null)}>
                       <Settings size={15} /> Settings
                     </Link>

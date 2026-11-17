@@ -18,7 +18,7 @@ BEGIN;
 TRUNCATE notifications, payments, tracking_logs, parcel_route_stops, parcels,
          invoices, order_items, orders,
          auth_sessions,
-         products, warehouses,
+         inventory_batches, products, warehouses,
          couriers, branches,
          business_memberships, user_businesses,
          addresses, businesses, users
@@ -30,6 +30,7 @@ ALTER SEQUENCE businesses_business_id_seq RESTART WITH 1;
 ALTER SEQUENCE addresses_address_id_seq RESTART WITH 1;
 ALTER SEQUENCE warehouses_warehouse_id_seq RESTART WITH 1;
 ALTER SEQUENCE products_product_id_seq RESTART WITH 1;
+ALTER SEQUENCE inventory_batches_batch_id_seq RESTART WITH 1;
 ALTER SEQUENCE orders_order_id_seq RESTART WITH 1;
 ALTER SEQUENCE order_items_order_item_id_seq RESTART WITH 1;
 ALTER SEQUENCE invoices_invoice_id_seq RESTART WITH 1;
@@ -56,43 +57,43 @@ ON CONFLICT (tier_id) DO UPDATE SET
 
 SELECT setval('service_tiers_tier_id_seq', 3, true);
 
-INSERT INTO users (user_id, username, email, full_name, password_hash, role, global_role) VALUES
-  (1, 'buyer_demo', 'buyer@linko.test', 'Bianca Buyer', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
-  (2, 'wholesaler_demo', 'wholesaler@linko.test', 'Waldo Wholesaler', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'wholesaler', NULL),
-  (3, 'logistics_demo', 'logistics@linko.test', 'Lia Logistics', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
-  (4, 'courier_demo', 'courier@linko.test', 'Cory Courier', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
-  (5, 'admin_demo', 'admin@linko.test', 'Pia Platform Admin', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'admin', 'platform_admin'),
-  (6, 'buyer2_demo', 'buyer2@linko.test', 'Ben Buyer Jr', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
-  (7, 'wholesaler2_demo', 'wholesaler2@linko.test', 'Wendy Wholesaler', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
-  (8, 'bizswitch_demo', 'bizswitch@linko.test', 'Bo Bizswitch', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
-  (9, 'courier2_demo', 'courier2@linko.test', 'Carlo Courier', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
-  (10, 'wholesaler3_gen', 'ws3@linko.test', 'Ramon Villaflor', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'wholesaler', NULL),
-  (11, 'wholesaler4_gen', 'ws4@linko.test', 'Teresita Booc', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'wholesaler', NULL),
-  (12, 'wholesaler5_gen', 'ws5@linko.test', 'Ernesto Cabahug', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'wholesaler', NULL),
-  (13, 'wholesaler6_gen', 'ws6@linko.test', 'Lourdes Baguio', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'wholesaler', NULL),
-  (14, 'wholesaler7_gen', 'ws7@linko.test', 'Danilo Yap', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'wholesaler', NULL),
-  (15, 'buyer3_gen', 'buyer3@linko.test', 'Marites Delgado', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
-  (16, 'buyer4_gen', 'buyer4@linko.test', 'Arnel Pacaña', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
-  (17, 'buyer5_gen', 'buyer5@linko.test', 'Nenita Sabandal', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
-  (18, 'buyer6_gen', 'buyer6@linko.test', 'Rogelio Tabada', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
-  (19, 'buyer7_gen', 'buyer7@linko.test', 'Corazon Maravilla', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
-  (20, 'buyer8_gen', 'buyer8@linko.test', 'Fely Abella', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
-  (21, 'buyer9_gen', 'buyer9@linko.test', 'Bebot Larrazabal', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
-  (22, 'buyer10_gen', 'buyer10@linko.test', 'Susana Empuerto', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
-  (23, 'buyer11_gen', 'buyer11@linko.test', 'Jimmy Ouano', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
-  (24, 'buyer12_gen', 'buyer12@linko.test', 'Perla Cortes', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
-  (25, 'buyer13_gen', 'buyer13@linko.test', 'Andres Gabuya', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
-  (26, 'buyer14_gen', 'buyer14@linko.test', 'Editha Rosales', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
-  (27, 'buyer15_gen', 'buyer15@linko.test', 'Manuel Suico', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
-  (28, 'buyer16_gen', 'buyer16@linko.test', 'Gloria Pantaleon', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
-  (29, 'buyer17_gen', 'buyer17@linko.test', 'Rico Mendoza', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
+INSERT INTO users (user_id, username, email, full_name, password_hash, global_role) VALUES
+  (1, 'buyer_demo', 'buyer@linko.test', 'Bianca Buyer', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (2, 'wholesaler_demo', 'wholesaler@linko.test', 'Waldo Wholesaler', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (3, 'logistics_demo', 'logistics@linko.test', 'Lia Logistics', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (4, 'courier_demo', 'courier@linko.test', 'Cory Courier', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (5, 'admin_demo', 'admin@linko.test', 'Pia Platform Admin', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'platform_admin'),
+  (6, 'buyer2_demo', 'buyer2@linko.test', 'Ben Buyer Jr', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (7, 'wholesaler2_demo', 'wholesaler2@linko.test', 'Wendy Wholesaler', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (8, 'bizswitch_demo', 'bizswitch@linko.test', 'Bo Bizswitch', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (9, 'courier2_demo', 'courier2@linko.test', 'Carlo Courier', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (10, 'wholesaler3_gen', 'ws3@linko.test', 'Ramon Villaflor', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (11, 'wholesaler4_gen', 'ws4@linko.test', 'Teresita Booc', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (12, 'wholesaler5_gen', 'ws5@linko.test', 'Ernesto Cabahug', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (13, 'wholesaler6_gen', 'ws6@linko.test', 'Lourdes Baguio', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (14, 'wholesaler7_gen', 'ws7@linko.test', 'Danilo Yap', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (15, 'buyer3_gen', 'buyer3@linko.test', 'Marites Delgado', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (16, 'buyer4_gen', 'buyer4@linko.test', 'Arnel Pacaña', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (17, 'buyer5_gen', 'buyer5@linko.test', 'Nenita Sabandal', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (18, 'buyer6_gen', 'buyer6@linko.test', 'Rogelio Tabada', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (19, 'buyer7_gen', 'buyer7@linko.test', 'Corazon Maravilla', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (20, 'buyer8_gen', 'buyer8@linko.test', 'Fely Abella', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (21, 'buyer9_gen', 'buyer9@linko.test', 'Bebot Larrazabal', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (22, 'buyer10_gen', 'buyer10@linko.test', 'Susana Empuerto', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (23, 'buyer11_gen', 'buyer11@linko.test', 'Jimmy Ouano', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (24, 'buyer12_gen', 'buyer12@linko.test', 'Perla Cortes', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (25, 'buyer13_gen', 'buyer13@linko.test', 'Andres Gabuya', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (26, 'buyer14_gen', 'buyer14@linko.test', 'Editha Rosales', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (27, 'buyer15_gen', 'buyer15@linko.test', 'Manuel Suico', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (28, 'buyer16_gen', 'buyer16@linko.test', 'Gloria Pantaleon', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (29, 'buyer17_gen', 'buyer17@linko.test', 'Rico Mendoza', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
   -- Courier logins for the expanded fleet (couriers 3-8).
-  (30, 'courier3_demo', 'courier3@linko.test', 'Dexter Alcantara', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
-  (31, 'courier4_demo', 'courier4@linko.test', 'Elmer Bacus', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
-  (32, 'courier5_demo', 'courier5@linko.test', 'Grace Montano', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
-  (33, 'courier6_demo', 'courier6@linko.test', 'Jomar Ceniza', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
-  (34, 'courier7_demo', 'courier7@linko.test', 'Rhea Sarmiento', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL),
-  (35, 'courier8_demo', 'courier8@linko.test', 'Vicente Duran', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', 'staff', NULL);
+  (30, 'courier3_demo', 'courier3@linko.test', 'Dexter Alcantara', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (31, 'courier4_demo', 'courier4@linko.test', 'Elmer Bacus', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (32, 'courier5_demo', 'courier5@linko.test', 'Grace Montano', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (33, 'courier6_demo', 'courier6@linko.test', 'Jomar Ceniza', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (34, 'courier7_demo', 'courier7@linko.test', 'Rhea Sarmiento', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL),
+  (35, 'courier8_demo', 'courier8@linko.test', 'Vicente Duran', '$scrypt$ln=14,r=8,p=1$JGwDhxHAsroYiq60JGW01Q==$PWx0A9eBiSvl3qFgecOCO9PbVAzlauXW17IsyqMEckDXs5GWRnDs5IMgOH+1oGeK2ONRwmTPZxzmfguq5uAorw==', NULL);
 
 SELECT setval('users_user_id_seq', 35, true);
 
@@ -327,6 +328,13 @@ INSERT INTO products (product_id, business_id, product_name, sku, category_id, d
   (28, 18, 'Pandesal Rolls - tray of 150', 'MDG-BK001', 8, 'Tray of 150 freshly baked pandesal rolls', 504.00, 26, 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=400', TRUE);
 
 SELECT setval('products_product_id_seq', 28, true);
+
+-- Relative dates keep the expiry overview useful whenever demo data is loaded.
+-- These batches describe stock already counted in products.stock_quantity.
+INSERT INTO inventory_batches (product_id, batch_number, received_on, expires_on, notes) VALUES
+  (1, 'DEMO-EXPIRED', CURRENT_DATE - 14, CURRENT_DATE - 1, 'Review and remove expired stock.'),
+  (2, 'DEMO-SOON', CURRENT_DATE - 3, CURRENT_DATE + 7, 'Use this batch before later deliveries.'),
+  (2, 'DEMO-FRESH', CURRENT_DATE, CURRENT_DATE + 60, 'Later delivery of the same product.');
 
 -- Every hub must stay is_available = TRUE and fully pinned: location-schema
 -- tests assert that for all branches matching 'LINKO%Hub', and

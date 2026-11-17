@@ -1,3 +1,7 @@
+# LEGACY: self-hosted Docker stack, no longer deployed.
+# Production runs on Vercel (docs/VERCEL_DEPLOYMENT.md) and the `staging`
+# branch has no hosted database; developers use their own local Postgres.
+# Kept for reference only; nothing deploys from this file.
 services:
   # =========================================================================
   # STAGING ENVIRONMENT (staging.linko.nateponds.com)

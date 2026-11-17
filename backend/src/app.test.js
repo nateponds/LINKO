@@ -263,8 +263,8 @@ test("booking a parcel creates payment and first log", { skip: !hasDb }, async (
   });
   assert.equal(detail.status, 200);
   assert.ok(
-    Math.abs(detail.body.payment.amount - (1000 + created.body.shipping_fee)) < 0.01,
-    "payment amount is goods + shipping",
+    Math.abs(detail.body.payment.amount_to_collect - (1000 + created.body.shipping_fee)) < 0.01,
+    "COD amount to collect is goods + shipping",
   );
   assert.equal(detail.body.tracking_history.length, 1);
   assert.equal(detail.body.latest_branch_id, 1);
@@ -701,44 +701,34 @@ test("wholesaler cannot patch a product owned by another business", { skip: !has
   }
 });
 
-test("platform admin manages products across businesses", { skip: !hasDb }, async () => {
+test("platform admin cannot create or edit products but can take one down", { skip: !hasDb }, async () => {
   const adminCookie = await loginAs("admin@linko.test");
   const { createPool } = await import("./db.js");
   const pool = createPool();
-
-  // Resolve Harbor's business_id by name (SERIAL, never hardcoded).
-  const harbor = await pool.query(
-    "SELECT business_id FROM businesses WHERE business_name = 'Cebu Fresh Wholesale'",
-  );
-  const harborId = harbor.rows[0].business_id;
-
-  // Admin has no wholesaler membership, so POST without business_id -> 400.
-  const noBiz = await postJson("/api/products", adminCookie, {
-    product_name: "Admin No Business",
-    unit_price: 10,
-  });
-  assert.equal(noBiz.status, 400);
-  assert.match(noBiz.body.error.message, /business_id/i);
-
-  // POST with a valid wholesaler business_id -> 201.
-  const created = await postJson("/api/products", adminCookie, {
-    product_name: "Admin Created Product",
-    unit_price: 42,
-    sku: `ADMIN-${Date.now()}`,
-    business_id: harborId,
-  });
-  assert.equal(created.status, 201);
-  const productId = created.body.product_id;
+  const productId = await createTestProduct(pool);
 
   try {
-    // Admin can patch a product it does not "own".
+    const harborId = await getBusinessIdByName(pool, "Cebu Fresh Wholesale");
+    const created = await postJson("/api/products", adminCookie, {
+      product_name: "Admin Created Product",
+      unit_price: 42,
+      business_id: harborId,
+    });
+    assert.equal(created.status, 403);
+
     const patched = await request(`/api/products/${productId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Cookie: adminCookie },
       body: JSON.stringify({ unit_price: 99 }),
     });
-    assert.equal(patched.status, 200);
-    assert.equal(patched.body.unit_price, "99.00");
+    assert.equal(patched.status, 403);
+
+    // Admin deletion is forbidden; moderation uses the reasoned takedown route.
+    const removed = await request(`/api/products/${productId}`, {
+      method: "DELETE",
+      headers: { Cookie: adminCookie },
+    });
+    assert.equal(removed.status, 403);
   } finally {
     await pool.query("DELETE FROM products WHERE product_id = $1", [productId]);
     await pool.end();
@@ -1066,6 +1056,7 @@ test("order status transitions and ownership are enforced", { skip: !hasDb }, as
     });
     assert.equal(cancelled.status, 200);
     assert.equal(cancelled.body.status, "cancelled");
+    assert.equal((await pool.query("SELECT status_updated_by FROM orders WHERE order_id = $1", [orderId])).rows[0].status_updated_by, 1);
     assert.equal(cancelled.body.invoice, null);
     assert.equal(await getProductStock(pool, productId), 2);
   } finally {
@@ -1132,7 +1123,7 @@ test("placing an order rejects insufficient stock without creating the order", {
   }
 });
 
-test("platform admin can view all orders and override order status", { skip: !hasDb }, async () => {
+test("platform admin cannot read orders or invoices and only overrides delivery outcomes", { skip: !hasDb }, async () => {
   const buyerCookie = await loginAs("buyer@linko.test");
   const wholesalerCookie = await loginAs("wholesaler@linko.test");
   const adminCookie = await loginAs("admin@linko.test");
@@ -1151,24 +1142,31 @@ test("platform admin can view all orders and override order status", { skip: !ha
     assert.equal(await getProductStock(pool, productId), 2);
 
     const adminList = await request("/api/orders", { headers: { Cookie: adminCookie } });
-    assert.equal(adminList.status, 200);
-    assert.ok(adminList.body.items.some((order) => order.order_id === orderId));
+    assert.equal(adminList.status, 403, "order contents are confidential to the two parties");
 
-    // Admin override (docs/API_CONTRACTS.md §2c.4): valid transitions
-    // succeed with full side effects...
+    // Admin is never the seller (docs/API_CONTRACTS.md §2c): seller
+    // transitions are refused outright.
     const adminAccept = await request(`/api/orders/${orderId}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Cookie: adminCookie },
       body: JSON.stringify({ status: "accepted" }),
     });
-    assert.equal(adminAccept.status, 200);
+    assert.equal(adminAccept.status, 403);
+
+    for (const status of ["accepted", "preparing"]) {
+      const step = await request(`/api/orders/${orderId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Cookie: wholesalerCookie },
+        body: JSON.stringify({ status }),
+      });
+      assert.equal(step.status, 200, `wholesaler should reach ${status}`);
+    }
     assert.equal(await getProductStock(pool, productId), 2);
 
     const invoices = await request("/api/invoices", { headers: { Cookie: adminCookie } });
-    assert.equal(invoices.status, 200);
-    assert.ok(invoices.body.items.some((row) => row.order_id === orderId));
+    assert.equal(invoices.status, 403);
 
-    // ...but invalid skips are still rejected.
+    // Admin outcomes still obey the lifecycle table: no skipping shipment.
     const adminSkip = await request(`/api/orders/${orderId}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Cookie: adminCookie },
@@ -1176,19 +1174,12 @@ test("platform admin can view all orders and override order status", { skip: !ha
     });
     assert.equal(adminSkip.status, 400);
 
-    const adminPreparing = await request(`/api/orders/${orderId}/status`, {
+    const shipped = await request(`/api/orders/${orderId}/status`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", Cookie: adminCookie },
-      body: JSON.stringify({ status: "preparing" }),
-    });
-    assert.equal(adminPreparing.status, 200);
-
-    const adminShipped = await request(`/api/orders/${orderId}/status`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", Cookie: adminCookie },
+      headers: { "Content-Type": "application/json", Cookie: wholesalerCookie },
       body: JSON.stringify({ status: "shipped", weight_kg: 4.2, total_distance_km: 10 }),
     });
-    assert.equal(adminShipped.status, 200);
+    assert.equal(shipped.status, 200);
 
     const wholesalerReturns = await request(`/api/orders/${orderId}/status`, {
       method: "PATCH",
@@ -1203,7 +1194,8 @@ test("platform admin can view all orders and override order status", { skip: !ha
       body: JSON.stringify({ status: "returned" }),
     });
     assert.equal(adminReturns.status, 200);
-    assert.equal(adminReturns.body.status, "returned");
+    // The override answers with the outcome only, never the order's items.
+    assert.deepEqual(adminReturns.body, { order_id: orderId, status: "returned" });
     assert.equal(await getProductStock(pool, productId), 2);
 
     const returnNotifications = await pool.query(
@@ -1227,6 +1219,44 @@ test("platform admin can view all orders and override order status", { skip: !ha
       await pool.query("DELETE FROM notifications WHERE message LIKE $1", [
         `%order #${orderId}%`,
       ]);
+      await pool.query("DELETE FROM parcels WHERE order_id = $1", [orderId]);
+      await pool.query("DELETE FROM order_items WHERE order_id = $1", [orderId]);
+      await pool.query("DELETE FROM orders WHERE order_id = $1", [orderId]);
+    }
+    if (productId) {
+      await pool.query("DELETE FROM products WHERE product_id = $1", [productId]);
+    }
+    await pool.end();
+  }
+});
+
+test("platform admin may cancel a pending order (governance)", { skip: !hasDb }, async () => {
+  const buyerCookie = await loginAs("buyer@linko.test");
+  const adminCookie = await loginAs("admin@linko.test");
+  const { createPool } = await import("./db.js");
+  const pool = createPool();
+  let orderId;
+  let productId;
+
+  try {
+    productId = await createTestProduct(pool, { stock_quantity: 4, unit_price: 30 });
+    const created = await postJson("/api/orders", buyerCookie, {
+      tier_id: 1, items: [{ product_id: productId, quantity: 2 }],
+    });
+    assert.equal(created.status, 201);
+    orderId = created.body.order_id;
+
+    const adminCancels = await request(`/api/orders/${orderId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Cookie: adminCookie },
+      body: JSON.stringify({ status: "cancelled" }),
+    });
+    assert.equal(adminCancels.status, 200);
+    assert.equal(adminCancels.body.status, "cancelled");
+    assert.equal(await getProductStock(pool, productId), 4);
+  } finally {
+    if (orderId) {
+      await pool.query("DELETE FROM notifications WHERE message LIKE $1", [`%order #${orderId}%`]);
       await pool.query("DELETE FROM parcels WHERE order_id = $1", [orderId]);
       await pool.query("DELETE FROM order_items WHERE order_id = $1", [orderId]);
       await pool.query("DELETE FROM orders WHERE order_id = $1", [orderId]);

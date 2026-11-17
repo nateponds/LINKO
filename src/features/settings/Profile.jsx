@@ -2,10 +2,10 @@ import { useAuth } from "../../auth/AuthProvider";
 import { formatRoleLabel } from "../../auth/roleAccess";
 
 export default function Profile() {
-  const { user, activeBusiness, activeRoles } = useAuth();
+  const { user, isAdmin, activeBusiness, activeRoles } = useAuth();
   
-  const roleLabel = user?.global_role === "platform_admin"
-    ? formatRoleLabel("platform_admin")
+  const roleLabel = isAdmin
+    ?formatRoleLabel("platform_admin")
     : activeRoles.map(formatRoleLabel).join(", ") || "Member";
 
   const getInitials = (name) => {

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { query } from "../db.js";
-import { requireAuth } from "../middleware/auth.js";
+import { requireAnyRole, requireAuth } from "../middleware/auth.js";
+import { resolveActiveBusinessId } from "../middleware/ownership.js";
 
 const router = Router();
 
@@ -15,7 +16,8 @@ function createHttpError(statusCode, message) {
 }
 
 // GET /api/dashboard?range=today|7d|30d
-// Returns stats for the active user's businesses, windowed to the range:
+// Returns SALES stats for the active wholesaler business only (its purchases
+// from other wholesalers are excluded), windowed to the range:
 // revenue/orders/sales-trend/top-products cover the window; low-stock and
 // product counts are current state. Bucket labels are formatted by Postgres
 // so the API and the DB never disagree about bucket boundaries.
@@ -25,18 +27,12 @@ const RANGE_CONFIG = {
   "30d": { bucket: "day", count: 30, labelFormat: "FMMon FMDD" },
 };
 
-router.get("/dashboard", requireAuth, async (req, res, next) => {
+// Wholesaler-only: the dashboard is a wholesaler's own sales workspace.
+// platform_admin is deliberately not listed, so admins are excluded.
+router.get("/dashboard", requireAuth, requireAnyRole(["wholesaler"]), async (req, res, next) => {
   try {
-    const { memberships } = req.auth;
-
-    // Wholesaler-only: the dashboard is a wholesaler's own sales workspace.
-    // No platform_admin bypass here, unlike requireAnyRole.
-    const isWholesaler = memberships.some(m => m.role === "wholesaler");
-    if (!isWholesaler) {
-      throw createHttpError(403, "Forbidden");
-    }
-
-    const businessIds = memberships.map(m => m.business_id);
+    // The gate proved the active business is a wholesaler.
+    const businessId = resolveActiveBusinessId(req);
 
     const { bucket, count, labelFormat } =
       RANGE_CONFIG[req.query.range] ?? RANGE_CONFIG["7d"];
@@ -44,27 +40,13 @@ router.get("/dashboard", requireAuth, async (req, res, next) => {
     // so interpolating them into SQL is safe.
     const windowStart = `date_trunc('${bucket}', CURRENT_TIMESTAMP) - INTERVAL '${count - 1} ${bucket}'`;
 
-    if (businessIds.length === 0) {
-      return res.json({
-        revenue: 0,
-        orders: 0,
-        lowStock: 0,
-        products: 0,
-        sales: [],
-        topProducts: [],
-        recentActivity: [],
-        actionableOrders: { pending: 0, accepted: 0 },
-      });
-    }
-
-    const orderScope =
-      "(o.wholesaler_business_id = ANY($1::int[]) OR o.buyer_business_id = ANY($1::int[]))";
-    const params = [businessIds];
+    const orderScope = "o.wholesaler_business_id = $1";
+    const params = [businessId];
 
     const revenueQuery = `SELECT COALESCE(SUM(i.total), 0) AS val
            FROM invoices i
            JOIN orders o ON o.order_id = i.order_id
-          WHERE o.wholesaler_business_id = ANY($1::int[])
+          WHERE ${orderScope}
             AND i.issued_at >= ${windowStart}`;
 
     const ordersQuery = `
@@ -73,10 +55,10 @@ router.get("/dashboard", requireAuth, async (req, res, next) => {
        WHERE ${orderScope} AND o.created_at >= ${windowStart}`;
 
     const lowStockQuery =
-      "SELECT COUNT(*) AS val FROM products WHERE business_id = ANY($1::int[]) AND stock_quantity < 10";
+      "SELECT COUNT(*) AS val FROM products WHERE business_id = $1 AND stock_quantity < 10";
 
     const productsQuery =
-      "SELECT COUNT(*) AS val FROM products WHERE business_id = ANY($1::int[])";
+      "SELECT COUNT(*) AS val FROM products WHERE business_id = $1";
 
     // Orders per bucket across the whole window; generate_series fills the
     // quiet buckets with zero so the chart never has gaps.
@@ -125,12 +107,10 @@ router.get("/dashboard", requireAuth, async (req, res, next) => {
        LIMIT 6`;
 
     // Incoming orders the wholesaler still has to accept or start preparing.
-    // Scoped to wholesaler_business_id only - a buyer membership must not
-    // inflate the "needs action" count.
     const actionableOrdersQuery = `
       SELECT o.status, COUNT(*)::int AS count
         FROM orders o
-       WHERE o.wholesaler_business_id = ANY($1::int[])
+       WHERE ${orderScope}
          AND o.status = ANY($2::text[])
        GROUP BY o.status`;
 
@@ -143,7 +123,7 @@ router.get("/dashboard", requireAuth, async (req, res, next) => {
         query(salesQuery, params),
         query(topProductsQuery, params),
         query(recentActivityQuery, params),
-        query(actionableOrdersQuery, [businessIds, ["pending", "accepted"]]),
+        query(actionableOrdersQuery, [businessId, ["pending", "accepted"]]),
       ]);
 
     const actionableOrders = { pending: 0, accepted: 0 };

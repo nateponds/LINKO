@@ -22,6 +22,8 @@ import { SupplierProfileSkeleton } from "../components/ui/pageSkeletons";
 import PaginationControls from "../components/ui/PaginationControls";
 import { readListUrlState, updateListUrlState } from "../lib/pagination";
 import { apiPath, normalizePage, shouldClampPage } from "../features/suppliers/marketplacePagination";
+import { useAuth } from "../auth/AuthProvider";
+import { ROUTE_ACCESS } from "../auth/roleAccess";
 import { useCart } from "../features/cart/CartProvider";
 import { clampQuantity, stockLimit } from "../features/cart/cart";
 import "./SupplierProfilePage.css";
@@ -45,6 +47,8 @@ export default function SupplierProfilePage() {
   const [error, setError] = useState(null);
 
   const { addProduct } = useCart();
+  const { hasAnyRole } = useAuth();
+  const canBuy = hasAnyRole(ROUTE_ACCESS["/cart"]);
   const [following, setFollowing] = useState(false);
   // A ?product_id= deep link must land on the products tab, not the shop tab.
   const [activeTab, setActiveTab] = useState(() =>
@@ -463,30 +467,32 @@ export default function SupplierProfilePage() {
                       onOpen={openProductDetail}
                       stockText={maxQuantity > 0 ? `${maxQuantity} available` : "No stock available"}
                     >
-                      <div className="product-cart-controls">
-                        <label className="quantity-field">
-                          <span>Qty</span>
-                          <input
-                            type="number"
-                            min="1"
-                            max={Math.max(maxQuantity, 1)}
-                            value={isAvailable ? draftQuantity : 0}
+                      {canBuy && (
+                        <div className="product-cart-controls">
+                          <label className="quantity-field">
+                            <span>Qty</span>
+                            <input
+                              type="number"
+                              min="1"
+                              max={Math.max(maxQuantity, 1)}
+                              value={isAvailable ? draftQuantity : 0}
+                              disabled={!isAvailable}
+                              onChange={(event) =>
+                                setProductDraft(product, event.target.value)
+                              }
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            className="add-cart-btn"
                             disabled={!isAvailable}
-                            onChange={(event) =>
-                              setProductDraft(product, event.target.value)
-                            }
-                          />
-                        </label>
-                        <button
-                          type="button"
-                          className="add-cart-btn"
-                          disabled={!isAvailable}
-                          onClick={() => addToCart(product)}
-                        >
-                          <ShoppingCart size={15} />
-                          Add
-                        </button>
-                      </div>
+                            onClick={() => addToCart(product)}
+                          >
+                            <ShoppingCart size={15} />
+                            Add
+                          </button>
+                        </div>
+                      )}
                     </ProductCard>
                   );
                 })}
@@ -545,7 +551,7 @@ export default function SupplierProfilePage() {
           quantity={detailProduct ? quantityDrafts[detailProduct.product_id] ?? 1 : 1}
           maxQuantity={stockLimit(detailProduct)}
           onQuantityChange={setProductDraft}
-          onAddToCart={(product) => { addToCart(product); closeProductDetail(); }}
+          onAddToCart={canBuy ? (product) => { addToCart(product); closeProductDetail(); } : undefined}
           onClose={closeProductDetail}
         />
       </div>

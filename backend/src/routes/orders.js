@@ -1,7 +1,11 @@
 import { Router } from "express";
 import { getPool, query, nextParcelId } from "../db.js";
-import { requireAnyRole, requireAuth } from "../middleware/auth.js";
-import { getActiveMembership } from "../middleware/ownership.js";
+import { MARKETPLACE_ROLES, requireAnyRole, requireAuth } from "../middleware/auth.js";
+import {
+  activeMemberships,
+  isPlatformAdmin,
+  resolveActiveBusinessId,
+} from "../middleware/ownership.js";
 import { notifyBusiness } from "../services/notify.js";
 import { buildPaginatedResponse, parsePaginationQuery } from "../services/pagination.js";
 import {
@@ -43,33 +47,16 @@ function parsePositiveId(rawId, label) {
   return id;
 }
 
-const isAdmin = (auth) => auth.user.global_role === "platform_admin";
-
-// Resolve the business the caller is acting as (buyer/wholesaler). Multi-business
-// users disambiguate via the X-Active-Business header (validated in
-// getActiveMembership); single-membership behavior is unchanged. A platform_admin
-// with no such membership falls back to an explicit body business_id.
-function resolveSingleMembership(req, roles, adminBodyBusinessId, errorRoleLabel) {
-  const roleArray = Array.isArray(roles) ? roles : [roles];
-  const hasMatching = req.auth.memberships.some((m) => roleArray.includes(m.role));
-  if (hasMatching) {
-    return getActiveMembership(req, roleArray).business_id;
-  }
-  if (isAdmin(req.auth) && adminBodyBusinessId !== undefined && adminBodyBusinessId !== null) {
-    return Number(adminBodyBusinessId);
+// Resolve the business the caller is acting as (buyer/wholesaler): the ACTIVE
+// business (X-Active-Business, or the caller's only business) when it holds one
+// of `roles`. Roles on other businesses grant nothing. platform_admin holds no
+// memberships (migration 027), so it never resolves one and is refused.
+function resolveSingleMembership(req, roles, errorRoleLabel) {
+  const active = activeMemberships(req).find((m) => roles.includes(m.role));
+  if (active) {
+    return active.business_id;
   }
   throw createHttpError(403, `You must belong to a ${errorRoleLabel} business`);
-}
-
-async function validateBusinessRole(businessId, businessTypes) {
-  const { rows } = await query(
-    `SELECT business_id FROM businesses
-      WHERE business_id = $1 AND business_type = ANY($2::varchar[])`,
-    [businessId, businessTypes],
-  );
-  if (!rows.length) {
-    throw createHttpError(400, "business_id does not reference a valid business for this action");
-  }
 }
 
 const ORDER_BASE_SELECT = `
@@ -177,16 +164,26 @@ async function fetchOneOrder(orderId, client = { query }) {
   return orders[0] ?? null;
 }
 
-function orderVisibility(req) {
-  if (isAdmin(req.auth)) {
-    return { where: "", params: [] };
-  }
+// Orders (and their invoices) the caller may read: every order the ACTIVE
+// business is on, either side. Side comes from the order, not the caller's role
+// (a wholesaler business also buys). The route gate already proved the active
+// membership is buyer or wholesaler. Nobody else reads orders or invoices:
+// their line items are confidential to the two parties.
+function listScope(req) {
+  return {
+    where: "WHERE (o.buyer_business_id = $1 OR o.wholesaler_business_id = $1)",
+    params: [resolveActiveBusinessId(req)],
+  };
+}
 
-  const activeMembership = getActiveMembership(req, ["buyer", "wholesaler"]);
-  const column = activeMembership.role === "buyer"
-    ? "o.buyer_business_id"
-    : "o.wholesaler_business_id";
-  return { where: `WHERE ${column} = $1`, params: [activeMembership.business_id] };
+// Which side of `order` the active business is on: "buyer", "wholesaler", or
+// null when it is not a party to the order. Always null for platform_admin:
+// admins hold no memberships (migration 027), so they never resolve a side.
+function orderSide(req, order) {
+  const businessId = resolveActiveBusinessId(req);
+  if (businessId === order.buyer_business_id) return "buyer";
+  if (businessId === order.wholesaler_business_id) return "wholesaler";
+  return null;
 }
 
 function readOrderStatus(query) {
@@ -255,32 +252,8 @@ async function fetchOrderPage(whereSql, params, pagination) {
   );
 }
 
-function isVisibleOrder(auth, order) {
-  if (isAdmin(auth)) return true;
-  return auth.memberships.some(
-    (membership) =>
-      (membership.role === "buyer" && membership.business_id === order.buyer_business_id) ||
-      (membership.role === "wholesaler" && membership.business_id === order.wholesaler_business_id),
-  );
-}
-
-function canBuyerCancel(auth, order) {
-  if (isAdmin(auth)) return false;
-  return auth.memberships.some(
-    (membership) =>
-      membership.role === "buyer" && membership.business_id === order.buyer_business_id,
-  );
-}
-
-function canWholesalerManage(auth, order) {
-  if (isAdmin(auth)) return false;
-  return auth.memberships.some(
-    (membership) =>
-      membership.role === "wholesaler" && membership.business_id === order.wholesaler_business_id,
-  );
-}
-
-function assertTransitionAllowed(auth, order, nextStatus) {
+// `side` is orderSide(req, order), computed once by the caller.
+function assertTransitionAllowed(req, order, side, nextStatus) {
   const allowed = {
     pending: ["accepted", "cancelled"],
     accepted: ["preparing"],
@@ -293,11 +266,12 @@ function assertTransitionAllowed(auth, order, nextStatus) {
 
   // Delivery outcomes are confirmed by parcel tracking (see
   // docs/API_CONTRACTS.md §3.6), never by the wholesaler.
-  // platform_admin keeps a manual override for stuck or legacy orders.
+  // platform_admin is never a seller: it may only force the delivery outcomes
+  // (logistics override for stuck parcels) or cancel (governance).
   const canUpdate =
-    isAdmin(auth) ||
-    (nextStatus === "cancelled" && order.status === "pending" && canBuyerCancel(auth, order)) ||
-    (canWholesalerManage(auth, order) &&
+    (isPlatformAdmin(req.auth.user) && ["delivered", "returned", "cancelled"].includes(nextStatus)) ||
+    (nextStatus === "cancelled" && order.status === "pending" && side === "buyer") ||
+    (side === "wholesaler" &&
       nextStatus !== "delivered" &&
       nextStatus !== "returned" &&
       nextStatus !== "cancelled");
@@ -365,12 +339,12 @@ export async function restoreOrderStock(client, orderId) {
   }
 }
 
-async function acceptOrder(client, orderId) {
+async function acceptOrder(client, orderId, actorId) {
   await client.query(
     `UPDATE orders
-        SET status = 'accepted', updated_at = CURRENT_TIMESTAMP
+        SET status = 'accepted', status_updated_by = $2, updated_at = CURRENT_TIMESTAMP
       WHERE order_id = $1`,
-    [orderId],
+    [orderId, actorId],
   );
   await createInvoiceForAcceptedOrder(client, orderId);
 }
@@ -378,10 +352,10 @@ async function acceptOrder(client, orderId) {
 router.get(
   "/orders",
   requireAuth,
-  requireAnyRole(["buyer", "wholesaler", "platform_admin"]),
+  requireAnyRole(MARKETPLACE_ROLES),
   async (req, res, next) => {
     try {
-      const visibility = orderVisibility(req);
+      const visibility = listScope(req);
       const pagination = parsePaginationQuery(req.query);
       const filters = { status: readOrderStatus(req.query), q: pagination.q };
       const scope = addOrderFilters(visibility, filters);
@@ -395,12 +369,12 @@ router.get(
 router.get(
   "/orders/:id",
   requireAuth,
-  requireAnyRole(["buyer", "wholesaler", "platform_admin"]),
+  requireAnyRole(MARKETPLACE_ROLES),
   async (req, res, next) => {
     try {
       const orderId = parsePositiveId(req.params.id, "Order");
       const order = await fetchOneOrder(orderId);
-      if (!order || !isVisibleOrder(req.auth, order)) {
+      if (!order || !orderSide(req, order)) {
         throw createHttpError(404, `Order ${req.params.id} not found`);
       }
       res.json(order);
@@ -413,12 +387,12 @@ router.get(
 router.post(
   "/orders",
   requireAuth,
-  requireAnyRole(["buyer", "wholesaler", "platform_admin"]),
+  requireAnyRole(MARKETPLACE_ROLES),
   async (req, res, next) => {
     const pool = getPool();
     const client = await pool.connect();
     try {
-      const { items, buyer_business_id: bodyBuyerBusinessId, tier_id: reqTierId } = req.body ?? {};
+      const { items, tier_id: reqTierId } = req.body ?? {};
       if (!Array.isArray(items) || items.length === 0) {
         throw createHttpError(400, "items must contain at least one product");
       }
@@ -439,15 +413,7 @@ router.post(
         return { productId, quantity };
       });
 
-      const buyerBusinessId = resolveSingleMembership(
-        req,
-        ["buyer", "wholesaler"],
-        bodyBuyerBusinessId,
-        "buyer or wholesaler",
-      );
-      if (isAdmin(req.auth)) {
-        await validateBusinessRole(buyerBusinessId, ["buyer", "wholesaler"]);
-      }
+      const buyerBusinessId = resolveSingleMembership(req, MARKETPLACE_ROLES, "buyer or wholesaler");
 
       // Sprint 13 pin gate: the buyer business must have a pinned canonical
       // logistics address before placing orders, so ship time never blocks on
@@ -498,8 +464,8 @@ router.post(
       await client.query("BEGIN");
       const orderResult = await client.query(
         `INSERT INTO orders
-           (buyer_business_id, wholesaler_business_id, tier_id, status, created_by)
-         VALUES ($1, $2, $3, 'pending', $4)
+           (buyer_business_id, wholesaler_business_id, tier_id, status, created_by, status_updated_by)
+         VALUES ($1, $2, $3, 'pending', $4, $4)
          RETURNING order_id`,
         [buyerBusinessId, wholesalerBusinessId, tierId, req.auth.user.user_id],
       );
@@ -539,7 +505,7 @@ router.post(
 router.patch(
   "/orders/:id/status",
   requireAuth,
-  requireAnyRole(["buyer", "wholesaler", "platform_admin"]),
+  requireAnyRole([...MARKETPLACE_ROLES, "platform_admin"]),
   async (req, res, next) => {
     const pool = getPool();
     const client = await pool.connect();
@@ -577,16 +543,17 @@ router.patch(
         throw createHttpError(404, `Order ${req.params.id} not found`);
       }
       const order = lock.rows[0];
-      assertTransitionAllowed(req.auth, order, status);
+      const side = orderSide(req, order);
+      assertTransitionAllowed(req, order, side, status);
 
       if (status === "accepted") {
-        await acceptOrder(client, orderId);
+        await acceptOrder(client, orderId, req.auth.user.user_id);
       } else {
         await client.query(
           `UPDATE orders
-              SET status = $1, updated_at = CURRENT_TIMESTAMP
+              SET status = $1, status_updated_by = $3, updated_at = CURRENT_TIMESTAMP
             WHERE order_id = $2`,
-          [status, orderId],
+          [status, orderId, req.auth.user.user_id],
         );
 
         if (status === "cancelled") {
@@ -664,9 +631,9 @@ router.patch(
 
           const branchId = await resolveInitialBranchId(client, origin.address_id);
           await client.query(
-            `INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id)
-             VALUES ($1, 'Order Created', 'System-generated from marketplace order', $2)`,
-            [parcelId, branchId]
+            `INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id, recorded_by)
+             VALUES ($1, 'Order Created', 'System-generated from marketplace order', $2, $3)`,
+            [parcelId, branchId, req.auth.user.user_id]
           );
           await createInitialRouteSnapshot(client, parcelId, branchId);
         }
@@ -693,9 +660,7 @@ router.patch(
           shipped: [order.buyer_business_id, "Order Shipped", "info"],
           delivered: [order.buyer_business_id, "Order Delivered", "success"],
           cancelled: [
-            canBuyerCancel(req.auth, order)
-              ? order.wholesaler_business_id
-              : order.buyer_business_id,
+            side === "buyer" ? order.wholesaler_business_id : order.buyer_business_id,
             "Order Cancelled",
             "warning",
           ],
@@ -713,8 +678,12 @@ router.patch(
       }
 
       await client.query("COMMIT");
-      const updated = await fetchOneOrder(orderId);
-      res.json(updated);
+      // The admin override never reveals the order's contents.
+      if (isPlatformAdmin(req.auth.user)) {
+        res.json({ order_id: orderId, status });
+        return;
+      }
+      res.json(await fetchOneOrder(orderId));
     } catch (error) {
       await client.query("ROLLBACK").catch(() => {});
       next(asClientError(error));
@@ -805,38 +774,6 @@ async function fetchInvoices(whereSql, params) {
   return rows.map((row) => invoiceFromRow(row, itemsByOrder.get(row.order_id) ?? []));
 }
 
-function invoiceVisibility(req) {
-  if (isAdmin(req.auth)) {
-    return { where: "", params: [] };
-  }
-
-  const activeMembership = getActiveMembership(req, ["buyer", "wholesaler"]);
-  const column = activeMembership.role === "buyer"
-    ? "o.buyer_business_id"
-    : "o.wholesaler_business_id";
-  return { where: `WHERE ${column} = $1`, params: [activeMembership.business_id] };
-}
-
-// Details keep their prior membership-based access behavior. Pagination lists
-// deliberately narrow to the active business before applying their filters.
-function invoiceDetailVisibility(auth) {
-  if (isAdmin(auth)) return { where: "", params: [] };
-
-  const clauses = [];
-  const params = [];
-  for (const membership of auth.memberships) {
-    if (!['buyer', 'wholesaler'].includes(membership.role)) continue;
-    params.push(membership.business_id);
-    const column = membership.role === "buyer"
-      ? "o.buyer_business_id"
-      : "o.wholesaler_business_id";
-    clauses.push(`${column} = $${params.length}`);
-  }
-  return clauses.length
-    ? { where: `WHERE ${clauses.join(" OR ")}`, params }
-    : { where: "WHERE FALSE", params: [] };
-}
-
 function addInvoiceFilters(visibility, { status, q }) {
   let scope = visibility;
   if (status) {
@@ -883,10 +820,10 @@ async function fetchInvoicePage(whereSql, params, pagination) {
 router.get(
   "/invoices",
   requireAuth,
-  requireAnyRole(["buyer", "wholesaler", "platform_admin"]),
+  requireAnyRole(MARKETPLACE_ROLES),
   async (req, res, next) => {
     try {
-      const visibility = invoiceVisibility(req);
+      const visibility = listScope(req);
       const pagination = parsePaginationQuery(req.query);
       const filters = { status: readOrderStatus(req.query), q: pagination.q };
       const scope = addInvoiceFilters(visibility, filters);
@@ -900,16 +837,12 @@ router.get(
 router.get(
   "/invoices/:id",
   requireAuth,
-  requireAnyRole(["buyer", "wholesaler", "platform_admin"]),
+  requireAnyRole(MARKETPLACE_ROLES),
   async (req, res, next) => {
     try {
       const invoiceId = parsePositiveId(req.params.id, "Invoice");
-      const visibility = invoiceDetailVisibility(req.auth);
-      const prefix = visibility.where ? `${visibility.where} AND` : "WHERE";
-      const invoices = await fetchInvoices(
-        `${prefix} i.invoice_id = $${visibility.params.length + 1}`,
-        [...visibility.params, invoiceId],
-      );
+      const scope = appendFilter(listScope(req), (index) => `i.invoice_id = $${index}`, invoiceId);
+      const invoices = await fetchInvoices(scope.where, scope.params);
       if (!invoices.length) {
         throw createHttpError(404, `Invoice ${req.params.id} not found`);
       }
