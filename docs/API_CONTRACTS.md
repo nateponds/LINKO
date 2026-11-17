@@ -204,12 +204,68 @@ For example, `GET /api/categories/options` returns
 
 ---
 
-## 1. Inventory Domain - removed
+## 1. Inventory Domain
 
 The warehouse-level inventory subsystem (`/api/inventory`, `inventory_items`,
 `inventory_transactions`) was phased out in migration `019`. The app never
 adopted it: stock is tracked as `products.stock_quantity` and edited through
 `/api/products` (§2b). See that section for the shipped stock CRUD.
+
+### 1.1 Inventory batch expiry tracking
+
+Migration `026` adds `inventory_batches` for expiry metadata. Expiry is stored
+per batch rather than on `products`, because separate deliveries of one SKU can
+expire on different dates. These records do not duplicate quantity:
+`products.stock_quantity` remains the authoritative aggregate stock value.
+
+All endpoints require a wholesaler membership or `platform_admin`. Wholesalers
+can access only batches belonging to products owned by their active business;
+multi-business users select it with `X-Active-Business`. Administrators can use
+the optional `business_id` list filter.
+
+**Batch JSON shape:**
+
+```json
+{
+  "batch_id": 7,
+  "product_id": 3,
+  "business_id": 2,
+  "business_name": "Cebu Fresh Wholesale",
+  "product_name": "Fresh Milk 1L",
+  "sku": "MILK-1L",
+  "batch_number": "LOT-2026-11-A",
+  "manufactured_on": "2026-11-01",
+  "received_on": "2026-11-05",
+  "expires_on": "2026-11-20",
+  "depleted_at": null,
+  "notes": "Keep refrigerated",
+  "days_until_expiry": 10,
+  "expiry_status": "expiring_soon",
+  "created_at": "...",
+  "updated_at": "..."
+}
+```
+
+`expiry_status` is derived at read time: `depleted` when the batch has been
+marked depleted, `expired` before today, `expiring_soon` from today through the
+warning window, and `fresh` after it. The warning window defaults to 30 days.
+
+- `GET /api/inventory-batches` — paginated list. Optional filters: `q`,
+  `product_id`, `business_id` (admin), `status`, and `days` (0–3650).
+- `POST /api/inventory-batches` — requires `product_id`, `batch_number`, and
+  `expires_on`; optionally accepts `manufactured_on`, `received_on`, and `notes`.
+- `PATCH /api/inventory-batches/:id` — updates batch metadata or accepts
+  `depleted: true|false`. `product_id` is immutable.
+- `DELETE /api/inventory-batches/:id` — removes an incorrectly entered record.
+
+Dates use `YYYY-MM-DD`. `batch_number` must be unique within a product, and
+`manufactured_on` cannot be after `expires_on`.
+List responses use the standard `items` / `pagination` envelope and include
+`expiry_window_days`. Dates and status use the database calendar date. Expiry
+checks are advisory; depletion and batch edits do not change product quantities
+or automatically allocate or block orders. Existing stock has no inferred
+expiry date until a batch is recorded. Soft-deleted products retain batch
+records for review; permanently deleting a product cascades to its batches.
 
 ---
 

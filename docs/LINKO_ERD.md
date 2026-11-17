@@ -1,6 +1,6 @@
 # LINKO - Entity Relationship Diagram
 
-This diagram covers the 21 application tables in `backend/schema.sql`. The technical
+This diagram covers the 22 application tables in `backend/schema.sql`. The technical
 `schema_migrations` bookkeeping table is intentionally omitted.
 
 ```mermaid
@@ -19,6 +19,7 @@ erDiagram
     addresses            ||--o{ warehouses            : "located at"
     businesses           ||--o{ products              : "sells"
     categories           |o--o{ products              : "classifies"
+    products             ||--o{ inventory_batches     : "tracked in batches"
     businesses           ||--o| supplier_profiles     : "profile"
 
     %% ===== Logistics core (CIS 2104 graded) =====
@@ -136,6 +137,19 @@ erDiagram
         text      image_url
         int       stock_quantity
         boolean   is_active
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    inventory_batches {
+        int       batch_id        PK
+        int       product_id      FK
+        varchar   batch_number
+        date      manufactured_on
+        date      received_on
+        date      expires_on
+        timestamp depleted_at
+        text      notes
         timestamp created_at
         timestamp updated_at
     }

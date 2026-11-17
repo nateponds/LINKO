@@ -76,6 +76,24 @@ Marketplace catalog and inventory items.
 - `is_active` (BOOLEAN, default TRUE - used for soft deletes)
 - `created_at` (TIMESTAMP)
 
+### `inventory_batches`
+Batch-level expiry metadata for products. A product may have many batches with
+different expiry dates. Batch records intentionally do not carry another stock
+total; `products.stock_quantity` remains authoritative.
+- `batch_id` (SERIAL PRIMARY KEY)
+- `product_id` (INT FK -> products, ON DELETE CASCADE)
+- `batch_number` (VARCHAR 100, unique per product)
+- `manufactured_on` (DATE, nullable; must not be after `expires_on`)
+- `received_on` (DATE, default CURRENT_DATE)
+- `expires_on` (DATE)
+- `depleted_at` (TIMESTAMP, nullable; non-null means the batch is no longer on hand)
+- `notes` (TEXT, nullable)
+- `created_at` (TIMESTAMP)
+- `updated_at` (TIMESTAMP)
+
+Active expiry scans use a partial index on `expires_on` where `depleted_at` is
+null. Product-specific batch reads use `(product_id, expires_on, batch_id)`.
+
 ### `warehouses`
 Physical storage locations for inventory.
 - `warehouse_id` (SERIAL PRIMARY KEY)
