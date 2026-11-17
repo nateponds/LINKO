@@ -158,6 +158,8 @@ Parcel results add:
 "facets": { "assignment_counts": { "available": 4, "active": 7, "completed": 12 } }
 ```
 
+`courier_id` must be between 1 and 2147483647, matching the database ID column.
+
 Assignment counts are calculated after visibility and the base filters
 (`q`, `status`, `courier_id`, and `aging`), but before the selected
 `assignment`. Selecting `assignment=available` therefore retains all three

@@ -84,8 +84,8 @@ export function parseParcelListQuery(query) {
   let courierId;
   if (courierIdValue !== undefined) {
     courierId = Number(courierIdValue);
-    if (!/^[1-9]\d*$/.test(courierIdValue) || !Number.isSafeInteger(courierId)) {
-      throw clientError("courier_id must be a positive integer");
+    if (!/^[1-9]\d*$/.test(courierIdValue) || !Number.isSafeInteger(courierId) || courierId > 2147483647) {
+      throw clientError("courier_id must be a positive 32-bit integer");
     }
   }
   if (agingValue !== undefined && agingValue !== "true" && agingValue !== "false") {
