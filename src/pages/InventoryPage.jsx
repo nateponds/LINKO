@@ -13,6 +13,7 @@ import { apiPath, normalizePage, shouldClampPage } from "../features/suppliers/m
 import { TableSkeleton } from "../components/ui/pageSkeletons";
 import ExpandableTableRow from "../components/ui/ExpandableTableRow";
 import InventoryExpiry from "../features/inventory/InventoryExpiry";
+import { createProductWithBatch } from "../features/inventory/createProductWithBatch";
 import "./InventoryPage.css";
 
 const EMPTY_FORM = {
@@ -24,6 +25,7 @@ const EMPTY_FORM = {
   image_url: "",
   description: "",
 };
+const EMPTY_BATCH = { batch_number: "", manufactured_on: "", received_on: "", expires_on: "", notes: "" };
 const EMPTY_FILTERS = { category: "", priceMin: "", priceMax: "", stock: "" };
 
 function statusFor(status) {
@@ -65,6 +67,10 @@ export default function InventoryPage() {
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [formError, setFormError] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [includeBatch, setIncludeBatch] = useState(false);
+  const [batch, setBatch] = useState(EMPTY_BATCH);
+  const [createdProductId, setCreatedProductId] = useState(null);
+  const createdProductRef = useRef(null);
 
   const [stockPopover, setStockPopover] = useState(null);
   const [stockError, setStockError] = useState(null);
@@ -193,12 +199,18 @@ export default function InventoryPage() {
   /* ===== add/edit item modal ===== */
   function openAddModal() {
     setEditingId(null);
+    createdProductRef.current = null;
+    setCreatedProductId(null);
+    setIncludeBatch(false);
+    setBatch(EMPTY_BATCH);
     setFormData(EMPTY_FORM);
     setFormError(null);
     setModalOpen(true);
   }
 
   function openEditModal(item) {
+    createdProductRef.current = null;
+    setCreatedProductId(null);
     setEditingId(item.product_id);
     setFormData({
       sku: item.sku ?? "",
@@ -223,6 +235,7 @@ export default function InventoryPage() {
   });
 
   function closeModal() {
+    if (saving) return;
     setModalOpen(false);
   }
 
@@ -232,6 +245,7 @@ export default function InventoryPage() {
 
   async function handleFormSubmit(e) {
     e.preventDefault();
+    if (saving) return;
     setFormError(null);
     setSaving(true);
 
@@ -252,12 +266,17 @@ export default function InventoryPage() {
       if (editingId) {
         await apiSend(`/api/products/${editingId}`, { method: "PATCH", body });
       } else {
-        await apiSend("/api/products", { method: "POST", body });
+        await createProductWithBatch(apiSend, body, includeBatch ? batch : null, createdProductRef.current, (id) => {
+          createdProductRef.current = id;
+          setCreatedProductId(id);
+          void Promise.all([loadProducts(), loadLowStock()]);
+        });
+        if (includeBatch) setExpiryRevision((value) => value + 1);
       }
-      closeModal();
+      setModalOpen(false);
       await Promise.all([loadProducts(), loadLowStock()]);
     } catch (err) {
-      setFormError(err.message);
+      setFormError(createdProductRef.current ? `Product saved, but the expiry batch could not be confirmed: ${err.message} You can retry the batch or close and add it from Expiry batches.` : err.message);
     } finally {
       setSaving(false);
     }
@@ -650,6 +669,7 @@ export default function InventoryPage() {
             </button>
             <h2 id="product-dialog-title">{editingId ? "Edit product" : "Add product"}</h2>
             <form onSubmit={handleFormSubmit}>
+              <fieldset disabled={saving || !!createdProductId} className="product-fields">
               <label>
                 SKU (optional)
                 <input
@@ -732,15 +752,28 @@ export default function InventoryPage() {
                 />
               </label>
 
-              {formError && <p className="grid-empty">{formError}</p>}
+              </fieldset>
+              {!editingId && <div className="initial-expiry">
+                <label className="initial-expiry-toggle"><input type="checkbox" checked={includeBatch} disabled={saving || !!createdProductId} onChange={(e) => setIncludeBatch(e.target.checked)} /> Add expiry details (optional)</label>
+                {includeBatch && <fieldset disabled={saving} className="product-fields">
+                  <p>Expiry batches do not change the product stock quantity.</p>
+                  <label>Batch / lot number<input required maxLength={100} value={batch.batch_number} onChange={(e) => setBatch({ ...batch, batch_number: e.target.value })} /></label>
+                  <label>Manufactured on (optional)<input type="date" max={batch.expires_on || undefined} value={batch.manufactured_on} onChange={(e) => setBatch({ ...batch, manufactured_on: e.target.value })} /></label>
+                  <label>Received on (defaults to today)<input type="date" value={batch.received_on} onChange={(e) => setBatch({ ...batch, received_on: e.target.value })} /></label>
+                  <label>Expires on<input type="date" required min={batch.manufactured_on || undefined} value={batch.expires_on} onChange={(e) => setBatch({ ...batch, expires_on: e.target.value })} /></label>
+                  <label>Notes (optional)<textarea maxLength={1000} value={batch.notes} onChange={(e) => setBatch({ ...batch, notes: e.target.value })} /></label>
+                </fieldset>}
+              </div>}
+              {formError && <p className="grid-empty" role="alert">{formError}</p>}
 
               <div className="modal-actions">
                 <button
                   type="button"
                   className="btn-secondary"
                   onClick={closeModal}
+                  disabled={saving}
                 >
-                  Cancel
+                  {createdProductId ? "Close" : "Cancel"}
                 </button>
                 <button type="submit" className="btn-primary" disabled={saving}>
                   {saving ? "Saving…" : "Save Item"}
