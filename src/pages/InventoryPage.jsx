@@ -11,6 +11,7 @@ import { readListUrlState, updateListUrlState } from "../lib/pagination";
 import { apiPath, normalizePage, shouldClampPage } from "../features/suppliers/marketplacePagination";
 import { TableSkeleton } from "../components/ui/pageSkeletons";
 import ExpandableTableRow from "../components/ui/ExpandableTableRow";
+import InventoryExpiry from "../features/inventory/InventoryExpiry";
 import "./InventoryPage.css";
 
 const EMPTY_FORM = {
@@ -71,6 +72,8 @@ export default function InventoryPage() {
   const [lowStockTotal, setLowStockTotal] = useState(0);
   const [showAllLowStock, setShowAllLowStock] = useState(false);
   const [confirm, setConfirm] = useState(null);
+  const [expiryProduct, setExpiryProduct] = useState(null);
+  const [expiryRevision, setExpiryRevision] = useState(0);
 
   const filterWrapRef = useRef(null);
 
@@ -599,6 +602,7 @@ export default function InventoryPage() {
                           {canManage && (
                             <div className="row-panel-actions">
                               <button type="button" className="link-button" onClick={() => openEditModal(item)}>Edit product</button>
+                              <button type="button" className="link-button" onClick={() => setExpiryProduct({ ...item, contextBusinessId: activeBusinessId })}>Expiry batches</button>
                               <button type="button" className="link-button inventory-delete" onClick={() => requestDelete(item)}>Delete product</button>
                             </div>
                           )}
@@ -612,6 +616,9 @@ export default function InventoryPage() {
           </div>
           <PaginationControls pagination={pagination} disabled={fetching} onPageChange={(nextPage) => setSearchParams(updateListUrlState(searchParams, { page: nextPage }))} onLimitChange={(nextLimit) => setSearchParams(updateListUrlState(searchParams, { limit: nextLimit }))} ariaLabel="Inventory pagination" />
         </section>
+
+        <InventoryExpiry key={`expiry-${activeBusinessId}`} businessId={isAdmin ? undefined : ownBusinessId} revision={expiryRevision} />
+        {expiryProduct && expiryProduct.contextBusinessId === activeBusinessId && <InventoryExpiry key={`${activeBusinessId}-${expiryProduct.product_id}`} product={expiryProduct} businessId={isAdmin ? undefined : ownBusinessId} onClose={() => setExpiryProduct(null)} onChanged={() => setExpiryRevision((value) => value + 1)} />}
 
         {/* ===== Add/Edit item modal ===== */}
         <div className={`modal-overlay${modalOpen ? " open" : ""}`}>

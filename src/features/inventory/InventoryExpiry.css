@@ -1,0 +1,20 @@
+.inventory-expiry { margin-block: 24px; padding: 20px; border: 1px solid #e2e8e5; border-radius: 12px; background: #fff; }
+.inventory-expiry h2, .inventory-expiry h3 { margin: 0 0 12px; }
+.inventory-expiry p { margin: 8px 0; overflow-wrap: anywhere; }
+.expiry-heading, .expiry-actions, .expiry-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.expiry-heading { justify-content: space-between; }
+.expiry-filters { margin-block: 16px; }
+.inventory-expiry label { display: grid; gap: 6px; font-size: 14px; }
+.inventory-expiry input, .inventory-expiry select, .inventory-expiry textarea { min-width: 0; max-width: 100%; padding: 9px; border: 1px solid #cbd5d0; border-radius: 6px; font: inherit; }
+.expiry-list { padding: 0; list-style: none; }
+.expiry-list li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding-block: 12px; border-bottom: 1px solid #e2e8e5; }
+.expiry-list li > div { min-width: 0; overflow-wrap: anywhere; }
+.expiry-expired { color: #a61b1b; font-weight: 600; }
+.expiry-expiring_soon { color: #865600; font-weight: 600; }
+.expiry-fresh { color: #216744; }
+.expiry-depleted { color: #64716a; }
+.expiry-backdrop { position: fixed; inset: 0; z-index: 1100; background: #0007; display: grid; place-items: center; padding: 16px; }
+.expiry-dialog { width: min(760px, 100%); max-height: 90dvh; overflow-y: auto; background: white; border-radius: 12px; }
+.expiry-dialog .inventory-expiry { margin: 0; }
+.expiry-form { margin-top: 24px; }
+.expiry-form fieldset { border: 0; padding: 0; display: grid; gap: 14px; min-width: 0; }
