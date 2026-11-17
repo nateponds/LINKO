@@ -181,10 +181,12 @@ Core features:
 - **Core Focus**: Aim for a balanced approach between Inventory Management and Wholesaler Discovery.
 - **Target Market**: Launch a pilot in the Philippines (Cebu/Visayas region).
 - **Logistics**: Use natively managed tracking via the built-in logistics schema (no 3rd-party integration yet).
-- **Verification**: Utilize a manual admin verification process for wholesalers (`verification_status`).
+- **Verification**: Utilize a manual admin verification process for wholesalers (`businesses.is_verified`).
 - **Location Rules**: Distance will be measured in Kilometers (km), starting with a 50km default radius. Initial matching will use City/Municipality string matching.
 
 ## Current Status
 
 Status: Backend Foundation is fully built and deployed.
 Next recommended milestone: Complete the Basic Frontend & API Integration (Phase 4).
+
+Account type is chosen at registration; supplier upgrade/application is not offered.

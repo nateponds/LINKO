@@ -5,7 +5,7 @@ import createApp from "./app.js";
 import { createPool } from "./db.js";
 
 // Sprint 13 T10: business location settings - active-business scoping,
-// create-or-update with placeholder repair, shared coordinate validation,
+// create-or-update of the logistics pin, shared coordinate validation,
 // and the has_coordinates membership flag.
 // DB-backed tests skip without DATABASE_URL, same as app.test.js.
 const hasDb = Boolean(process.env.DATABASE_URL);
@@ -113,17 +113,26 @@ test("location settings are scoped to an active buyer/wholesaler business", { sk
   assert.equal(scoped.body.business_type, "buyer");
 });
 
-test("GET returns the registration placeholder and PUT repairs it in place", { skip: !hasDb }, async () => {
+test("GET is empty after registration; the first PUT creates the pin and later PUTs update it in place", { skip: !hasDb }, async () => {
   const { cookie, businessId } = await registerBusiness("wholesaler");
 
   const before = await request("/api/settings/location", { cookie });
   assert.equal(before.status, 200);
   assert.equal(before.body.business_type, "wholesaler");
-  assert.equal(before.body.province, "Not provided");
+  assert.equal(before.body.address_id, null, "registration creates no address");
+  assert.equal(before.body.province, null);
   assert.equal(before.body.has_coordinates, false);
   assert.equal(before.body.latitude, null);
-  const placeholderId = before.body.address_id;
-  assert.ok(placeholderId, "registration created a placeholder pointer");
+
+  const created = await request("/api/settings/location", { method: "PUT", cookie, body: { ...VALID_BODY, province: "Bohol" } });
+  assert.equal(created.status, 200);
+  const savedId = created.body.address_id;
+  assert.ok(savedId, "first save created the address");
+
+  const book = await request("/api/settings/addresses", { cookie });
+  assert.equal(book.body.addresses.length, 1);
+  assert.equal(book.body.addresses[0].address_id, savedId);
+  assert.equal(book.body.addresses[0].is_default, true, "first saved address is the default");
 
   // numeric strings must normalize to JSON numbers
   const saved = await request("/api/settings/location", {
@@ -132,7 +141,7 @@ test("GET returns the registration placeholder and PUT repairs it in place", { s
     body: { ...VALID_BODY, latitude: "10.3444", longitude: "123.9137" },
   });
   assert.equal(saved.status, 200);
-  assert.equal(saved.body.address_id, placeholderId, "placeholder repaired, not replaced");
+  assert.equal(saved.body.address_id, savedId, "existing pin updated, not replaced");
   assert.equal(saved.body.latitude, 10.3444);
   assert.equal(saved.body.longitude, 123.9137);
   assert.equal(saved.body.has_coordinates, true);
@@ -147,7 +156,7 @@ test("GET returns the registration placeholder and PUT repairs it in place", { s
       "SELECT logistics_address_id FROM businesses WHERE business_id = $1",
       [businessId],
     );
-    assert.equal(rows[0].logistics_address_id, placeholderId, "pointer unchanged");
+    assert.equal(rows[0].logistics_address_id, savedId, "pointer unchanged");
   });
 });
 
@@ -205,7 +214,7 @@ test("validation rejects bad text and coordinate input, persisting nothing", { s
   assert.match(emptyStrings.body.error.message, /finite/);
 
   const untouched = await request("/api/settings/location", { cookie });
-  assert.equal(untouched.body.province, "Not provided", "failed PUTs persisted nothing");
+  assert.equal(untouched.body.address_id, null, "failed PUTs persisted nothing");
   assert.equal(untouched.body.has_coordinates, false);
 });
 

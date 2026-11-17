@@ -76,10 +76,7 @@ test("address book requires an active buyer or wholesaler", { skip: !hasDb }, as
   assert.equal(listed.status, 200);
   assert.equal(listed.body.business_id, buyer.businessId);
   assert.equal(listed.body.address_book_kind, "delivery");
-  assert.equal(listed.body.addresses.length, 1);
-  assert.equal(listed.body.addresses[0].is_default, true);
-  assert.equal(listed.body.addresses[0].label, "Primary");
-  assert.equal(listed.body.addresses[0].has_coordinates, false);
+  assert.deepEqual(listed.body.addresses, [], "a new business has an empty address book");
 
   const wholesaler = await registerBusiness("wholesaler");
   const wholesaleBook = await request("/api/settings/addresses", { cookie: wholesaler.cookie });
@@ -89,7 +86,17 @@ test("address book requires an active buyer or wholesaler", { skip: !hasDb }, as
 test("create, set default, and delete follow the single-default rules", { skip: !hasDb }, async () => {
   const { cookie, businessId } = await registerBusiness("buyer");
   const before = await request("/api/settings/addresses", { cookie });
-  const placeholderId = before.body.addresses[0].address_id;
+  assert.deepEqual(before.body.addresses, []);
+
+  // The first saved address becomes the default and the logistics pin.
+  const first = await request("/api/settings/addresses", {
+    method: "POST",
+    cookie,
+    body: { ...SECOND, label: "Main store" },
+  });
+  assert.equal(first.status, 201);
+  assert.equal(first.body.is_default, true);
+  const firstId = first.body.address_id;
 
   const created = await request("/api/settings/addresses", {
     method: "POST",
@@ -104,7 +111,7 @@ test("create, set default, and delete follow the single-default rules", { skip: 
 
   const listed = await request("/api/settings/addresses", { cookie });
   assert.equal(listed.body.addresses.length, 2);
-  assert.equal(listed.body.addresses[0].address_id, placeholderId);
+  assert.equal(listed.body.addresses[0].address_id, firstId);
   assert.equal(listed.body.addresses[0].is_default, true);
 
   await withPool(async (pool) => {
@@ -112,10 +119,10 @@ test("create, set default, and delete follow the single-default rules", { skip: 
       "SELECT logistics_address_id FROM businesses WHERE business_id = $1",
       [businessId],
     );
-    assert.equal(rows[0].logistics_address_id, placeholderId, "pin stays on the original default");
+    assert.equal(rows[0].logistics_address_id, firstId, "pin stays on the original default");
   });
 
-  const blockedDefault = await request(`/api/settings/addresses/${placeholderId}`, {
+  const blockedDefault = await request(`/api/settings/addresses/${firstId}`, {
     method: "DELETE",
     cookie,
   });
@@ -150,7 +157,7 @@ test("create, set default, and delete follow the single-default rules", { skip: 
   assert.equal(blockedLastStyle.status, 409);
   assert.match(blockedLastStyle.body.error.message, /default/);
 
-  const removed = await request(`/api/settings/addresses/${placeholderId}`, {
+  const removed = await request(`/api/settings/addresses/${firstId}`, {
     method: "DELETE",
     cookie,
   });
@@ -169,6 +176,13 @@ test("create, set default, and delete follow the single-default rules", { skip: 
 test("addresses stay inside the active business and reject bad coordinates", { skip: !hasDb }, async () => {
   const owner = await registerBusiness("wholesaler");
   const other = await registerBusiness("buyer");
+  // First address takes the default, so "Dock" below is a plain extra one.
+  const main = await request("/api/settings/addresses", {
+    method: "POST",
+    cookie: owner.cookie,
+    body: { ...SECOND, label: "Main" },
+  });
+  assert.equal(main.status, 201);
   const created = await request("/api/settings/addresses", {
     method: "POST",
     cookie: owner.cookie,

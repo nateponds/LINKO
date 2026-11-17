@@ -80,8 +80,8 @@ async function createNullBranchCourier(pool) {
   const passwordHash = await hashPassword(password);
   const userId = (
     await pool.query(
-      `INSERT INTO users (username, email, full_name, password_hash, role)
-       VALUES ($1, $2, 'Null Branch Courier', $3, 'staff')
+      `INSERT INTO users (username, email, full_name, password_hash)
+       VALUES ($1, $2, 'Null Branch Courier', $3)
        RETURNING user_id`,
       [`nullbranch_${stamp}`, email, passwordHash],
     )
@@ -519,8 +519,8 @@ test("multi-business caller with no X-Active-Business gets 400 on /parcels", { s
     const passwordHash = await hashPassword(password);
     userId = (
       await pool.query(
-        `INSERT INTO users (username, email, full_name, password_hash, role)
-         VALUES ($1, $2, 'Multi Business User', $3, 'staff') RETURNING user_id`,
+        `INSERT INTO users (username, email, full_name, password_hash)
+         VALUES ($1, $2, 'Multi Business User', $3) RETURNING user_id`,
         [`multibiz_${stamp}`, email, passwordHash],
       )
     ).rows[0].user_id;

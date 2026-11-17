@@ -61,7 +61,6 @@ erDiagram
         text      password_hash
         varchar   email          UK
         varchar   full_name
-        varchar   role
         varchar   global_role
         boolean   is_active
         timestamp created_at
@@ -139,6 +138,9 @@ erDiagram
         boolean   is_active
         timestamp created_at
         timestamp updated_at
+        int       removed_by      FK
+        text      removal_reason
+        timestamp removed_at
     }
 
     inventory_batches {
@@ -160,7 +162,6 @@ erDiagram
         int       lead_time_days
         text      delivery_terms
         decimal   trust_rating
-        varchar   verification_status
         timestamp created_at
     }
 
@@ -201,6 +202,7 @@ erDiagram
         int       created_by             FK
         timestamp created_at
         timestamp updated_at
+        int       status_updated_by FK
     }
 
     order_items {
@@ -254,6 +256,7 @@ erDiagram
         varchar   status_update
         text      remarks
         timestamp scanned_at
+        int       recorded_by     FK
     }
 
     parcel_route_stops {
@@ -282,3 +285,5 @@ erDiagram
         timestamp created_at
     }
 ```
+
+Migration 029 actor fields (`tracking_logs.recorded_by`, `orders.status_updated_by`, `products.removed_by`) are nullable user FKs with `ON DELETE SET NULL`. `products.removal_reason` and `products.removed_at` are nullable. A non-null `removed_at` means currently taken down; relisting clears only that timestamp and preserves the prior strike. Supplier verification uses `businesses.is_verified`.

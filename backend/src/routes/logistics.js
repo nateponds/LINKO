@@ -2,7 +2,7 @@ import { Router } from "express";
 import { query, getPool, nextParcelId } from "../db.js";
 import { requireAnyRole, requireAuth } from "../middleware/auth.js";
 import {
-  getActiveMembership,
+  activeMemberships,
   isPlatformAdmin,
   resolveActiveBusinessId,
 } from "../middleware/ownership.js";
@@ -482,6 +482,13 @@ router.get("/parcels", async (req, res) => {
      LIMIT $${limitParam} OFFSET $${offsetParam}`, params);
 
   const counts = countRows[0];
+  // Same rule as the detail view: only the sender/receiver see the fee.
+  const listPartyIds = [...(scope.businessIds ?? []), ...(scope.receiverOnlyIds ?? [])];
+  for (const row of rows) {
+    if (!listPartyIds.includes(row.sender.business_id) && !listPartyIds.includes(row.receiver.business_id)) {
+      delete row.shipping_fee;
+    }
+  }
   res.json({
     ...buildPaginatedResponse(rows, filters, counts.total_items),
     facets: {
@@ -637,6 +644,22 @@ router.get("/parcels/:id", async (req, res) => {
     }
   }
 
+  // Confidentiality: the declared value hints at the parcel's contents, so only
+  // the sender or receiver business sees it. Coordinators, couriers, and admins
+  // keep everything delivery needs (weight, addresses, route, payment).
+  const partyIds = [...(scope.businessIds ?? []), ...(scope.receiverOnlyIds ?? [])];
+  if (!partyIds.includes(parcel.sender_id) && !partyIds.includes(parcel.receiver_id)) {
+    delete parcel.declared_value;
+    // Operators only need the cash to collect, not how it breaks down
+    // (goods + shipping would give the declared value back).
+    delete parcel.shipping_fee;
+    const pay = parcel.payment;
+    parcel.payment = {
+      payment_status: pay?.payment_status ?? null,
+      amount_to_collect: pay?.method === "COD" ? pay.amount : 0,
+    };
+  }
+
   // Strip the internal-only fields used for the ownership check.
   delete parcel.sender_id;
   delete parcel.receiver_id;
@@ -703,19 +726,16 @@ router.post(
   }
 
   // Sender must be derived from the caller's own business, never trusted from
-  // the body. A wholesaler can only send parcels as one of their businesses:
-  // resolve the active wholesaler membership and reject any body sender_id that
-  // does not match it. Logistics coordinators and platform admins operate the
-  // whole network, so they may book on behalf of any sender business.
+  // the body. When the ACTIVE business is a wholesaler, it is the only sender
+  // allowed: reject any body sender_id that does not match it. Logistics
+  // coordinators (active) and platform admins operate the whole network, so
+  // they may book on behalf of any sender business.
   let effectiveSenderId = sender_id;
-  const isWholesaler = req.auth.memberships.some((m) => m.role === "wholesaler");
-  if (!isPlatformAdmin(req.auth.user) && isWholesaler) {
-    let ownBusinessId;
-    try {
-      ownBusinessId = getActiveMembership(req, ["wholesaler"]).business_id;
-    } catch (error) {
-      return next(error);
-    }
+  const activeWholesaler = isPlatformAdmin(req.auth.user)
+    ? undefined
+    : activeMemberships(req).find((m) => m.role === "wholesaler");
+  if (activeWholesaler) {
+    const ownBusinessId = activeWholesaler.business_id;
     if (Number(sender_id) !== ownBusinessId) {
       return res.status(403).json({
         error: { message: "sender_id must be your own business" },
@@ -811,9 +831,9 @@ router.post(
     const originBranchId = await resolveInitialBranchId(client, origin_address_id);
 
     await client.query(
-      `INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id)
-       VALUES ($1, 'Order Created', 'Booking confirmed', $2)`,
-      [parcelId, originBranchId],
+      `INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id, recorded_by)
+       VALUES ($1, 'Order Created', 'Booking confirmed', $2, $3)`,
+      [parcelId, originBranchId, req.auth.user.user_id],
     );
 
     await createInitialRouteSnapshot(client, parcelId, originBranchId);
@@ -1005,7 +1025,7 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
   let effectiveBranchId = branch_id || null;
   const isPrivileged =
     isPlatformAdmin(req.auth.user) ||
-    req.auth.memberships.some((m) => m.role === "logistics_coordinator");
+    activeMemberships(req).some((m) => m.role === "logistics_coordinator");
   if (!isPrivileged) {
     const { rows } = await query(
       "SELECT courier_id, assigned_branch_id FROM couriers WHERE user_id = $1 AND is_active",
@@ -1228,10 +1248,10 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
     // suggested_courier_id on the parcel detail is not applied here: an
     // explicit courier_id is kept, and an omitted one stays null.
     const { rows } = await client.query(
-      `INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id, courier_id)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO tracking_logs (parcel_id, status_update, remarks, branch_id, courier_id, recorded_by)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [parcelId, status_update, effectiveRemarks, effectiveBranchId, effectiveCourierId]
+      [parcelId, status_update, effectiveRemarks, effectiveBranchId, effectiveCourierId, req.auth.user.user_id]
     );
 
     // Late routing (Sprint 13 §8.3): a parcel created branchless (resolver
@@ -1276,13 +1296,13 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
     if (status_update === "Delivered") {
       const { rows: orderRows } = await client.query(
         `UPDATE orders o
-            SET status = 'delivered', updated_at = CURRENT_TIMESTAMP
+            SET status = 'delivered', status_updated_by = $2, updated_at = CURRENT_TIMESTAMP
            FROM parcels p
           WHERE p.parcel_id = $1
             AND o.order_id = p.order_id
             AND o.status = 'shipped'
         RETURNING o.order_id, o.buyer_business_id`,
-        [parcelId],
+        [parcelId, req.auth.user.user_id],
       );
       if (orderRows.length) {
         await notifyBusiness(
@@ -1343,13 +1363,13 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
     if (status_update === "Returned") {
       const { rows: orderRows } = await client.query(
         `UPDATE orders o
-            SET status = 'returned', updated_at = CURRENT_TIMESTAMP
+            SET status = 'returned', status_updated_by = $2, updated_at = CURRENT_TIMESTAMP
            FROM parcels p
           WHERE p.parcel_id = $1
             AND o.order_id = p.order_id
             AND o.status = 'shipped'
         RETURNING o.order_id, o.buyer_business_id, o.wholesaler_business_id`,
-        [parcelId],
+        [parcelId, req.auth.user.user_id],
       );
       if (orderRows.length) {
         const order = orderRows[0];
@@ -1373,13 +1393,13 @@ router.post("/parcels/:id/tracking", requireAnyRole(["logistics_coordinator", "c
     if (status_update === "Cancelled") {
       const { rows: orderRows } = await client.query(
         `UPDATE orders o
-            SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP
+            SET status = 'cancelled', status_updated_by = $2, updated_at = CURRENT_TIMESTAMP
            FROM parcels p
           WHERE p.parcel_id = $1
             AND o.order_id = p.order_id
             AND o.status = 'shipped'
         RETURNING o.order_id, o.buyer_business_id, o.wholesaler_business_id`,
-        [parcelId],
+        [parcelId, req.auth.user.user_id],
       );
       if (orderRows.length) {
         const order = orderRows[0];

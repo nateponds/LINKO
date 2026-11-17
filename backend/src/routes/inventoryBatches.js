@@ -1,19 +1,18 @@
 import { Router } from "express";
 import { query } from "../db.js";
 import { requireAnyRole, requireAuth } from "../middleware/auth.js";
-import {
-  createHttpError,
-  getActiveMembership,
-  isPlatformAdmin,
-} from "../middleware/ownership.js";
+import { createHttpError, getActiveMembership } from "../middleware/ownership.js";
 import { buildPaginatedResponse, parsePaginationQuery } from "../services/pagination.js";
 
 const router = Router();
 const DEFAULT_EXPIRY_WINDOW_DAYS = 30;
 const MAX_EXPIRY_WINDOW_DAYS = 3650;
-const MANAGER_ROLES = ["wholesaler", "platform_admin"];
-// Business "today" is Manila time; the DB session runs in UTC on Supabase.
-const TODAY_SQL = "(now() AT TIME ZONE 'Asia/Manila')::date";
+// Batches describe a wholesaler's own stock; no other role reads or writes them.
+const MANAGER_ROLES = ["wholesaler"];
+// ponytail: business calendar is fixed to Philippine time (no DST). The DB
+// session runs in UTC on Supabase, so CURRENT_DATE would lag a day from
+// 00:00-08:00 PHT. Move to a per-business timezone if LINKO leaves PH.
+const TODAY = "(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila')::date";
 
 function asClientError(error) {
   if (error.code === "23505") {
@@ -113,8 +112,6 @@ function parseNotes(value) {
 }
 
 function resolveBusinessScope(req, requestedBusinessId) {
-  if (isPlatformAdmin(req.auth.user)) return requestedBusinessId ?? null;
-
   const businessId = getActiveMembership(req, ["wholesaler"]).business_id;
   if (requestedBusinessId !== undefined && requestedBusinessId !== businessId) {
     throw createHttpError(403, "You do not have access to the requested business");
@@ -133,11 +130,9 @@ async function assertProductAccess(req, productId, { requireActive = false } = {
     throw createHttpError(404, `Product ${productId} not found`);
   }
 
-  if (!isPlatformAdmin(req.auth.user)) {
-    const businessId = getActiveMembership(req, ["wholesaler"]).business_id;
-    if (rows[0].business_id !== businessId) {
-      throw createHttpError(403, "You do not own this product");
-    }
+  const businessId = getActiveMembership(req, ["wholesaler"]).business_id;
+  if (rows[0].business_id !== businessId) {
+    throw createHttpError(403, "You do not own this product");
   }
   return rows[0];
 }
@@ -155,11 +150,9 @@ async function loadOwnedBatch(req, rawBatchId) {
     throw createHttpError(404, `Inventory batch ${rawBatchId} not found`);
   }
 
-  if (!isPlatformAdmin(req.auth.user)) {
-    const businessId = getActiveMembership(req, ["wholesaler"]).business_id;
-    if (rows[0].business_id !== businessId) {
-      throw createHttpError(403, "You do not own this inventory batch");
-    }
+  const businessId = getActiveMembership(req, ["wholesaler"]).business_id;
+  if (rows[0].business_id !== businessId) {
+    throw createHttpError(403, "You do not own this inventory batch");
   }
   return rows[0];
 }
@@ -179,11 +172,11 @@ function batchSelect(daysPlaceholder = "$1") {
                  ib.notes,
                  ib.created_at,
                  ib.updated_at,
-                 (ib.expires_on - ${TODAY_SQL})::int AS days_until_expiry,
+                 (ib.expires_on - ${TODAY})::int AS days_until_expiry,
                  CASE
                    WHEN ib.depleted_at IS NOT NULL THEN 'depleted'
-                   WHEN ib.expires_on < ${TODAY_SQL} THEN 'expired'
-                   WHEN ib.expires_on <= ${TODAY_SQL} + ${daysPlaceholder}::integer THEN 'expiring_soon'
+                   WHEN ib.expires_on < ${TODAY} THEN 'expired'
+                   WHEN ib.expires_on <= ${TODAY} + ${daysPlaceholder}::integer THEN 'expiring_soon'
                    ELSE 'fresh'
                  END AS expiry_status
             FROM inventory_batches ib
@@ -199,8 +192,8 @@ async function findBatch(batchId, warningDays = DEFAULT_EXPIRY_WINDOW_DAYS) {
   return rows[0] ?? null;
 }
 
-// List expiry records visible to the active wholesaler business. Platform
-// admins may list all businesses or narrow the result with business_id.
+// List expiry records of the active wholesaler business. business_id is
+// optional and must name that same business.
 router.get(
   "/inventory-batches",
   requireAuth,
@@ -220,10 +213,8 @@ router.get(
         ? undefined
         : parsePositiveInt(rawBusinessId, "business_id");
       const businessId = resolveBusinessScope(req, requestedBusinessId);
-      if (businessId !== null) {
-        params.push(businessId);
-        conditions.push(`p.business_id = $${params.length}`);
-      }
+      params.push(businessId);
+      conditions.push(`p.business_id = $${params.length}`);
 
       const rawProductId = readSingletonQueryString(req.query, "product_id");
       if (rawProductId !== undefined) {
@@ -234,11 +225,11 @@ router.get(
       const status = readSingletonQueryString(req.query, "status");
       const statusConditions = {
         depleted: "ib.depleted_at IS NOT NULL",
-        expired: `ib.depleted_at IS NULL AND ib.expires_on < ${TODAY_SQL}`,
+        expired: `ib.depleted_at IS NULL AND ib.expires_on < ${TODAY}`,
         expiring_soon: `ib.depleted_at IS NULL
-          AND ib.expires_on BETWEEN ${TODAY_SQL} AND ${TODAY_SQL} + $1::integer`,
+          AND ib.expires_on BETWEEN ${TODAY} AND ${TODAY} + $1::integer`,
         fresh: `ib.depleted_at IS NULL
-          AND ib.expires_on > ${TODAY_SQL} + $1::integer`,
+          AND ib.expires_on > ${TODAY} + $1::integer`,
       };
       if (status !== undefined) {
         if (!Object.hasOwn(statusConditions, status)) {
@@ -288,6 +279,7 @@ router.post(
   async (req, res, next) => {
     try {
       const body = req.body ?? {};
+      const warningDays = parseWarningDays(req.query);
       const productId = parsePositiveInt(body.product_id, "product_id");
       await assertProductAccess(req, productId, { requireActive: true });
 
@@ -303,11 +295,11 @@ router.post(
       const { rows } = await query(
         `INSERT INTO inventory_batches
            (product_id, batch_number, manufactured_on, received_on, expires_on, notes)
-         VALUES ($1, $2, $3, COALESCE($4::date, ${TODAY_SQL}), $5, $6)
+         VALUES ($1, $2, $3, COALESCE($4::date, ${TODAY}), $5, $6)
          RETURNING batch_id`,
         [productId, batchNumber, manufacturedOn ?? null, receivedOn ?? null, expiresOn, notes ?? null],
       );
-      const created = await findBatch(rows[0].batch_id);
+      const created = await findBatch(rows[0].batch_id, warningDays);
       res.status(201).json(created);
     } catch (error) {
       next(asClientError(error));
@@ -322,6 +314,7 @@ router.patch(
   async (req, res, next) => {
     try {
       const existing = await loadOwnedBatch(req, req.params.id);
+      const warningDays = parseWarningDays(req.query);
       const body = req.body ?? {};
       if ("product_id" in body) {
         throw createHttpError(400, "product_id cannot be changed");
@@ -377,7 +370,7 @@ router.patch(
           WHERE batch_id = $${params.length}`,
         params,
       );
-      res.json(await findBatch(existing.batch_id));
+      res.json(await findBatch(existing.batch_id, warningDays));
     } catch (error) {
       next(asClientError(error));
     }

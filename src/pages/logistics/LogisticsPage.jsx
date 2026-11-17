@@ -3,6 +3,7 @@ import { Search, Settings } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import AppLayout from "../../layouts/AppLayout";
 import { useAuth } from "../../auth/AuthProvider";
+import { ACTION_ACCESS } from "../../auth/roleAccess";
 import PaginationControls from "../../components/ui/PaginationControls";
 import { useListUrlState } from "../../hooks/useListUrlState";
 import { apiGet } from "../../lib/api";
@@ -54,7 +55,7 @@ export default function LogisticsPage() {
   if (list.q) query.set("q", list.q);
   if (statusFilter !== "All") query.set("status", statusFilter);
   const resource = useParcelPage(`/api/parcels?${query.toString()}`);
-  const canAssign = hasAnyRole(["logistics_coordinator", "platform_admin"]);
+  const canAssign = hasAnyRole(ACTION_ACCESS.assignParcel);
   const searchTimerRef = useRef(null);
   const pageData = resource.data ?? resource.staleData;
   const parcels = pageData?.items ?? null;
@@ -196,7 +197,7 @@ export default function LogisticsPage() {
                           <dl>
                             <div><dt>Service</dt><dd>{parcel.tier_name ?? "-"}</dd></div>
                             <div><dt>Weight</dt><dd>{parcel.weight_kg == null ? "-" : `${parcel.weight_kg} kg`}</dd></div>
-                            <div><dt>Fee</dt><dd>{peso(parcel.shipping_fee)}</dd></div>
+                            {parcel.shipping_fee !== undefined && <div><dt>Fee</dt><dd>{peso(parcel.shipping_fee)}</dd></div>}
                           </dl>
                         </ExpandableTableRow>
                       );

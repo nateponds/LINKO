@@ -86,12 +86,15 @@ async function registerBusiness(businessType) {
   });
   assert.equal(response.status, 201);
   const businessId = response.body.memberships[0].business_id;
+  // Registration no longer creates an address; add one without coordinates.
   const addressId = await withPool(async (pool) => {
     const { rows } = await pool.query(
-      "SELECT logistics_address_id FROM businesses WHERE business_id = $1",
+      `INSERT INTO addresses (business_id, label, province, city_municipality, barangay, street_address, postal_code)
+       VALUES ($1, 'Unpinned', 'Cebu', 'Cebu City', 'Lahug', '1 Test St', '6000')
+       RETURNING address_id`,
       [businessId],
     );
-    return rows[0].logistics_address_id;
+    return rows[0].address_id;
   });
   return { businessId, addressId };
 }

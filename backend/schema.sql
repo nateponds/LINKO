@@ -69,8 +69,6 @@ CREATE TABLE users (
     password_hash TEXT NOT NULL,
     email         VARCHAR(100) NOT NULL UNIQUE,
     full_name     VARCHAR(100) NOT NULL,                       -- 004
-    role          VARCHAR(20) NOT NULL
-        CHECK (role IN ('owner', 'staff', 'wholesaler', 'admin')),
     global_role   VARCHAR(20),                                 -- 004
     is_active     BOOLEAN NOT NULL DEFAULT TRUE,               -- 011
     created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -188,6 +186,9 @@ CREATE TABLE products (
     image_url      TEXT,                                       -- 005
     stock_quantity INTEGER NOT NULL DEFAULT 0,                 -- 005
     is_active      BOOLEAN NOT NULL DEFAULT TRUE,              -- 005
+    removed_by     INT REFERENCES users(user_id) ON DELETE SET NULL,
+    removal_reason TEXT,
+    removed_at     TIMESTAMP,
     created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,        -- 010
     CONSTRAINT products_unit_price_check     CHECK (unit_price >= 0),
@@ -224,13 +225,11 @@ CREATE TABLE supplier_profiles (
     delivery_terms         TEXT,
     trust_rating           DECIMAL(3,2) DEFAULT 5.00
         CHECK (trust_rating >= 0.00 AND trust_rating <= 5.00),
-    verification_status    VARCHAR(20) DEFAULT 'pending'
-        CHECK (verification_status IN ('pending', 'verified', 'rejected')),
     created_at             TIMESTAMP DEFAULT CURRENT_TIMESTAMP  -- 010
 );
 
 -- ==========================================================================
--- SECTION 3 - Logistics core (CIS 2104 graded tables)
+-- SECTION 3 - Logistics core
 -- ==========================================================================
 
 -- Shipping fee formula inputs: base_fee + weight*base_rate_per_kg + km*rate_per_km.
@@ -275,6 +274,7 @@ CREATE TABLE orders (
     tier_id                INT NOT NULL REFERENCES service_tiers(tier_id) ON UPDATE CASCADE ON DELETE RESTRICT,  -- 007
     status                 VARCHAR(20) NOT NULL DEFAULT 'pending',
     created_by             INT REFERENCES users(user_id) ON UPDATE CASCADE ON DELETE SET NULL,
+    status_updated_by      INT REFERENCES users(user_id) ON DELETE SET NULL,
     created_at             TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at             TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     -- 'returned' added in 013
@@ -344,6 +344,7 @@ CREATE TABLE tracking_logs (
     parcel_id     VARCHAR(20) NOT NULL REFERENCES parcels(parcel_id) ON UPDATE CASCADE ON DELETE CASCADE,
     branch_id     INT REFERENCES branches(branch_id) ON UPDATE CASCADE ON DELETE SET NULL,
     courier_id    INT REFERENCES couriers(courier_id) ON UPDATE CASCADE ON DELETE SET NULL,
+    recorded_by   INT REFERENCES users(user_id) ON DELETE SET NULL,
     status_update VARCHAR(50) NOT NULL,
     remarks       TEXT,
     scanned_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -538,7 +539,11 @@ INSERT INTO schema_migrations (filename) VALUES
     ('023_location_routing.sql'),
     ('024_location_routing_constraints.sql'),
     ('025_saved_addresses.sql'),
-    ('026_inventory_batches.sql')
+    ('026_inventory_batches.sql'),
+    ('028_users_role_nullable.sql'),
+    ('029_actor_and_takedown_columns.sql'),
+    ('030_drop_users_role.sql'),
+    ('031_remove_placeholder_addresses.sql')
 ON CONFLICT (filename) DO NOTHING;
 
 COMMIT;

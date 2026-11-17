@@ -267,6 +267,8 @@ test("Cancelled scan requires a reason, cancels the order, notifies both parties
       body: JSON.stringify({ status_update: "Cancelled", remarks: "Buyer requested cancellation" }),
     });
     assert.equal(cancel.status, 201);
+    assert.equal(cancel.body.recorded_by, 3);
+    assert.equal((await pool.query("SELECT status_updated_by FROM orders WHERE order_id = $1", [orderId])).rows[0].status_updated_by, 3);
 
     const order = await request(`/api/orders/${orderId}`, { headers: { Cookie: buyerCookie } });
     assert.equal(order.body.status, "cancelled");

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../auth/AuthProvider";
-import { APP_NAV_ITEMS, ROLE_ACCESS } from "../../auth/roleAccess";
+import { APP_NAV_ITEMS, ROUTE_ACCESS } from "../../auth/roleAccess";
 import SupportModal from "../ui/SupportModal";
 
 function Footer() {
@@ -24,29 +24,32 @@ function Footer() {
         <div className="footer-brand">
           <div className="footer-wordmark">LINK<span>O</span></div>
         </div>
-        <div className="footer-col">
-          <h4>Marketplace</h4>
-          {marketplaceLinks.map((item) => (
-            <Link key={item.link} to={item.link}>
-              {item.name}
-            </Link>
-          ))}
-        </div>
-        <div className="footer-col">
-          <h4>Operations</h4>
-          {operationsLinks.map((item) => (
-            <Link key={item.link} to={item.link}>
-              {item.name}
-            </Link>
-          ))}
-        </div>
+        {/* A column with no links for this role is left out, heading included. */}
+        {marketplaceLinks.length > 0 && (
+          <div className="footer-col">
+            <h4>Marketplace</h4>
+            {marketplaceLinks.map((item) => (
+              <Link key={item.link} to={item.link}>
+                {item.name}
+              </Link>
+            ))}
+          </div>
+        )}
+        {operationsLinks.length > 0 && (
+          <div className="footer-col">
+            <h4>Operations</h4>
+            {operationsLinks.map((item) => (
+              <Link key={item.link} to={item.link}>
+                {item.name}
+              </Link>
+            ))}
+          </div>
+        )}
         <div className="footer-col">
           <h4>Account</h4>
-          {hasAnyRole(ROLE_ACCESS.dashboard) && <Link to="/dashboard">Workspace</Link>}
-          {hasAnyRole(["buyer", "wholesaler", "platform_admin"]) && <Link to="/orders">Orders</Link>}
-          {hasAnyRole(["wholesaler", "logistics_coordinator", "courier", "platform_admin"]) && (
-            <Link to="/logistics">Logistics</Link>
-          )}
+          {hasAnyRole(ROUTE_ACCESS["/dashboard"]) && <Link to="/dashboard">Workspace</Link>}
+          {hasAnyRole(ROUTE_ACCESS["/orders"]) && <Link to="/orders">Orders</Link>}
+          {hasAnyRole(ROUTE_ACCESS["/logistics"]) && <Link to="/logistics">Logistics</Link>}
           <button
             type="button"
             className="footer-support-link"
