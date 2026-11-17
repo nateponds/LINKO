@@ -1,3 +1,4 @@
+import { useDialogFocus } from "../components/ui/useDialogFocus";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ChevronDown, Filter, Pencil, Plus, Search, X } from "lucide-react";
@@ -211,6 +212,15 @@ export default function InventoryPage() {
     setFormError(null);
     setModalOpen(true);
   }
+
+  const productDialogRef = useRef(null);
+  const productNameRef = useRef(null);
+  useDialogFocus({
+    open: modalOpen,
+    dialogRef: productDialogRef,
+    initialFocusRef: productNameRef,
+    onEscape: closeModal,
+  });
 
   function closeModal() {
     setModalOpen(false);
@@ -633,12 +643,12 @@ export default function InventoryPage() {
         {expiryProduct && expiryProduct.contextBusinessId === activeBusinessId && <InventoryExpiry key={`${activeBusinessId}-${expiryProduct.product_id}`} product={expiryProduct} businessId={ownBusinessId} onClose={() => setExpiryProduct(null)} onChanged={() => setExpiryRevision((value) => value + 1)} />}
 
         {/* ===== Add/Edit item modal ===== */}
-        <div className={`modal-overlay${modalOpen ? " open" : ""}`}>
-          <div className="modal-box">
-            <button className="modal-close" onClick={closeModal}>
+        <div className={`modal-overlay${modalOpen ? " open" : ""}`} inert={!modalOpen}>
+          <div className="modal-box" ref={productDialogRef} role="dialog" aria-modal="true" aria-labelledby="product-dialog-title" tabIndex={-1}>
+            <button type="button" className="modal-close" aria-label="Close product form" onClick={closeModal}>
               <X size={18} />
             </button>
-            <h2>{editingId ? "Edit Item" : "Add Item"}</h2>
+            <h2 id="product-dialog-title">{editingId ? "Edit product" : "Add product"}</h2>
             <form onSubmit={handleFormSubmit}>
               <label>
                 SKU (optional)
@@ -654,6 +664,7 @@ export default function InventoryPage() {
                 <input
                   type="text"
                   required
+                  ref={productNameRef}
                   value={formData.name}
                   onChange={(e) => handleFormChange("name", e.target.value)}
                 />

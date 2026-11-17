@@ -11,7 +11,6 @@ import {
   YAxis,
 } from "recharts";
 import AppLayout from "../layouts/AppLayout";
-import DecisionStrip from "../components/DecisionStrip";
 import { useAuth } from "../auth/AuthProvider";
 import { apiGet } from "../lib/api";
 import { Skeleton, SkeletonStatus } from "../components/ui/Skeleton";
@@ -92,7 +91,6 @@ function RecentActivity({ entries }) {
     <section className="panel">
       <div className="panel-head">
         <h2>Recent activity</h2>
-        <Link to="/orders" className="panel-link">View orders</Link>
       </div>
       {entries.length === 0 ? (
         <p className="panel-empty">Order updates will appear here as they happen.</p>
@@ -134,7 +132,7 @@ function RecentActivity({ entries }) {
 
 export default function DashboardPage() {
   const { activeBusinessId } = useAuth();
-  const [range, setRange] = useState("7d");
+  const [range, setRange] = useState("30d");
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState(null);
   const [snapshot, setSnapshot] = useState(null);
@@ -143,7 +141,6 @@ export default function DashboardPage() {
   const loading = current === null;
   const stats = current?.stats;
   const overview = snapshot?.businessId === activeBusinessId ? snapshot?.stats : null;
-  const rangeLabel = RANGES.find((item) => item.key === range).label;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -164,43 +161,7 @@ export default function DashboardPage() {
     <AppLayout>
       <div className="dashboard-page">
         <header className="dashboard-heading">
-          <h1>Dashboard</h1>
-
-        </header>
-
-        {overview && (
-          <section className="dashboard-work" aria-labelledby="dashboard-work-title">
-            <div className="panel-head">
-              <h2 id="dashboard-work-title">Orders to handle</h2>
-              <Link to="/orders" className="panel-link">All orders</Link>
-            </div>
-            <DecisionStrip
-              label="Incoming orders that need action"
-              items={[
-                {
-                  key: "pending",
-                  to: "/orders?status=Pending",
-                  value: overview.actionableOrders.pending,
-                  label: "Awaiting a decision",
-                  hint: "Review incoming orders",
-                  empty: "No orders to accept or reject",
-                },
-                {
-                  key: "accepted",
-                  to: "/orders?status=Accepted",
-                  value: overview.actionableOrders.accepted,
-                  label: "Ready to prepare",
-                  hint: "Start preparing accepted orders",
-                  empty: "No accepted orders to prepare",
-                },
-              ]}
-            />
-          </section>
-        )}
-
-        <section className="dashboard-performance" aria-labelledby="dashboard-performance-title" aria-busy={loading}>
-          <div className="panel-head performance-head">
-            <h2 id="dashboard-performance-title">Sales performance</h2>
+          <h1 id="dashboard-performance-title">Sales overview</h1>
             <div className="range-toggle" role="group" aria-label="Sales time range">
               {RANGES.map((item) => (
                 <button
@@ -213,8 +174,9 @@ export default function DashboardPage() {
                 </button>
               ))}
             </div>
-          </div>
+        </header>
 
+        <section className="dashboard-performance" aria-labelledby="dashboard-performance-title" aria-busy={loading}>
           {loading && (
             <SkeletonStatus label="Loading dashboard data">
               <Skeleton width="100%" height={62} />
@@ -237,20 +199,18 @@ export default function DashboardPage() {
 
           {stats && (
             <>
-              <dl className="stat-grid">
-                <div><dt>Invoiced revenue</dt><dd>{peso(stats.revenue)}</dd></div>
-                <div><dt>Orders placed</dt><dd>{stats.orders.toLocaleString("en-PH")}</dd></div>
-              </dl>
-
-              <div className="dashboard-columns">
-                <section className="panel">
+              <div className="snapshot-grid">
+                <dl className="snapshot-metrics">
+                  <div><dt>Invoiced revenue</dt><dd>{peso(stats.revenue)}</dd></div>
+                  <div><dt>Orders placed</dt><dd>{stats.orders.toLocaleString("en-PH")}</dd></div>
+                </dl>
+                <section className="panel snapshot-chart">
                   <div className="panel-head">
                     <h3>Order volume</h3>
-                    <span className="panel-sub">{rangeLabel}</span>
                   </div>
                   {stats.sales.some(({ value }) => value > 0) ? (
                     <div className="chart-wrap">
-                      <ResponsiveContainer width="100%" height={220}>
+                      <ResponsiveContainer width="100%" height={310}>
                         <AreaChart data={stats.sales} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
                           <CartesianGrid vertical={false} stroke="#e5e9ef" />
                           <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: "#52617d" }} minTickGap={28} dy={6} />
@@ -265,6 +225,17 @@ export default function DashboardPage() {
                   )}
                 </section>
 
+                <aside className="panel snapshot-inventory">
+                  <h3>Inventory now</h3>
+                  <dl>
+                    <div><dt>Products listed</dt><dd>{stats.products.toLocaleString("en-PH")}</dd></div>
+                    <div><dt>Below 10 in stock</dt><dd>{stats.lowStock.toLocaleString("en-PH")}</dd></div>
+                  </dl>
+                  <h3>Orders to handle</h3>
+                  <Link className="snapshot-queue" to="/orders?status=Pending"><strong>{stats.actionableOrders.pending}</strong> Awaiting a decision</Link>
+                  <Link className="snapshot-queue" to="/orders?status=Accepted"><strong>{stats.actionableOrders.accepted}</strong> Ready to prepare</Link>
+                </aside>
+                <div className="snapshot-bottom">
                 <section className="panel">
                   <div className="panel-head"><h3>Top products by units sold</h3></div>
                   {stats.topProducts.length === 0 ? (
@@ -287,26 +258,14 @@ export default function DashboardPage() {
                     </table>
                   )}
                 </section>
+                  <RecentActivity key={activeBusinessId} entries={stats.recentActivity} />
+                </div>
               </div>
             </>
           )}
         </section>
 
-        {overview && (
-          <div className="dashboard-columns dashboard-secondary">
-            <RecentActivity key={activeBusinessId} entries={overview.recentActivity} />
-            <section className="panel">
-              <div className="panel-head">
-                <h2>Inventory</h2>
-                <Link to="/inventory" className="panel-link">View inventory</Link>
-              </div>
-              <dl className="stat-grid">
-                <div><dt>Products listed</dt><dd>{overview.products.toLocaleString("en-PH")}</dd></div>
-                <div><dt>Below 10 in stock</dt><dd className={overview.lowStock > 0 ? "stat-warning" : undefined}>{overview.lowStock.toLocaleString("en-PH")}</dd></div>
-              </dl>
-            </section>
-          </div>
-        )}
+
       </div>
     </AppLayout>
   );

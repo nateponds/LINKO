@@ -11,6 +11,7 @@ import { allowedNext, ONE_TAP_REMARKS, FAIL_REASONS, TRACKING_STATUSES, isReturn
 import { LogisticsNotice } from "./LogisticsStates";
 import { COURIER_EMPTY_COPY } from "./workflowHints";
 import { CourierCardsSkeleton } from "../../components/ui/pageSkeletons";
+import { formatAddress } from "../../features/settings/addressCopy";
 import "./logistics.css";
 
 const ASSIGNMENT_TABS = [
@@ -56,6 +57,41 @@ function useAssignmentPage(path) {
     loading: !current,
     reload: useCallback(() => setReloadVersion((version) => version + 1), []),
   };
+}
+
+function CourierDestinationAddress({ parcelId, returning }) {
+  const addressRef = useRef(null);
+  const [detail, setDetail] = useState(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    function loadAddress() {
+      apiGet(`/api/parcels/${encodeURIComponent(parcelId)}`, { signal: controller.signal })
+        .then((data) => {
+          if (!controller.signal.aborted) setDetail(data);
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) setDetail({});
+        });
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      observer.disconnect();
+      loadAddress();
+    }, { rootMargin: "160px" });
+    observer.observe(addressRef.current);
+    return () => {
+      observer.disconnect();
+      controller.abort();
+    };
+  }, [parcelId]);
+
+  const address = formatAddress(returning ? detail?.origin_address : detail?.destination_address);
+  return (
+    <div className="courier-destination-address" ref={addressRef}>
+      {detail && (address || "Address unavailable")}
+    </div>
+  );
 }
 
 export default function CourierDashboardPage() {
@@ -202,7 +238,14 @@ export default function CourierDashboardPage() {
             <Link to={`/logistics/${parcel.parcel_id}`} className="courier-parcel-link">Parcel #{parcel.parcel_id}<ArrowUpRight size={16} aria-hidden="true" /></Link>
             <span className={`status ${statusClass(parcel.current_status)}`}>{parcel.current_status || "Status unavailable"}</span>
           </div>
-          <div className="parcel-card-receiver"><MapPin size={18} className="parcel-card-icon" aria-hidden="true" /><div><span className="courier-destination-label">{returning ? "Return to sender" : "Deliver to"}</span><h2>{(returning ? parcel.sender : parcel.receiver)?.business_name ?? "See parcel details"}</h2></div></div>
+          <div className="parcel-card-receiver">
+            <MapPin size={18} className="parcel-card-icon" aria-hidden="true" />
+            <div>
+              <span className="courier-destination-label">{returning ? "Return to sender" : "Deliver to"}</span>
+              <h2>{(returning ? parcel.sender : parcel.receiver)?.business_name ?? "See parcel details"}</h2>
+              <CourierDestinationAddress parcelId={parcel.parcel_id} returning={returning} />
+            </div>
+          </div>
           <div className="parcel-card-meta"><Package size={15} aria-hidden="true" /><span>{parcel.weight_kg} kg</span><span>ETA {shortDate(parcel.estimated_delivery_date)}</span></div>
 
           {reportingFailure ? (
