@@ -23,17 +23,16 @@ test("landing page references product banner artwork", async () => {
   );
 });
 
-test("landing workflow explains supplier search, listed prices, and shipment updates", async () => {
+test("landing page includes how it works and product tour sections", async () => {
   const page = await readFile(
     new URL("../../pages/LandingPage.jsx", import.meta.url),
     "utf8",
   );
 
-  assert.match(page, /id="workflow"/);
-  assert.match(page, /From search to delivery/);
-  assert.match(page, /Search by business name or location/);
-  assert.match(page, /unit prices/);
-  assert.match(page, /parcel updates after shipment/);
+  assert.match(page, /<section[^>]*id="how"[^>]*>/);
+  assert.match(page, /<h2>How it works<\/h2>/);
+  assert.match(page, /<section[^>]*id="tour"[^>]*>/);
+  assert.match(page, /<h2>Product tour<\/h2>/);
   assert.doesNotMatch(page, /SavingsCalculator|Claim your savings|bulk discount|matched to your location/i);
 });
 
@@ -61,7 +60,8 @@ test("mobile landing navigation has expanded state and keyboard close behavior",
   assert.match(page, /event\.key === "Escape"/);
   assert.match(page, /menuToggleRef\.current\?\.focus\(\)/);
   assert.match(page, /id="tour" tabIndex=\{-1\}/);
-  assert.match(page, /href="#workflow" onClick=\{closeMenu\}/);
+  assert.match(page, /href="#how" onClick=\{closeMenu\}>How it works<\/a>/);
+  assert.match(page, /href="#tour" onClick=\{closeMenu\}>Product tour<\/a>/);
 });
 
 test("landing styles use LINKO brand tokens", async () => {
