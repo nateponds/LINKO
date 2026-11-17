@@ -7,7 +7,7 @@ import { ACTION_ACCESS } from "../../auth/roleAccess";
 import PaginationControls from "../../components/ui/PaginationControls";
 import { useListUrlState } from "../../hooks/useListUrlState";
 import { usePaginatedResource } from "../../hooks/usePaginatedResource";
-import { DEFAULT_LIMIT, PAGE_LIMITS } from "../../lib/pagination";
+import { DEFAULT_LIMIT } from "../../lib/pagination";
 import { apiGet } from "../../lib/api";
 import { peso, shortDate, statusClass } from "../../lib/format";
 import { LogisticsNotice } from "./LogisticsStates";
@@ -19,45 +19,6 @@ const STATUS_TABS = [
   "All", "Order Created", "Picked Up", "Arrived at Branch", "Departed Branch",
   "Out for Delivery", "Delivery Failed", "Out for Return", "Delivered", "Returned", "Cancelled",
 ];
-
-const COURIER_LOAD_CACHE_KEY = "linko.logistics.courier-load.v1";
-
-function readCourierLoadCache() {
-  try {
-    if (typeof window === "undefined") return {};
-    const parsed = JSON.parse(window.sessionStorage.getItem(COURIER_LOAD_CACHE_KEY) ?? "{}");
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
-
-    return Object.entries(parsed).reduce((cache, [key, value]) => {
-      const courierId = Number(key);
-      const activeParcelCount = Number(value?.active_parcel_count);
-      if (
-        !Number.isSafeInteger(courierId) || courierId < 1 || String(courierId) !== key
-        || !value || typeof value !== "object" || Array.isArray(value)
-        || Number(value.courier_id) !== courierId
-        || typeof value.full_name !== "string" || !value.full_name.trim()
-        || !Number.isSafeInteger(activeParcelCount) || activeParcelCount < 0
-      ) return cache;
-
-      const page = Number.isSafeInteger(value.page) && value.page > 0 ? value.page : 1;
-      const limit = PAGE_LIMITS.includes(value.limit) ? value.limit : DEFAULT_LIMIT;
-      cache[key] = { courier_id: courierId, full_name: value.full_name, active_parcel_count: activeParcelCount, page, limit };
-      return cache;
-    }, {});
-  } catch {
-    return {};
-  }
-}
-
-function writeCourierLoadCache(cache) {
-  try {
-    if (typeof window !== "undefined") {
-      window.sessionStorage.setItem(COURIER_LOAD_CACHE_KEY, JSON.stringify(cache));
-    }
-  } catch {
-    // Storage can be disabled or full; the in-memory selection still works.
-  }
-}
 
 function useParcelPage(path) {
   const [reloadVersion, setReloadVersion] = useState(0);
@@ -97,8 +58,6 @@ export default function LogisticsPage() {
   const assignmentFilter = ["available", "active", "completed"].includes(requestedAssignment) ? requestedAssignment : "";
   const agingFilter = searchParams.get("aging") === "true";
   const courierIdFilter = searchParams.get("courier_id") || "";
-  const [courierCache, setCourierCache] = useState(readCourierLoadCache);
-  const initialCachedCourier = courierCache[courierIdFilter];
   const query = new URLSearchParams({ page: String(list.page), limit: String(list.limit) });
   if (list.q) query.set("q", list.q);
   if (statusFilter !== "All") query.set("status", statusFilter);
@@ -109,69 +68,19 @@ export default function LogisticsPage() {
   const canAssign = hasAnyRole(ACTION_ACCESS.assignParcel);
   const [decisionState, setDecisionState] = useState({ unassignedCount: null, agingCount: null, error: null, loading: true });
   const [decisionReload, setDecisionReload] = useState(0);
-  const [courierPage, setCourierPage] = useState(() => initialCachedCourier?.page ?? 1);
-  const [courierLimit, setCourierLimit] = useState(() => initialCachedCourier?.limit ?? DEFAULT_LIMIT);
+  const [courierPage, setCourierPage] = useState(1);
+  const [courierLimit, setCourierLimit] = useState(DEFAULT_LIMIT);
   const [courierLoadOpen, setCourierLoadOpen] = useState(false);
-  const [selectedCourierId, setSelectedCourierId] = useState(courierIdFilter);
+  // ponytail: a pick overrides the URL courier; no persisted cache, the select only lists the current page anyway
+  const [pickedCourierId, setPickedCourierId] = useState(null);
+  const selectedCourierId = pickedCourierId ?? courierIdFilter;
   const courierQuery = new URLSearchParams({ page: String(courierPage), limit: String(courierLimit) });
   const courierResource = usePaginatedResource(`/api/couriers?${courierQuery.toString()}`, { enabled: canAssign && courierLoadOpen });
   const searchTimerRef = useRef(null);
   const statusFilterDetailsRef = useRef(null);
   const hasParcelFilters = Boolean(list.q || statusFilter !== "All" || assignmentFilter || agingFilter || courierIdFilter);
-  const selectedCourierFromPage = courierResource.items.find((courier) => String(courier.courier_id) === selectedCourierId);
-  const selectedCourier = selectedCourierFromPage ?? courierCache[selectedCourierId] ?? null;
-  const activeCourierFromPage = courierResource.items.find((courier) => String(courier.courier_id) === courierIdFilter);
-  const activeCourier = activeCourierFromPage ?? courierCache[courierIdFilter] ?? null;
-  const previousCourierFilter = useRef(courierIdFilter);
-
-  useEffect(() => {
-    setSelectedCourierId(courierIdFilter);
-  }, [courierIdFilter]);
-
-  useEffect(() => {
-    if (previousCourierFilter.current !== courierIdFilter) {
-      previousCourierFilter.current = courierIdFilter;
-      const cachedCourier = courierCache[courierIdFilter];
-      setCourierPage(cachedCourier?.page ?? 1);
-      setCourierLimit(cachedCourier?.limit ?? DEFAULT_LIMIT);
-    }
-  }, [courierIdFilter, courierCache]);
-
-  useEffect(() => {
-    const returnedCouriers = [selectedCourierFromPage, activeCourierFromPage].filter(Boolean);
-    if (returnedCouriers.length === 0) return;
-
-    setCourierCache((previous) => {
-      let changed = false;
-      const next = { ...previous };
-      for (const courier of returnedCouriers) {
-        const key = String(courier.courier_id);
-        const record = {
-          courier_id: courier.courier_id,
-          full_name: courier.full_name,
-          active_parcel_count: courier.active_parcel_count,
-          page: courierPage,
-          limit: courierLimit,
-        };
-        const existing = previous[key];
-        if (
-          !existing
-          || existing.full_name !== record.full_name
-          || existing.active_parcel_count !== record.active_parcel_count
-          || existing.page !== record.page
-          || existing.limit !== record.limit
-        ) {
-          next[key] = record;
-          changed = true;
-        }
-      }
-      return changed ? next : previous;
-    });
-  }, [selectedCourierFromPage, activeCourierFromPage, courierPage, courierLimit]);
-
-  useEffect(() => {
-    writeCourierLoadCache(courierCache);
-  }, [courierCache]);
+  const selectedCourier = courierResource.items.find((courier) => String(courier.courier_id) === selectedCourierId) ?? null;
+  const activeCourier = courierResource.items.find((courier) => String(courier.courier_id) === courierIdFilter) ?? null;
 
   useEffect(() => {
     if (!canAssign) return undefined;
@@ -297,19 +206,8 @@ export default function LogisticsPage() {
                         <div className="courier-load-selection">
                           <select
                             id="active-courier-select"
-                            value={selectedCourierFromPage ? selectedCourierId : ""}
-                            onChange={(event) => {
-                              const courierId = event.target.value;
-                              const courier = courierResource.items.find((item) => String(item.courier_id) === courierId);
-                              setSelectedCourierId(courierId);
-                              if (courier) {
-                                const key = String(courier.courier_id);
-                                setCourierCache((previous) => ({
-                                  ...previous,
-                                  [key]: { ...courier, page: courierPage, limit: courierLimit },
-                                }));
-                              }
-                            }}
+                            value={selectedCourier ? selectedCourierId : ""}
+                            onChange={(event) => setPickedCourierId(event.target.value)}
                           >
                             <option value="">Choose a courier</option>
                             {courierResource.items.map((courier) => (
