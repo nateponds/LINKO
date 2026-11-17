@@ -71,6 +71,23 @@ test("parcel pagination rejects invalid or repeated logistics filters", () => {
   }
 });
 
+test("parcel list parses courier and aging filters", () => {
+  const parsed = parseParcelListQuery({ courier_id: "7", aging: "true", status: "Order Created" });
+  assert.equal(parsed.courierId, 7);
+  assert.equal(parsed.aging, true);
+  assert.equal(parseParcelListQuery({ courier_id: "2147483647" }).courierId, 2147483647);
+  for (const query of [
+    { courier_id: "0" },
+    { courier_id: "abc" },
+    { courier_id: "2147483648" },
+    { courier_id: "9007199254740991" },
+    { aging: "yes" },
+    { aging: "true", status: "Delivered" },
+  ]) {
+    assert.throws(() => parseParcelListQuery(query), { statusCode: 400 });
+  }
+});
+
 test("logistics list endpoints paginate and expose complete active options", { skip: !hasDb }, async () => {
   const cookie = await coordinatorCookie();
   const headers = { Cookie: cookie };
