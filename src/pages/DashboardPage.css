@@ -132,13 +132,13 @@
 .stat-card {
   display: flex;
   flex-direction: column;
-  padding: 18px 16px;
+  padding: 20px 18px;
   border: 1px solid var(--dashboard-line);
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--color-surface-light);
   position: relative;
   overflow: hidden;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 
 .stat-card::before {
@@ -154,13 +154,14 @@
 }
 
 .stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
-  border-color: rgba(0, 0, 0, 0.08);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  border-color: var(--color-primary);
 }
 
 .stat-card:hover::before {
   opacity: 1;
+  height: 4px;
 }
 
 .stat-card.revenue::before { background: #315bc5; }
@@ -236,6 +237,26 @@
   gap: 6px;
 }
 
+.stat-card-comparison {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.stat-card-comparison.positive {
+  color: #15803d;
+  background: #ecfdf5;
+}
+
+.stat-card-comparison.negative {
+  color: #b91c1c;
+  background: #fef2f2;
+}
+
 .stat-card.revenue .stat-card-trend { color: #15803d; }
 .stat-card.alert .stat-card-trend { color: #b91c1c; }
 .stat-card.active .stat-card-trend { color: #0f766e; }
@@ -295,11 +316,20 @@
 /* Panel enhancements */
 .panel {
   position: relative;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  border-radius: 14px;
+  border: 1px solid var(--dashboard-line);
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.panel:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06), 0 2px 4px rgba(0, 0, 0, 0.04);
+  border-color: rgba(37, 99, 235, 0.2);
 }
 
 .panel.panel-chart .panel-body {
-  background: #fbfcfd;
+  background: white;
   border-radius: 8px;
   padding: 14px 14px 8px;
 }
@@ -404,15 +434,352 @@
 .chart-tooltip {
   display: grid;
   gap: 4px;
-  padding: 8px 12px;
+  padding: 10px 14px;
   background: white;
   border: 1px solid var(--dashboard-line);
-  border-radius: 6px;
-  font-size: 0.82rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .chart-tooltip-label {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.chart-tooltip-value {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-weight: 700;
+  color: var(--color-text);
+}
+
+.chart-tooltip-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--color-primary);
+}
+
+.chart-tooltip-sub {
+  font-size: 0.72rem;
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
+/* Donut chart legend - category names, values, percentages */
+.chart-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 0;
+  font-size: 0.85rem;
+  border-radius: 6px;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.chart-legend-item:hover {
+  background: #f8fafc;
+  transform: translateX(4px);
+}
+
+.chart-legend-item.highlighted {
+  background: #eff6ff;
+}
+
+.chart-legend-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transition: transform 0.15s ease;
+}
+
+.chart-legend-item:hover .chart-legend-swatch {
+  transform: scale(1.2);
+}
+
+.chart-legend-name {
+  color: var(--color-text);
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chart-legend-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  min-width: 100px;
+}
+
+.chart-legend-value {
+  color: var(--color-text);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85rem;
+  line-height: 1.2;
+}
+
+.chart-legend-pct {
+  color: var(--color-muted);
+  font-size: 0.7rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Chart wrapper - ensures ResponsiveContainer has proper parent dimensions */
+.chart-wrap-volume,
+.chart-wrap-category,
+.chart-wrap-top-customers,
+.chart-wrap-revenue {
+  width: 100%;
+  min-height: 320px;
+}
+
+/* Clickable bars indicator */
+.chart-wrap-volume .recharts-rect {
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.chart-wrap-volume .recharts-rect:hover {
+  opacity: 0.8;
+}
+
+/* Donut center overlay - positioned via absolute in chart-wrap-category */
+.donut-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.donut-center-label {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 1px;
+}
+
+.donut-center-value {
+  display: block;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--color-primary-dark);
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 1px;
+}
+
+.donut-center-sub {
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 500;
+  color: var(--color-muted);
+}
+
+/* Category panel wrapper - donut chart on left, legend on right */
+.category-panel-wrapper {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.category-panel-wrapper .chart-wrap-category {
+  flex-shrink: 0;
+  min-width: 300px;
+  max-width: 380px;
+  width: 100%;
+  position: relative;
+}
+
+.category-panel-wrapper .chart-legend {
+  margin-top: 0;
+  flex: 1;
+  min-width: 200px;
+  max-width: 100%;
+}
+
+/* Top customers ranked list - replaces broken Recharts BarChart */
+.top-customers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.top-customer-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--dashboard-line);
+  border-radius: 10px;
+  background: white;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.top-customer-row:hover {
+  background: #f8fafc;
+  border-color: var(--color-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transform: translateY(-1px);
+}
+
+.top-customer-row.top1 {
+  border-color: rgba(185, 28, 28, 0.3);
+  background: linear-gradient(180deg, #fdf2f2 0%, white 100%);
+}
+
+.top-customer-row.top1:hover {
+  border-color: #b91c1c;
+  box-shadow: 0 4px 12px rgba(185, 28, 28, 0.1);
+}
+
+.top-customer-rank {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--color-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f4f8;
+  flex-shrink: 0;
+}
+
+.top-customer-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.top-customer-bar-wrap {
+  flex: 1;
+  min-width: 100px;
+  height: 10px;
+  position: relative;
+  margin-right: 16px;
+}
+
+.top-customer-bar-track {
+  position: absolute;
+  inset: 0;
+  background: #eef1f5;
+  border-radius: 5px;
+}
+
+.top-customer-bar {
+  position: relative;
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 5px;
+  transition: width 0.4s ease-out;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2);
+}
+
+.top-customer-row.top1 .top-customer-bar {
+  background: linear-gradient(90deg, #2563eb 0%, #3b82f6 100%);
+  box-shadow: 0 1px 3px rgba(185, 28, 28, 0.25);
+}
+
+.top-customer-value {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  min-width: 110px;
+  text-align: right;
+}
+
+.top-customer-share {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+/* Top-3 ranking indicator colors */
+.top-customer-row.top3 .top-customer-rank {
+  color: white;
+  background: transparent;
+}
+
+.top-customer-row.top3 .top-customer-rank.rank-1 { background: #b91c1c; }
+.top-customer-row.top3 .top-customer-rank.rank-2 { background: #d97706; }
+.top-customer-row.top3 .top-customer-rank.rank-3 { background: #15803d; }
+
+/* Reduce panel body gap for tighter secondary cards */
+.panel.panel-category .panel-body,
+.panel.panel-top-customers .panel-body {
+  gap: 10px;
+}
+
+/* Panel improvements for better visual quality */
+.panel {
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.panel-head {
+  margin-bottom: 16px;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--dashboard-line);
+  background: linear-gradient(180deg, #fafbfc 0%, transparent 100%);
+  border-radius: 14px 14px 0 0;
+}
+
+.panel-head h2,
+.panel-head h3 {
+  font-size: 1rem;
+  font-weight: 650;
+  color: var(--color-text);
+}
+
+.chart-head-label h3 {
+  font-size: 0.95rem;
+  font-weight: 650;
+}
+
+.chart-summary {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}
+
+.panel-body {
+  gap: 14px;
 }
 
 /* Secondary section (recent activity + inventory) */
@@ -423,11 +790,11 @@
   margin-bottom: 24px;
 }
 
-.panel {
+.dashboard-secondary .panel {
   min-width: 0;
-  padding: 18px;
+  padding: 20px;
   border: 1px solid var(--dashboard-line);
-  border-radius: 10px;
+  border-radius: 14px;
   background: white;
 }
 
@@ -621,6 +988,29 @@
 
 .low-stock-qty-out {
   color: #b91c1c;
+}
+
+.restock-btn {
+  margin-left: 10px;
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: white;
+  background: var(--color-primary);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.restock-btn:hover {
+  background: var(--color-primary-dark);
+  transform: scale(1.02);
+}
+
+.restock-btn:active {
+  transform: scale(0.98);
 }
 
 /* Restock action - prominent, at bottom */
@@ -832,10 +1222,10 @@
 
 /* Panel body container */
 .panel-body {
-  padding-top: 4px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 /* Stat card internal divider */

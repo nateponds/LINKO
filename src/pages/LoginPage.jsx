@@ -23,11 +23,13 @@ export default function LoginPage() {
     // A user may hold marketplace roles (buyer/wholesaler) in one business
     // and operational roles in another. If they are a marketplace participant
     // in ANY business, their home is the marketplace, not an ops dashboard.
+    // Ignore redirectTo (from a previous session's protected-route redirect)
+    // so logging in as a different account never lands on the old account's tab.
     const hasMarketplaceRole = memberships?.some(
       (m) => m.role === "buyer" || m.role === "wholesaler",
     );
     if (hasMarketplaceRole) {
-      return <Navigate to={redirectTo || "/"} replace />;
+      return <Navigate to="/" replace />;
     }
     const defaultPath = redirectPathForRoles(activeRoles, user.global_role === "platform_admin");
     return <Navigate to={redirectTo || defaultPath} replace />;
@@ -49,7 +51,12 @@ export default function LoginPage() {
       });
       const stored = window.localStorage.getItem("linko-active-business");
       const defaultPath = defaultPathForSession(payload, stored);
-      navigate(redirectTo || defaultPath, { replace: true });
+      // A marketplace participant always lands on home, never on a previous
+      // session's protected-route redirect target.
+      const hasMarketplaceRole = payload?.memberships?.some(
+        (m) => m.role === "buyer" || m.role === "wholesaler",
+      );
+      navigate(hasMarketplaceRole ? "/" : (redirectTo || defaultPath), { replace: true });
     } catch (error) {
       setSubmitError(error.message);
     } finally {
