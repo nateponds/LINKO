@@ -114,8 +114,12 @@ export function hasAccess(user, activeRoles = [], roles = []) {
 }
 
 // Where to land after login, register, or an invalidated route on switch.
-// Marketplace roles win when mixed with operational ones.
+// Marketplace roles win when mixed with operational ones. Platform admin is a
+// global role and always wins over operational business roles.
 export function redirectPathForRoles(activeRoles = [], isAdmin = false) {
+  if (isAdmin) {
+    return "/admin";
+  }
   if (activeRoles.includes("buyer") || activeRoles.includes("wholesaler")) {
     return "/";
   }
@@ -124,9 +128,6 @@ export function redirectPathForRoles(activeRoles = [], isAdmin = false) {
   }
   if (activeRoles.includes("courier")) {
     return "/courier";
-  }
-  if (isAdmin) {
-    return "/admin";
   }
   // No usable role: land on the one page every signed-in user can open. Any
   // narrower target would bounce off its own guard and redirect-loop.
@@ -142,7 +143,19 @@ export function defaultPathForSession(payload, storedBusinessId) {
     businesses.find(
       (b) => String(b.business_id) === String(storedBusinessId),
     ) ?? businesses[0] ?? null;
-  return redirectPathForRoles(active?.roles ?? [], isPlatformAdmin(payload?.user));
+  const isAdmin = payload?.user?.global_role === "platform_admin";
+
+  // A user may hold marketplace roles (buyer/wholesaler) in one business and
+  // operational roles in another. If they are a marketplace participant in ANY
+  // business, their home is the marketplace, not an operational dashboard.
+  const hasMarketplaceRole = payload?.memberships?.some(
+    (m) => m.role === "buyer" || m.role === "wholesaler",
+  );
+  if (hasMarketplaceRole) {
+    return "/";
+  }
+
+  return redirectPathForRoles(active?.roles ?? [], isAdmin);
 }
 
 export function formatRoleLabel(role) {

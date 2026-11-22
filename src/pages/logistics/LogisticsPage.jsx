@@ -16,7 +16,7 @@ import { TableSkeleton } from "../../components/ui/pageSkeletons";
 import "./logistics.css";
 
 const STATUS_TABS = [
-  "All", "Order Created", "Picked Up", "Arrived at Branch", "Departed Branch",
+  "All", "Unassigned", "Order Created", "Picked Up", "Arrived at Branch", "Departed Branch",
   "Out for Delivery", "Delivery Failed", "Out for Return", "Delivered", "Returned", "Cancelled",
 ];
 
@@ -56,6 +56,10 @@ export default function LogisticsPage() {
   const statusFilter = searchParams.get("status") || "All";
   const requestedAssignment = searchParams.get("assignment");
   const assignmentFilter = ["available", "active", "completed"].includes(requestedAssignment) ? requestedAssignment : "";
+  // "Unassigned" is an assignment filter (courier_id IS NULL), not a tracking
+  // status. When assignment=available is active, show it in the status picker.
+  const statusFilterDisplay =
+    assignmentFilter === "available" ? "Unassigned" : statusFilter === "All" ? "All statuses" : statusFilter;
   const agingFilter = searchParams.get("aging") === "true";
   const courierIdFilter = searchParams.get("courier_id") || "";
   const query = new URLSearchParams({ page: String(list.page), limit: String(list.limit) });
@@ -280,10 +284,8 @@ export default function LogisticsPage() {
           <div className="parcel-status-filter">
             <span>Status</span>
             <details className="parcel-status-picker" ref={statusFilterDetailsRef}>
-              <summary aria-label={`Status filter: ${statusFilter === "All" ? "All statuses" : statusFilter}`}>
-                <span>
-                  {statusFilter === "All" ? "All statuses" : statusFilter}
-                </span>
+              <summary aria-label={`Status filter: ${statusFilterDisplay}`}>
+                <span>{statusFilterDisplay}</span>
               </summary>
               <div className="parcel-status-options" role="group" aria-label="Choose parcel status">
                 {STATUS_TABS.map((status) => (
@@ -291,12 +293,27 @@ export default function LogisticsPage() {
                     key={status}
                     type="button"
                     className="parcel-status-option"
-                    aria-pressed={statusFilter === status}
+                    aria-pressed={
+                      status === "Unassigned"
+                        ? assignmentFilter === "available"
+                        : statusFilter === status
+                    }
                     onClick={() => {
-                      list.setFilters({
-                        status: status === "All" ? "" : status,
-                        aging: status === "Order Created" && agingFilter ? "true" : "",
-                      });
+                      if (status === "Unassigned") {
+                        // "Unassigned" is an assignment filter, not a tracking status.
+                        // Route it to ?assignment=available and clear the status param.
+                        list.setFilters({
+                          status: "",
+                          assignment: "available",
+                          aging: "",
+                        });
+                      } else {
+                        list.setFilters({
+                          status: status === "All" ? "" : status,
+                          assignment: "",
+                          aging: status === "Order Created" && agingFilter ? "true" : "",
+                        });
+                      }
                       if (statusFilterDetailsRef.current) statusFilterDetailsRef.current.open = false;
                     }}
                   >

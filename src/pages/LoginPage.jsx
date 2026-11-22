@@ -7,7 +7,7 @@ import AuthVisualPanel from "../components/ui/AuthVisualPanel";
 import "./LoginPage.css";
 
 export default function LoginPage() {
-  const { user, login, activeRoles, isAdmin } = useAuth();
+  const { user, login, activeRoles, memberships } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
@@ -20,7 +20,16 @@ export default function LoginPage() {
   );
 
   if (user) {
-    const defaultPath = redirectPathForRoles(activeRoles, isAdmin);
+    // A user may hold marketplace roles (buyer/wholesaler) in one business
+    // and operational roles in another. If they are a marketplace participant
+    // in ANY business, their home is the marketplace, not an ops dashboard.
+    const hasMarketplaceRole = memberships?.some(
+      (m) => m.role === "buyer" || m.role === "wholesaler",
+    );
+    if (hasMarketplaceRole) {
+      return <Navigate to={redirectTo || "/"} replace />;
+    }
+    const defaultPath = redirectPathForRoles(activeRoles, user.global_role === "platform_admin");
     return <Navigate to={redirectTo || defaultPath} replace />;
   }
 

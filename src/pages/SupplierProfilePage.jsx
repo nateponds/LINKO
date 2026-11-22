@@ -517,6 +517,7 @@ export default function SupplierProfilePage() {
 
         {activeTab === "products" && productError && <p className="grid-empty" role="alert">Could not load products: {productError}</p>}
 
+        {activeTab === "categories" && <label className="supplier-list-search supplier-category-search">Search categories<input type="search" value={categorySearchInput} onChange={(event) => setCategorySearchInput(event.target.value)} /></label>}
         {activeTab === "categories" &&
           (categories.length === 0 ? (
             <p className="grid-empty">No categories yet.</p>
@@ -537,7 +538,6 @@ export default function SupplierProfilePage() {
               ))}
             </section>
           ))}
-        {activeTab === "categories" && <label className="supplier-list-search">Search categories<input value={categorySearchInput} onChange={(event) => setCategorySearchInput(event.target.value)} /></label>}
         {activeTab === "categories" && categoryError && <p className="grid-empty" role="alert">Could not load categories: {categoryError}</p>}
         {activeTab === "categories" && <PaginationControls pagination={categoryPagination} disabled={categoriesFetching} onPageChange={(nextPage) => setSearchParams(updateListUrlState(searchParams, { page: nextPage }, { prefix: "category" }))} onLimitChange={(nextLimit) => setSearchParams(updateListUrlState(searchParams, { limit: nextLimit }, { prefix: "category" }))} ariaLabel="Supplier categories pagination" className="supplier-profile-pagination" />}
 
