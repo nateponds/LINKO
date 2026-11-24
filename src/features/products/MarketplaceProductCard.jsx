@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { ShoppingCart } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/AuthProvider";
@@ -15,12 +14,10 @@ function MarketplaceProductCard({ product, withCart: wantsCart = false }) {
   const withCart = wantsCart && hasAnyRole(ROUTE_ACCESS["/cart"]);
   const navigate = useNavigate();
   const { addProduct } = useCart();
-  const [note, setNote] = useState(null);
   const href = `/suppliers/${product.business_id}?product_id=${product.product_id}`;
 
   function handleAdd() {
-    const result = addProduct(product, 1);
-    setNote(result.error ?? "Added to cart.");
+    addProduct(product, 1);
   }
 
   return (
@@ -36,12 +33,8 @@ function MarketplaceProductCard({ product, withCart: wantsCart = false }) {
           </button>
         )}
       </div>
-      {withCart ? (
-        <p className="home-product-note" role="status">{note}</p>
-      ) : (
-        // Empty spacer keeps the card's row count equal to the cart variant (subgrid alignment).
-        <p className="home-product-note" aria-hidden="true" />
-      )}
+      {/* Reserve the final row so product cards stay aligned. */}
+      <p className="home-product-note" aria-hidden="true" />
     </ProductCard>
   );
 }

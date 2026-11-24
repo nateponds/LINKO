@@ -95,7 +95,6 @@
     gap: 8px;
   }
 
-  .btn-follow,
   .btn-chat {
     display: flex;
     align-items: center;
@@ -114,15 +113,8 @@
     transition: background 0.15s ease, box-shadow 0.15s ease;
   }
 
-  .btn-follow:hover,
   .btn-chat:hover {
     background: var(--color-primary-soft);
-  }
-
-  .btn-follow.following {
-    background: var(--color-primary);
-    border-color: var(--color-primary);
-    color: #fff;
   }
 
   /* tab nav - pill toggle like the dashboard's range switcher */
@@ -491,29 +483,11 @@
   }
 
   .cart-subtitle,
-  .cart-empty,
-  .cart-note,
-  .cart-error {
+  .cart-empty {
     margin: 0;
     font-size: 0.84rem;
     color: var(--color-muted);
     line-height: 1.4;
-  }
-
-  .cart-note {
-    padding: 10px 12px;
-    border-radius: 8px;
-    background: var(--color-primary-soft);
-    color: var(--color-primary-dark);
-    font-weight: 600;
-  }
-
-  .cart-error {
-    padding: 10px 12px;
-    border-radius: 8px;
-    background: #fff0f0;
-    color: #a33131;
-    font-weight: 600;
   }
 
   .cart-lines {
@@ -738,12 +712,6 @@
 
   .supplier-profile-pagination {
     margin-top: 20px;
-  }
-
-  .cart-note a,
-  .cart-error a {
-    color: inherit;
-    font-weight: 800;
   }
 
   @media (max-width: 700px) {
