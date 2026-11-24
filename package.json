@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test \"src/**/*.test.js\" \"tests/**/*.test.js\"",
+    "test:backend": "npm --prefix backend test",
+    "check": "npm run lint && npm test && npm run build"
   },
   "dependencies": {
     "@mapbox/mapbox-gl-geocoder": "^5.1.2",
