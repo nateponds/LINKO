@@ -1,4 +1,4 @@
-import { createHttpError } from "../middleware/ownership.js";
+import { createHttpError } from "../lib/httpErrors.js";
 
 const BUSINESS_TYPES = new Set(["buyer", "wholesaler"]);
 
@@ -26,11 +26,6 @@ export async function createBusiness(client, userId, businessName, businessType)
   // No address is created here: the business has an empty address book and a
   // NULL logistics pin until it saves a real location in Settings, so it hits
   // the pin gates and the missing-location banner.
-  await client.query(
-    "INSERT INTO user_businesses (user_id, business_id) VALUES ($1, $2)",
-    [userId, businessResult.rows[0].business_id],
-  );
-
   // Sprint 9: a business is either a buyer or a wholesaler, never both.
   // The one_marketplace_role_per_business partial unique index enforces
   // this at the schema level; here we just insert the single role.

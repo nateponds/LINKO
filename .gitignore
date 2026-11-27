@@ -34,3 +34,8 @@ backend/scripts/seed_via_api/personas.json
 backend/scripts/seed_via_api/*.jsonl
 
 .vercel
+
+# Local agent/scratch output directories
+Claude outputs/
+output/
+tmp/

@@ -1,0 +1,58 @@
+name: Agent Task
+description: Scoped engineering task contract for coding agents and contributors
+title: "[task]: "
+labels: ["agent-task"]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal & User-Visible Outcome
+      description: State the concrete problem to solve and the observable behavior change for users or operators.
+      placeholder: Describe the desired outcome in 2-4 sentences.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reuse
+    attributes:
+      label: Reuse (Canonical Components / Helpers / Endpoints)
+      description: List existing DESIGN.md primitives, backend helpers, or API endpoints that must be reused instead of recreated.
+      placeholder: "- Frontend: Button, Modal, AlertBanner, src/lib/api.js\n- Backend: backend/src/lib/httpErrors.js, getActiveMembership"
+    validations:
+      required: true
+
+  - type: textarea
+    id: allowed_paths
+    attributes:
+      label: Allowed Paths (Write Scope)
+      description: Explicit files or directories the implementer is permitted to create, edit, or delete.
+      placeholder: "- src/pages/...\n- backend/src/routes/..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: forbidden_paths
+    attributes:
+      label: Out of Scope / Forbidden Paths
+      description: Paths, refactors, or behavioral changes explicitly excluded from this task.
+      placeholder: "- No DDL/migrations\n- Do not modify src/lib/api.js or backend/src/db.js"
+    validations:
+      required: true
+
+  - type: textarea
+    id: rbac_api_impact
+    attributes:
+      label: RBAC & API Contract Impact
+      description: Specify affected roles, X-Active-Business ownership checks, confidentiality rules, and any docs/API_CONTRACTS.md changes.
+      placeholder: "- Roles: wholesaler, buyer\n- Ownership: scoped to active business; 404 on cross-tenant read\n- API contract changes: none"
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria & Verification
+      description: Objective checks and commands that must pass before completion.
+      placeholder: "- [ ] npm run check passes\n- [ ] npm run test:backend passes\n- [ ] Edge cases covered by unit/integration tests"
+    validations:
+      required: true

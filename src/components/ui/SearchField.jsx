@@ -10,6 +10,7 @@ function SearchField({
   id,
   disabled = false,
   className = "",
+  inputRef,
 }) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
@@ -29,6 +30,7 @@ function SearchField({
       <label htmlFor={inputId}>{label}</label>
       <div className="list-search__input-wrap">
         <input
+          ref={inputRef}
           id={inputId}
           type="search"
           value={value}

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Search, Settings } from "lucide-react";
+import { Settings } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import AppLayout from "../../layouts/AppLayout";
 import { useAuth } from "../../auth/AuthProvider";
 import { ACTION_ACCESS } from "../../auth/roleAccess";
 import PaginationControls from "../../components/ui/PaginationControls";
+import SearchField from "../../components/ui/SearchField";
 import { useListUrlState } from "../../hooks/useListUrlState";
 import { usePaginatedResource } from "../../hooks/usePaginatedResource";
 import { DEFAULT_LIMIT } from "../../lib/pagination";
@@ -76,7 +77,11 @@ export default function LogisticsPage() {
   const selectedCourierId = pickedCourierId ?? courierIdFilter;
   const courierQuery = new URLSearchParams({ page: String(courierPage), limit: String(courierLimit) });
   const courierResource = usePaginatedResource(`/api/couriers?${courierQuery.toString()}`, { enabled: canAssign && courierLoadOpen });
+  const [searchDraft, setSearchDraft] = useState({ query: list.q, value: list.q });
   const searchTimerRef = useRef(null);
+  if (searchDraft.query !== list.q) {
+    setSearchDraft({ query: list.q, value: list.q });
+  }
   const statusFilterDetailsRef = useRef(null);
   const hasParcelFilters = Boolean(list.q || statusFilter !== "All" || assignmentFilter || agingFilter || courierIdFilter);
   const selectedCourier = courierResource.items.find((courier) => String(courier.courier_id) === selectedCourierId) ?? null;
@@ -117,6 +122,7 @@ export default function LogisticsPage() {
   }, [list, resource.data]);
 
   function queueSearch(nextQuery) {
+    setSearchDraft({ query: list.q, value: nextQuery });
     window.clearTimeout(searchTimerRef.current);
     searchTimerRef.current = window.setTimeout(() => list.setQuery(nextQuery), 300);
   }
@@ -254,29 +260,22 @@ export default function LogisticsPage() {
         )}
 
         <div className="parcel-list-toolbar">
-          <form
+          <SearchField
             className="search-bar"
-            role="search"
-            aria-label="Search parcels"
-            onSubmit={(event) => {
-              event.preventDefault();
+            value={searchDraft.value}
+            onChange={queueSearch}
+            onSubmit={(next) => {
               window.clearTimeout(searchTimerRef.current);
-              list.setQuery(String(new FormData(event.currentTarget).get("q") ?? ""));
+              list.setQuery(next);
             }}
-          >
-            <input
-              type="search"
-              name="q"
-              aria-label="Parcel number, sender, or receiver"
-              placeholder="Search parcel number, sender, or receiver"
-              key={list.q}
-              defaultValue={list.q}
-              onChange={(event) => queueSearch(event.target.value)}
-            />
-            <button className="search-icon-btn" type="submit" aria-label="Search parcels">
-              <Search size={16} aria-hidden="true" />
-            </button>
-          </form>
+            onClear={() => {
+              window.clearTimeout(searchTimerRef.current);
+              setSearchDraft({ query: list.q, value: "" });
+              list.setQuery("");
+            }}
+            label="Parcel number, sender, or receiver"
+            placeholder="Search parcel number, sender, or receiver"
+          />
           <div className="parcel-status-filter">
             <span>Status</span>
             <details className="parcel-status-picker" ref={statusFilterDetailsRef}>

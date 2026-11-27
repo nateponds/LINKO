@@ -18,6 +18,7 @@ import ProductDetailModal from "../components/ui/ProductDetailModal";
 import ProductCard from "../features/products/ProductCard";
 import { SupplierProfileSkeleton } from "../components/ui/pageSkeletons";
 import PaginationControls from "../components/ui/PaginationControls";
+import SearchField from "../components/ui/SearchField";
 import { readListUrlState, updateListUrlState } from "../lib/pagination";
 import { apiPath, normalizePage, shouldClampPage } from "../features/suppliers/marketplacePagination";
 import { useAuth } from "../auth/AuthProvider";
@@ -283,7 +284,20 @@ export default function SupplierProfilePage() {
         </section>
 
         <div className="supplier-profile-tools">
-        {activeTab === "products" && <label className="supplier-list-search supplier-product-search">Search products<input type="search" value={productSearchInput} onChange={(event) => setProductSearchInput(event.target.value)} /></label>}
+        {activeTab === "products" && (
+          <SearchField
+            className="supplier-list-search supplier-product-search"
+            value={productSearchInput}
+            onChange={setProductSearchInput}
+            onSubmit={(next) => setSearchParams(updateListUrlState(searchParams, { q: next }, { prefix: "product" }), { replace: true })}
+            onClear={() => {
+              setProductSearchInput("");
+              setSearchParams(updateListUrlState(searchParams, { q: "" }, { prefix: "product" }), { replace: true });
+            }}
+            label="Search products"
+            placeholder="Search products"
+          />
+        )}
         <nav className="tab-nav" aria-label="Supplier sections">
           {["shop", "products", "categories"].map((tab) => (
             <button

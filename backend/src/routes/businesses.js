@@ -1,19 +1,12 @@
 import { Router } from "express";
 import { getPool } from "../db.js";
-import { createHttpError, isPlatformAdmin } from "../middleware/ownership.js";
+import { createHttpError } from "../lib/httpErrors.js";
+import { MARKETPLACE_ROLES, requireAnyRole } from "../middleware/auth.js";
 import { createBusiness, parseBusiness, validateBusinessType } from "../services/businesses.js";
 
 const router = Router();
 
-router.post("/", async (req, res) => {
-  if (isPlatformAdmin(req.auth.user)) {
-    throw createHttpError(403, "Platform admins cannot add businesses");
-  }
-  // Couriers and coordinators are operational staff: like admins they never
-  // join the marketplace, whichever business is active. Checked account-wide.
-  if (req.auth.memberships.some((m) => m.role === "courier" || m.role === "logistics_coordinator")) {
-    throw createHttpError(403, "Logistics staff cannot add businesses");
-  }
+router.post("/", requireAnyRole(MARKETPLACE_ROLES), async (req, res) => {
   const { businessName, businessType } = parseBusiness(req.body);
   if (!businessName || !businessType) {
     throw createHttpError(400, "Missing required fields");

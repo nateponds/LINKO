@@ -1,0 +1,128 @@
+name: CI
+
+on:
+  push:
+    branches: [main, staging]
+  pull_request:
+    branches: [main, staging]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-hygiene:
+    name: Lint & Repo Hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - name: Check for tracked scratch/output files
+        run: |
+          tracked=$(git ls-files -- 'tmp/' 'output/' 'Claude outputs/')
+          if [ -n "$tracked" ]; then
+            echo "::error::Tracked scratch/output files found:"
+            echo "$tracked"
+            exit 1
+          fi
+
+  frontend-test-and-build:
+    name: Frontend Test & Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+  backend-migrate-and-test:
+    name: Backend Migrate & Test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: linko
+          POSTGRES_PASSWORD: linko_ci_password
+          POSTGRES_DB: linko_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm --prefix backend ci
+      - name: Run database migrations
+        run: npm --prefix backend run migrate
+        env:
+          DATABASE_URL: postgres://linko:linko_ci_password@localhost:5432/linko_test
+      - name: Seed test data
+        run: node backend/seeds/_apply_seed.js
+        env:
+          DATABASE_URL: postgres://linko:linko_ci_password@localhost:5432/linko_test
+      - name: Run backend tests
+        run: npm run test:backend
+        env:
+          DATABASE_URL: postgres://linko:linko_ci_password@localhost:5432/linko_test
+      - name: Check schema.sql migration drift
+        run: |
+          missing=0
+          for f in backend/migrations/*.sql; do
+            base=$(basename "$f")
+            if ! grep -Fq "$base" backend/schema.sql; then
+              echo "::error::Migration $base is missing from backend/schema.sql"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "Update backend/schema.sql to include all migrations in backend/migrations/."
+            exit 1
+          fi
+
+  pr-hygiene:
+    name: PR Hygiene
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate Conventional Commit PR title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          if ! printf '%s\n' "$PR_TITLE" | grep -Eq '^(feat|fix|chore|refactor|docs|test|perf|ci|build)(\(.+\))?: .+'; then
+            echo "::error::PR title '$PR_TITLE' does not match Conventional Commits: ^(feat|fix|chore|refactor|docs|test|perf|ci|build)(\(.+\))?: .+"
+            exit 1
+          fi
+      - name: Notice sensitive file changes
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          changed=$(git diff --name-only "origin/${BASE_REF}...HEAD")
+          if printf '%s\n' "$changed" | grep -Eq '(^|/)package\.json$'; then
+            echo "::notice::package.json was modified — ensure package-lock.json is synced (e.g. npm install --package-lock-only) and review dependency changes."
+          fi
+          if printf '%s\n' "$changed" | grep -Eq '^backend/migrations/'; then
+            echo "::notice::backend/migrations/ was modified — verify backend/schema.sql is updated and migration is safe for production."
+          fi

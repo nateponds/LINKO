@@ -109,7 +109,7 @@ test("wholesaler manages and filters batch expiry records", { skip: !hasDb }, as
       expires_on: "2999-02-01",
     });
     assert.equal(duplicate.status, 400);
-    assert.match(duplicate.body.error.message, /unique/i);
+    assert.match(duplicate.body.error.message, /conflicting/i);
 
     const expiredList = await request(
       `/api/inventory-batches?product_id=${productId}&status=expired&days=14`,
@@ -216,7 +216,7 @@ test("expiry records enforce business ownership and refuse administrators", { sk
     const product = await pool.query("INSERT INTO products (business_id, product_name) VALUES ($1, 'Foreign expiry product') RETURNING product_id", [businessId]);
     productId = product.rows[0].product_id;
     const body = { product_id: productId, batch_number: "FOREIGN", expires_on: "2999-01-01" };
-    assert.equal((await sendJson("/api/inventory-batches", cookie, "POST", body)).status, 403);
+    assert.equal((await sendJson("/api/inventory-batches", cookie, "POST", body)).status, 404);
     assert.equal((await sendJson("/api/inventory-batches", admin, "POST", body)).status, 403);
     // The foreign business has no session here, so its batch is seeded directly.
     const created = { body: (await pool.query(
@@ -226,8 +226,8 @@ test("expiry records enforce business ownership and refuse administrators", { sk
     const path = `/api/inventory-batches/${created.body.batch_id}`;
     assert.equal((await sendJson(path, admin, "PATCH", { depleted: true })).status, 403);
     assert.equal((await request(path, { method: "DELETE", headers: { Cookie: admin } })).status, 403);
-    assert.equal((await sendJson(path, cookie, "PATCH", { depleted: true })).status, 403);
-    assert.equal((await request(path, { method: "DELETE", headers: { Cookie: cookie } })).status, 403);
+    assert.equal((await sendJson(path, cookie, "PATCH", { depleted: true })).status, 404);
+    assert.equal((await request(path, { method: "DELETE", headers: { Cookie: cookie } })).status, 404);
     assert.equal((await request(`/api/inventory-batches?business_id=${businessId}`, { headers: { Cookie: cookie } })).status, 403);
     const scoped = await request(`/api/inventory-batches?product_id=${productId}`, { headers: { Cookie: cookie } });
     assert.equal(scoped.status, 200);

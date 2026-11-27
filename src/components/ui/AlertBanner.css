@@ -1,0 +1,49 @@
+.ui-alert-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  padding: 0.7rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.ui-alert-banner__content {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ui-alert-banner__action {
+  flex-shrink: 0;
+}
+
+.ui-alert-banner--error {
+  background-color: var(--color-danger-soft);
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+.ui-alert-banner--warning {
+  background-color: var(--color-warning-soft);
+  color: var(--color-warning);
+  border-color: var(--color-warning-border);
+}
+
+.ui-alert-banner--info {
+  background-color: var(--color-primary-soft);
+  color: var(--color-primary-dark);
+  border-color: var(--color-border);
+}
+
+.ui-alert-banner--success {
+  background-color: var(--color-success-soft);
+  color: var(--color-success);
+  border-color: var(--color-success);
+}

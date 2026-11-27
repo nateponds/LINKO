@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowLeftRight, FileText, RotateCcw, Search } from "lucide-react";
+import { ArrowLeft, ArrowLeftRight, FileText, RotateCcw } from "lucide-react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
 import { apiGet } from "../lib/api";
 import PaginationControls from "../components/ui/PaginationControls";
+import SearchField from "../components/ui/SearchField";
 import { useListUrlState } from "../hooks/useListUrlState";
 import { peso, shortDate, statusClass } from "../lib/format";
 import { InvoiceDetailSkeleton, InvoiceListSkeleton } from "../components/ui/pageSkeletons";
@@ -128,7 +129,11 @@ export default function InvoicePage() {
   const listQuery = new URLSearchParams({ page: String(list.page), limit: String(list.limit) });
   if (list.q) listQuery.set("q", list.q);
   const listResource = useInvoicePage(`/api/invoices?${listQuery.toString()}`, !invoiceId);
+  const [searchDraft, setSearchDraft] = useState({ query: list.q, value: list.q });
   const searchTimerRef = useRef(null);
+  if (searchDraft.query !== list.q) {
+    setSearchDraft({ query: list.q, value: list.q });
+  }
   const listData = listResource.data ?? listResource.staleData;
   const invoices = listData?.items ?? null;
   const listPagination = listData?.pagination ?? null;
@@ -148,6 +153,7 @@ export default function InvoicePage() {
   }, [list, listResource.data]);
 
   function queueSearch(nextQuery) {
+    setSearchDraft({ query: list.q, value: nextQuery });
     window.clearTimeout(searchTimerRef.current);
     searchTimerRef.current = window.setTimeout(() => list.setQuery(nextQuery), 300);
   }
@@ -222,17 +228,22 @@ export default function InvoicePage() {
                 <h1 className="status-title">Invoices</h1>
               </div>
               <div className="invoice-list-actions">
-                <label className="invoice-list-search">
-                  <span className="sr-only">Search invoices</span>
-                  <input
-                    type="search"
-                    placeholder="Search invoice, order, buyer, seller"
-                    key={list.q}
-                    defaultValue={list.q}
-                    onChange={(event) => queueSearch(event.target.value)}
-                  />
-                  <Search size={16} aria-hidden="true" />
-                </label>
+                <SearchField
+                  className="invoice-list-search"
+                  value={searchDraft.value}
+                  onChange={queueSearch}
+                  onSubmit={(next) => {
+                    window.clearTimeout(searchTimerRef.current);
+                    list.setQuery(next);
+                  }}
+                  onClear={() => {
+                    window.clearTimeout(searchTimerRef.current);
+                    setSearchDraft({ query: list.q, value: "" });
+                    list.setQuery("");
+                  }}
+                  label="Search invoices"
+                  placeholder="Search invoice, order, buyer, seller"
+                />
                 <FileText size={24} aria-hidden="true" />
               </div>
             </div>

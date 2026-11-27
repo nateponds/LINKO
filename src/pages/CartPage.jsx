@@ -21,11 +21,9 @@ import "./CartPage.css";
 
 export default function CartPage() {
   const { cart, updateQuantity, removeProduct, removeProducts } = useCart();
-  const { activeBusiness, activeBusinessId, refreshAuth } = useAuth();
+  const { activeBusiness, activeBusinessId, refreshAuth, hasAnyRole } = useAuth();
   const addressCopy = addressBookCopy(activeBusiness);
-  const canPickAddress = Boolean(
-    activeBusiness?.roles?.includes("buyer") || activeBusiness?.roles?.includes("wholesaler"),
-  );
+  const canPickAddress = hasAnyRole(["buyer", "wholesaler"]);
   const [tiers, setTiers] = useState([]);
   const [selectedTierId, setSelectedTierId] = useState(null);
   const [tiersError, setTiersError] = useState(null);

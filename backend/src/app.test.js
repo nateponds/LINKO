@@ -55,7 +55,7 @@ async function deleteRegisteredUser(email) {
     }
     const userId = rows[0].user_id;
     const { rows: bizRows } = await pool.query(
-      "SELECT business_id FROM user_businesses WHERE user_id = $1",
+      "SELECT business_id FROM business_memberships WHERE user_id = $1",
       [userId],
     );
     const businessIds = bizRows.map((r) => r.business_id);
@@ -1700,7 +1700,7 @@ test("non-owner status mutation is rejected before lifecycle details leak", { sk
       headers: { "Content-Type": "application/json", Cookie: wholesalerCookie },
       body: JSON.stringify({ status: "accepted" }),
     });
-    assert.equal(response.status, 403);
+    assert.equal(response.status, 404);
   } finally {
     if (orderId) {
       await pool.query("DELETE FROM order_items WHERE order_id = $1", [orderId]);

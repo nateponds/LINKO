@@ -1,7 +1,12 @@
 import { Router } from "express";
 import { query } from "../db.js";
+import {
+  asClientError,
+  createHttpError,
+  readSingletonQueryString,
+} from "../lib/httpErrors.js";
 import { requireAnyRole, requireAuth } from "../middleware/auth.js";
-import { createHttpError, getActiveMembership } from "../middleware/ownership.js";
+import { getActiveMembership } from "../middleware/ownership.js";
 import { buildPaginatedResponse, parsePaginationQuery } from "../services/pagination.js";
 
 const router = Router();
@@ -13,26 +18,6 @@ const MANAGER_ROLES = ["wholesaler"];
 // session runs in UTC on Supabase, so CURRENT_DATE would lag a day from
 // 00:00-08:00 PHT. Move to a per-business timezone if LINKO leaves PH.
 const TODAY = "(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila')::date";
-
-function asClientError(error) {
-  if (error.code === "23505") {
-    error.statusCode = 400;
-    error.message = "batch_number must be unique for this product";
-  } else if (["23503", "23514"].includes(error.code)) {
-    error.statusCode = 400;
-    error.message = "Inventory batch data violates a database constraint";
-  }
-  return error;
-}
-
-function readSingletonQueryString(queryParams, name) {
-  const value = queryParams[name];
-  if (value === undefined) return undefined;
-  if (typeof value !== "string") {
-    throw createHttpError(400, `${name} must be a single string`);
-  }
-  return value;
-}
 
 function parsePositiveInt(value, label, statusCode = 400) {
   if (!/^[1-9]\d*$/.test(String(value ?? ""))) {
@@ -46,7 +31,7 @@ function parsePositiveInt(value, label, statusCode = 400) {
 }
 
 function parseWarningDays(queryParams) {
-  const raw = readSingletonQueryString(queryParams, "days");
+  const raw = readSingletonQueryString(queryParams.days, "days");
   if (raw === undefined) return DEFAULT_EXPIRY_WINDOW_DAYS;
   if (!/^\d+$/.test(raw)) {
     throw createHttpError(400, "days must be a whole number from 0 to 3650");
@@ -120,39 +105,31 @@ function resolveBusinessScope(req, requestedBusinessId) {
 }
 
 async function assertProductAccess(req, productId, { requireActive = false } = {}) {
+  const businessId = getActiveMembership(req, ["wholesaler"]).business_id;
   const { rows } = await query(
     `SELECT product_id, business_id, is_active
        FROM products
-      WHERE product_id = $1`,
-    [productId],
+      WHERE product_id = $1 AND business_id = $2`,
+    [productId, businessId],
   );
   if (!rows.length || (requireActive && !rows[0].is_active)) {
     throw createHttpError(404, `Product ${productId} not found`);
-  }
-
-  const businessId = getActiveMembership(req, ["wholesaler"]).business_id;
-  if (rows[0].business_id !== businessId) {
-    throw createHttpError(403, "You do not own this product");
   }
   return rows[0];
 }
 
 async function loadOwnedBatch(req, rawBatchId) {
   const batchId = parsePositiveInt(rawBatchId, "batch id", 404);
+  const businessId = getActiveMembership(req, ["wholesaler"]).business_id;
   const { rows } = await query(
     `SELECT ib.*, p.business_id
        FROM inventory_batches ib
        JOIN products p ON p.product_id = ib.product_id
-      WHERE ib.batch_id = $1`,
-    [batchId],
+      WHERE ib.batch_id = $1 AND p.business_id = $2`,
+    [batchId, businessId],
   );
   if (!rows.length) {
     throw createHttpError(404, `Inventory batch ${rawBatchId} not found`);
-  }
-
-  const businessId = getActiveMembership(req, ["wholesaler"]).business_id;
-  if (rows[0].business_id !== businessId) {
-    throw createHttpError(403, "You do not own this inventory batch");
   }
   return rows[0];
 }
@@ -208,7 +185,7 @@ router.get(
       // parameter list without renumbering placeholders.
       const conditions = ["$1::integer >= 0"];
 
-      const rawBusinessId = readSingletonQueryString(req.query, "business_id");
+      const rawBusinessId = readSingletonQueryString(req.query.business_id, "business_id");
       const requestedBusinessId = rawBusinessId === undefined
         ? undefined
         : parsePositiveInt(rawBusinessId, "business_id");
@@ -216,13 +193,13 @@ router.get(
       params.push(businessId);
       conditions.push(`p.business_id = $${params.length}`);
 
-      const rawProductId = readSingletonQueryString(req.query, "product_id");
+      const rawProductId = readSingletonQueryString(req.query.product_id, "product_id");
       if (rawProductId !== undefined) {
         params.push(parsePositiveInt(rawProductId, "product_id"));
         conditions.push(`ib.product_id = $${params.length}`);
       }
 
-      const status = readSingletonQueryString(req.query, "status");
+      const status = readSingletonQueryString(req.query.status, "status");
       const statusConditions = {
         depleted: "ib.depleted_at IS NOT NULL",
         expired: `ib.depleted_at IS NULL AND ib.expires_on < ${TODAY}`,

@@ -1,7 +1,0 @@
-[mcp_servers.office-word]
-command = "uvx"
-args = [
-    "--from",
-    "office-word-mcp-server",
-    "word_mcp_server",
-]

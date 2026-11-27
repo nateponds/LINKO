@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { groupMemberships, hasAccess, isPlatformAdmin } from "./roleAccess";
+import { apiGet, apiSend } from "../lib/api";
 
 const AuthContext = createContext(null);
 
@@ -39,15 +40,6 @@ function resolveActiveBusinessId(memberships, preferredId) {
   }
 
   return memberships[0]?.business_id ?? null;
-}
-
-async function readJson(response) {
-  if (response.status === 204) {
-    return null;
-  }
-
-  const text = await response.text();
-  return text ? JSON.parse(text) : null;
 }
 
 export function AuthProvider({ children }) {
@@ -119,25 +111,14 @@ export function AuthProvider({ children }) {
     setError(null);
 
     try {
-      const response = await fetch("/api/auth/me", {
-        credentials: "same-origin",
-      });
-
-      if (response.status === 401) {
-        applySession(null);
-        return null;
-      }
-
-      if (!response.ok) {
-        throw new Error(`Auth check failed with status ${response.status}`);
-      }
-
-      const session = await readJson(response);
+      const session = await apiGet("/api/auth/me");
       applySession(session, preferredBusinessId);
       return session;
     } catch (caughtError) {
       applySession(null);
-      setError(caughtError);
+      if (caughtError?.status !== 401) {
+        setError(caughtError);
+      }
       return null;
     }
   }, [applySession]);
@@ -150,24 +131,7 @@ export function AuthProvider({ children }) {
       setError(null);
 
       try {
-        const response = await fetch("/api/auth/me", {
-          credentials: "same-origin",
-        });
-
-        if (!active) {
-          return;
-        }
-
-        if (response.status === 401) {
-          applySession(null);
-          return;
-        }
-
-        if (!response.ok) {
-          throw new Error(`Auth check failed with status ${response.status}`);
-        }
-
-        const session = await readJson(response);
+        const session = await apiGet("/api/auth/me");
         if (!active) {
           return;
         }
@@ -179,7 +143,9 @@ export function AuthProvider({ children }) {
         }
 
         applySession(null);
-        setError(caughtError);
+        if (caughtError?.status !== 401) {
+          setError(caughtError);
+        }
       } finally {
         if (active) {
           setLoading(false);
@@ -198,23 +164,17 @@ export function AuthProvider({ children }) {
     async (credentials) => {
       setError(null);
 
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify(credentials),
-      });
-
-      const payload = await readJson(response);
-      if (!response.ok) {
-        const message = payload?.error?.message ?? `Login failed with status ${response.status}`;
-        const loginError = new Error(message);
-        setError(loginError);
-        throw loginError;
+      try {
+        const payload = await apiSend("/api/auth/login", {
+          method: "POST",
+          body: credentials,
+        });
+        applySession(payload);
+        return payload;
+      } catch (caughtError) {
+        setError(caughtError);
+        throw caughtError;
       }
-
-      applySession(payload);
-      return payload;
     },
     [applySession],
   );
@@ -223,24 +183,17 @@ export function AuthProvider({ children }) {
     async (registration) => {
       setError(null);
 
-      const response = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify(registration),
-      });
-
-      const payload = await readJson(response);
-      if (!response.ok) {
-        const message = payload?.error?.message ?? `Registration failed with status ${response.status}`;
-        const registerError = new Error(message);
-        registerError.status = response.status;
-        setError(registerError);
-        throw registerError;
+      try {
+        const payload = await apiSend("/api/auth/register", {
+          method: "POST",
+          body: registration,
+        });
+        applySession(payload);
+        return payload;
+      } catch (caughtError) {
+        setError(caughtError);
+        throw caughtError;
       }
-
-      applySession(payload);
-      return payload;
     },
     [applySession],
   );
@@ -249,9 +202,8 @@ export function AuthProvider({ children }) {
     setError(null);
 
     try {
-      await fetch("/api/auth/logout", {
+      await apiSend("/api/auth/logout", {
         method: "POST",
-        credentials: "same-origin",
       });
     } finally {
       applySession(null);

@@ -67,11 +67,17 @@ export default function ParcelDetailPage() {
       try {
         const [parcelData, branchData, courierData] = await Promise.all([
           apiGet(`/api/parcels/${parcelId}`, { signal: controller.signal }).catch((e) => {
-            if (e.statusCode === 404) return null;
+            if (e.status === 404) return null;
             throw e;
           }),
-          apiGet("/api/branches/options", { signal: controller.signal }).catch(() => []),
-          apiGet("/api/couriers/options", { signal: controller.signal }).catch(() => []),
+          apiGet("/api/branches/options", { signal: controller.signal }).catch((e) => {
+            if (e?.name !== "AbortError") console.error("Failed to load branch options:", e);
+            return [];
+          }),
+          apiGet("/api/couriers/options", { signal: controller.signal }).catch((e) => {
+            if (e?.name !== "AbortError") console.error("Failed to load courier options:", e);
+            return [];
+          }),
         ]);
         if (cancelled) return;
         setLoadState({
