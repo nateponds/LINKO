@@ -1,14 +1,14 @@
 import { NavLink } from "react-router-dom";
 import { Boxes, ClipboardList, LayoutDashboard, Store, Truck } from "lucide-react";
 import { useAuth } from "../../auth/AuthProvider";
-import { ROUTE_ACCESS } from "../../auth/roleAccess";
+import { APP_NAV_ITEMS, ROUTE_ACCESS } from "../../auth/roleAccess";
 
 const items = [
   { name: "Home", link: "/", Icon: Store, end: true },
   { name: "Orders", link: "/orders", Icon: ClipboardList },
   { name: "Inventory", link: "/inventory", Icon: Boxes },
   { name: "Logistics", link: "/logistics", Icon: Truck },
-  { name: "Dashboard", link: "/dashboard", Icon: LayoutDashboard },
+  { name: APP_NAV_ITEMS.find((item) => item.link === "/dashboard").name, link: "/dashboard", Icon: LayoutDashboard },
 ].map((item) => ({ ...item, roles: ROUTE_ACCESS[item.link] }));
 
 function MobileNav() {

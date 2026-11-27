@@ -98,7 +98,7 @@ export default function InventoryExpiry({ product, onClose, businessId, revision
         <h2 id={product ? "expiry-dialog-title" : undefined}>{product ? `${product.product_name}: expiry batches` : "Inventory expiry dates"}</h2>
         {product && <button ref={closeRef} type="button" className="btn-secondary" onClick={onClose}>Close</button>}
       </div>
-      <p>Track expiry dates by batch. Mark a batch depleted when none remains on hand. Stock quantities are managed separately.</p>
+      {!product && <p>Batch records and stock quantities are managed separately.</p>}
       <div className="expiry-filters">
         <label>Status
           <select value={status} disabled={saving} onChange={(event) => { setStatus(event.target.value); setPage(1); setLoading(true); }}>
@@ -115,7 +115,10 @@ export default function InventoryExpiry({ product, onClose, businessId, revision
       {error && <p role="alert">{error} <button type="button" className="link-button" onClick={reload}>Retry loading</button></p>}
       {saveError && <p role="alert">{saveError}</p>}
       <div aria-busy={loading}>
-        {loading ? <p role="status">Loading batches…</p> : !error && result?.items.length === 0 ? <p>No batches match this view. Use “Expiry batches” on a product to record a batch.</p> : null}
+        {loading && <p role="status">Loading batches…</p>}
+        {!loading && !error && result?.items.length === 0 && (
+          <p>{status ? "No batches match this status." : "No expiry batches recorded."}</p>
+        )}
         {!loading && !error && result?.items.length > 0 && <ul className="expiry-list">
           {result.items.map((batch) => <li key={batch.batch_id}>
             <div>

@@ -138,11 +138,12 @@ export default function ParcelDetailPage() {
       : statusOptions[0] ?? "";
   // Return-leg red cue: return triggered and not yet back at the sender.
   const returning = isReturning(parcel?.current_status, returnTriggered);
-  const branchLabel = formBranch
-    ? (branches.find((branch) => String(branch.branch_id) === String(formBranch))?.branch_name ?? `Branch #${formBranch}`)
+  const lastScan = parcel?.tracking_history?.at(-1);
+  const branchLabel = parcel?.latest_branch_id
+    ? (lastScan?.branch_name ?? `Branch #${parcel.latest_branch_id}`)
     : "No branch assigned";
-  const courierLabel = formCourier
-    ? (couriers.find((courier) => String(courier.courier_id) === String(formCourier))?.full_name ?? `Courier #${formCourier}`)
+  const courierLabel = parcel?.latest_courier_id
+    ? (lastScan?.courier_name ?? `Courier #${parcel.latest_courier_id}`)
     : "No courier assigned";
 
   // Validation runs first so the confirm dialog never appears over a form that
@@ -239,7 +240,7 @@ export default function ParcelDetailPage() {
             onRetry={() => setReloadToken((token) => token + 1)}
           />
         ) : (
-          <main className="parcel-wrap">
+          <div className="parcel-wrap">
             {/* LEFT: parties, package, payment */}
             <aside className="parcel-cards">
               <div className="parcel-card route-card">
@@ -369,7 +370,7 @@ export default function ParcelDetailPage() {
                                 value={formBranch}
                                 onChange={e => setFormBranch(e.target.value)}
                               >
-                                <option value="">No branch</option>
+                                <option value="">{parcel.latest_branch_id ? "Keep current branch" : "No branch"}</option>
                                 {branches.map(b => <option key={b.branch_id} value={b.branch_id}>{b.branch_name}</option>)}
                               </select>
                             </label>
@@ -456,7 +457,7 @@ export default function ParcelDetailPage() {
 
               <TrackingTimeline parcel={parcel} />
             </section>
-          </main>
+          </div>
         )}
 
         <SupportModal open={supportOpen} onClose={() => setSupportOpen(false)} />

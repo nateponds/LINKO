@@ -20,6 +20,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../auth/AuthProvider";
 import { useCart } from "../../features/cart/CartProvider";
 import { APP_NAV_ITEMS, formatRoleLabel, primaryRole, redirectPathForRoles, ROUTE_ACCESS } from "../../auth/roleAccess";
+import BusinessSwitcher from "./BusinessSwitcher";
 import MarketplaceSearch from "../../features/search/MarketplaceSearch.jsx";
 import { marketplaceSearchPath } from "../../features/search/marketplaceSearch";
 import ConfirmDialog from "../ui/ConfirmDialog";
@@ -46,10 +47,8 @@ function Topbar({ showSearch = false, showCategories = false, workspaceNavigatio
   const {
     user,
     businesses,
-    activeBusinessId,
     activeBusiness,
     activeRoles,
-    setActiveBusiness,
     logout,
     hasAnyRole,
     isAdmin,
@@ -197,29 +196,12 @@ function Topbar({ showSearch = false, showCategories = false, workspaceNavigatio
           {businesses.length > 1 ? (
             <>
               {" - "}
-              <select
-                className="business-switcher"
-                aria-label="Active business"
-                value={activeBusinessId ?? ""}
-                onChange={(event) => setActiveBusiness(event.target.value)}
-              >
-                {businesses.map((business) => (
-                  <option
-                    key={business.business_id}
-                    value={business.business_id}
-                  >
-                    {business.business_name} ({business.roles.map(formatRoleLabel).join(", ")})
-                  </option>
-                ))}
-              </select>
+              <BusinessSwitcher />
             </>
           ) : displayBusiness ? (
             ` - ${displayBusiness}`
           ) : (
             ""
-          )}
-          {hasAnyRole(ROUTE_ACCESS["/businesses/new"]) && (
-            <> {" - "}<Link to="/businesses/new">Add a business</Link></>
           )}
         </span>
       </div>

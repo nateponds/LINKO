@@ -1,13 +1,16 @@
-import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigationType, useSearchParams } from "react-router-dom";
 import { BadgeCheck, MapPin, Package } from "lucide-react";
 import { apiGet } from "../../lib/api";
 import PaginationControls from "../../components/ui/PaginationControls";
 import SearchField from "../../components/ui/SearchField";
-import { readListUrlState, updateListUrlState } from "../../lib/pagination";
+import { useListUrlState } from "../../hooks/useListUrlState";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { apiPath, normalizePage, shouldClampPage } from "./marketplacePagination";
 import { hueOf, imageForSupplier, initialOf } from "../../lib/categoryImages";
 import { SupplierCardGridSkeleton } from "../../components/ui/pageSkeletons";
+
+const LIST_OPTIONS = { prefix: "supplier" };
 
 /* Stock photo with a monogram fallback - an image that 404s or is blocked
    swaps to the business initial instead of leaving a broken tile. */
@@ -28,71 +31,77 @@ function SupplierImage({ businessId, businessName }) {
 }
 
 function SupplierGrid() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const { page, limit, q } = readListUrlState(searchParams);
+  const [searchParams] = useSearchParams();
+  const navigationType = useNavigationType();
+  const { page, limit, q, update, setPage, setLimit } = useListUrlState(LIST_OPTIONS);
   const category = searchParams.get("category") ?? "";
-  const [searchInput, setSearchInput] = useState(q);
+  const [draft, setDraft] = useState({ q, value: q, edited: false });
+  if (draft.q !== q) {
+    // A local URL update may finish after the user has started typing again.
+    const keepDraft = navigationType !== "POP" && draft.edited && draft.value.trim() !== q;
+    setDraft({ q, value: keepDraft ? draft.value : q, edited: keepDraft });
+  }
+  const settled = useDebouncedValue(draft, 300);
   const [suppliers, setSuppliers] = useState([]);
   const [pagination, setPagination] = useState({ page, limit, total_items: 0, total_pages: 0 });
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
   const [error, setError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
-  const [hasLoaded, setHasLoaded] = useState(false);
+  const hasLoaded = useRef(false);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      if (searchInput === q) return;
-      setSearchParams(updateListUrlState(searchParams, { q: searchInput }), { replace: true });
-    }, 300);
-    return () => window.clearTimeout(timer);
-  }, [q, searchInput, searchParams, setSearchParams]);
+    const value = settled.value.trim();
+    if (settled === draft && settled.q === q && value !== q) update({ q: value }, { replace: true });
+  }, [draft, q, settled, update]);
 
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
+    const { signal } = controller;
     async function load() {
-      if (hasLoaded) setFetching(true);
+      if (hasLoaded.current) setFetching(true);
       else setLoading(true);
       setError(false);
       try {
         let categoryId;
         if (category) {
-          const categories = await apiGet("/api/categories/options");
+          const categories = await apiGet("/api/categories/options", { signal });
           categoryId = (Array.isArray(categories) ? categories : []).find(
             (item) => item.category_name === category,
           )?.category_id;
         }
-        const data = await apiGet(apiPath("/api/suppliers", { q, page, limit, category_id: categoryId }));
-        if (cancelled) return;
+        const data = await apiGet(apiPath("/api/suppliers", { q, page, limit, category_id: categoryId }), { signal });
+        if (signal.aborted) return;
         const next = normalizePage(data);
         if (shouldClampPage(next.pagination)) {
-          setSearchParams(updateListUrlState(searchParams, { page: next.pagination.total_pages }), { replace: true });
+          update({ page: next.pagination.total_pages }, { replace: true });
           return;
         }
         setSuppliers(next.items);
         setPagination(next.pagination);
-        setHasLoaded(true);
+        hasLoaded.current = true;
       } catch {
-        if (!cancelled) setError(true);
+        if (!signal.aborted) setError(true);
       } finally {
-        if (!cancelled) {
+        if (!signal.aborted) {
           setLoading(false);
           setFetching(false);
         }
       }
     }
     load();
-    return () => { cancelled = true; };
-  }, [category, hasLoaded, limit, page, q, retryCount, searchParams, setSearchParams]);
+    return () => controller.abort();
+  }, [category, limit, page, q, retryCount, update]);
 
-  function changeList(changes, replace = false) {
-    setSearchParams(updateListUrlState(searchParams, changes), { replace });
+  function submitSearch(value) {
+    const query = value.trim();
+    setDraft({ q, value: query, edited: true });
+    update({ q: query }, { replace: true });
   }
 
   function clearFilters() {
-    const next = updateListUrlState(searchParams, { q: "", page: 1 });
-    next.delete("category");
-    setSearchParams(next);
+    setDraft({ q, value: "", edited: true });
+    update({ q: "", filters: { category: null } });
   }
 
   const hasFilters = Boolean(category || q);
@@ -102,13 +111,10 @@ function SupplierGrid() {
       <div className="supplier-results__tools">
         <SearchField
           className="supplier-results__search"
-          value={searchInput}
-          onChange={setSearchInput}
-          onSubmit={(next) => setSearchParams(updateListUrlState(searchParams, { q: next }), { replace: true })}
-          onClear={() => {
-            setSearchInput("");
-            setSearchParams(updateListUrlState(searchParams, { q: "" }), { replace: true });
-          }}
+          value={draft.value}
+          onChange={(value) => setDraft({ q, value, edited: true })}
+          onSubmit={submitSearch}
+          onClear={() => submitSearch("")}
           label="Search suppliers"
           placeholder="Search suppliers"
         />
@@ -122,18 +128,17 @@ function SupplierGrid() {
 
       {error && (
         <div className="grid-empty">
-          <p role="alert">{hasLoaded ? "Could not refresh suppliers." : "Could not load suppliers."}</p>
+          <p role="alert">Could not load suppliers.</p>
           <button type="button" className="link-button" onClick={() => setRetryCount((count) => count + 1)}>
             Try again
           </button>
         </div>
       )}
-      {loading && !hasLoaded ? (
+      {loading ? (
         <SupplierCardGridSkeleton gridClassName="content-grid" />
       ) : suppliers.length === 0 ? (
         error ? null : <div className="grid-empty">
           <p>{hasFilters ? "No suppliers match these filters." : "No suppliers are available yet."}</p>
-          {hasFilters && <button type="button" className="link-button" onClick={clearFilters}>Clear filters</button>}
         </div>
       ) : (
         <section className="content-grid" aria-label="Supplier results">
@@ -149,7 +154,7 @@ function SupplierGrid() {
           ))}
         </section>
       )}
-      <PaginationControls pagination={pagination} onPageChange={(nextPage) => changeList({ page: nextPage })} onLimitChange={(nextLimit) => changeList({ limit: nextLimit })} disabled={fetching} ariaLabel="Supplier results pagination" className="supplier-results__pagination" />
+      <PaginationControls pagination={pagination} onPageChange={setPage} onLimitChange={setLimit} disabled={fetching} ariaLabel="Supplier results pagination" className="supplier-results__pagination" />
     </section>
   );
 }

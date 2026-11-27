@@ -85,6 +85,7 @@ function MarketplaceSearch({ categories = [] }) {
       ...products.map((product) => ({
         type: "product",
         id: `product-${product.product_id}`,
+        productId: String(product.product_id),
         label: product.product_name,
         detail: [product.business_name, product.sku].filter(Boolean).join(" · "),
         href: `/suppliers/${product.business_id}?product_id=${product.product_id}`,
@@ -138,7 +139,9 @@ function MarketplaceSearch({ categories = [] }) {
     if (typedQuery) remember(typedQuery);
     setOpen(false);
     setActiveIndex(-1);
-    navigate(option.href);
+    navigate(option.href, {
+      state: option.type === "product" ? { marketplacePreviewId: option.productId } : undefined,
+    });
   }
 
   function clearRecent() {

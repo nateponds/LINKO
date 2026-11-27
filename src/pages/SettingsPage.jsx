@@ -1,6 +1,6 @@
 import { Outlet, NavLink } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
-import { User, Shield, Briefcase, MapPin, Users, Bell } from "lucide-react";
+import { User, MapPin } from "lucide-react";
 import "../assets/css/settings.css";
 import { useAuth } from "../auth/AuthProvider";
 import { ROUTE_ACCESS } from "../auth/roleAccess";
@@ -9,8 +9,7 @@ const NAV_GROUPS = [
   {
     title: "Account",
     items: [
-      { to: "/settings/profile", label: "Profile", icon: User, active: true },
-      { to: "/settings/security", label: "Security", icon: Shield, active: false },
+      { to: "/settings/profile", label: "Profile", icon: User },
     ],
   },
   {
@@ -18,15 +17,7 @@ const NAV_GROUPS = [
     // Business settings belong to marketplace businesses only.
     roles: ROUTE_ACCESS["/settings/business-location"],
     items: [
-      { to: "/settings/business-details", label: "Business Details", icon: Briefcase, active: false },
-      { to: "/settings/business-location", label: "Addresses", icon: MapPin, active: true },
-      { to: "/settings/team", label: "Team & Access", icon: Users, active: false },
-    ],
-  },
-  {
-    title: "Preferences",
-    items: [
-      { to: "/settings/notifications", label: "Notifications", icon: Bell, active: false },
+      { to: "/settings/business-location", label: "Addresses", icon: MapPin },
     ],
   },
 ];
@@ -39,31 +30,22 @@ export default function SettingsPage() {
     <AppLayout>
       <div className="settings-shell">
         <aside className="settings-nav-sidebar">
-          <nav className="settings-nav">
-            {groups.map((group, i) => (
-              <div key={i} className="settings-nav-group">
+          <nav className="settings-nav" aria-label="Settings">
+            {groups.map((group) => (
+              <div key={group.title} className="settings-nav-group">
                 <h3 className="settings-nav-group-title">{group.title}</h3>
                 <div className="settings-nav-items">
-                  {group.items.map((item, j) => {
+                  {group.items.map((item) => {
                     const Icon = item.icon;
-                    if (!item.active) {
-                      return (
-                        <button key={j} className="settings-nav-link disabled" disabled>
-                          <Icon size={18} />
-                          <span>{item.label}</span>
-                          <span className="settings-badge">Coming soon</span>
-                        </button>
-                      );
-                    }
                     return (
                       <NavLink
-                        key={j}
+                        key={item.to}
                         to={item.to}
                         className={({ isActive }) =>
                           `settings-nav-link ${isActive ? "active" : ""}`
                         }
                       >
-                        <Icon size={18} />
+                        <Icon size={18} aria-hidden="true" />
                         <span>{item.label}</span>
                       </NavLink>
                     );
@@ -73,9 +55,9 @@ export default function SettingsPage() {
             ))}
           </nav>
         </aside>
-        <main className="settings-content-panel">
+        <div className="settings-content-panel">
           <Outlet />
-        </main>
+        </div>
       </div>
     </AppLayout>
   );

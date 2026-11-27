@@ -2,11 +2,13 @@ import "../assets/css/shell.css";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { TriangleAlert, LayoutDashboard, Boxes, ClipboardList, Receipt, Truck, Store, Settings } from "lucide-react";
 import Topbar from "../components/navigation/Topbar";
+import BusinessSwitcher from "../components/navigation/BusinessSwitcher";
 import SubNav from "../components/navigation/SubNav";
 import Footer from "../components/navigation/Footer";
 import MobileNav from "../components/navigation/MobileNav";
 import AlertBanner from "../components/ui/AlertBanner";
 import { useAuth } from "../auth/AuthProvider";
+import { ROUTE_ACCESS } from "../auth/roleAccess";
 
 // Missing-location reminder (Sprint 13 §9.2). Fully data-derived - no
 // dismissal state: shows while the active buyer/wholesaler business has no
@@ -47,9 +49,9 @@ function AppLayout({
   showSearch = false,
   showCategories = false,
 }) {
-  const { activeBusiness, hasAnyRole } = useAuth();
+  const { hasAnyRole, activeBusiness, businesses } = useAuth();
   const { pathname } = useLocation();
-  const sellerWorkspace = hasAnyRole(["wholesaler"]) && [
+  const sellerWorkspace = hasAnyRole(ROUTE_ACCESS["/dashboard"]) && [
     "/dashboard", "/inventory", "/orders", "/invoices", "/logistics",
   ].some((path) => pathname === path || pathname.startsWith(path + "/"));
   const sellerLinks = [
@@ -65,9 +67,12 @@ function AppLayout({
       {sellerWorkspace && (
         <aside className="seller-sidebar">
           <Link className="seller-wordmark" to="/dashboard">LINK<span>O</span></Link>
-          <div className="seller-business"><span className="seller-business-icon"><Store size={19} /></span><strong>{activeBusiness?.business_name}</strong></div>
+          <div className="seller-business">
+            <span className="seller-business-icon"><Store size={19} aria-hidden="true" /></span>
+            {businesses.length > 1 ? <BusinessSwitcher /> : <strong>{activeBusiness?.business_name}</strong>}
+          </div>
           <nav aria-label="Seller workspace">
-            {sellerLinks.map(([path, label, Icon]) => (
+            {sellerLinks.filter(([path]) => hasAnyRole(ROUTE_ACCESS[path])).map(([path, label, Icon]) => (
               <NavLink key={path} to={path} className={({ isActive }) => isActive ? "active" : ""}>
                 <Icon size={18} /><span>{label}</span>
               </NavLink>
