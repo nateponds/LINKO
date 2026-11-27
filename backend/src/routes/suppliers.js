@@ -1,5 +1,11 @@
 import { Router } from "express";
 import { query } from "../db.js";
+import {
+  asClientError,
+  createHttpError,
+  readSingletonQueryString,
+} from "../lib/httpErrors.js";
+import { BUSINESS_PRIMARY_ADDRESS_JOIN_SQL } from "../services/addresses.js";
 import { buildPaginatedResponse, parsePaginationQuery } from "../services/pagination.js";
 
 const router = Router();
@@ -8,30 +14,8 @@ const router = Router();
 // a count of their active products. Auth is enforced at the mount (any
 // authenticated user). Shape documented in docs/API_CONTRACTS.md.
 
-function asClientError(error) {
-  if (["23503", "23514", "23505"].includes(error.code)) {
-    error.statusCode = 400;
-  }
-  return error;
-}
-
-function createHttpError(statusCode, message) {
-  const error = new Error(message);
-  error.statusCode = statusCode;
-  return error;
-}
-
-function readSingletonQueryString(query, name) {
-  const value = query[name];
-  if (value === undefined) return undefined;
-  if (typeof value !== "string") {
-    throw createHttpError(400, `${name} must be a single string`);
-  }
-  return value;
-}
-
-function parsePositiveQueryId(query, name) {
-  const value = readSingletonQueryString(query, name);
+function parsePositiveQueryId(queryParams, name) {
+  const value = readSingletonQueryString(queryParams[name], name);
   if (value === undefined) return undefined;
   if (!/^[1-9]\d*$/.test(value)) {
     throw createHttpError(400, `${name} must be a positive integer`);
@@ -78,7 +62,7 @@ router.get("/", async (req, res, next) => {
            AND p.category_id = $${params.length}
       )`);
     }
-    const sort = readSingletonQueryString(req.query, "sort") ?? "name";
+    const sort = readSingletonQueryString(req.query.sort, "sort") ?? "name";
     if (!new Set(["name", "featured"]).has(sort)) {
       throw createHttpError(400, "sort must be name or featured");
     }
@@ -102,13 +86,7 @@ router.get("/", async (req, res, next) => {
               (SELECT COUNT(*)::int FROM products p
                 WHERE p.business_id = b.business_id AND p.is_active = TRUE) AS product_count
          FROM businesses b
-         LEFT JOIN LATERAL (
-           SELECT province, city_municipality, street_address
-             FROM addresses
-            WHERE business_id = b.business_id
-            ORDER BY address_id ASC
-            LIMIT 1
-         ) a ON TRUE
+         ${BUSINESS_PRIMARY_ADDRESS_JOIN_SQL}
         ${where}
         ORDER BY ${orderBy}
         LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
@@ -139,13 +117,7 @@ router.get("/:id", async (req, res, next) => {
                   AND p.is_active = TRUE
                   AND p.category_id IS NOT NULL) AS category_count
          FROM businesses b
-         LEFT JOIN LATERAL (
-           SELECT province, city_municipality, street_address
-             FROM addresses
-            WHERE business_id = b.business_id
-            ORDER BY address_id ASC
-            LIMIT 1
-         ) a ON TRUE
+         ${BUSINESS_PRIMARY_ADDRESS_JOIN_SQL}
         WHERE b.business_id = $1 AND b.business_type = 'wholesaler'`,
       [supplierId],
     );

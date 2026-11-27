@@ -1,4 +1,5 @@
 import { getSessionUser } from "../auth/sessions.js";
+import { createHttpError } from "../lib/httpErrors.js";
 import { activeMemberships, isPlatformAdmin } from "./ownership.js";
 
 function parseCookies(header = "") {
@@ -17,12 +18,6 @@ function parseCookies(header = "") {
       cookies[key] = decodeURIComponent(value);
       return cookies;
     }, {});
-}
-
-function createHttpError(statusCode, message) {
-  const error = new Error(message);
-  error.statusCode = statusCode;
-  return error;
 }
 
 export async function requireAuth(req, _res, next) {

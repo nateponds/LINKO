@@ -215,7 +215,7 @@ test("inventory batches are readable and writable only by the owning wholesaler"
     }
     assert.equal(
       (await request("/api/inventory-batches", { method: "POST", cookie: s.otherWholesaler, body })).status,
-      403,
+      404,
       "a wholesaler cannot add batches to another business's product",
     );
 
@@ -224,12 +224,14 @@ test("inventory batches are readable and writable only by the owning wholesaler"
     const path = `/api/inventory-batches/${created.body.batch_id}`;
 
     for (const role of [...OPERATIONAL, "buyer", "otherWholesaler"]) {
+      // Another wholesaler gets the uniform 404; role-gated callers get 403.
+      const denied = role === "otherWholesaler" ? 404 : 403;
       assert.equal(
         (await request(path, { method: "PATCH", cookie: s[role], body: { depleted: true } })).status,
-        403,
+        denied,
         `${role} batch update`,
       );
-      assert.equal((await request(path, { method: "DELETE", cookie: s[role] })).status, 403, `${role} batch delete`);
+      assert.equal((await request(path, { method: "DELETE", cookie: s[role] })).status, denied, `${role} batch delete`);
     }
     const foreign = await request(`/api/inventory-batches?product_id=${productId}`, { cookie: s.otherWholesaler });
     assert.equal(foreign.status, 200);

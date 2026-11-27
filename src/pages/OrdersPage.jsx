@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState, useRef } from "react";
-import { Search } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import AppLayout from "../layouts/AppLayout";
@@ -8,6 +7,7 @@ import SupportModal from "../components/ui/SupportModal";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
 import { apiGet, apiSend } from "../lib/api";
 import PaginationControls from "../components/ui/PaginationControls";
+import SearchField from "../components/ui/SearchField";
 import { useListUrlState } from "../hooks/useListUrlState";
 import { peso, shortDate, statusClass } from "../lib/format";
 import { TableSkeleton, TrackingSkeleton } from "../components/ui/pageSkeletons";
@@ -96,7 +96,11 @@ export default function OrdersPage() {
   if (list.q) query.set("q", list.q);
   if (statusFilter !== "All") query.set("status", statusFilter.toLowerCase());
   const resource = useOrderPage(`/api/orders?${query.toString()}`);
+  const [searchDraft, setSearchDraft] = useState({ query: list.q, value: list.q });
   const searchTimerRef = useRef(null);
+  if (searchDraft.query !== list.q) {
+    setSearchDraft({ query: list.q, value: list.q });
+  }
   const pageData = resource.data ?? resource.staleData;
   const orders = pageData?.items ?? null;
   const pagination = pageData?.pagination ?? null;
@@ -116,14 +120,13 @@ export default function OrdersPage() {
   }, [list, resource.data]);
 
   function queueSearch(nextQuery) {
+    setSearchDraft({ query: list.q, value: nextQuery });
     window.clearTimeout(searchTimerRef.current);
     searchTimerRef.current = window.setTimeout(() => list.setQuery(nextQuery), 300);
   }
 
-  function submitSearch(event) {
-    event.preventDefault();
+  function submitSearch(nextQuery) {
     window.clearTimeout(searchTimerRef.current);
-    const nextQuery = new FormData(event.currentTarget).get("q");
     list.setQuery(String(nextQuery ?? ""));
   }
 
@@ -254,20 +257,19 @@ export default function OrdersPage() {
       <div className="orders-page">
         <div className="page-head">
           <h1>Orders</h1>
-          <form className="search-bar" role="search" aria-label="Search orders" onSubmit={submitSearch}>
-            <input
-              name="q"
-              type="text"
-              aria-label="Search orders"
-              placeholder="Search order no., customer, seller, invoice"
-              key={list.q}
-              defaultValue={list.q}
-              onChange={(event) => queueSearch(event.target.value)}
-            />
-            <button type="submit" className="search-icon-btn" aria-label="Search orders">
-              <Search size={16} />
-            </button>
-          </form>
+          <SearchField
+            className="search-bar"
+            value={searchDraft.value}
+            onChange={queueSearch}
+            onSubmit={submitSearch}
+            onClear={() => {
+              window.clearTimeout(searchTimerRef.current);
+              setSearchDraft({ query: list.q, value: "" });
+              list.setQuery("");
+            }}
+            label="Search orders"
+            placeholder="Search order no., customer, seller, invoice"
+          />
         </div>
 
         <div

@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { BadgeCheck, MapPin, Package, Search } from "lucide-react";
+import { BadgeCheck, MapPin, Package } from "lucide-react";
 import { apiGet } from "../../lib/api";
 import PaginationControls from "../../components/ui/PaginationControls";
+import SearchField from "../../components/ui/SearchField";
 import { readListUrlState, updateListUrlState } from "../../lib/pagination";
 import { apiPath, normalizePage, shouldClampPage } from "./marketplacePagination";
 import { hueOf, imageForSupplier, initialOf } from "../../lib/categoryImages";
@@ -99,11 +100,18 @@ function SupplierGrid() {
   return (
     <section className="supplier-results" aria-busy={fetching}>
       <div className="supplier-results__tools">
-        <label className="supplier-results__search">
-          <span className="sr-only">Search suppliers</span>
-          <Search size={16} aria-hidden="true" />
-          <input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search suppliers" />
-        </label>
+        <SearchField
+          className="supplier-results__search"
+          value={searchInput}
+          onChange={setSearchInput}
+          onSubmit={(next) => setSearchParams(updateListUrlState(searchParams, { q: next }), { replace: true })}
+          onClear={() => {
+            setSearchInput("");
+            setSearchParams(updateListUrlState(searchParams, { q: "" }), { replace: true });
+          }}
+          label="Search suppliers"
+          placeholder="Search suppliers"
+        />
         {hasFilters && (
           <div className="grid-filter-bar">
             <span>{pagination.total_items} supplier{pagination.total_items === 1 ? "" : "s"}{q && <> for “{q}”</>}{category && <> in <strong>{category}</strong></>}</span>

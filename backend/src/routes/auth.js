@@ -8,16 +8,11 @@ import {
   serializeSessionCookie,
 } from "../auth/sessions.js";
 import { getPool } from "../db.js";
+import { createHttpError } from "../lib/httpErrors.js";
 import { requireAuth } from "../middleware/auth.js";
 import { createBusiness, parseBusiness, validateBusinessType } from "../services/businesses.js";
 
 const router = Router();
-
-function createHttpError(statusCode, message) {
-  const error = new Error(message);
-  error.statusCode = statusCode;
-  return error;
-}
 
 function normalizeEmail(email) {
   return typeof email === "string" ? email.trim().toLowerCase() : "";

@@ -1,19 +1,10 @@
 import { Router } from "express";
 import { query } from "../db.js";
+import { asClientError, createHttpError } from "../lib/httpErrors.js";
 import { requireAnyRole, requireAuth } from "../middleware/auth.js";
 import { resolveActiveBusinessId } from "../middleware/ownership.js";
 
 const router = Router();
-
-function asClientError(error) {
-  return error;
-}
-
-function createHttpError(statusCode, message) {
-  const error = new Error(message);
-  error.statusCode = statusCode;
-  return error;
-}
 
 // GET /api/dashboard?range=today|7d|30d
 // Returns SALES stats for the active wholesaler business only (its purchases

@@ -1,3 +1,5 @@
+> **ARCHIVED / STALE SNAPSHOT (Sprint 1):** Do not use this file as current architecture truth. See root `AGENTS.md`, `docs/API_CONTRACTS.md`, and `docs/linko_database_specification.md`.
+
 # LINKO Current Codebase Overview
 
 This document explains the codebase as it exists right now. It is meant for student developers who are still getting comfortable reading JavaScript, React, Express, and PostgreSQL.

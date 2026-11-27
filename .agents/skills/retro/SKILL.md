@@ -26,7 +26,6 @@ Inspect the recent session, `/code-review` findings, or `git log -n 10 --stat` a
 1. **Graduated rules:** If a prose rule in `CODING_STANDARDS.md` is now enforced by ESLint or a test, delete or compress it to a one-line note.
 2. **Stale references:** Verify reference files, monolith lists, and commands still match the repo.
 3. **Bloat check:** Keep `AGENTS.md` lean (`< 120` lines) and `CODING_STANDARDS.md` scannable (`< 400` lines; split deep domain guides into `docs/` with pointers if it outgrows that).
-4. **Optional small-model kit sync:** If `local-notes/small-model-kit/` exists locally and a critical invariant changed, note whether its compressed rules need a 1-line update.
 
 ## Step 4: Propose & Apply
 

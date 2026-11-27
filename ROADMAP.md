@@ -1,8 +1,10 @@
 # LINKO Roadmap
 
+> **Status Note:** Core frontend pages (`AdminDashboardPage`, `OrdersPage`, `CartPage`, `InvoicePage`, `InventoryPage`, and logistics pages) are already shipped.
+
 ## Checkpoint Implementation Focus
 
-The first checkpoint-ready slice of LINKO is the **Courier/Parcel Tracking** workflow documented in [local-notes/course-deliverable.md](./local-notes/course-deliverable.md). It serves as the platform's fulfillment foundation: once buyers, wholesalers, or businesses create operational demand, LINKO can represent the package, sender, receiver, service tier, route events, and delivery status.
+The first checkpoint-ready slice of LINKO is the **Courier/Parcel Tracking** workflow. It serves as the platform's fulfillment foundation: once buyers, wholesalers, or businesses create operational demand, LINKO can represent the package, sender, receiver, service tier, route events, and delivery status.
 
 The implemented system covers the required lifecycle:
 
@@ -21,14 +23,13 @@ Required core tables are implemented as:
 | `Parcels` | `parcels` | Package master record, including sender, receiver, weight, dimensions, fee, and delivery estimate. |
 | `Tracking_Logs` | `tracking_logs` | Real-time parcel scan and status history. |
 
-Implementation evidence lives in the logistics migrations, ERD, backend routes, tests, seed data, and live demo:
+Implementation evidence lives in the logistics migrations, ERD, backend routes, tests, and seed data:
 
 - `backend/migrations/002_logistics_schema.sql`
 - `backend/migrations/003_linko_schema.sql`
 - `docs/LINKO_ERD.md`
 - `backend/src/routes/logistics.js`
 - `backend/src/logistics-workflow.test.js`
-- `docs/DEMO_SCRIPT.md`
 
 Implementation note: LINKO derives each parcel's current status from the latest `tracking_logs` row. This keeps the tracking history as the source of truth while the UI still shows the current status for each parcel.
 
@@ -186,7 +187,6 @@ Core features:
 
 ## Current Status
 
-Status: Backend Foundation is fully built and deployed.
-Next recommended milestone: Complete the Basic Frontend & API Integration (Phase 4).
+Status: Backend foundation and Phases 4–7 core pages (marketplace discovery, products/inventory, orders/invoices, logistics/courier tracking, and admin dashboard) are shipped. Remaining roadmap items (proximity matching refinements and advanced analytics) are incremental enhancements.
 
 Account type is chosen at registration; supplier upgrade/application is not offered.

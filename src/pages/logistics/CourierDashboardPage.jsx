@@ -4,6 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 import AppLayout from "../../layouts/AppLayout";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import PaginationControls from "../../components/ui/PaginationControls";
+import SearchField from "../../components/ui/SearchField";
 import { useListUrlState } from "../../hooks/useListUrlState";
 import { apiGet, apiSend } from "../../lib/api";
 import { statusClass, shortDate } from "../../lib/format";
@@ -297,8 +298,22 @@ export default function CourierDashboardPage() {
             {searchVisible ? <X size={20} aria-hidden="true" /> : <Search size={20} aria-hidden="true" />}
           </button>
           <div id="courier-search" className={`courier-search${searchVisible ? " is-open" : ""}`}>
-            <Search size={18} aria-hidden="true" />
-            <input ref={searchInputRef} type="search" aria-label="Search parcel number or receiver" placeholder="Parcel no. or receiver" value={searchDraft.value} onChange={(event) => queueSearch(event.target.value)} />
+            <SearchField
+              inputRef={searchInputRef}
+              value={searchDraft.value}
+              onChange={queueSearch}
+              onSubmit={(next) => {
+                window.clearTimeout(searchTimerRef.current);
+                list.setQuery(next);
+              }}
+              onClear={() => {
+                window.clearTimeout(searchTimerRef.current);
+                setSearchDraft({ query: list.q, value: "" });
+                list.setQuery("");
+              }}
+              label="Search parcel number or receiver"
+              placeholder="Parcel no. or receiver"
+            />
           </div>
         </div>
 

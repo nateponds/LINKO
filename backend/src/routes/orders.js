@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { getPool, query, nextParcelId } from "../db.js";
+import { asClientError, createHttpError } from "../lib/httpErrors.js";
 import { MARKETPLACE_ROLES, requireAnyRole, requireAuth } from "../middleware/auth.js";
 import {
   activeMemberships,
@@ -25,19 +26,6 @@ const ORDER_STATUSES = [
   "cancelled",
   "returned",
 ];
-
-function asClientError(error) {
-  if (["23503", "23514", "23505"].includes(error.code)) {
-    error.statusCode = 400;
-  }
-  return error;
-}
-
-function createHttpError(statusCode, message) {
-  const error = new Error(message);
-  error.statusCode = statusCode;
-  return error;
-}
 
 function parsePositiveId(rawId, label) {
   const id = Number(rawId);
@@ -540,10 +528,13 @@ router.patch(
         [orderId],
       );
       if (!lock.rows.length) {
-        throw createHttpError(404, `Order ${req.params.id} not found`);
+        throw createHttpError(404, "Order not found");
       }
       const order = lock.rows[0];
       const side = orderSide(req, order);
+      if (!side && !isPlatformAdmin(req.auth.user)) {
+        throw createHttpError(404, "Order not found");
+      }
       assertTransitionAllowed(req, order, side, status);
 
       if (status === "accepted") {

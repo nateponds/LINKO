@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Bell,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   LogOut,
@@ -14,8 +15,6 @@ import {
   TriangleAlert,
   User,
 } from "lucide-react";
-import { BiMenuAltLeft } from "react-icons/bi";
-import { GoChevronDown } from "react-icons/go";
 
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../auth/AuthProvider";
@@ -239,8 +238,8 @@ function Topbar({ showSearch = false, showCategories = false, workspaceNavigatio
               aria-expanded={openPanel === "categories"}
               onClick={(event) => togglePanel(event, "categories")}
             >
-              <BiMenuAltLeft size={24} className="bi-menu" /> All Categories{" "}
-              <GoChevronDown />
+              <Menu size={20} className="bi-menu" aria-hidden="true" /> All Categories{" "}
+              <ChevronDown size={16} aria-hidden="true" />
             </button>
             {openPanel === "categories" && (
               <div
@@ -322,31 +321,24 @@ function Topbar({ showSearch = false, showCategories = false, workspaceNavigatio
               className={`dropdown-panel animated ${openPanel === "notifications" ? "open" : ""}`}
               onClick={(event) => event.stopPropagation()}
             >
-                <div className="dropdown-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div className="dropdown-head dropdown-head--split">
                   <span>Notifications</span>
                   {notifications.length > 0 && (
                     <button
                       type="button"
-                      className="icon-action notif-icon-action"
-                      style={{ padding: "0.25rem" }}
+                      className="icon-action notif-icon-action notif-icon-action--compact"
                       onClick={clearAllNotifications}
                       onMouseEnter={() => setIsMailHovered(true)}
                       onMouseLeave={() => setIsMailHovered(false)}
                       title="Mark as Read All"
                     >
-                      {isMailHovered ? <MailOpen size={16} style={{ transform: "translateY(-2px)" }} /> : <Mail size={16} />}
+                      {isMailHovered ? <MailOpen size={16} className="notif-mail-open" /> : <Mail size={16} />}
                     </button>
                   )}
                 </div>
                 <ul className="notif-list">
                   {notifications.length === 0 ? (
-                    <li
-                      style={{
-                        padding: "1rem",
-                        textAlign: "center",
-                        color: "#666",
-                      }}
-                    >
+                    <li className="notif-empty">
                       No new notifications
                     </li>
                   ) : (
@@ -372,34 +364,25 @@ function Topbar({ showSearch = false, showCategories = false, workspaceNavigatio
                         })}
                       {notifications.length > NOTIFICATIONS_PER_PAGE && (
                         <li
-                          style={{
-                            display: "flex",
-                            justifyContent: "center",
-                            alignItems: "center",
-                            gap: "1rem",
-                            padding: "0.5rem",
-                            background: "transparent",
-                          }}
+                          className="notif-pagination"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <button
                             type="button"
-                            className="icon-action notif-icon-action"
+                            className="icon-action notif-icon-action notif-icon-action--compact"
                             disabled={currentNotifPage === 1}
                             onClick={() => setNotificationPage(currentNotifPage - 1)}
-                            style={{ padding: "0.25rem" }}
                           >
                             <ChevronLeft size={16} />
                           </button>
-                          <span style={{ fontSize: "0.8rem", color: "#666" }}>
+                          <span className="notif-pagination__status">
                             {currentNotifPage} / {Math.ceil(notifications.length / NOTIFICATIONS_PER_PAGE)}
                           </span>
                           <button
                             type="button"
-                            className="icon-action notif-icon-action"
+                            className="icon-action notif-icon-action notif-icon-action--compact"
                             disabled={currentNotifPage === Math.ceil(notifications.length / NOTIFICATIONS_PER_PAGE)}
                             onClick={() => setNotificationPage(currentNotifPage + 1)}
-                            style={{ padding: "0.25rem" }}
                           >
                             <ChevronRight size={16} />
                           </button>
@@ -423,7 +406,7 @@ function Topbar({ showSearch = false, showCategories = false, workspaceNavigatio
                 {APP_NAV_ITEMS.filter((item) => {
                   if (!hasAnyRole(item.roles)) return false;
                   const groupedBusinessPage = ["/inventory", "/orders", "/invoices", "/logistics"].includes(item.link);
-                  return workspaceNavigation || !activeRoles.includes("wholesaler") || !groupedBusinessPage;
+                  return workspaceNavigation || !hasAnyRole(["wholesaler"]) || !groupedBusinessPage;
                 }).map((item) => (
                   <Link key={item.name} to={item.link} onClick={() => setOpenPanel(null)}>{item.name}</Link>
                 ))}

@@ -5,11 +5,9 @@
 // sent by the frontend and always validated server-side against the caller's
 // memberships (never trusted blindly). There is no session-table column for it.
 
-export function createHttpError(statusCode, message) {
-  const error = new Error(message);
-  error.statusCode = statusCode;
-  return error;
-}
+import { createHttpError } from "../lib/httpErrors.js";
+
+export { createHttpError };
 
 export function isPlatformAdmin(user) {
   return user?.global_role === "platform_admin";

@@ -3,24 +3,26 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
+    "format:check": "npx prettier --check .",
     "preview": "vite preview",
     "test": "node --test \"src/**/*.test.js\" \"tests/**/*.test.js\"",
     "test:backend": "npm --prefix backend test",
-    "check": "npm run lint && npm test && npm run build"
+    "check": "npm run lint && npm test && npm run build",
+    "check:all": "npm run lint && npm test && npm run test:backend && npm run build"
   },
   "dependencies": {
     "@mapbox/mapbox-gl-geocoder": "^5.1.2",
-    "canvas-confetti": "^1.9.4",
-    "framer-motion": "^12.42.2",
     "lucide-react": "^1.22.0",
     "mapbox-gl": "^3.26.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "react-icons": "^5.7.0",
     "react-router-dom": "^7.18.1",
     "recharts": "^3.9.2"
   },
