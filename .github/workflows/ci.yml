@@ -40,7 +40,12 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
       - run: npm ci
+      # tests/vercel-entry.test.js imports api/index.js, which loads the backend app
+      - run: npm --prefix backend ci
       - run: npm test
       - run: npm run build
 
