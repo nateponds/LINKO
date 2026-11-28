@@ -13,6 +13,9 @@
   /* heading row is the shared .page-head from shell.css; a minimal gray
      line divides it from the product list below */
   .page-head {
+    /* bottom-align the title with the toolbar so the h1 shares the search
+       input's row instead of floating mid-height of the taller search block */
+    align-items: flex-end;
     padding-bottom: 20px;
     margin-bottom: 6px;
     border-bottom: 1px solid var(--hairline);
@@ -20,9 +23,48 @@
 
   .header-toolbar {
     display: flex;
-    align-items: center;
+    /* the search keeps its label above the input, so bottom-align the 44px
+       buttons with the input row instead of centering against both rows */
+    align-items: flex-end;
     gap: 12px;
     flex-wrap: wrap;
+    margin-left: auto;
+  }
+
+  /* On narrow desktop windows the toolbar no longer fits beside the title;
+     refuse to shrink so it drops below the title as one clean row instead
+     of wrapping "Add product" under the search. */
+  @media (min-width: 641px) {
+    .header-toolbar {
+      flex: 0 0 auto;
+    }
+  }
+
+  .header-toolbar .inventory-search {
+    flex: 1 1 280px;
+    min-width: min(220px, 100%);
+    max-width: 460px;
+  }
+
+  .inventory-search .list-search__input-wrap {
+    width: 100%;
+    min-width: 0;
+  }
+
+  @media (max-width: 640px) {
+    .page-head {
+      align-items: stretch;
+    }
+
+    .header-toolbar {
+      width: 100%;
+    }
+
+    .header-toolbar .inventory-search {
+      flex-basis: 100%;
+      min-width: 0;
+      max-width: none;
+    }
   }
 
   .filter-wrap {

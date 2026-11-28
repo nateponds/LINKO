@@ -452,7 +452,7 @@ export default function InventoryPage() {
           <h1>My Products</h1>
           <div className="header-toolbar">
             <SearchField
-              className="search-bar"
+              className="inventory-search"
               value={searchTerm}
               onChange={setSearchTerm}
               onSubmit={submitSearch}

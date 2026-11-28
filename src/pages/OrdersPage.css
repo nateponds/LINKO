@@ -11,8 +11,34 @@
   /* heading row is the shared .page-head from shell.css; a minimal gray
      line divides it from the content below */
   .page-head {
+    /* bottom-align the title with the search so the h1 shares the input's
+       row instead of floating mid-height of the taller label+input block */
+    align-items: flex-end;
     padding-bottom: 20px;
     border-bottom: 1px solid var(--hairline);
+  }
+
+  .page-head .orders-search {
+    flex: 1 1 280px;
+    min-width: min(220px, 100%);
+    max-width: 460px;
+  }
+
+  .orders-search .list-search__input-wrap {
+    width: 100%;
+    min-width: 0;
+  }
+
+  @media (max-width: 640px) {
+    .page-head {
+      align-items: stretch;
+    }
+
+    .page-head .orders-search {
+      flex-basis: 100%;
+      min-width: 0;
+      max-width: none;
+    }
   }
 
   .status-tabs {
