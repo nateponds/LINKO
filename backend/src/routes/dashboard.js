@@ -40,25 +40,6 @@ router.get("/dashboard", requireAuth, requireAnyRole(["wholesaler"]), async (req
           WHERE ${orderScope}
             AND i.issued_at >= ${windowStart}`;
 
-    // Revenue per time bucket; generate_series fills quiet buckets with zero.
-    const revenueTrendQuery = `
-      SELECT to_char(gs.bucket, '${labelFormat}') AS label,
-             COALESCE(SUM(inv.total), 0)::float8 AS value
-        FROM generate_series(
-               ${windowStart},
-               date_trunc('${bucket}', CURRENT_TIMESTAMP),
-               INTERVAL '1 ${bucket}'
-             ) AS gs(bucket)
-        LEFT JOIN (
-          SELECT i.total, i.issued_at
-            FROM invoices i
-            JOIN orders o ON o.order_id = i.order_id
-           WHERE ${orderScope}
-             AND i.issued_at >= ${windowStart}
-        ) inv ON date_trunc('${bucket}', inv.issued_at) = gs.bucket
-       GROUP BY gs.bucket
-       ORDER BY gs.bucket`;
-
     const ordersQuery = `
       SELECT COUNT(*) AS val
         FROM orders o
@@ -103,34 +84,6 @@ router.get("/dashboard", requireAuth, requireAnyRole(["wholesaler"]), async (req
        ORDER BY sold DESC
        LIMIT 5`;
 
-    // Revenue by product category for the donut chart.
-    const categoryRevenueQuery = `
-      SELECT c.category_name AS name,
-             COALESCE(SUM(oi.quantity * oi.unit_price_snapshot), 0)::float8 AS value
-        FROM order_items oi
-        JOIN orders o ON o.order_id = oi.order_id
-        JOIN products p ON p.product_id = oi.product_id
-        JOIN categories c ON c.category_id = p.category_id
-       WHERE ${orderScope}
-         AND o.status <> 'cancelled'
-         AND o.created_at >= ${windowStart}
-       GROUP BY c.category_id, c.category_name
-       ORDER BY value DESC
-       LIMIT 8`;
-
-    // Revenue by buyer business for the top customers chart.
-    const topCustomersQuery = `
-      SELECT b.business_name AS name,
-             SUM(i.total)::float8 AS value
-        FROM invoices i
-        JOIN orders o ON o.order_id = i.order_id
-        JOIN businesses b ON b.business_id = o.buyer_business_id
-       WHERE o.wholesaler_business_id = $1
-         AND o.created_at >= ${windowStart}
-       GROUP BY b.business_id, b.business_name
-       ORDER BY value DESC
-       LIMIT 10`;
-
     const recentActivityQuery = `
       SELECT o.order_id,
              o.status,
@@ -152,7 +105,7 @@ router.get("/dashboard", requireAuth, requireAnyRole(["wholesaler"]), async (req
          AND o.status = ANY($2::text[])
        GROUP BY o.status`;
 
-    const [revRes, ordRes, lowRes, prodRes, salesRes, topRes, activityRes, actionableRes, revenueTrendRes, categoryRevenueRes, topCustomersRes] =
+    const [revRes, ordRes, lowRes, prodRes, salesRes, topRes, activityRes, actionableRes] =
       await Promise.all([
         query(revenueQuery, params),
         query(ordersQuery, params),
@@ -162,9 +115,6 @@ router.get("/dashboard", requireAuth, requireAnyRole(["wholesaler"]), async (req
         query(topProductsQuery, params),
         query(recentActivityQuery, params),
         query(actionableOrdersQuery, [businessId, ["pending", "accepted"]]),
-        query(revenueTrendQuery, params),
-        query(categoryRevenueQuery, params),
-        query(topCustomersQuery, params),
       ]);
 
     const actionableOrders = { pending: 0, accepted: 0 };
@@ -186,12 +136,6 @@ router.get("/dashboard", requireAuth, requireAnyRole(["wholesaler"]), async (req
       })),
       recentActivity: activityRes.rows,
       actionableOrders,
-      revenueTrend: revenueTrendRes.rows,
-      categoryRevenue: categoryRevenueRes.rows,
-      topCustomers: topCustomersRes.rows.map((row) => ({
-        ...row,
-        value: parseFloat(row.value),
-      })),
     });
   } catch (err) {
     next(asClientError(err));

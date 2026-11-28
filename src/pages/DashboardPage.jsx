@@ -13,8 +13,6 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  Area,
-  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
@@ -22,10 +20,6 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-  PieChart,
-  Pie,
-  Cell,
-  Line,
 } from "recharts";
 import AppLayout from "../layouts/AppLayout";
 import DecisionStrip from "../components/DecisionStrip";
@@ -50,9 +44,6 @@ const EMPTY_STATS = {
   topProducts: [],
   recentActivity: [],
   actionableOrders: { pending: 0, accepted: 0 },
-  revenueTrend: [],
-  categoryRevenue: [],
-  topCustomers: [],
 };
 
 const ALERT_STATUSES = new Set(["cancelled", "canceled", "returned", "rejected"]);
@@ -100,133 +91,6 @@ function SalesTooltip({ active, payload, label }) {
         <span className="chart-tooltip-swatch" />
         {payload[0].value} order{payload[0].value === 1 ? "" : "s"}
       </span>
-    </div>
-  );
-}
-
-function RevenueTooltip({ active, payload, label }) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="chart-tooltip">
-      <span className="chart-tooltip-label">{label}</span>
-      <span className="chart-tooltip-value">
-        <span className="chart-tooltip-swatch" />
-        {pesoFormat(payload[0].value)}
-      </span>
-    </div>
-  );
-}
-
-function CategoryDonut({ data }) {
-  const total = data.reduce((sum, item) => sum + item.value, 0);
-  const colors = ["#2563eb", "#059669", "#d97706", "#db2777", "#1d4ed8", "#16a34a", "#b45309", "#be185d"];
-
-  return (
-    <div className="category-panel-wrapper">
-      <div className="chart-wrap chart-wrap-category">
-        <ResponsiveContainer width="100%" height={320}>
-          <PieChart>
-            <Pie
-              dataKey="value"
-              data={data}
-              cx="50%"
-              cy="50%"
-              innerRadius={75}
-              outerRadius={110}
-              paddingAngle={3}
-              isAnimationActive={false}
-              startAngle={90}
-              endAngle={450}
-            >
-              {data.map((entry, index) => {
-                return (
-                  <Cell key={`category-${entry.name}`} fill={colors[index % colors.length]} />
-                );
-              })}
-              <Tooltip
-                content={({ active, payload, label }) => {
-                  if (!active || !payload?.length) return null;
-                  const item = payload[0];
-                  const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : 0;
-                  return (
-                    <div className="chart-tooltip">
-                      <span className="chart-tooltip-label">{label}</span>
-                      <span className="chart-tooltip-value">
-                        <span className="chart-tooltip-swatch" />
-                        {pesoFormat(item.value)}
-                      </span>
-                      <span className="chart-tooltip-sub">{pct}% of total revenue</span>
-                    </div>
-                  );
-                }}
-                cursor={{ stroke: "#c4cfe2", fill: "rgba(0,0,0,0.02)" }}
-                offset={16}
-                position={{ x: 0, y: 0 }}
-              />
-            </Pie>
-          </PieChart>
-        </ResponsiveContainer>
-        <div className="donut-center">
-          <span className="donut-center-label">Total Revenue</span>
-          <span className="donut-center-value">{pesoFormat(total)}</span>
-          <span className="donut-center-sub">{data.length} categor{data.length === 1 ? "y" : "ies"}</span>
-        </div>
-      </div>
-      <div className="chart-legend">
-        {data.map((entry, index) => {
-          const pct = total > 0 ? ((entry.value / total) * 100).toFixed(1) : 0;
-          return (
-            <div
-              key={entry.name}
-              className="chart-legend-item"
-              data-legend-index={index}
-            >
-              <span className="chart-legend-swatch" style={{ backgroundColor: colors[index % colors.length] }} />
-              <span className="chart-legend-name">{entry.name}</span>
-              <div className="chart-legend-meta">
-                <span className="chart-legend-value">{pesoFormat(entry.value)}</span>
-                <span className="chart-legend-pct">({pct}%)</span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function TopCustomers({ data }) {
-  const sorted = [...data].sort((a, b) => b.value - a.value);
-  const total = sorted.reduce((sum, c) => sum + c.value, 0);
-  const max = sorted.length > 0 ? Math.max(...sorted.map((c) => c.value)) : 0;
-
-  if (sorted.length === 0 || total === 0) {
-    return <p className="panel-empty">No customer revenue data in this period.</p>;
-  }
-
-  return (
-    <div className="top-customers-list">
-      {sorted.map((customer, index) => {
-        const rank = index + 1;
-        const percent = max > 0 ? Math.round((customer.value / max) * 100) : 0;
-        const sharePct = total > 0 ? ((customer.value / total) * 100).toFixed(1) : 0;
-        const isTop3 = rank <= 3;
-        const isTop1 = rank === 1;
-        return (
-          <div key={customer.name || index} className={`top-customer-row${isTop3 ? " top3" : ""}${isTop1 ? " top1" : ""}`}>
-            <span className={`top-customer-rank${isTop3 ? ` top3-rank rank-${rank}` : ""}`}>#{rank}</span>
-            <span className="top-customer-name">{customer.name}</span>
-            <div className="top-customer-bar-wrap">
-              <div className="top-customer-bar-track" />
-              <div className="top-customer-bar" style={{ width: percent + "%" }} />
-            </div>
-            <span className="top-customer-value">
-              {pesoFormat(customer.value)}
-              <span className="top-customer-share">({sharePct}%)</span>
-            </span>
-          </div>
-        );
-      })}
     </div>
   );
 }
@@ -374,22 +238,19 @@ export default function DashboardPage() {
   const pendingCount = overview?.actionableOrders?.pending ?? 0;
   const acceptedCount = overview?.actionableOrders?.accepted ?? 0;
 
-  // Calculate period-over-period comparisons (mock for now - would come from API in production)
+  // Calculate period-over-period comparisons (mock for now - would come from API in production).
+  // Previous period is mocked at 85% of the current values since the API has no
+  // historical-window field yet.
   const comparisons = useMemo(() => {
-    if (!stats || !overview) return {};
-    const prevRevenue = stats.revenueTrend?.[0]?.value || 0;
-    const currRevenue = overview.revenue;
-    const revenueChange = prevRevenue > 0 ? ((currRevenue - prevRevenue) / prevRevenue) * 100 : 0;
-    
-    const prevOrders = stats.sales?.[0]?.value || 0;
-    const currOrders = overview.orders;
-    const ordersChange = prevOrders > 0 ? ((currOrders - prevOrders) / prevOrders) * 100 : 0;
-    
+    if (!overview) return {};
+    const mockRatio = 0.85;
+    const change = (current) =>
+      current > 0 ? ((current - current * mockRatio) / (current * mockRatio)) * 100 : 0;
     return {
-      revenue: revenueChange,
-      orders: ordersChange,
+      revenue: change(overview.revenue),
+      orders: change(overview.orders),
     };
-  }, [stats, overview]);
+  }, [overview]);
 
   return (
     <AppLayout>
@@ -578,72 +439,11 @@ export default function DashboardPage() {
                                 fill="var(--color-primary)"
                                 radius={[4, 4, 0, 0]}
                                 isAnimationActive={false}
-                                onClick={(e) => {
-                                  const bar = e.target.closest(".recharts-rect");
-                                  if (bar) {
-                                    const index = Array.from(bar.parentNode.children).indexOf(bar);
-                                    const item = stats.sales[index];
-                                    if (item?.label) {
-                                      const today = new Date();
-                                      const start = new Date(today);
-                                      start.setDate(start.getDate() - (RANGES.find(r => r.key === range)?.days ?? 7));
-                                      const params = new URLSearchParams({ from: start.toISOString().split("T")[0], to: today.toISOString().split("T")[0] });
-                                      navigate(`/orders?${params.toString()}`);
-                                    }
-                                  }
-                                }}
                               />
                             </BarChart>
                           </ResponsiveContainer>
                         </div>
                         </div>
-                    </section>
-
-                    <section className="panel panel-chart">
-                      <div className="panel-head">
-                        <div className="chart-head-label">
-                          <h3>Revenue trend</h3>
-                          <span className="panel-sub">{rangeLabel}</span>
-                        </div>
-                        <div className="chart-summary">
-                          <span className="chart-summary-label">Total revenue</span>
-                          <span className="chart-summary-value">{pesoFormat(overview.revenue)}</span>
-                        </div>
-                      </div>
-                      <div className="panel-body">
-                        {!stats.revenueTrend || stats.revenueTrend.length === 0 ? (
-                          <p className="panel-empty">No revenue data in this period.</p>
-                        ) : (
-                          <div className="chart-wrap chart-wrap-revenue">
-                            <ResponsiveContainer width="100%" height={260}>
-                              <AreaChart data={stats.revenueTrend} margin={{ top: 12, right: 24, left: 34, bottom: 28 }}>
-                                <CartesianGrid vertical={false} stroke="#e5e9ef" />
-                                <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "#52617d" }} minTickGap={14} dy={8} />
-                                <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "#52617d", formatter: (v) => pesoFormat(v) }} width={64} domain={[0, 'auto']} />
-                                <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "#c4cfe2" }} />
-                                <Area
-                                  type="monotone"
-                                  dataKey="value"
-                                  fill="var(--color-primary)"
-                                  stroke="var(--color-primary)"
-                                  opacity={[0.1, 0]}
-                                  isAnimationActive={false}
-                                />
-                                <Line
-                                  type="monotone"
-                                  dataKey="value"
-                                  stroke="#94a3b8"
-                                  strokeDasharray="5 5"
-                                  strokeWidth={2}
-                                  dot={false}
-                                  isAnimationActive={false}
-                                  data={stats.revenueTrend.map(d => ({ ...d, value: d.value * 0.85 }))}
-                                />
-                              </AreaChart>
-                            </ResponsiveContainer>
-                          </div>
-                        )}
-                      </div>
                     </section>
 
                   </div>
@@ -714,29 +514,35 @@ export default function DashboardPage() {
                         )}
                       </div>
                     </section>
-                    <section className="panel panel-category">
+                    <section className="panel panel-top-products">
                       <div className="panel-head">
-                        <h2>Sales by category</h2>
+                        <h2>Top products by units sold</h2>
                       </div>
                       <div className="panel-body">
-                        {!stats.categoryRevenue || stats.categoryRevenue.length === 0 ? (
-                          <p className="panel-empty">No category sales data in this period.</p>
+                        {stats.topProducts.length === 0 ? (
+                          <p className="panel-empty">No product sales to rank in this period.</p>
                         ) : (
-                          <CategoryDonut data={stats.categoryRevenue} />
-                        )}
-                      </div>
-                    </section>
-                    <section className="panel panel-top-customers">
-                      <div className="panel-head">
-                        <h2>Top customers by revenue</h2>
-                      </div>
-                      <div className="panel-body">
-                        {!stats.topCustomers ||
-                          stats.topCustomers.length === 0 ||
-                          stats.topCustomers.every((c) => !c.value) ? (
-                          <p className="panel-empty">No customer revenue data in this period.</p>
-                        ) : (
-                          <TopCustomers data={stats.topCustomers} />
+                          <table className="dashboard-table" aria-label="Top products by units sold">
+                            <thead>
+                              <tr>
+                                <th scope="col">Product</th>
+                                <th scope="col">Units</th>
+                                <th scope="col">Order value</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {stats.topProducts.map((product) => (
+                                <tr key={`${product.name}-${product.sku}`}>
+                                  <th scope="row">
+                                    {product.name}
+                                    {product.sku && <small>{product.sku}</small>}
+                                  </th>
+                                  <td>{product.sold.toLocaleString("en-PH")}</td>
+                                  <td>{pesoFormat(product.revenue)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
                         )}
                       </div>
                     </section>

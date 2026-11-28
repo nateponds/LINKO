@@ -134,6 +134,29 @@ export function redirectPathForRoles(activeRoles = [], isAdmin = false) {
   return "/settings/profile";
 }
 
+// True when the user trades on the marketplace in ANY business (a buyer or
+// wholesaler membership), regardless of which business is active.
+export function hasMarketplaceMembership(memberships = []) {
+  return (memberships ?? []).some(
+    (m) => m.role === "buyer" || m.role === "wholesaler",
+  );
+}
+
+// Where a signed-in user lands when there is no explicit redirect target.
+// One precedence for every caller so login, register, and guards cannot drift:
+//   1. platform_admin is a global role and wins -> /admin
+//   2. marketplace membership in ANY business -> / (marketplace home)
+//   3. the active business's operational role -> /logistics, /courier, ...
+export function landingPathForUser(user, memberships = [], activeRoles = []) {
+  if (isPlatformAdmin(user)) {
+    return "/admin";
+  }
+  if (hasMarketplaceMembership(memberships)) {
+    return "/";
+  }
+  return redirectPathForRoles(activeRoles, false);
+}
+
 // Post-login/register default path. The session's active business isn't in
 // React state yet at submit time, so resolve it off the payload the same way
 // AuthProvider does: stored selection if still valid, else the first business.
@@ -143,19 +166,7 @@ export function defaultPathForSession(payload, storedBusinessId) {
     businesses.find(
       (b) => String(b.business_id) === String(storedBusinessId),
     ) ?? businesses[0] ?? null;
-  const isAdmin = payload?.user?.global_role === "platform_admin";
-
-  // A user may hold marketplace roles (buyer/wholesaler) in one business and
-  // operational roles in another. If they are a marketplace participant in ANY
-  // business, their home is the marketplace, not an operational dashboard.
-  const hasMarketplaceRole = payload?.memberships?.some(
-    (m) => m.role === "buyer" || m.role === "wholesaler",
-  );
-  if (hasMarketplaceRole) {
-    return "/";
-  }
-
-  return redirectPathForRoles(active?.roles ?? [], isAdmin);
+  return landingPathForUser(payload?.user, payload?.memberships, active?.roles ?? []);
 }
 
 export function formatRoleLabel(role) {

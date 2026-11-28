@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { groupMemberships, hasAccess, isPlatformAdmin } from "./roleAccess";
 import { apiGet, apiSend } from "../lib/api";
 
@@ -48,6 +49,8 @@ export function AuthProvider({ children }) {
   const [activeBusinessId, setActiveBusinessId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // AuthProvider renders inside BrowserRouter, so it owns the logout redirect.
+  const navigate = useNavigate();
 
   const applySession = useCallback((session, preferredBusinessId = readStoredActiveBusiness()) => {
     const nextMemberships = Array.isArray(session?.memberships)
@@ -209,8 +212,13 @@ export function AuthProvider({ children }) {
       applySession(null);
       setActiveBusinessId(null);
       persistActiveBusiness(null);
+      // Land on a clean login screen from here, in the same render batch that
+      // clears the session. The page being left never re-renders signed out,
+      // so its auth guard cannot write the old route into /login's
+      // location.state and hijack the next login's deep link.
+      navigate("/login", { replace: true, state: null });
     }
-  }, [applySession]);
+  }, [applySession, navigate]);
 
   const hasAnyRole = useCallback(
     (roles = []) => hasAccess(user, activeRoles, roles),

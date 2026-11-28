@@ -67,7 +67,7 @@ router.get("/operations", async (_req, res, next) => {
            ${LATEST_PARCEL_LOG_SQL}
           WHERE (latest.status_update IS NULL
                  OR latest.status_update <> ALL($1::text[]))
-            AND latest.courier_id IS NULL`,
+            AND (latest.courier_id IS NULL OR latest.branch_id IS NULL)`,
         [TERMINAL_PARCEL_STATUSES],
       ),
       query(

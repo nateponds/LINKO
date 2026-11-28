@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { APP_NAV_ITEMS, ROUTE_ACCESS, groupMemberships, defaultPathForSession, hasAccess, redirectPathForRoles } from "./roleAccess.js";
+import { APP_NAV_ITEMS, ROUTE_ACCESS, groupMemberships, defaultPathForSession, hasAccess, redirectPathForRoles, hasMarketplaceMembership, landingPathForUser } from "./roleAccess.js";
 
 const PUBLIC_PATHS = new Set(["/landing", "/login", "/register", "*"]);
 
@@ -95,4 +95,41 @@ test("additional businesses remain separate switcher options and select their ow
     assert.equal(hasAccess({ user_id: 1 }, business.roles, ROUTE_ACCESS["/dashboard"]), business.business_type === "wholesaler");
     assert.equal(defaultPathForSession({ memberships }, String(business.business_id)), "/");
   }
+});
+
+test("hasMarketplaceMembership detects trading roles in any business", () => {
+  assert.equal(hasMarketplaceMembership([{ business_id: 1, role: "buyer" }]), true);
+  assert.equal(hasMarketplaceMembership([{ business_id: 1, role: "courier" }, { business_id: 2, role: "wholesaler" }]), true);
+  assert.equal(hasMarketplaceMembership([{ business_id: 1, role: "logistics_coordinator" }]), false);
+  assert.equal(hasMarketplaceMembership([]), false);
+  assert.equal(hasMarketplaceMembership(), false);
+});
+
+test("landing path precedence: platform admin wins, then marketplace, then active role", () => {
+  const admin = { user_id: 1, global_role: "platform_admin" };
+  // An admin with a marketplace membership still lands on /admin — the same
+  // answer every code path must give (redirectPathForRoles says admin wins).
+  assert.equal(landingPathForUser(admin, [{ business_id: 1, role: "buyer" }], ["buyer"]), "/admin");
+  // Marketplace participants land on home even when their active business is
+  // an operational one.
+  assert.equal(
+    landingPathForUser(
+      { user_id: 2 },
+      [{ business_id: 1, role: "buyer" }, { business_id: 2, role: "logistics_coordinator" }],
+      ["logistics_coordinator"],
+    ),
+    "/",
+  );
+  assert.equal(landingPathForUser({ user_id: 3 }, [{ business_id: 1, role: "logistics_coordinator" }], ["logistics_coordinator"]), "/logistics");
+  assert.equal(landingPathForUser({ user_id: 4 }, [{ business_id: 1, role: "courier" }], ["courier"]), "/courier");
+  // No usable role: the one page every signed-in user can open.
+  assert.equal(landingPathForUser({ user_id: 5 }, [], []), "/settings/profile");
+});
+
+test("defaultPathForSession gives admins the same landing as the logged-in branch", () => {
+  const payload = {
+    user: { user_id: 1, global_role: "platform_admin" },
+    memberships: [{ business_id: 1, business_name: "Buyer", business_type: "buyer", role: "buyer" }],
+  };
+  assert.equal(defaultPathForSession(payload, "1"), "/admin");
 });

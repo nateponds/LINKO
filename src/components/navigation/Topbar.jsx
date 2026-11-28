@@ -79,8 +79,9 @@ function Topbar({ showSearch = false, showCategories = false, workspaceNavigatio
 
   async function handleLogout() {
     setOpenPanel(null);
+    // AuthProvider.logout lands on a clean /login (session cleared in the
+    // same render batch), so no duplicate navigate is needed here.
     await logout();
-    navigate("/login", { replace: true });
   }
 
   useEffect(() => {
