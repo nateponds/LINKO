@@ -385,6 +385,7 @@ export default function AdminDashboardPage() {
   const [branches, setBranches] = useState([]);
   const [optionsError, setOptionsError] = useState(null);
   const [mutatingId, setMutatingId] = useState(null);
+  const [mutationError, setMutationError] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [formError, setFormError] = useState(null);
   const [creating, setCreating] = useState(false);
@@ -489,19 +490,21 @@ export default function AdminDashboardPage() {
   }
 
   async function toggleUserActive(userId, nextActive) {
-    setMutatingId(`user-${userId}`); setFormError(null);
+    setMutatingId(`user-${userId}`);
+    setMutationError(null);
     try {
       await apiSend(`/api/admin/users/${userId}`, { method: "PATCH", body: { is_active: nextActive } });
       usersResource.reload();
-    } catch (error) { setFormError(error.message); } finally { setMutatingId(null); }
+    } catch (error) { setMutationError({ section: "users", message: error.message }); } finally { setMutatingId(null); }
   }
 
   async function toggleBusinessVerified(businessId, nextVerified) {
-    setMutatingId(`business-${businessId}`); setFormError(null);
+    setMutatingId(`business-${businessId}`);
+    setMutationError(null);
     try {
       await apiSend(`/api/admin/businesses/${businessId}`, { method: "PATCH", body: { is_verified: nextVerified } });
       businessesResource.reload();
-    } catch (error) { setFormError(error.message); } finally { setMutatingId(null); }
+    } catch (error) { setMutationError({ section: "businesses", message: error.message }); } finally { setMutatingId(null); }
   }
 
   function updateForm(field, value) { setForm((current) => ({ ...current, [field]: value })); }
@@ -535,12 +538,13 @@ export default function AdminDashboardPage() {
           loading={!operations && !operationsError}
           error={operationsError}
           items={[
-            { key: "pending", to: "/orders?status=Pending", value: operations?.openOrders?.pending, label: "Pending orders", hint: "Accept, reject, or follow up", empty: "No pending orders" },
-            { key: "accepted", to: "/orders?status=Accepted", value: operations?.openOrders?.accepted, label: "Accepted orders", hint: "Confirm they move into preparation", empty: "No accepted orders" },
-            { key: "preparing", to: "/orders?status=Preparing", value: operations?.openOrders?.preparing, label: "Preparing orders", hint: "Watch for stalls before shipment", empty: "No orders being prepared" },
-            { key: "shipped", to: "/orders?status=Shipped", value: operations?.openOrders?.shipped, label: "Shipped orders", hint: "Track parcels still in transit", empty: "No shipped orders in transit" },
-            { key: "parcels", to: "/logistics?assignment=available", value: operations?.unassignedOrBranchlessParcels, label: "Unassigned parcels", hint: "Open the assignment filter and assign a courier", empty: "No parcels waiting for assignment" },
-            { key: "stock", to: "/inventory?stock=low", value: operations?.lowStockProducts, label: "Low-stock products", hint: "Restock before buyers hit an empty shelf", empty: "No products are low on stock" },
+            // Order and stock tiles are counts only: admins cannot open orders or inventory.
+            { key: "pending",value: operations?.openOrders?.pending, label: "Pending orders", hint: "Accept, reject, or follow up", empty: "No pending orders" },
+            { key: "accepted",value: operations?.openOrders?.accepted, label: "Accepted orders", hint: "Confirm they move into preparation", empty: "No accepted orders" },
+            { key: "preparing",value: operations?.openOrders?.preparing, label: "Preparing orders", hint: "Watch for stalls before shipment", empty: "No orders being prepared" },
+            { key: "shipped",value: operations?.openOrders?.shipped, label: "Shipped orders", hint: "Track parcels still in transit", empty: "No shipped orders in transit" },
+            { key: "parcels", value: operations?.unassignedOrBranchlessParcels, label: "Unassigned or branchless parcels", empty: "No parcels waiting for assignment" },
+            { key: "stock",value: operations?.lowStockProducts, label: "Low-stock products", hint: "Restock before buyers hit an empty shelf", empty: "No products are low on stock" },
             { key: "couriers", to: "/logistics/management", value: operations?.activeCouriers, label: "Active couriers", hint: "Check who can take the next delivery", empty: "No active couriers" },
           ]}
         />
@@ -612,12 +616,16 @@ export default function AdminDashboardPage() {
         </section>
         <section className="admin-section">
           <div className="admin-section-head"><h2>Users</h2></div>
-          <form className="admin-create-form" onSubmit={submitCreate}><div className="admin-form-grid">
+          <SearchField value={usersSearch.value} onChange={usersSearch.setValue} onSubmit={usersSearch.submit} onClear={usersSearch.clear} label="Search users" placeholder="Name, email, business, or role" />
+          <details className="admin-create-user">
+            <summary>Create user</summary>
+            <form className="admin-create-form" onSubmit={submitCreate}><div className="admin-form-grid">
             <label><span>Full name</span><input type="text" value={form.full_name} onChange={(event) => updateForm("full_name", event.target.value)} placeholder="Jane Dela Cruz" /></label><label><span>Email</span><input type="email" value={form.email} onChange={(event) => updateForm("email", event.target.value)} placeholder="user@linko.test" /></label><label><span>Password</span><input type="password" value={form.password} onChange={(event) => updateForm("password", event.target.value)} placeholder="Temporary password" /></label><label><span>Role</span><select value={form.kind} onChange={(event) => updateForm("kind", event.target.value)}>{USER_KINDS.map((kind) => <option key={kind.value} value={kind.value}>{kind.label}</option>)}</select></label>
             {form.kind === "logistics_coordinator" ? <label><span>Business</span><select value={form.business_id} onChange={(event) => updateForm("business_id", event.target.value)}><option value="">Select a business…</option>{businessOptions.map((business) => <option key={business.business_id} value={business.business_id}>{business.business_name}</option>)}</select></label> : null}
             {form.kind === "courier" ? <><label><span>Phone</span><input type="text" value={form.phone_number} onChange={(event) => updateForm("phone_number", event.target.value)} placeholder="+639170000000" /></label><label><span>Vehicle</span><input type="text" value={form.vehicle_type} onChange={(event) => updateForm("vehicle_type", event.target.value)} placeholder="Motorcycle" /></label><label><span>Branch</span><select value={form.assigned_branch_id} onChange={(event) => updateForm("assigned_branch_id", event.target.value)}><option value="">No branch</option>{branches.map((branch) => <option key={branch.branch_id} value={branch.branch_id}>{branch.branch_name}</option>)}</select></label></> : null}
-          </div><div className="admin-form-actions">{formError ? <span className="admin-form-error">{formError}</span> : null}<button type="submit" className="admin-primary-btn" disabled={creating}>{creating ? "Creating…" : "Create user"}</button></div></form>
-          <SearchField value={usersSearch.value} onChange={usersSearch.setValue} onSubmit={usersSearch.submit} onClear={usersSearch.clear} label="Search users" placeholder="Name, email, business, or role" />
+            </div><div className="admin-form-actions">{formError ? <span className="admin-form-error" role="alert">{formError}</span> : null}<button type="submit" className="admin-primary-btn" disabled={creating}>{creating ? "Creating…" : "Create user"}</button></div></form>
+          </details>
+          {mutationError?.section === "users" && <p className="admin-form-error" role="alert">{mutationError.message}</p>}
           {usersResource.error ? <div className="page-empty admin-error">Could not load users: {usersResource.error.message}</div> : null}
           <div className="table-card" aria-busy={usersResource.loading}>
             {!usersResource.data && usersResource.loading && visibleUsers.length === 0 ? (
@@ -654,6 +662,7 @@ export default function AdminDashboardPage() {
         </section>
         <section className="admin-section">
           <div className="admin-section-head"><h2>Businesses</h2></div>
+          {mutationError?.section === "businesses" && <p className="admin-form-error" role="alert">{mutationError.message}</p>}
           <SearchField value={businessesSearch.value} onChange={businessesSearch.setValue} onSubmit={businessesSearch.submit} onClear={businessesSearch.clear} label="Search businesses" placeholder="Name, type, or member" />
           {businessesResource.error ? <div className="page-empty admin-error">Could not load businesses: {businessesResource.error.message}</div> : null}
           <div className="table-card" aria-busy={businessesResource.loading}>

@@ -21,6 +21,20 @@
     border-bottom: 1px solid var(--hairline);
   }
 
+  .inventory-status-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px 10px;
+  }
+
+  @media (max-width: 640px) {
+    .inventory-status-actions {
+      justify-content: flex-start;
+    }
+  }
+
   .header-toolbar {
     display: flex;
     /* the search keeps its label above the input, so bottom-align the 44px

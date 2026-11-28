@@ -218,7 +218,7 @@ export function InvoiceListSkeleton() {
 
 export function InvoiceDetailSkeleton() {
   return (
-    <main className="invoice-wrap">
+    <div className="invoice-wrap">
       <SkeletonStatus label="Loading invoice" className="skeleton-split">
         <div className="skeleton-stack">
           <Skeleton height={120} radius={12} />
@@ -231,7 +231,7 @@ export function InvoiceDetailSkeleton() {
           <TableSkeleton columns={5} rows={3} label="Loading invoice items" />
         </div>
       </SkeletonStatus>
-    </main>
+    </div>
   );
 }
 

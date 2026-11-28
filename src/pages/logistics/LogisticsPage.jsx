@@ -168,34 +168,32 @@ export default function LogisticsPage() {
                     <strong className="logistics-summary-count">
                       {decisionState.unassignedCount ?? (decisionState.loading ? "Loading…" : "Unavailable")}
                     </strong>
-                    {decisionState.unassignedCount === 0
-                      ? " No parcels waiting for a courier."
-                      : decisionState.unassignedCount !== null
-                        ? " parcels need a courier."
-                        : ""}
                   </p>
                 </div>
-                <Link className="logistics-summary-action" to="/logistics?assignment=available">
+                <Link
+                  className="logistics-summary-action"
+                  to="/logistics?assignment=available"
+                  aria-current={assignmentFilter === "available" && statusFilter === "All" && !agingFilter && !courierIdFilter && !list.q ? "true" : undefined}
+                >
                   View unassigned parcels
                 </Link>
               </article>
 
               <article className={`logistics-summary-card aging-summary${decisionState.agingCount > 0 ? " is-urgent" : ""}`}>
                 <div className="logistics-summary-copy">
-                  <h2>Aging pending parcels</h2>
+                  <h2>Pending over 2 days</h2>
                   <p>
                     <strong className="logistics-summary-count">
                       {decisionState.agingCount ?? (decisionState.loading ? "Loading…" : "Unavailable")}
                     </strong>
-                    {decisionState.agingCount === 0
-                      ? " No parcels have been pending for more than two days."
-                      : decisionState.agingCount !== null
-                        ? " parcels have been pending for more than two days."
-                        : ""}
                   </p>
                 </div>
-                <Link className="logistics-summary-action" to="/logistics?status=Order%20Created&aging=true">
-                  View aging parcels
+                <Link
+                  className="logistics-summary-action"
+                  to="/logistics?status=Order%20Created&aging=true"
+                  aria-current={statusFilter === "Order Created" && agingFilter && !assignmentFilter && !courierIdFilter && !list.q ? "true" : undefined}
+                >
+                  View pending parcels
                 </Link>
               </article>
 
@@ -224,14 +222,7 @@ export default function LogisticsPage() {
                   onToggle={(event) => setCourierLoadOpen(event.currentTarget.open)}
                 >
                   <summary className="courier-load-summary">
-                    <span>
-                      <strong>Active courier load</strong>
-                      <small>
-                        {selectedCourier
-                          ? `${selectedCourier.full_name} · ${selectedCourier.active_parcel_count} active ${selectedCourier.active_parcel_count === 1 ? "parcel" : "parcels"}`
-                          : "Choose a courier to review their parcels"}
-                      </small>
-                    </span>
+                    <strong>Active courier load</strong>
                   </summary>
                   <div className="courier-load-content">
                     {courierResource.loading && courierResource.items.length === 0 ? (
@@ -267,9 +258,7 @@ export default function LogisticsPage() {
                                 View parcels
                               </Link>
                             </div>
-                          ) : (
-                            <p className="courier-load-state">Select a courier to see their active parcel count.</p>
-                          )}
+                          ) : null}
                         </div>
                         <PaginationControls
                           pagination={courierResource.pagination}

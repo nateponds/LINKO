@@ -45,6 +45,7 @@ export default function ProductDetailModal({
   if (!open) return null;
 
   const badge = product ? stockBadge(product.stock_status) : null;
+  const showProduct = !loading && !error && Boolean(product);
   const isAvailable =
     !!product && product.stock_status !== "out_of_stock" && maxQuantity > 0;
 
@@ -59,8 +60,8 @@ export default function ProductDetailModal({
         className="product-modal-dialog"
         role="dialog"
         aria-modal="true"
-        aria-labelledby={loading ? undefined : TITLE_ID}
-        aria-label={loading ? "Loading product" : undefined}
+        aria-labelledby={showProduct ? TITLE_ID : undefined}
+        aria-label={showProduct ? undefined : "Product details"}
         tabIndex="-1"
         ref={dialogRef}
       >
@@ -84,7 +85,7 @@ export default function ProductDetailModal({
           </p>
         )}
 
-        {!loading && !error && product && (
+        {showProduct && (
           <div className="product-modal-body">
             <div className="product-modal-image">
               <img
@@ -98,19 +99,13 @@ export default function ProductDetailModal({
               </h2>
               <div className="product-modal-price">{peso(product.unit_price)}</div>
               <div className="product-modal-badges">
-                <span className={`status ${badge.cls}`}>{badge.label}</span>
-                <span className="product-modal-stock">
-                  {maxQuantity > 0 ? `${maxQuantity} available` : "No stock available"}
-                </span>
+                {(!isAvailable || product.stock_status === "low_stock") && (
+                  <span className={`status ${isAvailable ? badge.cls : "out-of-stock"}`}>{isAvailable ? badge.label : "Out of Stock"}</span>
+                )}
+                {isAvailable && <span className="product-modal-stock">{maxQuantity} available</span>}
               </div>
 
-              <p
-                className={`product-modal-description${
-                  product.description ? "" : " is-empty"
-                }`}
-              >
-                {product.description || "No description provided."}
-              </p>
+              {product.description && <p className="product-modal-description">{product.description}</p>}
 
               {onAddToCart && (
                 <div className="product-modal-actions">

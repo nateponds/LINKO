@@ -15,15 +15,16 @@ function MarketplaceProductCard({ product, withCart: wantsCart = false }) {
   const navigate = useNavigate();
   const { addProduct } = useCart();
   const href = `/suppliers/${product.business_id}?product_id=${product.product_id}`;
+  const previewState = { marketplacePreviewId: String(product.product_id) };
 
   function handleAdd() {
     addProduct(product, 1);
   }
 
   return (
-    <ProductCard product={product} showSupplier onOpen={() => navigate(href)}>
+    <ProductCard product={product} showSupplier onOpen={() => navigate(href, { state: previewState })}>
       <div className="home-product-actions">
-        <Link to={href} className="home-product-cta">
+        <Link to={href} state={previewState} className="home-product-cta">
           View product
         </Link>
         {withCart && (

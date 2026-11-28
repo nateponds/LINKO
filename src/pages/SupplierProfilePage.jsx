@@ -10,7 +10,7 @@ import {
   ShoppingCart,
   Truck,
 } from "lucide-react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
 import { apiGet } from "../lib/api";
 import { bannersForProducts } from "../lib/productBanners";
@@ -29,6 +29,8 @@ import "./SupplierProfilePage.css";
 
 export default function SupplierProfilePage() {
   const { supplierId } = useParams();
+  const { state } = useLocation();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const productState = readListUrlState(searchParams, { prefix: "product" });
   const categoryState = readListUrlState(searchParams, { prefix: "category" });
@@ -209,6 +211,10 @@ export default function SupplierProfilePage() {
   }
 
   function closeProductDetail() {
+    if (state?.marketplacePreviewId === detailId) {
+      navigate(-1);
+      return;
+    }
     const next = new URLSearchParams(searchParams);
     next.delete("product_id");
     setSearchParams(next, { replace: true });
@@ -532,7 +538,7 @@ export default function SupplierProfilePage() {
           quantity={detailProduct ? quantityDrafts[detailProduct.product_id] ?? 1 : 1}
           maxQuantity={stockLimit(detailProduct)}
           onQuantityChange={setProductDraft}
-          onAddToCart={canBuy ? (product) => { addToCart(product); closeProductDetail(); } : undefined}
+          onAddToCart={canBuy ? addToCart : undefined}
           onClose={closeProductDetail}
         />
       </div>

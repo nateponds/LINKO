@@ -900,11 +900,6 @@
   white-space: pre-line;
 }
 
-.product-modal-description.is-empty {
-  color: var(--color-muted);
-  font-style: italic;
-}
-
 .product-modal-actions {
   display: grid;
   grid-template-columns: 110px minmax(0, 260px);

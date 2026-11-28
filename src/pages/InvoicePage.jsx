@@ -221,7 +221,7 @@ export default function InvoicePage() {
         </div>}
 
         {!invoiceId ? (
-          <main className="invoice-list-wrap" aria-busy={listResource.loading}>
+          <div className="invoice-list-wrap" aria-busy={listResource.loading}>
             <div className="invoice-list-head">
               <div>
 
@@ -318,7 +318,7 @@ export default function InvoicePage() {
                 />
               </>
             )}
-          </main>
+          </div>
         ) : errorInvoice && !loadingInvoice ? (
           <div className="invoice-error">
             We couldn't find that invoice: {errorInvoice}
@@ -326,7 +326,7 @@ export default function InvoicePage() {
         ) : loadingInvoice && !invoice ? (
           <InvoiceDetailSkeleton />
         ) : (
-          <main className="invoice-wrap" aria-busy={loadingInvoice}>
+          <div className="invoice-wrap" aria-busy={loadingInvoice}>
             <aside className="parties">
               <div className="party-card">
                 <div className="shop-name">
@@ -446,7 +446,7 @@ export default function InvoicePage() {
                 </table>
               </div>
             </section>
-          </main>
+          </div>
         )}
       </div>
     </AppLayout>
