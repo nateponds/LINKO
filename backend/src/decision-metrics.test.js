@@ -223,6 +223,7 @@ test("logistics decision counts follow unassigned, aging, and active-load rows",
     assert.equal(typeof before.body.unassignedParcels, "number");
     assert.equal(typeof before.body.agingPendingParcels, "number");
     assert.equal(typeof before.body.courierActiveLoad, "number");
+    assert.equal(typeof before.body.stuckParcels, "number");
 
     const businesses = await pool.query(
       `SELECT business_name, business_id, logistics_address_id
@@ -270,12 +271,54 @@ test("logistics decision counts follow unassigned, aging, and active-load rows",
     assert.equal(after.body.unassignedParcels, before.body.unassignedParcels + 2);
     assert.equal(after.body.agingPendingParcels, before.body.agingPendingParcels + 1);
     assert.equal(after.body.courierActiveLoad, before.body.courierActiveLoad + 1);
+    // The 3-day-old Order Created parcel is the only stuck one: the fresh
+    // pending scan and the just-scanned Out for Delivery are too recent.
+    assert.equal(after.body.stuckParcels, before.body.stuckParcels + 1);
   } finally {
     if (parcelIds.length) {
       await pool.query("DELETE FROM parcels WHERE parcel_id = ANY($1::text[])", [parcelIds]);
     }
     await pool.end();
   }
+});
+
+test("admin parcel outcomes require an admin and validate the period", { skip: !hasDb }, async () => {
+  const unauthenticated = await request("/api/admin/parcel-outcomes");
+  assert.equal(unauthenticated.status, 401);
+
+  const wholesaler = await loginAs("wholesaler@linko.test");
+  const forbidden = await request("/api/admin/parcel-outcomes", {
+    headers: { Cookie: wholesaler },
+  });
+  assert.equal(forbidden.status, 403);
+
+  const cookie = await loginAs("admin@linko.test");
+  const invalid = await request("/api/admin/parcel-outcomes?from=not-a-date", {
+    headers: { Cookie: cookie },
+  });
+  assert.equal(invalid.status, 400);
+
+  const reversed = await request(
+    `/api/admin/parcel-outcomes?from=${encodeURIComponent("2026-01-10T00:00:00.000Z")}&to=${encodeURIComponent("2026-01-01T00:00:00.000Z")}`,
+    { headers: { Cookie: cookie } },
+  );
+  assert.equal(reversed.status, 400);
+
+  const outcomes = await request("/api/admin/parcel-outcomes", { headers: { Cookie: cookie } });
+  assert.equal(outcomes.status, 200);
+  assert.equal(typeof outcomes.body.total, "number");
+  assert.equal(typeof outcomes.body.returned, "number");
+  assert.equal(typeof outcomes.body.deliveryFailed, "number");
+
+  // A window with no bookings reports zeros rather than leaking all-time rows.
+  const empty = await request(
+    `/api/admin/parcel-outcomes?from=${encodeURIComponent("2000-01-01T00:00:00.000Z")}&to=${encodeURIComponent("2000-01-02T00:00:00.000Z")}`,
+    { headers: { Cookie: cookie } },
+  );
+  assert.equal(empty.status, 200);
+  assert.equal(empty.body.total, 0);
+  assert.equal(empty.body.returned, 0);
+  assert.equal(empty.body.deliveryFailed, 0);
 });
 
 test("wholesaler dashboard reports incoming pending and accepted orders", { skip: !hasDb }, async () => {

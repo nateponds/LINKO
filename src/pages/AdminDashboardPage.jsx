@@ -32,6 +32,28 @@ const EMPTY_FORM = {
 // backend/src/routes/admin.js TERMINAL_PARCEL_STATUSES.
 const TERMINAL_STATUSES = ["Delivered", "Returned", "Cancelled"];
 
+// Presets for the parcel-outcomes period selector (issue #79 AC-1). "all"
+// sends no date params and is the default so seeded data reconciles.
+const OUTCOME_PERIODS = [
+  { value: "all", label: "All time" },
+  { value: "today", label: "Today" },
+  { value: "7d", label: "Last 7 days" },
+  { value: "30d", label: "Last 30 days" },
+];
+
+function outcomePeriodRange(preset) {
+  if (preset === "all") return {};
+  const to = new Date();
+  let from;
+  if (preset === "today") {
+    from = new Date();
+    from.setHours(0, 0, 0, 0);
+  } else {
+    from = new Date(to.getTime() - (preset === "7d" ? 7 : 30) * 24 * 60 * 60 * 1000);
+  }
+  return { from: from.toISOString(), to: to.toISOString() };
+}
+
 function membershipSummary(memberships) {
   if (!Array.isArray(memberships) || memberships.length === 0) return "-";
   return memberships.map((membership) => `${membership.business_name ?? "Business"} (${formatRoleLabel(membership.role)})`).join(", ");
@@ -370,6 +392,16 @@ export default function AdminDashboardPage() {
   const [operations, setOperations] = useState(null);
   const [operationsError, setOperationsError] = useState(null);
   const [parcelCancelOpen, setParcelCancelOpen] = useState(false);
+  const [outcomePeriod, setOutcomePeriod] = useState("all");
+  const [outcomeState, setOutcomeState] = useState({ data: null, error: null, key: "all" });
+  const [stuck, setStuck] = useState({ count: null, error: null, loading: true });
+  // A period change starts a new request; the previous period's data is held
+  // back (loading) until its own response arrives, so numbers never mix.
+  const outcomes = {
+    data: outcomeState.key === outcomePeriod ? outcomeState.data : null,
+    error: outcomeState.key === outcomePeriod ? outcomeState.error : null,
+    loading: outcomeState.key !== outcomePeriod,
+  };
 
   const visibleUsers = useVisibleRows(usersResource);
   const visibleBusinesses = useVisibleRows(businessesResource);
@@ -386,6 +418,35 @@ export default function AdminDashboardPage() {
       })
       .catch((error) => {
         if (error?.name !== "AbortError") setOperationsError(error.message);
+      });
+    return () => controller.abort();
+  }, []);
+
+  // Period-scoped outcomes (return rate / Delivery Failed) for AC-1. The
+  // period is recomputed per request so "Today" stays live.
+  useEffect(() => {
+    const controller = new AbortController();
+    const key = outcomePeriod;
+    const params = new URLSearchParams(outcomePeriodRange(outcomePeriod));
+    const qs = params.toString();
+    apiGet(`/api/admin/parcel-outcomes${qs ? `?${qs}` : ""}`, { signal: controller.signal })
+      .then((data) => setOutcomeState({ data, error: null, key }))
+      .catch((error) => {
+        if (error?.name !== "AbortError") {
+          setOutcomeState((previous) => ({ data: previous.data, error, key }));
+        }
+      });
+    return () => controller.abort();
+  }, [outcomePeriod]);
+
+  // Stuck count reads the same server filter the deep link opens, so the
+  // flag and the filtered list can never diverge (AC-2/AC-3).
+  useEffect(() => {
+    const controller = new AbortController();
+    apiGet("/api/parcels?stuck=true&limit=10", { signal: controller.signal })
+      .then((data) => setStuck({ count: data?.pagination?.total_items ?? 0, error: null, loading: false }))
+      .catch((error) => {
+        if (error?.name !== "AbortError") setStuck({ count: null, error, loading: false });
       });
     return () => controller.abort();
   }, []);
@@ -483,6 +544,48 @@ export default function AdminDashboardPage() {
             { key: "couriers", to: "/logistics/management", value: operations?.activeCouriers, label: "Active couriers", hint: "Check who can take the next delivery", empty: "No active couriers" },
           ]}
         />
+        <section className="admin-section">
+          <div className="admin-section-head admin-outcomes-head">
+            <h2>Parcel outcomes</h2>
+            <label className="admin-period-select">
+              <span>Period</span>
+              <select value={outcomePeriod} onChange={(event) => setOutcomePeriod(event.target.value)}>
+                {OUTCOME_PERIODS.map((period) => (
+                  <option key={period.value} value={period.value}>{period.label}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <DecisionStrip
+            label="Parcel outcomes"
+            loading={outcomes.loading || stuck.loading}
+            error={outcomes.error?.message ?? stuck.error?.message ?? null}
+            items={[
+              {
+                key: "returnRate",
+                to: "/logistics?status=Returned",
+                value: outcomes.data && outcomes.data.total > 0
+                  ? Math.round((outcomes.data.returned / outcomes.data.total) * 100)
+                  : 0,
+                label: outcomes.data && outcomes.data.total > 0
+                  ? `Return rate — ${outcomes.data.returned} of ${outcomes.data.total} parcels returned`
+                  : "Return rate — no parcels booked in this period",
+              },
+              {
+                key: "deliveryFailed",
+                to: "/logistics?status=Delivery%20Failed",
+                value: outcomes.data?.deliveryFailed,
+                label: "Delivery Failed parcels",
+              },
+              {
+                key: "stuck",
+                to: "/logistics?stuck=true",
+                value: stuck.count,
+                label: "Stuck parcels (no scan 2+ days)",
+              },
+            ]}
+          />
+        </section>
         {optionsError ? <div className="page-empty admin-error">Could not load form options: {optionsError}</div> : null}
         <section className="admin-section">
           <div className="admin-section-head"><h2>Customer Service Tools</h2></div>

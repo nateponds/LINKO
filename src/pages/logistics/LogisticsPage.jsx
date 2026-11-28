@@ -17,9 +17,13 @@ import { TableSkeleton } from "../../components/ui/pageSkeletons";
 import "./logistics.css";
 
 const STATUS_TABS = [
-  "All", "Unassigned", "Order Created", "Picked Up", "Arrived at Branch", "Departed Branch",
+  "All", "Unassigned", "Stuck (2+ days)", "Order Created", "Picked Up", "Arrived at Branch", "Departed Branch",
   "Out for Delivery", "Delivery Failed", "Out for Return", "Delivered", "Returned", "Cancelled",
 ];
+
+// Matches the server's stuck filter (shared.js STUCK_TRACKING_STATUSES +
+// STUCK_SCAN_DAYS): any in-flight parcel whose latest scan is older than 2 days.
+const STUCK_TAB = "Stuck (2+ days)";
 
 function useParcelPage(path) {
   const [reloadVersion, setReloadVersion] = useState(0);
@@ -55,12 +59,19 @@ export default function LogisticsPage() {
   const list = useListUrlState();
   const searchParams = new URLSearchParams(location.search);
   const statusFilter = searchParams.get("status") || "All";
+  const stuckFilter = searchParams.get("stuck") === "true";
   const requestedAssignment = searchParams.get("assignment");
   const assignmentFilter = ["available", "active", "completed"].includes(requestedAssignment) ? requestedAssignment : "";
   // "Unassigned" is an assignment filter (courier_id IS NULL), not a tracking
   // status. When assignment=available is active, show it in the status picker.
   const statusFilterDisplay =
-    assignmentFilter === "available" ? "Unassigned" : statusFilter === "All" ? "All statuses" : statusFilter;
+    assignmentFilter === "available"
+      ? "Unassigned"
+      : stuckFilter
+        ? STUCK_TAB
+        : statusFilter === "All"
+          ? "All statuses"
+          : statusFilter;
   const agingFilter = searchParams.get("aging") === "true";
   const courierIdFilter = searchParams.get("courier_id") || "";
   const query = new URLSearchParams({ page: String(list.page), limit: String(list.limit) });
@@ -68,10 +79,11 @@ export default function LogisticsPage() {
   if (statusFilter !== "All") query.set("status", statusFilter);
   if (assignmentFilter) query.set("assignment", assignmentFilter);
   if (agingFilter) query.set("aging", "true");
+  if (stuckFilter) query.set("stuck", "true");
   if (courierIdFilter) query.set("courier_id", courierIdFilter);
   const resource = useParcelPage(`/api/parcels?${query.toString()}`);
   const canAssign = hasAnyRole(ACTION_ACCESS.assignParcel);
-  const [decisionState, setDecisionState] = useState({ unassignedCount: null, agingCount: null, error: null, loading: true });
+  const [decisionState, setDecisionState] = useState({ unassignedCount: null, agingCount: null, stuckCount: null, error: null, loading: true });
   const [decisionReload, setDecisionReload] = useState(0);
   const [courierPage, setCourierPage] = useState(1);
   const [courierLimit, setCourierLimit] = useState(DEFAULT_LIMIT);
@@ -87,7 +99,7 @@ export default function LogisticsPage() {
     setSearchDraft({ query: list.q, value: list.q });
   }
   const statusFilterDetailsRef = useRef(null);
-  const hasParcelFilters = Boolean(list.q || statusFilter !== "All" || assignmentFilter || agingFilter || courierIdFilter);
+  const hasParcelFilters = Boolean(list.q || statusFilter !== "All" || assignmentFilter || agingFilter || stuckFilter || courierIdFilter);
   const selectedCourier = courierResource.items.find((courier) => String(courier.courier_id) === selectedCourierId) ?? null;
   const activeCourier = courierResource.items.find((courier) => String(courier.courier_id) === courierIdFilter) ?? null;
 
@@ -99,6 +111,7 @@ export default function LogisticsPage() {
       .then((data) => setDecisionState({
         unassignedCount: data.unassignedParcels ?? 0,
         agingCount: data.agingPendingParcels ?? 0,
+        stuckCount: data.stuckParcels ?? 0,
         error: null,
         loading: false,
       }))
@@ -183,6 +196,25 @@ export default function LogisticsPage() {
                 </div>
                 <Link className="logistics-summary-action" to="/logistics?status=Order%20Created&aging=true">
                   View aging parcels
+                </Link>
+              </article>
+
+              <article className={`logistics-summary-card stuck-summary${decisionState.stuckCount > 0 ? " is-urgent" : ""}`}>
+                <div className="logistics-summary-copy">
+                  <h2>Stuck parcels</h2>
+                  <p>
+                    <strong className="logistics-summary-count">
+                      {decisionState.stuckCount ?? (decisionState.loading ? "Loading…" : "Unavailable")}
+                    </strong>
+                    {decisionState.stuckCount === 0
+                      ? " No in-flight parcel is waiting on a scan."
+                      : decisionState.stuckCount !== null
+                        ? " in-flight parcels have had no scan for more than two days."
+                        : ""}
+                  </p>
+                </div>
+                <Link className="logistics-summary-action" to="/logistics?stuck=true">
+                  View stuck parcels
                 </Link>
               </article>
 
@@ -295,7 +327,9 @@ export default function LogisticsPage() {
                     aria-pressed={
                       status === "Unassigned"
                         ? assignmentFilter === "available"
-                        : statusFilter === status
+                        : status === STUCK_TAB
+                          ? stuckFilter
+                          : statusFilter === status && !stuckFilter
                     }
                     onClick={() => {
                       if (status === "Unassigned") {
@@ -305,12 +339,23 @@ export default function LogisticsPage() {
                           status: "",
                           assignment: "available",
                           aging: "",
+                          stuck: "",
+                        });
+                      } else if (status === STUCK_TAB) {
+                        // "Stuck" is a server-side staleness filter over all six
+                        // in-flight statuses (?stuck=true), not a tracking status.
+                        list.setFilters({
+                          status: "",
+                          assignment: "",
+                          aging: "",
+                          stuck: "true",
                         });
                       } else {
                         list.setFilters({
                           status: status === "All" ? "" : status,
                           assignment: "",
                           aging: status === "Order Created" && agingFilter ? "true" : "",
+                          stuck: "",
                         });
                       }
                       if (statusFilterDetailsRef.current) statusFilterDetailsRef.current.open = false;
@@ -330,14 +375,14 @@ export default function LogisticsPage() {
               type="button"
               onClick={() => {
                 window.clearTimeout(searchTimerRef.current);
-                list.update({ q: "", filters: { status: "", assignment: "", aging: "", courier_id: "" } });
+                list.update({ q: "", filters: { status: "", assignment: "", aging: "", stuck: "", courier_id: "" } });
               }}
             >
               Clear filters
             </button>
           )}
         </div>
-        {(assignmentFilter || agingFilter || courierIdFilter) && (
+        {(assignmentFilter || agingFilter || stuckFilter || courierIdFilter) && (
           <div className="parcel-active-filters" aria-label="Active parcel filters">
             {assignmentFilter && (
               <span className="parcel-active-filter">
@@ -347,6 +392,11 @@ export default function LogisticsPage() {
             {agingFilter && (
               <span className="parcel-active-filter">
                 Age: <strong>Order Created over 2 days</strong>
+              </span>
+            )}
+            {stuckFilter && (
+              <span className="parcel-active-filter">
+                Stuck: <strong>No scan for more than 2 days</strong>
               </span>
             )}
             {courierIdFilter && (

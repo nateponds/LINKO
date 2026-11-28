@@ -325,3 +325,31 @@
 }
 .admin-compact-table thead th:first-child { width: 40%; }
 .admin-compact-table .expandable-row th { font-size: .88rem; }
+
+/* Parcel outcomes period selector (issue #79 AC-1). */
+.admin-outcomes-head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.admin-period-select {
+  align-items: center;
+  display: flex;
+  font-size: 0.85rem;
+  gap: 8px;
+}
+
+.admin-period-select span {
+  color: var(--color-muted);
+  font-weight: 600;
+}
+
+.admin-period-select select {
+  border: 1px solid #dce3ee;
+  border-radius: 8px;
+  font: inherit;
+  padding: 8px 12px;
+}
