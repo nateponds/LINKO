@@ -4,7 +4,7 @@ import {
   DollarSign,
   ShoppingCart,
   Package,
-  Cube,
+  Box,
   Clock,
   CheckCircle,
   TriangleAlert,
@@ -149,7 +149,7 @@ function RecentActivity({ entries }) {
 const STAT_ICONS = {
   revenue: DollarSign,
   orders: ShoppingCart,
-  products: Cube,
+  products: Box,
   lowStock: Package,
   alert: Clock,
   active: CheckCircle,
