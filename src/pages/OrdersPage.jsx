@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import AppLayout from "../layouts/AppLayout";
-import TrackingTimeline from "../features/logistics/TrackingTimeline";
+import OrderTrackingDialog from "../features/logistics/OrderTrackingDialog";
 import SupportModal from "../components/ui/SupportModal";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
 import { apiGet, apiSend } from "../lib/api";
@@ -10,7 +10,7 @@ import PaginationControls from "../components/ui/PaginationControls";
 import SearchField from "../components/ui/SearchField";
 import { useListUrlState } from "../hooks/useListUrlState";
 import { peso, shortDate, statusClass } from "../lib/format";
-import { TableSkeleton, TrackingSkeleton } from "../components/ui/pageSkeletons";
+import { TableSkeleton } from "../components/ui/pageSkeletons";
 import ExpandableTableRow from "../components/ui/ExpandableTableRow";
 import "./OrdersPage.css";
 
@@ -137,9 +137,7 @@ export default function OrdersPage() {
   const [shipError, setShipError] = useState(null);
 
   // Buyer parcel-tracking modal.
-  const [trackParcel, setTrackParcel] = useState(null);
-  const [trackLoading, setTrackLoading] = useState(false);
-  const [trackError, setTrackError] = useState(null);
+  const [trackingOrder, setTrackingOrder] = useState(null);
   const [supportOpen, setSupportOpen] = useState(false);
   const [confirm, setConfirm] = useState(null);
 
@@ -195,20 +193,6 @@ export default function OrdersPage() {
     });
   }
 
-  async function openTracking(order) {
-    setTrackParcel({ order_id: order.order_id, parcel: null });
-    setTrackLoading(true);
-    setTrackError(null);
-    try {
-      const parcel = await apiGet(`/api/parcels/${order.parcel_id}`);
-      setTrackParcel({ order_id: order.order_id, parcel });
-    } catch (caughtError) {
-      setTrackError(caughtError.message);
-    } finally {
-      setTrackLoading(false);
-    }
-  }
-
   function actionsFor(order) {
     const status = normalizeStatus(order.status);
     const actions = [];
@@ -217,7 +201,7 @@ export default function OrdersPage() {
     // or wholesaler) once a parcel exists - a read-only modal, no logistics
     // workspace access. Operators still have the full parcel detail page.
     if (order.parcel_id && TRACKABLE_STATUSES.has(status)) {
-      actions.push({ label: "Track parcel", onClick: () => openTracking(order) });
+      actions.push({ label: "Track parcel", onClick: () => setTrackingOrder(order) });
     }
 
     // Your side of an order is decided by the order, not by your role: the
@@ -462,49 +446,14 @@ export default function OrdersPage() {
           )}
         </div>
 
-        {/* Buyer parcel tracking: read-only timeline, no logistics workspace. */}
-        <div className={`modal-overlay${trackParcel ? " open" : ""}`}>
-          {trackParcel && (
-            <div className="modal-box">
-              <button
-                className="modal-close"
-                type="button"
-                onClick={() => setTrackParcel(null)}
-              >
-                ×
-              </button>
-              <h2>Track order #{trackParcel.order_id}</h2>
-              {trackLoading ? (
-                <TrackingSkeleton />
-              ) : trackError ? (
-                <p className="form-error">Could not load tracking: {trackError}</p>
-              ) : trackParcel.parcel ? (
-                <>
-                  <p className="track-parcel-meta">
-                    Parcel #{trackParcel.parcel.parcel_id} ·{" "}
-                    <span
-                      className={`status ${statusClass(
-                        trackParcel.parcel.current_status,
-                      )}`}
-                    >
-                      {trackParcel.parcel.current_status ?? "-"}
-                    </span>
-                  </p>
-                  <TrackingTimeline parcel={trackParcel.parcel} />
-                </>
-              ) : (
-                <p className="form-note">No tracking available.</p>
-              )}
-              <button
-                type="button"
-                className="support-link-btn"
-                onClick={() => setSupportOpen(true)}
-              >
-                Need help? Contact customer service
-              </button>
-            </div>
-          )}
-        </div>
+        {trackingOrder && (
+          <OrderTrackingDialog
+            key={trackingOrder.order_id}
+            order={trackingOrder}
+            onClose={() => setTrackingOrder(null)}
+            onSupport={() => setSupportOpen(true)}
+          />
+        )}
 
         <SupportModal open={supportOpen} onClose={() => setSupportOpen(false)} />
 

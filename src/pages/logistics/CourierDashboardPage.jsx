@@ -60,7 +60,7 @@ function useAssignmentPage(path) {
   };
 }
 
-function CourierDestinationAddress({ parcelId, returning }) {
+function CourierStopDetails({ parcelId, returning, pickup, businessName }) {
   const addressRef = useRef(null);
   const [detail, setDetail] = useState(null);
 
@@ -87,10 +87,12 @@ function CourierDestinationAddress({ parcelId, returning }) {
     };
   }, [parcelId]);
 
-  const address = formatAddress(returning ? detail?.origin_address : detail?.destination_address);
+  const address = formatAddress(pickup || returning ? detail?.origin_address : detail?.destination_address);
   return (
-    <div className="courier-destination-address" ref={addressRef}>
-      {detail && (address || "Address unavailable")}
+    <div ref={addressRef}>
+      <span className="courier-destination-label">{pickup ? "Pick up from" : returning ? "Return to sender" : "Deliver to"}</span>
+      <h2>{businessName}</h2>
+      {detail && <div className="courier-destination-address">{address || "Address unavailable"}</div>}
     </div>
   );
 }
@@ -233,6 +235,8 @@ export default function CourierDashboardPage() {
     const reportingFailure = failure?.parcelId === parcel.parcel_id;
     const unknownStatus = !TRACKING_STATUSES.includes(parcel.current_status);
     const returning = parcel.current_status === "Returned" || isReturning(parcel.current_status, parcel.return_triggered);
+    const pickup = next.includes("Picked Up");
+    const stopBusiness = (pickup || returning ? parcel.sender : parcel.receiver)?.business_name ?? "See parcel details";
     return (
         <article key={parcel.parcel_id} className="parcel-card courier-parcel" aria-label={`Parcel #${parcel.parcel_id}`} aria-busy={pending}>
           <div className="parcel-card-header">
@@ -241,11 +245,7 @@ export default function CourierDashboardPage() {
           </div>
           <div className="parcel-card-receiver">
             <MapPin size={18} className="parcel-card-icon" aria-hidden="true" />
-            <div>
-              <span className="courier-destination-label">{returning ? "Return to sender" : "Deliver to"}</span>
-              <h2>{(returning ? parcel.sender : parcel.receiver)?.business_name ?? "See parcel details"}</h2>
-              <CourierDestinationAddress parcelId={parcel.parcel_id} returning={returning} />
-            </div>
+            <CourierStopDetails parcelId={parcel.parcel_id} returning={returning} pickup={pickup} businessName={stopBusiness} />
           </div>
           <div className="parcel-card-meta"><Package size={15} aria-hidden="true" /><span>{parcel.weight_kg} kg</span><span>ETA {shortDate(parcel.estimated_delivery_date)}</span></div>
 

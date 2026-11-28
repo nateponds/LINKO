@@ -325,7 +325,7 @@ export default function CartPage() {
               >
                 {tiers.map((tier) => (
                   <option key={tier.tier_id} value={tier.tier_id}>
-                    {tier.tier_name} ({tier.estimated_days} days) - {peso(tierBaseFee(tier))} per order
+                    {tier.tier_name} ({tier.estimated_days} {Number(tier.estimated_days) === 1 ? "day" : "days"}) - {peso(tierBaseFee(tier))} per order
                   </option>
                 ))}
               </select>

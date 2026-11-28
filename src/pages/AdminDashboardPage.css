@@ -27,6 +27,18 @@
     box-shadow: 0 2px 8px rgba(23, 33, 61, 0.08);
   }
 
+  .admin-create-user {
+    margin-block: 12px 16px;
+  }
+
+  .admin-create-user > summary {
+    width: fit-content;
+    padding: 8px 0;
+    color: var(--color-primary-dark);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
   .admin-form-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

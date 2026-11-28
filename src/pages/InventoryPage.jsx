@@ -629,7 +629,15 @@ export default function InventoryPage() {
                                 </span>
                               ),
                             },
-                            { key: "status", content: <span className={`status ${status.cls}`}>{status.label}</span> },
+                            {
+                              key: "status",
+                              content: (
+                                <div className="inventory-status-actions">
+                                  <span className={`status ${status.cls}`}>{status.label}</span>
+                                  {canManage && <button type="button" className="link-button" aria-label={`Expiry batches for ${item.product_name}`} onClick={() => setExpiryProduct({ ...item, contextBusinessId: activeBusinessId })}>Expiry batches</button>}
+                                </div>
+                              ),
+                            },
                           ]}
                         >
                           {canManage && (
@@ -637,7 +645,6 @@ export default function InventoryPage() {
                               {item.removed_at && <p role="status">Taken down: {item.removal_reason}</p>}
                               <div className="row-panel-actions">
                                 <button type="button" className="link-button" onClick={() => openEditModal(item)}>Edit product</button>
-                                <button type="button" className="link-button" onClick={() => setExpiryProduct({ ...item, contextBusinessId: activeBusinessId })}>Expiry batches</button>
                                 {item.removed_at && <button type="button" className="link-button" onClick={() => handleRelist(item)}>Relist product</button>}
                                 <button type="button" className="link-button inventory-delete" onClick={() => requestDelete(item)}>Delete product</button>
                               </div>
