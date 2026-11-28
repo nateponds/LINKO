@@ -114,8 +114,12 @@ export function hasAccess(user, activeRoles = [], roles = []) {
 }
 
 // Where to land after login, register, or an invalidated route on switch.
-// Marketplace roles win when mixed with operational ones.
+// Marketplace roles win when mixed with operational ones. Platform admin is a
+// global role and always wins over operational business roles.
 export function redirectPathForRoles(activeRoles = [], isAdmin = false) {
+  if (isAdmin) {
+    return "/admin";
+  }
   if (activeRoles.includes("buyer") || activeRoles.includes("wholesaler")) {
     return "/";
   }
@@ -125,12 +129,32 @@ export function redirectPathForRoles(activeRoles = [], isAdmin = false) {
   if (activeRoles.includes("courier")) {
     return "/courier";
   }
-  if (isAdmin) {
-    return "/admin";
-  }
   // No usable role: land on the one page every signed-in user can open. Any
   // narrower target would bounce off its own guard and redirect-loop.
   return "/settings/profile";
+}
+
+// True when the user trades on the marketplace in ANY business (a buyer or
+// wholesaler membership), regardless of which business is active.
+export function hasMarketplaceMembership(memberships = []) {
+  return (memberships ?? []).some(
+    (m) => m.role === "buyer" || m.role === "wholesaler",
+  );
+}
+
+// Where a signed-in user lands when there is no explicit redirect target.
+// One precedence for every caller so login, register, and guards cannot drift:
+//   1. platform_admin is a global role and wins -> /admin
+//   2. marketplace membership in ANY business -> / (marketplace home)
+//   3. the active business's operational role -> /logistics, /courier, ...
+export function landingPathForUser(user, memberships = [], activeRoles = []) {
+  if (isPlatformAdmin(user)) {
+    return "/admin";
+  }
+  if (hasMarketplaceMembership(memberships)) {
+    return "/";
+  }
+  return redirectPathForRoles(activeRoles, false);
 }
 
 // Post-login/register default path. The session's active business isn't in
@@ -142,7 +166,7 @@ export function defaultPathForSession(payload, storedBusinessId) {
     businesses.find(
       (b) => String(b.business_id) === String(storedBusinessId),
     ) ?? businesses[0] ?? null;
-  return redirectPathForRoles(active?.roles ?? [], isPlatformAdmin(payload?.user));
+  return landingPathForUser(payload?.user, payload?.memberships, active?.roles ?? []);
 }
 
 export function formatRoleLabel(role) {

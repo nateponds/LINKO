@@ -209,7 +209,7 @@ export default function InventoryPage() {
     setModalOpen(true);
   }
 
-  function openEditModal(item) {
+  const openEditModal = useCallback((item) => {
     createdProductRef.current = null;
     setCreatedProductId(null);
     setEditingId(item.product_id);
@@ -224,7 +224,50 @@ export default function InventoryPage() {
     });
     setFormError(null);
     setModalOpen(true);
-  }
+  }, []);
+
+  // Deep link from the seller dashboard's low-stock list: /inventory?restock=<id>
+  // opens that product's edit modal (stock field ready to update), then clears
+  // the parameter so a refresh doesn't reopen it.
+  const restockParam = searchParams.get("restock");
+  const clearRestockParam = useCallback(() => {
+    if (!searchParams.has("restock")) return;
+    const params = new URLSearchParams(searchParams);
+    params.delete("restock");
+    setSearchParams(params, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (!restockParam || loading || fetching) return;
+    const restockId = Number(restockParam);
+    if (!Number.isSafeInteger(restockId) || restockId <= 0) {
+      clearRestockParam();
+      return;
+    }
+    const item = products.find((product) => product.product_id === restockId);
+    if (item) {
+      // Defer: setState must not run synchronously inside the effect body.
+      const timer = window.setTimeout(() => {
+        openEditModal(item);
+        clearRestockParam();
+      }, 0);
+      return () => window.clearTimeout(timer);
+    }
+    // Not on the currently loaded page: fetch it directly by ID.
+    let cancelled = false;
+    apiGet(`/api/products/${restockId}`)
+      .then((product) => {
+        if (cancelled) return;
+        if (product) openEditModal(product);
+        clearRestockParam();
+      })
+      .catch(() => {
+        if (!cancelled) clearRestockParam();
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [clearRestockParam, fetching, loading, openEditModal, products, restockParam]);
 
   const productDialogRef = useRef(null);
   const productNameRef = useRef(null);
@@ -409,7 +452,7 @@ export default function InventoryPage() {
           <h1>My Products</h1>
           <div className="header-toolbar">
             <SearchField
-              className="search-bar"
+              className="inventory-search"
               value={searchTerm}
               onChange={setSearchTerm}
               onSubmit={submitSearch}

@@ -2,12 +2,12 @@ import { useMemo, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
-import { defaultPathForSession, redirectPathForRoles } from "../auth/roleAccess";
+import { defaultPathForSession, landingPathForUser } from "../auth/roleAccess";
 import AuthVisualPanel from "../components/ui/AuthVisualPanel";
 import "./LoginPage.css";
 
 export default function LoginPage() {
-  const { user, login, activeRoles, isAdmin } = useAuth();
+  const { user, login, activeRoles, memberships } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
@@ -20,7 +20,13 @@ export default function LoginPage() {
   );
 
   if (user) {
-    const defaultPath = redirectPathForRoles(activeRoles, isAdmin);
+    // One landing rule for the whole app (roleAccess.landingPathForUser):
+    // platform admin wins, then marketplace membership in any business, then
+    // the active business's operational role. A real redirectTo (a shared
+    // order link, a protected route visited while signed out) is always
+    // honored; stale ones are prevented at logout instead - AuthProvider
+    // lands on a clean /login when the session ends.
+    const defaultPath = landingPathForUser(user, memberships, activeRoles);
     return <Navigate to={redirectTo || defaultPath} replace />;
   }
 

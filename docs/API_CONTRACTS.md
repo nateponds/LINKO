@@ -71,6 +71,23 @@ GET /api/admin/businesses?q=one&q=two
 { "error": { "message": "q must be a single string" } }
 ```
 
+### Parcel outcomes (admin)
+
+`GET /api/admin/parcel-outcomes` requires an authenticated `platform_admin`
+and returns period-scoped outcome counts for the admin outcomes strip:
+
+```json
+{ "total": 30, "returned": 8, "deliveryFailed": 1 }
+```
+
+The `parcels` table has no `created_at`, so "in period" derives from
+`tracking_logs` scans. `total` counts parcels whose earliest scan (booking)
+falls inside the period; `returned` and `deliveryFailed` count parcels whose
+LATEST scan is that outcome with a `scanned_at` inside the period. `from` and
+`to` are optional ISO datetimes (each must occur once; `from` must not be
+later than `to`; invalid values return `400`). Omitting both means all time.
+The return rate shown in the UI is `returned / total`, computed client-side.
+
 ### Marketplace lists
 
 `GET /api/products`, `GET /api/suppliers`, and supplier detail-category
@@ -148,7 +165,7 @@ and zero facets. Scope is applied before filters.
 
 | Endpoint | Filters and search fields | Stable ordering |
 | --- | --- | --- |
-| `GET /api/parcels` | `status` is `Order Created`, `Picked Up`, `Arrived at Branch`, `Departed Branch`, `Out for Delivery`, `Delivery Failed`, `Out for Return`, `Delivered`, `Returned`, or `Cancelled`; `assignment` is `available`, `active`, or `completed`; `courier_id` is a positive courier ID matched against the latest tracking log; `aging=true` selects latest `Order Created` logs scanned more than two days ago (if `status` is supplied, it must be `Order Created`); `q` matches parcel ID, sender business name, or receiver business name. | latest scan time DESC (nulls last), then `parcel_id ASC` |
+| `GET /api/parcels` | `status` is `Order Created`, `Picked Up`, `Arrived at Branch`, `Departed Branch`, `Out for Delivery`, `Delivery Failed`, `Out for Return`, `Delivered`, `Returned`, or `Cancelled`; `assignment` is `available`, `active`, or `completed`; `courier_id` is a positive courier ID matched against the latest tracking log; `aging=true` selects latest `Order Created` logs scanned more than two days ago (if `status` is supplied, it must be `Order Created`); `stuck=true` selects in-flight parcels (`Order Created`, `Picked Up`, `Arrived at Branch`, `Departed Branch`, `Out for Delivery`, `Out for Return`) whose latest scan is more than two days old (cannot be combined with `status` or `aging`); `q` matches parcel ID, sender business name, or receiver business name. | latest scan time DESC (nulls last), then `parcel_id ASC` |
 | `GET /api/branches` | `q` matches branch name, province, city/municipality, or barangay. Active branches only. | `branch_id ASC` |
 | `GET /api/couriers` | `q` matches full name, phone number, vehicle type, or assigned branch name. Active couriers only; rows include `active_parcel_count`. | `full_name ASC, courier_id ASC` |
 
@@ -161,13 +178,15 @@ Parcel results add:
 `courier_id` must be between 1 and 2147483647, matching the database ID column.
 
 Assignment counts are calculated after visibility and the base filters
-(`q`, `status`, `courier_id`, and `aging`), but before the selected
+(`q`, `status`, `courier_id`, `aging`, and `stuck`), but before the selected
 `assignment`. Selecting `assignment=available` therefore retains all three
 counts for the same scoped/filter-matched set. `available` has no latest courier
 and a non-terminal latest status; `active` has a latest courier and non-terminal
 status; `completed` has a terminal latest status. `aging=true` uses the latest
 tracking log's `scanned_at` timestamp and the same two-day threshold as the
-logistics decisions count.
+logistics decisions count. `stuck=true` uses the same timestamp and threshold
+across all six in-flight statuses; the count exposed by the logistics decisions
+endpoint (`stuckParcels`) applies the identical predicate.
 
 ```http
 GET /api/parcels?assignment=available&status=Order%20Created&limit=10
@@ -423,11 +442,21 @@ Invalid skips/backwards transitions return `400`. Buyers may cancel only their o
       "line_total": "301.00"
     }
   ],
+  "delivery_address": {
+    "label": "Main store",
+    "street_address": "123 Rizal Street",
+    "barangay": "Barangay Centro",
+    "city_municipality": "Cebu City",
+    "province": "Cebu",
+    "postal_code": "6000"
+  },
   "invoice": null
 }
 ```
 
 `total`, `unit_price_snapshot`, and `line_total` are decimal strings from PostgreSQL `NUMERIC`.
+
+Order detail and order-mutation responses include `delivery_address`, while paginated list rows remain lean. It contains the buyer business's current canonical logistics address—the address checkout makes default before order placement—or `null` when unavailable. This is not an immutable historical snapshot; changing the canonical address later changes what existing order details return.
 
 ### 2c.1 `GET /api/orders`
 

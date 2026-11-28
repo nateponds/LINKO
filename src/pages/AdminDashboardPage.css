@@ -155,12 +155,176 @@
     cursor: default;
   }
 
+  /* Parcel lookup & cancel flow */
+  .parcel-lookup-form {
+    width: 100%;
+  }
+
+  .parcel-lookup-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 24px;
+    color: var(--color-muted);
+  }
+
+  .parcel-lookup-loading .spinner {
+    width: 28px;
+    height: 28px;
+    border: 3px solid rgba(23, 33, 61, 0.12);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: parcel-lookup-spin 0.8s linear infinite;
+  }
+
+  .parcel-lookup-error {
+    padding: 4px 0;
+  }
+
+  .parcel-review-card {
+    border: 1px solid rgba(23, 33, 61, 0.12);
+    border-radius: 10px;
+    padding: 16px;
+    background: #fafbfc;
+  }
+
+  .parcel-review-card h4 {
+    margin: 0 0 12px;
+    font-size: 0.9rem;
+    color: var(--color-primary-dark);
+  }
+
+  .parcel-review-grid {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: 8px 16px;
+    margin: 0;
+    font-size: 0.85rem;
+  }
+
+  .parcel-review-grid dt {
+    color: var(--color-muted);
+    font-weight: 600;
+  }
+
+  .parcel-review-grid dd {
+    margin: 0;
+    color: var(--color-text);
+  }
+
+  .parcel-review-grid .status {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: capitalize;
+    background: var(--color-primary-light);
+    color: var(--color-primary-dark);
+  }
+
+  .parcel-cancel-form {
+    border-top: 1px solid rgba(23, 33, 61, 0.1);
+    margin-top: 12px;
+    padding-top: 16px;
+  }
+
+  .cancel-confirm-text {
+    margin: 0 0 12px;
+    font-size: 0.85rem;
+    color: var(--color-muted);
+  }
+
+  .parcel-cancel-success {
+    padding: 8px 0;
+    text-align: center;
+  }
+
+  .admin-tool-actions {
+    justify-content: flex-start;
+  }
+
+  .admin-floating-panel-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(23, 33, 61, 0.45);
+  }
+
+  .admin-floating-panel {
+    width: min(560px, 100%);
+    max-height: calc(100vh - 32px);
+    overflow: auto;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 18px 48px rgba(23, 33, 61, 0.24);
+    padding: 20px;
+  }
+
+  .admin-floating-panel-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .admin-floating-panel-head h2 {
+    margin: 2px 0 0;
+    color: var(--color-primary-dark);
+    font-size: 1.12rem;
+  }
+
+  .admin-floating-eyebrow {
+    margin: 0;
+    color: var(--color-muted);
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .admin-panel-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid rgba(23, 33, 61, 0.14);
+    border-radius: 50%;
+    background: white;
+    color: var(--color-text);
+    cursor: pointer;
+  }
+
+  .admin-panel-close:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+
+  .parcel-cancel-panel .admin-form-actions {
+    flex-wrap: wrap;
+  }
+
+  .parcel-cancel-panel .parcel-review-grid {
+    grid-template-columns: 116px 1fr;
+  }
+
   .admin-memberships {
     white-space: normal;
     max-width: 320px;
     color: var(--color-muted);
   }
 
+}
+
+@keyframes parcel-lookup-spin {
+  to { transform: rotate(360deg); }
 }
 
 .admin-compact-table {
@@ -173,3 +337,31 @@
 }
 .admin-compact-table thead th:first-child { width: 40%; }
 .admin-compact-table .expandable-row th { font-size: .88rem; }
+
+/* Parcel outcomes period selector (issue #79 AC-1). */
+.admin-outcomes-head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.admin-period-select {
+  align-items: center;
+  display: flex;
+  font-size: 0.85rem;
+  gap: 8px;
+}
+
+.admin-period-select span {
+  color: var(--color-muted);
+  font-weight: 600;
+}
+
+.admin-period-select select {
+  border: 1px solid #dce3ee;
+  border-radius: 8px;
+  font: inherit;
+  padding: 8px 12px;
+}

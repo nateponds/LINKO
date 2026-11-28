@@ -35,6 +35,8 @@ import {
   redactParcelListShippingFee,
   resolveActiveCourier,
   RETURN_TRIGGER_FAILS,
+  STUCK_SCAN_DAYS,
+  STUCK_TRACKING_STATUSES,
   TERMINAL_TRACKING_STATUS_LIST,
   truncateBuyerReturnTracking,
   VALID_TRACKING_STATUSES,
@@ -64,16 +66,21 @@ router.get(
                   WHERE (latest.status_update IS NULL
                          OR latest.status_update <> ALL($1::text[]))
                     AND latest.courier_id IS NOT NULL
-                )::int AS courier_active_load
+                )::int AS courier_active_load,
+                COUNT(*) FILTER (
+                  WHERE latest.status_update = ANY($4::text[])
+                    AND latest.scanned_at < CURRENT_TIMESTAMP - make_interval(days => $5::int)
+                )::int AS stuck_parcels
            FROM parcels p
            ${LATEST_PARCEL_LOG_SQL}`,
-        [TERMINAL_TRACKING_STATUS_LIST, "Order Created", 2],
+        [TERMINAL_TRACKING_STATUS_LIST, "Order Created", 2, STUCK_TRACKING_STATUSES, STUCK_SCAN_DAYS],
       );
       const row = rows[0];
       res.json({
         unassignedParcels: row.unassigned_parcels,
         agingPendingParcels: row.aging_pending_parcels,
         courierActiveLoad: row.courier_active_load,
+        stuckParcels: row.stuck_parcels,
       });
     } catch (error) {
       next(error);

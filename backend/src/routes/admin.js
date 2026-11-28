@@ -97,6 +97,88 @@ router.get("/operations", async (_req, res, next) => {
   }
 });
 
+// GET /api/admin/parcel-outcomes?from&to - period-scoped parcel outcome counts
+// for the admin outcomes strip (issue #79 AC-1). The parcels table has no
+// created_at, so "in period" is derived from tracking_logs scans: total counts
+// parcels BOOKED in the period (their earliest scan), while Returned and
+// Delivery Failed count parcels whose LATEST scan is that outcome and falls
+// inside the period. Omitting both params means all time.
+router.get("/parcel-outcomes", async (req, res, next) => {
+  try {
+    const from = readSingletonQueryString(req.query.from, "from");
+    const to = readSingletonQueryString(req.query.to, "to");
+    const parseDate = (value, label) => {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) {
+        throw createHttpError(400, `${label} must be a valid ISO date`);
+      }
+      return date.toISOString();
+    };
+    const fromDate = from !== undefined ? parseDate(from, "from") : null;
+    const toDate = to !== undefined ? parseDate(to, "to") : null;
+    if (fromDate && toDate && fromDate > toDate) {
+      throw createHttpError(400, "from must not be later than to");
+    }
+
+    // One params array is shared by every subquery; placeholders are numbered
+    // in the order the period conditions below are appended.
+    const params = [];
+    const bookedConditions = [];
+    if (fromDate) {
+      params.push(fromDate);
+      bookedConditions.push(`booked.booked_at >= $${params.length}`);
+    }
+    if (toDate) {
+      params.push(toDate);
+      bookedConditions.push(`booked.booked_at <= $${params.length}`);
+    }
+    const bookedWhere = bookedConditions.length
+      ? `WHERE ${bookedConditions.join(" AND ")}`
+      : "";
+    const latestConditions = [];
+    if (fromDate) {
+      params.push(fromDate);
+      latestConditions.push(`latest.scanned_at >= $${params.length}`);
+    }
+    if (toDate) {
+      params.push(toDate);
+      latestConditions.push(`latest.scanned_at <= $${params.length}`);
+    }
+    const latestPeriod = latestConditions.length
+      ? `AND ${latestConditions.join(" AND ")}`
+      : "";
+
+    const { rows } = await query(
+      `SELECT
+        (SELECT COUNT(*)::int
+           FROM (
+             SELECT MIN(scanned_at) AS booked_at
+               FROM tracking_logs
+              GROUP BY parcel_id
+           ) booked
+           ${bookedWhere}) AS total,
+        (SELECT COUNT(*)::int
+           FROM parcels p
+           ${LATEST_PARCEL_LOG_SQL}
+          WHERE latest.status_update = 'Returned'
+            ${latestPeriod}) AS returned,
+        (SELECT COUNT(*)::int
+           FROM parcels p
+           ${LATEST_PARCEL_LOG_SQL}
+          WHERE latest.status_update = 'Delivery Failed'
+            ${latestPeriod}) AS delivery_failed`,
+      params,
+    );
+    res.json({
+      total: rows[0].total,
+      returned: rows[0].returned,
+      deliveryFailed: rows[0].delivery_failed,
+    });
+  } catch (error) {
+    next(asClientError(error));
+  }
+});
+
 // GET /api/admin/users
 // All users with their aggregated memberships. Newest first.
 router.get("/users", async (req, res, next) => {

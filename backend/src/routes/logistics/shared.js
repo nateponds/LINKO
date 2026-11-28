@@ -66,6 +66,18 @@ export const VALID_TRACKING_STATUSES = [
 ];
 export const TERMINAL_TRACKING_STATUSES = new Set(TERMINAL_PARCEL_STATUSES);
 export const TERMINAL_TRACKING_STATUS_LIST = [...TERMINAL_TRACKING_STATUSES];
+// "Stuck" = any non-terminal in-flight status whose latest scan is older than
+// STUCK_SCAN_DAYS. Mirrors the issue #79 vocabulary; the admin and logistics
+// pages surface it as one flag and deep-link into the filtered list.
+export const STUCK_TRACKING_STATUSES = [
+  "Order Created",
+  "Picked Up",
+  "Arrived at Branch",
+  "Departed Branch",
+  "Out for Delivery",
+  "Out for Return",
+];
+export const STUCK_SCAN_DAYS = 2;
 export const PARCEL_ASSIGNMENTS = new Set(["available", "active", "completed"]);
 export const RETURN_TRIGGER_FAILS = 3;
 
@@ -96,6 +108,7 @@ export function parseParcelListQuery(queryParams) {
   const assignment = readSingletonQueryString(queryParams.assignment, "assignment");
   const courierIdValue = readSingletonQueryString(queryParams.courier_id, "courier_id");
   const agingValue = readSingletonQueryString(queryParams.aging, "aging");
+  const stuckValue = readSingletonQueryString(queryParams.stuck, "stuck");
 
   if (status !== undefined && !VALID_TRACKING_STATUSES.includes(status)) {
     throw createHttpError(400, "status must be a valid tracking status");
@@ -131,10 +144,30 @@ export function parseParcelListQuery(queryParams) {
       "aging=true can only be used with status=Order Created",
     );
   }
+  if (
+    stuckValue !== undefined &&
+    stuckValue !== "true" &&
+    stuckValue !== "false"
+  ) {
+    throw createHttpError(400, "stuck must be true or false");
+  }
+  const stuck = stuckValue === "true";
+  // stuck already implies the six in-flight statuses; combining it with a
+  // status or the aging filter would only confuse the contract.
+  if (stuck && status !== undefined) {
+    throw createHttpError(
+      400,
+      "stuck=true cannot be combined with a status filter",
+    );
+  }
+  if (stuck && aging) {
+    throw createHttpError(400, "stuck=true cannot be combined with aging=true");
+  }
 
   const filters = { ...pagination, status, assignment };
   if (courierId !== undefined) filters.courierId = courierId;
   if (agingValue !== undefined) filters.aging = aging;
+  if (stuckValue !== undefined) filters.stuck = stuck;
   return filters;
 }
 
@@ -346,6 +379,13 @@ export function parcelListBaseFilter(scope, filters) {
   if (filters.aging) {
     clauses.push(`latest.status_update = 'Order Created'
       AND latest.scanned_at < CURRENT_TIMESTAMP - make_interval(days => 2)`);
+  }
+  if (filters.stuck) {
+    params.push(STUCK_TRACKING_STATUSES);
+    const stuckStatusParam = params.length;
+    params.push(STUCK_SCAN_DAYS);
+    clauses.push(`latest.status_update = ANY($${stuckStatusParam}::text[])
+      AND latest.scanned_at < CURRENT_TIMESTAMP - make_interval(days => $${params.length}::int)`);
   }
   return { params, clause: clauses.join(" AND ") };
 }

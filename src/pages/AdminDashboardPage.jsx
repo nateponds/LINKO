@@ -1,6 +1,7 @@
 import ExpandableTableRow from "../components/ui/ExpandableTableRow";
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { PackageSearch, X } from "lucide-react";
+import { Link } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
 import DecisionStrip from "../components/DecisionStrip";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
@@ -26,6 +27,32 @@ const EMPTY_FORM = {
   full_name: "", email: "", password: "", kind: "logistics_coordinator",
   business_id: "", phone_number: "", vehicle_type: "", assigned_branch_id: "",
 };
+
+// Terminal parcel statuses that cannot be cancelled. Mirrors
+// backend/src/routes/admin.js TERMINAL_PARCEL_STATUSES.
+const TERMINAL_STATUSES = ["Delivered", "Returned", "Cancelled"];
+
+// Presets for the parcel-outcomes period selector (issue #79 AC-1). "all"
+// sends no date params and is the default so seeded data reconciles.
+const OUTCOME_PERIODS = [
+  { value: "all", label: "All time" },
+  { value: "today", label: "Today" },
+  { value: "7d", label: "Last 7 days" },
+  { value: "30d", label: "Last 30 days" },
+];
+
+function outcomePeriodRange(preset) {
+  if (preset === "all") return {};
+  const to = new Date();
+  let from;
+  if (preset === "today") {
+    from = new Date();
+    from.setHours(0, 0, 0, 0);
+  } else {
+    from = new Date(to.getTime() - (preset === "7d" ? 7 : 30) * 24 * 60 * 60 * 1000);
+  }
+  return { from: from.toISOString(), to: to.toISOString() };
+}
 
 function membershipSummary(memberships) {
   if (!Array.isArray(memberships) || memberships.length === 0) return "-";
@@ -86,8 +113,268 @@ function useVisibleRows(resource) {
   return rows;
 }
 
+// Parcel lookup + cancel flow for admins, rendered as a floating panel.
+// States: "idle" (lookup input) -> "loading" -> "error"/"notFound"/"review" -> "cancelling" -> "success"
+function ParcelCancelFlow({ onClose }) {
+  const [phase, setPhase] = useState("idle");
+  const [parcelId, setParcelId] = useState("");
+  const [parcel, setParcel] = useState(null);
+  const [error, setError] = useState(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelBusy, setCancelBusy] = useState(false);
+  const [cancelError, setCancelError] = useState(null);
+  const [cancelSuccess, setCancelSuccess] = useState(null);
+
+  const addressLine = (a) =>
+    a && [a.street_address, a.barangay, a.city_municipality, a.province, a.postal_code].filter(Boolean).join(", ");
+
+  async function handleLookup(event) {
+    event.preventDefault();
+    const id = parcelId.trim();
+    if (!id) return;
+    setPhase("loading");
+    setError(null);
+    setParcel(null);
+    try {
+      const data = await apiGet(`/api/parcels/${encodeURIComponent(id)}`);
+      if (!data) {
+        setPhase("notFound");
+      } else {
+        setParcel(data);
+        setPhase("review");
+      }
+    } catch (err) {
+      if (err?.status === 404) {
+        setPhase("notFound");
+      } else {
+        setError(err.message);
+        setPhase("error");
+      }
+    }
+  }
+
+  function handleRetry() {
+    setPhase("idle");
+  }
+
+  function handleWrongParcel() {
+    setParcelId("");
+    setParcel(null);
+    setPhase("idle");
+  }
+
+  async function handleCancelSubmit(event) {
+    event.preventDefault();
+    const reason = cancelReason.trim();
+    if (!reason) {
+      setCancelError("Cancellation reason is required.");
+      return;
+    }
+    if (parcel && TERMINAL_STATUSES.includes(parcel.current_status)) {
+      setCancelError(`Cannot cancel — parcel is already ${parcel.current_status.toLowerCase()}.`);
+      return;
+    }
+    setCancelError(null);
+    setCancelBusy(true);
+    try {
+      await apiSend(`/api/parcels/${encodeURIComponent(parcel.parcel_id)}/tracking`, {
+        method: "POST",
+        body: { status_update: "Cancelled", remarks: reason },
+      });
+      setCancelSuccess(`Parcel ${parcel.parcel_id} cancelled.`);
+      setCancelReason("");
+      setParcelId("");
+      setParcel(null);
+      setPhase("success");
+    } catch (err) {
+      setCancelError(err.message);
+    } finally {
+      setCancelBusy(false);
+    }
+  }
+
+  function handleSuccessDismiss() {
+    setCancelSuccess(null);
+    onClose();
+  }
+
+  // Phase rendering
+  if (phase === "idle") {
+    return (
+      <form onSubmit={handleLookup} className="parcel-lookup-form" aria-label="Look up a parcel">
+        <div className="admin-form-grid">
+          <label>
+            <span>Parcel ID</span>
+            <input
+              type="text"
+              value={parcelId}
+              onChange={(e) => setParcelId(e.target.value)}
+              placeholder="LKO-00000001"
+              required
+              autoFocus
+            />
+          </label>
+        </div>
+        <div className="admin-form-actions">
+          <button type="submit" className="admin-primary-btn">Look up parcel</button>
+        </div>
+      </form>
+    );
+  }
+
+  if (phase === "loading") {
+    return (
+      <div className="parcel-lookup-loading" role="status">
+        <div className="spinner" aria-hidden="true" />
+        <p>Looking up parcel…</p>
+      </div>
+    );
+  }
+
+  if (phase === "error") {
+    return (
+      <div className="parcel-lookup-error">
+        <p className="admin-form-error">Could not load parcel: {error}</p>
+        <div className="admin-form-actions">
+          <button type="button" className="admin-action-btn" onClick={handleRetry}>Try again</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === "notFound") {
+    return (
+      <div className="parcel-lookup-error">
+        <p className="admin-form-error">Parcel not found or you don't have access.</p>
+        <div className="admin-form-actions">
+          <button type="button" className="admin-action-btn" onClick={handleRetry}>Try another ID</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === "review") {
+    const p = parcel;
+    const currentStatus = p.current_status ?? "Unknown";
+    const senderName = p.sender?.business_name ?? "—";
+    const receiverName = p.receiver?.business_name ?? "—";
+    const tierName = p.tier?.tier_name ?? "—";
+    const weight = p.weight_kg != null ? `${p.weight_kg} kg` : "—";
+    const trackingCount = Array.isArray(p.tracking_history) ? p.tracking_history.length : 0;
+    const isTerminal = TERMINAL_STATUSES.includes(currentStatus);
+
+    return (
+      <div className="parcel-review-card">
+        <h4>Confirm parcel details</h4>
+        {isTerminal && (
+          <div className="admin-form-error" style={{ marginBottom: 12 }}>
+            Cannot cancel — parcel is already {currentStatus.toLowerCase()}.
+          </div>
+        )}
+        <dl className="parcel-review-grid">
+          <dt>Parcel ID</dt>
+          <dd><strong>{p.parcel_id}</strong></dd>
+          <dt>Current status</dt>
+          <dd><span className="status">{currentStatus}</span></dd>
+          <dt>Sender</dt>
+          <dd>{senderName}</dd>
+          <dt>Receiver</dt>
+          <dd>{receiverName}</dd>
+          <dt>Origin</dt>
+          <dd>{addressLine(p.origin_address) || "—"}</dd>
+          <dt>Destination</dt>
+          <dd>{addressLine(p.destination_address) || "—"}</dd>
+          <dt>Service tier</dt>
+          <dd>{tierName}</dd>
+          <dt>Weight</dt>
+          <dd>{weight}</dd>
+          <dt>Tracking events</dt>
+          <dd>{trackingCount}</dd>
+        </dl>
+        <div className="admin-form-actions">
+          <button type="button" className="admin-action-btn" onClick={handleWrongParcel}>Wrong parcel</button>
+          <button
+            type="button"
+            className="admin-primary-btn"
+            disabled={isTerminal}
+            onClick={() => setPhase("cancelling")}
+          >
+            {isTerminal ? "Cannot cancel" : "Continue to cancel"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === "cancelling") {
+    return (
+      <form onSubmit={handleCancelSubmit} className="parcel-cancel-form">
+        <p className="cancel-confirm-text">Cancelling <strong>{parcel.parcel_id}</strong> — {parcel.sender?.business_name} → {parcel.receiver?.business_name}</p>
+        <div className="admin-form-grid">
+          <label>
+            <span>Cancellation reason</span>
+            <input
+              type="text"
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Customer request"
+              required
+              autoFocus
+            />
+          </label>
+        </div>
+        <div className="admin-form-actions">
+          {cancelError && <span className="admin-form-error">{cancelError}</span>}
+          <button type="button" className="admin-action-btn" onClick={() => setPhase("review")}>Back</button>
+          <button type="submit" className="admin-primary-btn" disabled={cancelBusy}>
+            {cancelBusy ? "Cancelling…" : "Cancel parcel"}
+          </button>
+        </div>
+      </form>
+    );
+  }
+
+  if (phase === "success") {
+    return (
+      <div className="parcel-cancel-success">
+        <p className="admin-form-success">{cancelSuccess}</p>
+        <div className="admin-form-actions">
+          <button type="button" className="admin-primary-btn" onClick={handleSuccessDismiss}>Done</button>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+function ParcelCancelPanel({ open, onClose }) {
+  if (!open) return null;
+  return (
+    <div className="admin-floating-panel-backdrop" onClick={onClose}>
+      <section
+        className="admin-floating-panel parcel-cancel-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="admin-parcel-cancel-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <header className="admin-floating-panel-head">
+          <div>
+            <p className="admin-floating-eyebrow">Customer service</p>
+            <h2 id="admin-parcel-cancel-title">Parcel lookup &amp; cancel</h2>
+          </div>
+          <button type="button" className="admin-panel-close" aria-label="Close parcel lookup and cancel" onClick={onClose}>
+            <X size={18} aria-hidden="true" />
+          </button>
+        </header>
+        <ParcelCancelFlow onClose={onClose} />
+      </section>
+    </div>
+  );
+}
+
 export default function AdminDashboardPage() {
-  const navigate = useNavigate();
   const usersList = useListUrlState({ prefix: "users" });
   const businessesList = useListUrlState({ prefix: "businesses" });
   const usersSearch = useDebouncedListSearch(usersList);
@@ -102,10 +389,20 @@ export default function AdminDashboardPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [formError, setFormError] = useState(null);
   const [creating, setCreating] = useState(false);
-  const [lookupId, setLookupId] = useState("");
   const [confirm, setConfirm] = useState(null);
   const [operations, setOperations] = useState(null);
   const [operationsError, setOperationsError] = useState(null);
+  const [parcelCancelOpen, setParcelCancelOpen] = useState(false);
+  const [outcomePeriod, setOutcomePeriod] = useState("all");
+  const [outcomeState, setOutcomeState] = useState({ data: null, error: null, key: "all" });
+  const [stuck, setStuck] = useState({ count: null, error: null, loading: true });
+  // A period change starts a new request; the previous period's data is held
+  // back (loading) until its own response arrives, so numbers never mix.
+  const outcomes = {
+    data: outcomeState.key === outcomePeriod ? outcomeState.data : null,
+    error: outcomeState.key === outcomePeriod ? outcomeState.error : null,
+    loading: outcomeState.key !== outcomePeriod,
+  };
 
   const visibleUsers = useVisibleRows(usersResource);
   const visibleBusinesses = useVisibleRows(businessesResource);
@@ -126,6 +423,35 @@ export default function AdminDashboardPage() {
     return () => controller.abort();
   }, []);
 
+  // Period-scoped outcomes (return rate / Delivery Failed) for AC-1. The
+  // period is recomputed per request so "Today" stays live.
+  useEffect(() => {
+    const controller = new AbortController();
+    const key = outcomePeriod;
+    const params = new URLSearchParams(outcomePeriodRange(outcomePeriod));
+    const qs = params.toString();
+    apiGet(`/api/admin/parcel-outcomes${qs ? `?${qs}` : ""}`, { signal: controller.signal })
+      .then((data) => setOutcomeState({ data, error: null, key }))
+      .catch((error) => {
+        if (error?.name !== "AbortError") {
+          setOutcomeState((previous) => ({ data: previous.data, error, key }));
+        }
+      });
+    return () => controller.abort();
+  }, [outcomePeriod]);
+
+  // Stuck count reads the same server filter the deep link opens, so the
+  // flag and the filtered list can never diverge (AC-2/AC-3).
+  useEffect(() => {
+    const controller = new AbortController();
+    apiGet("/api/parcels?stuck=true&limit=10", { signal: controller.signal })
+      .then((data) => setStuck({ count: data?.pagination?.total_items ?? 0, error: null, loading: false }))
+      .catch((error) => {
+        if (error?.name !== "AbortError") setStuck({ count: null, error, loading: false });
+      });
+    return () => controller.abort();
+  }, []);
+
   useEffect(() => {
     const controller = new AbortController();
     Promise.all([
@@ -140,12 +466,6 @@ export default function AdminDashboardPage() {
     });
     return () => controller.abort();
   }, []);
-
-  function submitLookup(event) {
-    event.preventDefault();
-    const parcelId = lookupId.trim().toUpperCase();
-    if (parcelId) navigate(`/logistics/${encodeURIComponent(parcelId)}`);
-  }
 
   function requestToggleUserActive(entry) {
     const nextActive = !entry.is_active;
@@ -228,12 +548,70 @@ export default function AdminDashboardPage() {
             { key: "couriers", to: "/logistics/management", value: operations?.activeCouriers, label: "Active couriers", hint: "Check who can take the next delivery", empty: "No active couriers" },
           ]}
         />
+        <section className="admin-section">
+          <div className="admin-section-head admin-outcomes-head">
+            <h2>Parcel outcomes</h2>
+            <label className="admin-period-select">
+              <span>Period</span>
+              <select value={outcomePeriod} onChange={(event) => setOutcomePeriod(event.target.value)}>
+                {OUTCOME_PERIODS.map((period) => (
+                  <option key={period.value} value={period.value}>{period.label}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <DecisionStrip
+            label="Parcel outcomes"
+            loading={outcomes.loading || stuck.loading}
+            error={outcomes.error?.message ?? stuck.error?.message ?? null}
+            items={[
+              {
+                key: "returnRate",
+                to: "/logistics?status=Returned",
+                value: outcomes.data && outcomes.data.total > 0
+                  ? Math.round((outcomes.data.returned / outcomes.data.total) * 100)
+                  : 0,
+                label: outcomes.data && outcomes.data.total > 0
+                  ? `Return rate — ${outcomes.data.returned} of ${outcomes.data.total} parcels returned`
+                  : "Return rate — no parcels booked in this period",
+              },
+              {
+                key: "deliveryFailed",
+                to: "/logistics?status=Delivery%20Failed",
+                value: outcomes.data?.deliveryFailed,
+                label: "Delivery Failed parcels",
+              },
+              {
+                key: "stuck",
+                to: "/logistics?stuck=true",
+                value: stuck.count,
+                label: "Stuck parcels (no scan 2+ days)",
+              },
+            ]}
+          />
+        </section>
         {optionsError ? <div className="page-empty admin-error">Could not load form options: {optionsError}</div> : null}
         <section className="admin-section">
           <div className="admin-section-head"><h2>Customer Service Tools</h2></div>
           <div className="cs-tools-grid">
-            <div className="admin-create-form"><h3 className="cs-tool-title">Find a parcel</h3><form onSubmit={submitLookup}><div className="admin-form-grid"><label><span>Parcel ID</span><input type="text" value={lookupId} onChange={(event) => setLookupId(event.target.value)} placeholder="LKO-00000001" required /></label></div><div className="admin-form-actions"><button type="submit" className="admin-primary-btn">Open parcel</button></div></form></div>
-            <div className="admin-create-form"><h3 className="cs-tool-title">Reassign courier</h3><p className="cs-tool-text">Open a parcel to update its courier assignment.</p><div className="cs-tool-links"><Link to="/logistics">Parcel list</Link><Link to="/logistics/management">Logistics management</Link></div></div>
+            <div className="admin-create-form">
+              <h3 className="cs-tool-title">Parcel lookup &amp; cancel</h3>
+              <p className="cs-tool-text">Look up a parcel, confirm the sender and receiver, then cancel it with a reason.</p>
+              <div className="admin-form-actions admin-tool-actions">
+                <button type="button" className="admin-primary-btn" onClick={() => setParcelCancelOpen(true)}>
+                  <PackageSearch size={16} aria-hidden="true" /> Open lookup &amp; cancel
+                </button>
+              </div>
+            </div>
+            <div className="admin-create-form">
+              <h3 className="cs-tool-title">Logistics</h3>
+              <p className="cs-tool-text">Open the parcel list, unassigned queue, courier load, or logistics management.</p>
+              <div className="cs-tool-links">
+                <Link to="/logistics">Parcel list</Link>
+                <Link to="/logistics?assignment=available">Unassigned parcels</Link>
+                <Link to="/logistics/management">Logistics management</Link>
+              </div>
+            </div>
           </div>
         </section>
         <section className="admin-section">
@@ -320,6 +698,7 @@ export default function AdminDashboardPage() {
           </div>
           <PaginationControls pagination={businessesPagination} onPageChange={businessesList.setPage} onLimitChange={businessesList.setLimit} disabled={businessesResource.loading} ariaLabel="Businesses pagination" />
         </section>
+        <ParcelCancelPanel open={parcelCancelOpen} onClose={() => setParcelCancelOpen(false)} />
         <ConfirmDialog
           open={!!confirm}
           title={confirm?.title}
