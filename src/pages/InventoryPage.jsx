@@ -1,13 +1,14 @@
 import { useDialogFocus } from "../components/ui/useDialogFocus";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ChevronDown, Filter, Pencil, Plus, Search, X } from "lucide-react";
+import { ChevronDown, Filter, Pencil, Plus, X } from "lucide-react";
 import AppLayout from "../layouts/AppLayout";
 import { useAuth } from "../auth/AuthProvider";
 import { apiGet, apiSend } from "../lib/api";
 import { peso } from "../lib/format";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
 import PaginationControls from "../components/ui/PaginationControls";
+import SearchField from "../components/ui/SearchField";
 import { readListUrlState, updateListUrlState } from "../lib/pagination";
 import { apiPath, normalizePage, shouldClampPage } from "../features/suppliers/marketplacePagination";
 import { TableSkeleton } from "../components/ui/pageSkeletons";
@@ -37,11 +38,11 @@ function statusFor(status) {
 }
 
 export default function InventoryPage() {
-  const { activeBusinessId, activeRoles } = useAuth();
+  const { activeBusinessId, hasAnyRole } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const { page, limit, q } = readListUrlState(searchParams);
 
-  const ownBusinessId = activeRoles.includes("wholesaler")
+  const ownBusinessId = hasAnyRole(["wholesaler"])
     ? activeBusinessId
     : null;
 
@@ -395,11 +396,10 @@ export default function InventoryPage() {
     setSearchParams(updateListUrlState(searchParams, { filters: EMPTY_FILTERS }));
   }
 
-  function submitSearch(event) {
-    event.preventDefault();
-    const nextQuery = new FormData(event.currentTarget).get("q");
-    setSearchTerm(String(nextQuery ?? ""));
-    setSearchParams(updateListUrlState(searchParams, { q: nextQuery }));
+  function submitSearch(nextQuery) {
+    const normalized = String(nextQuery ?? "");
+    setSearchTerm(normalized);
+    setSearchParams(updateListUrlState(searchParams, { q: normalized }));
   }
 
   return (
@@ -408,19 +408,15 @@ export default function InventoryPage() {
         <div className="page-head">
           <h1>My Products</h1>
           <div className="header-toolbar">
-            <form className="search-bar" role="search" aria-label="Search inventory" onSubmit={submitSearch}>
-              <input
-                name="q"
-                type="text"
-                aria-label="Search inventory"
-                placeholder="Search products"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              <button type="submit" className="search-icon-btn" aria-label="Search inventory">
-                <Search size={16} />
-              </button>
-            </form>
+            <SearchField
+              className="search-bar"
+              value={searchTerm}
+              onChange={setSearchTerm}
+              onSubmit={submitSearch}
+              onClear={() => submitSearch("")}
+              label="Search inventory"
+              placeholder="Search products"
+            />
 
             <div
               className="filter-wrap"

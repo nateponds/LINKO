@@ -86,7 +86,7 @@ test("location settings are scoped to an active buyer/wholesaler business", { sk
   const coordinator = await loginAs("logistics@linko.test");
   const coordinatorGet = await request("/api/settings/location", { cookie: coordinator });
   assert.equal(coordinatorGet.status, 403);
-  assert.equal(coordinatorGet.body.error.message, "You must belong to a buyer or wholesaler business");
+  assert.equal(coordinatorGet.body.error.message, "Forbidden");
 
   // coordinator selecting their own business explicitly: member, wrong role
   const coordinatorHeader = await request("/api/settings/location", { cookie: coordinator, business: 3 });

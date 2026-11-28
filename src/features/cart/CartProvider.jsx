@@ -1,6 +1,8 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../../auth/AuthProvider";
+import Toast from "../../components/ui/Toast";
 import {
   addCartLine,
   cartCount,
@@ -30,11 +32,15 @@ export function CartProvider({ children }) {
   const [cartUserId, setCartUserId] = useState(userId);
   const cartRef = useRef(cart);
   const previousUserId = useRef(userId);
+  const [notice, setNotice] = useState(null);
+  const noticeId = useRef(0);
+  const dismissNotice = useCallback(() => setNotice(null), []);
 
   if (cartUserId !== userId) {
     const next = userId ? readStoredCart(browserStorage(), userId) : {};
     setCartUserId(userId);
     setCart(next);
+    setNotice(null);
   }
 
   useEffect(() => {
@@ -58,8 +64,15 @@ export function CartProvider({ children }) {
   const addProduct = useCallback((product, quantity = 1) => {
     const result = addCartLine(cartRef.current, product, quantity);
     if (!result.error) replaceCart(result.cart);
+    setNotice({
+      id: ++noticeId.current,
+      userId,
+      variant: result.error ? "error" : "success",
+      title: result.error ? "Couldn’t add to cart" : "Added to cart",
+      message: result.error ?? product.product_name,
+    });
     return result;
-  }, [replaceCart]);
+  }, [replaceCart, userId]);
 
   const updateQuantity = useCallback((productId, quantity) => {
     replaceCart(setCartLineQuantity(cartRef.current, productId, quantity));
@@ -85,7 +98,17 @@ export function CartProvider({ children }) {
     };
   }, [addProduct, cart, cartUserId, removeProduct, removeProducts, updateQuantity, userId]);
 
-  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+  return (
+    <CartContext.Provider value={value}>
+      {children}
+      <Toast
+        notification={notice?.userId === userId ? notice : null}
+        duration={notice?.variant === "error" ? 6000 : 4000}
+        onDismiss={dismissNotice}
+        action={notice?.variant === "success" ? <Link to="/cart" onClick={dismissNotice}>View cart</Link> : null}
+      />
+    </CartContext.Provider>
+  );
 }
 
 export function useCart() {

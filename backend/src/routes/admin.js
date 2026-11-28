@@ -1,8 +1,14 @@
 import { Router } from "express";
 import { getPool, query } from "../db.js";
+import {
+  asClientError,
+  createHttpError,
+  readSingletonQueryString,
+} from "../lib/httpErrors.js";
 import { notifyBusiness } from "../services/notify.js";
 import { hashPassword } from "../auth/passwords.js";
 import { buildPaginatedResponse, parsePaginationQuery } from "../services/pagination.js";
+import { LATEST_PARCEL_LOG_SQL } from "../services/trackingLogs.js";
 
 const router = Router();
 
@@ -10,33 +16,8 @@ const router = Router();
 // requireAuth + requireGlobalRole("platform_admin"), so handlers can assume
 // req.auth.user.global_role === "platform_admin".
 
-// Postgres constraint violations here mean the client sent a bad value (dup
-// email, unknown business, bad role) rather than a server fault. Map to 400 --
-// same pattern products.js/logistics.js use. 23503 FK, 23514 CHECK, 23505 UNIQUE.
-function asClientError(error) {
-  if (["23503", "23514", "23505"].includes(error.code)) {
-    error.statusCode = 400;
-  }
-  return error;
-}
-
-function createHttpError(statusCode, message) {
-  const error = new Error(message);
-  error.statusCode = statusCode;
-  return error;
-}
-
 function normalizeEmail(email) {
   return typeof email === "string" ? email.trim().toLowerCase() : "";
-}
-
-function readSingletonQueryString(query, name) {
-  const value = query[name];
-  if (value === undefined) return undefined;
-  if (typeof value !== "string") {
-    throw createHttpError(400, `${name} must be a single string`);
-  }
-  return value;
 }
 
 // user_id / business_id are positive-integer SERIALs. Reject anything else so a
@@ -57,15 +38,6 @@ const OPEN_ORDER_STATUSES = ["pending", "accepted", "preparing", "shipped"];
 const TERMINAL_PARCEL_STATUSES = ["Delivered", "Returned", "Cancelled"];
 const LOW_STOCK_MIN = 1;
 const LOW_STOCK_MAX = 10;
-
-const LATEST_PARCEL_LOG = `
-  LEFT JOIN LATERAL (
-    SELECT status_update, scanned_at, courier_id, branch_id
-      FROM tracking_logs tl
-     WHERE tl.parcel_id = p.parcel_id
-     ORDER BY tl.scanned_at DESC, tl.log_id DESC
-     LIMIT 1
-  ) latest ON TRUE`;
 
 function countsByStatus(rows, statuses) {
   const counts = Object.fromEntries(statuses.map((status) => [status, 0]));
@@ -92,7 +64,7 @@ router.get("/operations", async (_req, res, next) => {
       query(
         `SELECT COUNT(*)::int AS needs_assignment
            FROM parcels p
-           ${LATEST_PARCEL_LOG}
+           ${LATEST_PARCEL_LOG_SQL}
           WHERE (latest.status_update IS NULL
                  OR latest.status_update <> ALL($1::text[]))
             AND latest.courier_id IS NULL`,
@@ -330,6 +302,9 @@ router.patch("/users/:id", async (req, res, next) => {
     if (typeof isActive !== "boolean") {
       throw createHttpError(400, "is_active must be a boolean");
     }
+    if (isActive === false && userId === req.auth.user.user_id) {
+      throw createHttpError(400, "Platform admins cannot deactivate their own account.");
+    }
 
     const { rows } = await query(
       `UPDATE users SET is_active = $1 WHERE user_id = $2
@@ -415,7 +390,7 @@ router.get("/businesses", async (req, res, next) => {
 // Coordinator assignment needs every matching business, not a paginated table.
 router.get("/businesses/options", async (req, res, next) => {
   try {
-    const type = readSingletonQueryString(req.query, "type");
+    const type = readSingletonQueryString(req.query.type, "type");
     if (type !== "logistics") {
       throw createHttpError(400, "type must be logistics");
     }

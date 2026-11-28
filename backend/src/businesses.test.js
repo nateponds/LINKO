@@ -18,8 +18,8 @@ async function request(path, options) {
   }
 }
 
-function post(path, body, cookie) {
-  return request(path, { method: "POST", headers: { "Content-Type": "application/json", ...(cookie ? { Cookie: cookie } : {}) }, body: JSON.stringify(body) });
+function post(path, body, cookie, extraHeaders = {}) {
+  return request(path, { method: "POST", headers: { "Content-Type": "application/json", ...(cookie ? { Cookie: cookie } : {}), ...extraHeaders }, body: JSON.stringify(body) });
 }
 
 async function login(email, t) {
@@ -46,9 +46,9 @@ test("buyer adds businesses without a cap and switches business context without 
     assert.deepEqual(added.body, { business_id: added.body.business_id, business_name: "New Wholesaler", business_type: "wholesaler", role: "wholesaler", has_coordinates: false });
     const { rows } = await pool.query(`SELECT b.business_type, bm.role, b.logistics_address_id,
         (SELECT COUNT(*)::int FROM addresses a WHERE a.business_id = b.business_id) AS address_count
-      FROM businesses b JOIN user_businesses ub USING (business_id)
-      JOIN business_memberships bm ON bm.business_id = b.business_id AND bm.user_id = ub.user_id
-      WHERE b.business_id = $1 AND ub.user_id = $2`, [added.body.business_id, userId]);
+      FROM businesses b
+      JOIN business_memberships bm ON bm.business_id = b.business_id
+      WHERE b.business_id = $1 AND bm.user_id = $2`, [added.body.business_id, userId]);
     assert.equal(rows.length, 1);
     assert.equal(rows[0].business_type, "wholesaler");
     assert.equal(rows[0].role, "wholesaler");
@@ -65,13 +65,13 @@ test("buyer adds businesses without a cap and switches business context without 
     assert.equal(buyerOrders.status, 200);
     assert.deepEqual(buyerOrders.body.items, []);
     assert.equal((await request("/api/dashboard", { headers: { Cookie: cookie } })).status, 400);
-    const third = await post("/api/businesses", { business_name: "Second Wholesaler", business_type: "wholesaler" }, cookie);
+    const third = await post("/api/businesses", { business_name: "Second Wholesaler", business_type: "wholesaler" }, cookie, { "X-Active-Business": String(buyer.business_id) });
     assert.equal(third.status, 201);
     assert.equal(third.body.role, "wholesaler");
     assert.equal((await request("/api/auth/me", { headers: { Cookie: cookie } })).body.memberships.length, 3);
   } finally {
     if (userId) {
-      const { rows } = await pool.query("SELECT business_id FROM user_businesses WHERE user_id = $1", [userId]);
+      const { rows } = await pool.query("SELECT business_id FROM business_memberships WHERE user_id = $1", [userId]);
       await pool.query("DELETE FROM users WHERE user_id = $1", [userId]);
       await pool.query("DELETE FROM addresses WHERE business_id = ANY($1::int[])", [rows.map((row) => row.business_id)]);
       await pool.query("DELETE FROM businesses WHERE business_id = ANY($1::int[])", [rows.map((row) => row.business_id)]);

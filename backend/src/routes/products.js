@@ -1,7 +1,12 @@
 import { Router } from "express";
 import { query } from "../db.js";
+import {
+  asClientError,
+  createHttpError,
+  readSingletonQueryString,
+} from "../lib/httpErrors.js";
 import { MARKETPLACE_ROLES, requireAnyRole, requireAuth } from "../middleware/auth.js";
-import { activeMemberships } from "../middleware/ownership.js";
+import { getActiveMembership } from "../middleware/ownership.js";
 import { buildPaginatedResponse, parsePaginationQuery } from "../services/pagination.js";
 
 const router = Router();
@@ -9,33 +14,8 @@ const router = Router();
 // Milestone 2: database-backed marketplace products + the category taxonomy.
 // Shapes documented in docs/API_CONTRACTS.md.
 
-// PostgreSQL constraint violations mean the client sent a bad reference or
-// value (unknown category, duplicate sku), not that the server broke. Map to
-// 400 -- same pattern as logistics.js. 23503 FK, 23514 CHECK, 23505 UNIQUE.
-function asClientError(error) {
-  if (["23503", "23514", "23505"].includes(error.code)) {
-    error.statusCode = 400;
-  }
-  return error;
-}
-
-function createHttpError(statusCode, message) {
-  const error = new Error(message);
-  error.statusCode = statusCode;
-  return error;
-}
-
-function readSingletonQueryString(query, name) {
-  const value = query[name];
-  if (value === undefined) return undefined;
-  if (typeof value !== "string") {
-    throw createHttpError(400, `${name} must be a single string`);
-  }
-  return value;
-}
-
-function parsePositiveQueryId(query, name) {
-  const value = readSingletonQueryString(query, name);
+function parsePositiveQueryId(queryParams, name) {
+  const value = readSingletonQueryString(queryParams[name], name);
   if (value === undefined) return undefined;
   if (!/^[1-9]\d*$/.test(value)) {
     throw createHttpError(400, `${name} must be a positive integer`);
@@ -47,8 +27,8 @@ function parsePositiveQueryId(query, name) {
   return id;
 }
 
-function parseNonNegativePrice(query, name) {
-  const value = readSingletonQueryString(query, name);
+function parseNonNegativePrice(queryParams, name) {
+  const value = readSingletonQueryString(queryParams[name], name);
   if (value === undefined) return undefined;
   if (value.trim() === "") {
     throw createHttpError(400, `${name} must be a non-negative number`);
@@ -100,7 +80,14 @@ const PRODUCT_SELECT = `
 
 // Removed products remain visible only to their owning wholesaler.
 function ownerBusinessId(req) {
-  return activeMemberships(req).find((m) => m.role === "wholesaler")?.business_id ?? null;
+  try {
+    return getActiveMembership(req, ["wholesaler"]).business_id;
+  } catch (error) {
+    if (error?.statusCode === 403) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 // Load one visible product by id in the full shape, or null.
@@ -119,11 +106,7 @@ async function findProduct(productId, businessId = null) {
 //   throws 400                  -> multiple businesses and no X-Active-Business
 // Wholesaler roles on other (unselected) businesses grant nothing.
 function resolveWholesalerBusiness(req) {
-  const active = activeMemberships(req).find((m) => m.role === "wholesaler");
-  if (active) {
-    return active.business_id;
-  }
-  throw createHttpError(403, "You must belong to a wholesaler business to manage products");
+  return getActiveMembership(req, ["wholesaler"]).business_id;
 }
 
 // ---------------------------------------------------------------------------
@@ -190,7 +173,7 @@ router.get("/products", requireAuth, requireAnyRole(MARKETPLACE_ROLES), async (r
       params.push(maxPrice);
       conditions.push(`p.unit_price <= $${params.length}`);
     }
-    const stockStatus = readSingletonQueryString(req.query, "stock_status");
+    const stockStatus = readSingletonQueryString(req.query.stock_status, "stock_status");
     const stockConditions = {
       out_of_stock: "p.stock_quantity = 0",
       low_stock: "p.stock_quantity BETWEEN 1 AND 10",
@@ -213,7 +196,7 @@ router.get("/products", requireAuth, requireAnyRole(MARKETPLACE_ROLES), async (r
 
     // Closed allowlist, so interpolating orderBy into the SQL below is safe.
     // Mirrors the sort handling on GET /api/suppliers.
-    const sort = readSingletonQueryString(req.query, "sort") ?? "name";
+    const sort = readSingletonQueryString(req.query.sort, "sort") ?? "name";
     if (!new Set(["name", "featured"]).has(sort)) {
       throw createHttpError(400, "sort must be name or featured");
     }
@@ -338,10 +321,8 @@ async function loadOwnedProduct(req) {
     throw createHttpError(404, `Product ${req.params.id} not found`);
   }
 
-  const owns = activeMemberships(req).some(
-    (m) => m.role === "wholesaler" && m.business_id === rows[0].business_id,
-  );
-  if (!owns) {
+  const businessId = getActiveMembership(req, ["wholesaler"]).business_id;
+  if (rows[0].business_id !== businessId) {
     throw createHttpError(403, "You do not own this product");
   }
   return rows[0];

@@ -15,7 +15,7 @@ The backend is organized into a modular Express app connected to a PostgreSQL da
 - `migrations/026_inventory_batches.sql` - Batch expiry entity linked to products, with indexed expiry checks and no duplicate stock total.
 - `src/routes/inventoryBatches.js` - Paginated expiry reads and batch management scoped to the active wholesaler business (administrators may access all businesses).
 - `migrations/001_initial_schema.sql` - The initial database schema defining users, businesses, warehouses, products, inventory items, and supplier profiles.
-- `src/routes/` - Contains the Express routers for individual domains (`inventory.js`, `suppliers.js`).
+- `src/routes/` - Contains the Express routers for individual domains (`products.js`, `inventoryBatches.js`, `suppliers.js`).
 - `src/middleware/errorHandler.js` - Shared Express error-handling middleware that ensures all API errors return a consistent JSON shape.
 - `src/app.test.js` - The integration test suite powered by Node's built-in `node:test` and `node:assert` modules.
 

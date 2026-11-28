@@ -2,17 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import {
   BadgeCheck,
   Boxes,
-  Check,
   Leaf,
   MapPin,
   MessageCircle,
   Package,
-  Plus,
   Repeat,
   ShoppingCart,
   Truck,
 } from "lucide-react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
 import { apiGet } from "../lib/api";
 import { bannersForProducts } from "../lib/productBanners";
@@ -20,6 +18,7 @@ import ProductDetailModal from "../components/ui/ProductDetailModal";
 import ProductCard from "../features/products/ProductCard";
 import { SupplierProfileSkeleton } from "../components/ui/pageSkeletons";
 import PaginationControls from "../components/ui/PaginationControls";
+import SearchField from "../components/ui/SearchField";
 import { readListUrlState, updateListUrlState } from "../lib/pagination";
 import { apiPath, normalizePage, shouldClampPage } from "../features/suppliers/marketplacePagination";
 import { useAuth } from "../auth/AuthProvider";
@@ -49,15 +48,12 @@ export default function SupplierProfilePage() {
   const { addProduct } = useCart();
   const { hasAnyRole } = useAuth();
   const canBuy = hasAnyRole(ROUTE_ACCESS["/cart"]);
-  const [following, setFollowing] = useState(false);
   // A ?product_id= deep link must land on the products tab, not the shop tab.
   const [activeTab, setActiveTab] = useState(() =>
     searchParams.get("product_id") ? "products" : "shop",
   );
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [quantityDrafts, setQuantityDrafts] = useState({});
-  const [cartMessage, setCartMessage] = useState(null);
-  const [cartMessageOk, setCartMessageOk] = useState(false);
   const [productSearchInput, setProductSearchInput] = useState(productState.q);
   const [categorySearchInput, setCategorySearchInput] = useState(categoryState.q);
 
@@ -227,13 +223,11 @@ export default function SupplierProfilePage() {
   }
 
   function addToCart(product) {
-    const result = addProduct({
+    addProduct({
       ...product,
       business_id: product.business_id ?? supplier?.business_id ?? supplierId,
       business_name: product.business_name ?? supplier?.business_name ?? "Supplier",
     }, quantityDrafts[product.product_id] ?? 1);
-    setCartMessageOk(!result.error);
-    setCartMessage(result.error ?? `${product.product_name} added to cart.`);
   }
 
   if (loading) {
@@ -283,20 +277,6 @@ export default function SupplierProfilePage() {
           </div>
 
           <div className="action-buttons">
-            <button
-              className={`btn-follow${following ? " following" : ""}`}
-              onClick={() => setFollowing((v) => !v)}
-            >
-              {following ? (
-                <>
-                  Following <Check size={14} />
-                </>
-              ) : (
-                <>
-                  Follow <Plus size={14} />
-                </>
-              )}
-            </button>
             <button className="btn-chat">
               Chat <MessageCircle size={16} />
             </button>
@@ -304,7 +284,20 @@ export default function SupplierProfilePage() {
         </section>
 
         <div className="supplier-profile-tools">
-        {activeTab === "products" && <label className="supplier-list-search supplier-product-search">Search products<input type="search" value={productSearchInput} onChange={(event) => setProductSearchInput(event.target.value)} /></label>}
+        {activeTab === "products" && (
+          <SearchField
+            className="supplier-list-search supplier-product-search"
+            value={productSearchInput}
+            onChange={setProductSearchInput}
+            onSubmit={(next) => setSearchParams(updateListUrlState(searchParams, { q: next }, { prefix: "product" }), { replace: true })}
+            onClear={() => {
+              setProductSearchInput("");
+              setSearchParams(updateListUrlState(searchParams, { q: "" }, { prefix: "product" }), { replace: true });
+            }}
+            label="Search products"
+            placeholder="Search products"
+          />
+        )}
         <nav className="tab-nav" aria-label="Supplier sections">
           {["shop", "products", "categories"].map((tab) => (
             <button
@@ -498,18 +491,6 @@ export default function SupplierProfilePage() {
                 })}
               </section>
           ))}
-
-        {activeTab === "products" && cartMessage && (
-          <p className={cartMessageOk ? "cart-note" : "cart-error"} role="status">
-            {cartMessage}
-            {cartMessageOk && (
-              <>
-                {" "}
-                <Link to="/cart">View cart</Link>
-              </>
-            )}
-          </p>
-        )}
 
         {activeTab === "products" && (
           <PaginationControls pagination={productPagination} disabled={productsFetching} onPageChange={(nextPage) => setSearchParams(updateListUrlState(searchParams, { page: nextPage }, { prefix: "product" }))} onLimitChange={(nextLimit) => setSearchParams(updateListUrlState(searchParams, { limit: nextLimit }, { prefix: "product" }))} ariaLabel="Supplier products pagination" className="supplier-profile-pagination" />

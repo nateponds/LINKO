@@ -1,7 +1,14 @@
 import { Router } from "express";
-import { getPool, query } from "../db.js";
-import { MARKETPLACE_ROLES, requireAuth } from "../middleware/auth.js";
-import { createHttpError, getActiveMembership, requirePositiveInt } from "../middleware/ownership.js";
+import { getPool } from "../db.js";
+import { createHttpError } from "../lib/httpErrors.js";
+import { MARKETPLACE_ROLES, requireAnyRole, requireAuth } from "../middleware/auth.js";
+import { getActiveMembership, requirePositiveInt } from "../middleware/ownership.js";
+import {
+  ADDRESS_RETURNING_SQL,
+  findBusinessLogisticsAddress,
+  listBusinessAddresses,
+  shapeAddress,
+} from "../services/addresses.js";
 import { validateCoordinatePair } from "../services/location.js";
 
 // Business location settings (Sprint 13 T10, docs/API_CONTRACTS.md §5).
@@ -12,6 +19,7 @@ import { validateCoordinatePair } from "../services/location.js";
 // actual buyer/wholesaler membership of their own.
 
 const router = Router();
+router.use(requireAuth, requireAnyRole(MARKETPLACE_ROLES));
 
 const TEXT_FIELDS = ["province", "city_municipality", "barangay", "street_address", "postal_code"];
 const TEXT_LIMITS = {
@@ -22,32 +30,10 @@ const TEXT_LIMITS = {
   postal_code: 10,
 };
 
-const ADDRESS_RETURNING = `address_id, label, province, city_municipality, barangay,
-            street_address, postal_code,
-            latitude::float8 AS latitude, longitude::float8 AS longitude, is_default`;
-
 // `membership` is the active buyer/wholesaler membership (getActiveMembership
 // with MARKETPLACE_ROLES), so the role alone decides the book's kind.
 function addressBookKind(membership) {
   return membership.role === "wholesaler" ? "pickup" : "delivery";
-}
-
-function shapeAddress(row) {
-  const latitude = row.latitude ?? null;
-  const longitude = row.longitude ?? null;
-  return {
-    address_id: row.address_id,
-    label: row.label ?? null,
-    province: row.province ?? null,
-    city_municipality: row.city_municipality ?? null,
-    barangay: row.barangay ?? null,
-    street_address: row.street_address ?? null,
-    postal_code: row.postal_code ?? null,
-    latitude,
-    longitude,
-    has_coordinates: latitude !== null && longitude !== null,
-    is_default: Boolean(row.is_default),
-  };
 }
 
 function readAddressBody(body) {
@@ -126,25 +112,17 @@ function shapeLocation(membership, addressRow) {
   };
 }
 
-router.get("/location", requireAuth, async (req, res, next) => {
+router.get("/location", async (req, res, next) => {
   try {
     const membership = getActiveMembership(req, MARKETPLACE_ROLES);
-    const { rows } = await query(
-      `SELECT a.address_id, a.province, a.city_municipality, a.barangay,
-              a.street_address, a.postal_code,
-              a.latitude::float8 AS latitude, a.longitude::float8 AS longitude
-         FROM businesses b
-         LEFT JOIN addresses a ON a.address_id = b.logistics_address_id
-        WHERE b.business_id = $1`,
-      [membership.business_id],
-    );
-    res.json(shapeLocation(membership, rows[0]));
+    const addressRow = await findBusinessLogisticsAddress(membership.business_id);
+    res.json(shapeLocation(membership, addressRow));
   } catch (error) {
     next(error);
   }
 });
 
-router.put("/location", requireAuth, async (req, res, next) => {
+router.put("/location", async (req, res, next) => {
   const client = await getPool().connect();
   try {
     const membership = getActiveMembership(req, MARKETPLACE_ROLES);
@@ -215,16 +193,10 @@ router.put("/location", requireAuth, async (req, res, next) => {
   }
 });
 
-router.get("/addresses", requireAuth, async (req, res, next) => {
+router.get("/addresses", async (req, res, next) => {
   try {
     const membership = getActiveMembership(req, MARKETPLACE_ROLES);
-    const { rows } = await query(
-      `SELECT ${ADDRESS_RETURNING}
-         FROM addresses
-        WHERE business_id = $1
-        ORDER BY is_default DESC, address_id ASC`,
-      [membership.business_id],
-    );
+    const rows = await listBusinessAddresses(membership.business_id);
     res.json({
       business_id: membership.business_id,
       business_type: membership.business_type,
@@ -236,7 +208,7 @@ router.get("/addresses", requireAuth, async (req, res, next) => {
   }
 });
 
-router.post("/addresses", requireAuth, async (req, res, next) => {
+router.post("/addresses", async (req, res, next) => {
   const client = await getPool().connect();
   try {
     const membership = getActiveMembership(req, MARKETPLACE_ROLES);
@@ -264,7 +236,7 @@ router.post("/addresses", requireAuth, async (req, res, next) => {
          (business_id, label, province, city_municipality, barangay, street_address,
           postal_code, latitude, longitude, is_default)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-       RETURNING ${ADDRESS_RETURNING}`,
+       RETURNING ${ADDRESS_RETURNING_SQL}`,
       [membership.business_id, input.label, input.province, input.city_municipality,
         input.barangay, input.street_address, input.postal_code,
         input.latitude, input.longitude, makeDefault],
@@ -285,7 +257,7 @@ router.post("/addresses", requireAuth, async (req, res, next) => {
   }
 });
 
-router.put("/addresses/:id", requireAuth, async (req, res, next) => {
+router.put("/addresses/:id", async (req, res, next) => {
   const client = await getPool().connect();
   try {
     const membership = getActiveMembership(req, MARKETPLACE_ROLES);
@@ -298,7 +270,7 @@ router.put("/addresses/:id", requireAuth, async (req, res, next) => {
           SET label = $3, province = $4, city_municipality = $5, barangay = $6,
               street_address = $7, postal_code = $8, latitude = $9, longitude = $10
         WHERE address_id = $1 AND business_id = $2
-        RETURNING ${ADDRESS_RETURNING}`,
+        RETURNING ${ADDRESS_RETURNING_SQL}`,
       [addressId, membership.business_id, input.label, input.province, input.city_municipality,
         input.barangay, input.street_address, input.postal_code, input.latitude, input.longitude],
     );
@@ -315,7 +287,7 @@ router.put("/addresses/:id", requireAuth, async (req, res, next) => {
   }
 });
 
-router.post("/addresses/:id/default", requireAuth, async (req, res, next) => {
+router.post("/addresses/:id/default", async (req, res, next) => {
   const client = await getPool().connect();
   try {
     const membership = getActiveMembership(req, MARKETPLACE_ROLES);
@@ -327,7 +299,7 @@ router.post("/addresses/:id/default", requireAuth, async (req, res, next) => {
       [membership.business_id],
     );
     const existing = await client.query(
-      `SELECT ${ADDRESS_RETURNING}
+      `SELECT ${ADDRESS_RETURNING_SQL}
          FROM addresses
         WHERE address_id = $1 AND business_id = $2
         FOR UPDATE`,
@@ -338,7 +310,7 @@ router.post("/addresses/:id/default", requireAuth, async (req, res, next) => {
     }
     await alignDefaultWithPin(client, membership.business_id, addressId);
     const saved = await client.query(
-      `SELECT ${ADDRESS_RETURNING} FROM addresses WHERE address_id = $1`,
+      `SELECT ${ADDRESS_RETURNING_SQL} FROM addresses WHERE address_id = $1`,
       [addressId],
     );
     await client.query("COMMIT");
@@ -351,7 +323,7 @@ router.post("/addresses/:id/default", requireAuth, async (req, res, next) => {
   }
 });
 
-router.delete("/addresses/:id", requireAuth, async (req, res, next) => {
+router.delete("/addresses/:id", async (req, res, next) => {
   const client = await getPool().connect();
   try {
     const membership = getActiveMembership(req, MARKETPLACE_ROLES);

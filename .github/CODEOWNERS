@@ -1,0 +1,21 @@
+# Protected contract, schema, auth, design-system, and workflow paths
+backend/migrations/       @nateponds
+backend/schema.sql        @nateponds
+backend/src/db.js         @nateponds
+backend/src/app.js        @nateponds
+api/index.js              @nateponds
+backend/src/middleware/   @nateponds
+backend/src/auth/         @nateponds
+src/auth/                 @nateponds
+src/lib/api.js            @nateponds
+src/App.jsx               @nateponds
+src/assets/css/index.css  @nateponds
+src/components/ui/        @nateponds
+package.json              @nateponds
+package-lock.json         @nateponds
+backend/package.json      @nateponds
+backend/package-lock.json @nateponds
+.github/                  @nateponds
+AGENTS.md                 @nateponds
+DESIGN.md                 @nateponds
+CODING_STANDARDS.md       @nateponds

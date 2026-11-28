@@ -1,14 +1,12 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import pg from "pg";
+import { createPool } from "../src/db.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const seedFile = path.join(__dirname, "dev_seed.sql");
 
-const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL || "postgres://postgres:root@localhost:5432/LINKO",
-});
+const pool = createPool();
 
 try {
   const sql = await readFile(seedFile, "utf8");

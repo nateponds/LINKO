@@ -120,3 +120,16 @@ export function updateListUrlState(
 
   return params;
 }
+
+export function buildListPath(basePath, params = {}) {
+  const searchParams = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null) continue;
+    const normalized = typeof value === "string" ? value.trim() : String(value);
+    if (normalized !== "") {
+      searchParams.set(key, normalized);
+    }
+  }
+  const query = searchParams.toString();
+  return query ? `${basePath}?${query}` : basePath;
+}
